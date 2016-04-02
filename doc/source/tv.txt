@@ -1,0 +1,36 @@
+TV module
+*********
+
+Introduction
+
+tv is a simple package to provide an enhanced image display tool built on
+top of the basic functionality of a matplotlib figure. The tv tool is
+an object that displays images and also allows the user to get input
+from the display.
+
+It can take as input either a numpy array or a FITS HDU object (e.g., from
+astropy.io.fits), and will display it in the window. Pixel and value readout
+is provided. Normal matplotlib options/buttons (zoom/pan) are available.
+For FITS input, WCS as well as pixel locations are given, as is the OBJECT
+information. 
+
+Four images are stored internally, allowing for rapid cycling (blinking)
+between them using the '-' and '+/=' keys.
+
+A method is provided to allow the user to retrieve the location of a keystroke
+event in the window along with the key that was pressed.
+
+Installation
+
+The package requires autopy to be installed (available via pip). For Mac OS X,
+this requires libpng
+
+The tv package is available at http://github.com/holtzmanjon/tv
+
+Module functions:
+
+.. automodule:: tv
+   :members:
+
+
+

@@ -1,0 +1,11 @@
+IMRED module
+*********
+
+imred is a module...
+
+imred functions:
+
+.. automodule:: holtz.pyvista.imred
+   :members:
+   :member-order: bysource
+

@@ -1,0 +1,7 @@
+plots module
+***********
+
+.. automodule:: holtz.tools.plots
+   :members:
+   :member-order: bysource
+

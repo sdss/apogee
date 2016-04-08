@@ -7,8 +7,11 @@ import matplotlib.pyplot as plt
 import glob
 import bz2
 import os
-import pyds9
 import pdb
+try: 
+    import pyds9
+except:
+    print 'pyds9 is not available, proceeding'
 
 def setup(name='*',dir='./',idet=1) :
     """ 

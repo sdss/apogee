@@ -141,11 +141,14 @@ class TV:
                 x,y= autopy.mouse.get_pos()
                 autopy.mouse.move(x,y)
 
+            elif (event.key == 'p' or event.key == 'v') and subPlotNr == 0 :
+                print 'received p or v key!'
+
             elif event.key == 'r' and subPlotNr == 0 :
                 dim=np.shape(self.img)
-                range=np.max([dim[0],dim[1]])
-                self.ax.set_xlim(dim[1]/2.-range/2.,dim[1]/2.+range/2.)
-                self.ax.set_ylim(dim[0]/2.-range/2.,dim[0]/2.+range/2.)
+                size=np.max([dim[0],dim[1]])
+                self.ax.set_xlim(dim[1]/2.-size/2.,dim[1]/2.+size/2.)
+                self.ax.set_ylim(dim[0]/2.-size/2.,dim[0]/2.+size/2.)
                 #self.ax.set_xlim(-0.5,dim[1]-0.5)
                 #self.ax.set_ylim(-0.5,dim[0]-0.5)
                 plt.draw()
@@ -212,19 +215,19 @@ class TV:
                 ylim = self.ax.get_ylim()
                 if event.button == 1 :
                     # zoom in
-                    xrange = ( xlim[1]-xlim[0] )/ 2.
-                    yrange = ( ylim[1]-ylim[0] )/ 2.
+                    xsize = ( xlim[1]-xlim[0] )/ 2.
+                    ysize = ( ylim[1]-ylim[0] )/ 2.
                 elif event.button == 2 :
                     # zoom out
-                    xrange = ( xlim[1]-xlim[0] )* 2.
-                    yrange = ( ylim[1]-ylim[0] )* 2.
+                    xsize = ( xlim[1]-xlim[0] )* 2.
+                    ysize = ( ylim[1]-ylim[0] )* 2.
                 else :
                     # pan
-                    xrange = xlim[1]-xlim[0]
-                    yrange = ylim[1]-ylim[0]
-                range=max([xrange,yrange])
-                self.ax.set_xlim(event.xdata-range/2.,event.xdata+range/2.)
-                self.ax.set_ylim(event.ydata-range/2.,event.ydata+range/2.)
+                    xsize = xlim[1]-xlim[0]
+                    ysize = ylim[1]-ylim[0]
+                size=max([xsize,ysize])
+                self.ax.set_xlim(event.xdata-size/2.,event.xdata+size/2.)
+                self.ax.set_ylim(event.ydata-size/2.,event.ydata+size/2.)
                 plt.draw()
             elif subPlotNr == 1 :
                 # flag button press in colorbar
@@ -350,9 +353,9 @@ class TV:
  
         # display image and new colorbar 
         dim=np.shape(self.img)
-        range=np.max([dim[0],dim[1]])
-        self.ax.set_xlim(dim[1]/2.-range/2.,dim[1]/2.+range/2.)
-        self.ax.set_ylim(dim[0]/2.-range/2.,dim[0]/2.+range/2.)
+        size=np.max([dim[0],dim[1]])
+        self.ax.set_xlim(dim[1]/2.-size/2.,dim[1]/2.+size/2.)
+        self.ax.set_ylim(dim[0]/2.-size/2.,dim[0]/2.+size/2.)
         #self.ax.set_xlim(-0.5,dim[1]-0.5)
         #self.ax.set_ylim(-0.5,dim[0]-0.5)
         self.aximage = self.ax.imshow(data,vmin=min,vmax=max,cmap=self.cmap,interpolation='nearest')

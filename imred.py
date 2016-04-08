@@ -175,7 +175,9 @@ def abx(im,box) :
             'peaky': np.unravel_index(im[box.ymin:box.ymax,box.xmin:box.xmax].argmax(),(box.nrow(),box.ncol()))[0]+box.ymin}
 
 class BOX() :
-    """ Defines BOX class"""
+    """ 
+    Defines BOX class
+    """
     def __init__(self) :
         self.xmin = -1
         self.xmax = -1
@@ -213,7 +215,9 @@ class BOX() :
         return np.median(data[self.ymin:self.ymax,self.xmin:self.xmax])
 
 class DET() :
-    """ Defines detector class """
+    """ 
+    Defines detector class 
+    """
     def __init__(self) :
         self.gain = 0.
         self.rn = 0.
@@ -224,7 +228,9 @@ class DET() :
         self.formstr = "{:04d}"
 
 def getdet(idet) :
-    """ returns detector object given input detector index"""
+    """ 
+    returns detector object given input detector index
+    """
     d=DET()
     if idet == 11 :
        # APO SPICAM
@@ -270,7 +276,9 @@ def getdet(idet) :
     return d
 
 def gfit(data,xcen,ycen,size=5,sub=True) :
-    """ Does gaussian fit to input data given initial xcen,ycen"""
+    """ 
+    Does gaussian fit to input data given initial xcen,ycen
+    """
     g_init=models.Gaussian2D(x_mean=xcen,y_mean=ycen,x_stddev=1,y_stddev=1,amplitude=data[ycen,xcen])+models.Const2D(0.)
     fit=fitting.LevMarLSQFitter()
     #fit=fitting.SLSQPLSQFitter()
@@ -284,7 +292,9 @@ def gfit(data,xcen,ycen,size=5,sub=True) :
     return g[0](x,y)+g[1](x,y)
 
 def look(disp,pause=True,ds9=False,i1=None,i2=None,min=None, max=None) :
-    """ Displays series of files """
+    """ 
+    Displays series of files 
+    """
     if i1 is not None and i2 is not None :
         files=range(i1,i2+1)
     else :
@@ -299,8 +309,9 @@ def look(disp,pause=True,ds9=False,i1=None,i2=None,min=None, max=None) :
            pdb.set_trace()
 
 def getfiles(type,listfile=None,filter=None,verbose=False) :
-    """ Get all files of desired type from specified directory.
-        If file is specified, read numbers from that file, else use IMAGETYP card"""
+    """ 
+    Get all files of desired type from specified directory. If file is specified, read numbers from that file, else use IMAGETYP card
+    """
     if listfile is None :
         list=[]
         if verbose: print 'directory: ', indir
@@ -333,7 +344,9 @@ def window(hdu,box) :
     return new
 
 def tv(disp,hd,min=None,max=None) :
-    """ Displays HDU or data array on specified ds9/tv device"""
+    """ 
+    Displays HDU or data array on specified ds9/tv device
+    """
     if isinstance(hd, (np.ndarray)) :
         data=hd
     else :
@@ -347,7 +360,9 @@ def tv(disp,hd,min=None,max=None) :
         disp.tv(data,min=min,max=max)
 
 def stretch(a,ncol=None,nrow=None) :
-    """ Stretches a 1D image into a 2D image along rows or columns """
+    """ 
+    Stretches a 1D image into a 2D image along rows or columns 
+    """
     if nrow is None and ncol is None :
         print 'Must specify either nrow= or ncol='
         return
@@ -363,3 +378,76 @@ def stretch(a,ncol=None,nrow=None) :
         for i in range(nrow) :
             out[i,:]=a
     return out
+
+def get_cnpix(a) :
+    """
+    Gets CNPIX cards from HDU a, sets them to 1 if they don't exist
+    """
+    try:
+        cnpix1=a.header['CNPIX1']
+    except:
+        a.header['CNPIX1']=1
+    try:
+        cnpix2=a.header['CNPIX2']
+    except:
+        a.header['CNPIX2']=1
+
+    return a.header['CNPIX1'],a.header['CNPIX2']
+
+def get_overlap(a,b,dc=0,dr=0) :
+    """
+    Returns overlap coordinates from two input HDUs
+    """
+    a_cnpix1,a_cnpix2 = get_cnpix(a)
+    b_cnpix1,b_cnpix2 = get_cnpix(b)
+
+    ixmin = max(a_cnpix1,b_cnpix1+dc)
+    iymin = max(a_cnpix2,b_cnpix2+dr)
+    ixmax = min(a_cnpix1+a.header['NAXIS1'],b_cnpix1+dc+b.header['NAXIS1'])
+    iymax = min(a_cnpix2+a.header['NAXIS2'],b_cnpix2+dr+b.header['NAXIS2'])
+
+    return (iymin-a_cnpix2,iymax-a_cnpix2,ixmin-a_cnpix1,ixmax-a_cnpix1,
+           iymin-b_cnpix2-dr,iymax-b_cnpix2-dr,ixmin-b_cnpix1-dc,ixmax-b_cnpix1-dc)
+
+def check_hdu(a) :
+    """
+    Checks if input variable is an HDU
+    """
+
+    if type(a) is fits.hdu.image.PrimaryHDU :
+        return True
+    else:
+        return False
+
+def add(a,b,dc=0,dr=0) :
+    """ 
+    Adds b to a, paying attention to CNPIX 
+    """
+    if check_hdu(a) is False or check_hdu(b) is False :
+        print 'Input must be HDU type, with header and data!'
+        return 
+
+    ay1,ay2,ax1,ax2,by1,by2,bx1,bx2 = get_overlap(a,b,dr=dr,dc=dc)
+    a.data[ay1:ay2,ax1:ax2] += b.data[by1:by2,bx1:bx2]
+
+def sub(a,b,dc=0,dr=0) :
+    """ 
+    Subracts b from a, paying attention to CNPIX 
+    """
+    ay1,ay2,ax1,ax2,by1,by2,bx1,bx2 = get_overlap(a,b,dr=dr,dc=dc)
+    a.data[ay1:ay2,ax1:ax2] -= b.data[by1:by2,bx1:bx2]
+
+def mul(a,b,dc=0,dr=0) :
+    """ 
+    Multiplies b by a, paying attention to CNPIX 
+    """
+    ay1,ay2,ax1,ax2,by1,by2,bx1,bx2 = get_overlap(a,b,dr=dr,dc=dc)
+    a.data[ay1:ay2,ax1:ax2] *= b.data[by1:by2,bx1:bx2]
+
+def div(a,b,dc=0,dr=0) :
+    """ 
+    Divides a by b, paying attention to CNPIX 
+    """
+    ay1,ay2,ax1,ax2,by1,by2,bx1,bx2 = get_overlap(a,b,dr=dr,dc=dc)
+    a.data[ay1:ay2,ax1:ax2] /= b.data[by1:by2,bx1:bx2]
+

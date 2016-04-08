@@ -17,7 +17,7 @@ class TV:
            tv=TV()  to set up a new TV object (display window)
     """
  
-    def __init__(self, img=np.ones([10,10]), fig=None):
+    def __init__(self, img=np.zeros([5,5]), fig=None):
     
         """
         Initialize TV object
@@ -90,14 +90,14 @@ class TV:
 
         #event handling 
         self.event = None
-        self.cid = tv.canvas.mpl_connect('key_press_event', self.onEvent)
-        self.cid2 = tv.canvas.mpl_connect('button_press_event', self.onEvent)
-        self.cid3 = tv.canvas.mpl_connect('button_release_event', self.onEvent)
-        self.cid4 = tv.canvas.mpl_connect('motion_notify_event', self.onEvent)
+        self.cid = tv.canvas.mpl_connect('key_press_event', self.__onEvent)
+        self.cid2 = tv.canvas.mpl_connect('button_press_event', self.__onEvent)
+        self.cid3 = tv.canvas.mpl_connect('button_release_event', self.__onEvent)
+        self.cid4 = tv.canvas.mpl_connect('motion_notify_event', self.__onEvent)
         self.button = False
         self.blocking = 0
 
-    def onEvent(self, event):
+    def __onEvent(self, event):
         """
         Handler for all trapped events. 
         
@@ -105,7 +105,7 @@ class TV:
           event -- a KeyEvent
         """
         self.event = event
-        subPlotNr = self.getSubPlotNr(event)        
+        subPlotNr = self.__getSubPlotNr(event)        
 
         if event.name == 'key_press_event' :
             # keypress events: '-', '+/=', 'r'
@@ -220,7 +220,7 @@ class TV:
                 print '    a           : toggle axes on/off'
                 print '    h/?         : print this help'
 
-            if self.blocking == 1 : self.stopBlock()
+            if self.blocking == 1 : self.__stopBlock()
 
         elif event.name == 'button_press_event' :
             if subPlotNr == 0 :
@@ -276,7 +276,7 @@ class TV:
                 plt.draw()
 
         
-    def getSubPlotNr(self, event):
+    def __getSubPlotNr(self, event):
     
         """
         Get the nr of the subplot that has been clicked
@@ -297,14 +297,14 @@ class TV:
             i += 1
         return axisNr
         
-    def stopBlock(self) :
+    def __stopBlock(self) :
         """
         stops blocking for keypress event
         """
         if self.blocking == 1 :
             self.fig.canvas.stop_event_loop()
 
-    def startBlock(self) :
+    def __startBlock(self) :
         """
         starts blocking for keypress event
         """
@@ -317,7 +317,9 @@ class TV:
 
         Args:
           img: a numpy array OR a fits HDU
-          min=, max= : option scaling arguments
+
+        Keyword args:
+          min=, max= : optional scaling arguments
         """
 
         # load data array depending on input type
@@ -403,8 +405,10 @@ class TV:
 
         Args:
           x,y : center position of patch
-          size : (optional) patch size
-          color : (optional) patch color
+
+        Keyword args :
+          size= :  patch size
+          color= :  patch color
         """
         plt.figure(self.fig.number)
         if size == None : size = 3
@@ -431,7 +435,7 @@ class TV:
         Returns:
           key pressed, x data position, y data position
         """
-        self.startBlock()
+        self.__startBlock()
         return self.event.key, self.event.xdata, self.event.ydata
 
     def fill(self) :

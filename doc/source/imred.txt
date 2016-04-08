@@ -1,7 +1,7 @@
 IMRED module
 *********
 
-imred is a module...
+imred is a module that implements data reduction routines
 
 imred functions:
 

@@ -11,8 +11,9 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   imred
    tv
+   image
+   imred
 
 
 Indices and tables

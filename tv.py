@@ -113,6 +113,7 @@ class TV:
 
             # function for computing "scale"
             def scale() :
+                # compute screen pixels per image pixel
                 p1 = self.ax.transData.transform((0,0))
                 p2 = self.ax.transData.transform((1,1))
                 return p2[1]-p1[1], p2[0]-p1[0]
@@ -142,7 +143,20 @@ class TV:
                 autopy.mouse.move(x,y)
 
             elif (event.key == 'p' or event.key == 'v') and subPlotNr == 0 :
-                print 'received p or v key!'
+                n=7
+                xdata=int(round(event.xdata))
+                ydata=int(round(event.ydata))
+                if event.key == 'p' :
+                    py, px = np.unravel_index(np.argmax(self.img[ydata-n:ydata+n,xdata-n:xdata+n]),
+                                              self.img[ydata-n:ydata+n,xdata-n:xdata+n].shape)
+                else :
+                    py, px = np.unravel_index(np.argmin(self.img[ydata-n:ydata+n,xdata-n:xdata+n]),
+                                              self.img[ydata-n:ydata+n,xdata-n:xdata+n].shape)
+                px-=n
+                py-=n
+                x,y= autopy.mouse.get_pos()
+                xs,ys = scale()
+                autopy.mouse.move(int(x+px*xs),int(y-py*ys))
 
             elif event.key == 'r' and subPlotNr == 0 :
                 dim=np.shape(self.img)

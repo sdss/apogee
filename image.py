@@ -112,7 +112,7 @@ def stretch(a,ncol=None,nrow=None) :
             out[i,:]=a
     return out
 
-def get_cnpix(a) :
+def __get_cnpix(a) :
     """
     Gets CNPIX cards from HDU a, sets them to 1 if they don't exist
     """
@@ -127,12 +127,17 @@ def get_cnpix(a) :
 
     return a.header['CNPIX1'],a.header['CNPIX2']
 
-def get_overlap(a,b,dc=0,dr=0) :
+def __get_overlap(a,b,dc=0,dr=0,box=None) :
     """
     Returns overlap coordinates from two input HDUs
     """
-    a_cnpix1,a_cnpix2 = get_cnpix(a)
-    b_cnpix1,b_cnpix2 = get_cnpix(b)
+    
+    if box is not None :
+        print 'need to implement box=!'
+        return
+ 
+    a_cnpix1,a_cnpix2 = __get_cnpix(a)
+    b_cnpix1,b_cnpix2 = __get_cnpix(b)
 
     ixmin = max(a_cnpix1,b_cnpix1+dc)
     iymin = max(a_cnpix2,b_cnpix2+dr)
@@ -142,7 +147,7 @@ def get_overlap(a,b,dc=0,dr=0) :
     return (iymin-a_cnpix2,iymax-a_cnpix2,ixmin-a_cnpix1,ixmax-a_cnpix1,
            iymin-b_cnpix2-dr,iymax-b_cnpix2-dr,ixmin-b_cnpix1-dc,ixmax-b_cnpix1-dc)
 
-def check_hdu(a) :
+def __check_hdu(a) :
     """
     Checks if input variable is an HDU
     """
@@ -153,39 +158,39 @@ def check_hdu(a) :
         print 'Input must be HDU type, with header and data!'
         return False
 
-def add(a,b,dc=0,dr=0) :
+def add(a,b,dc=0,dr=0,box=None) :
     """ 
     Adds b to a, paying attention to CNPIX 
     """
-    if check_hdu(a) is False or check_hdu(b) is False : return
-    ay1,ay2,ax1,ax2,by1,by2,bx1,bx2 = get_overlap(a,b,dr=dr,dc=dc)
+    if __check_hdu(a) is False or __check_hdu(b) is False : return
+    ay1,ay2,ax1,ax2,by1,by2,bx1,bx2 = __get_overlap(a,b,dr=dr,dc=dc,box=box)
     a.data[ay1:ay2,ax1:ax2] += b.data[by1:by2,bx1:bx2]
 
-def sub(a,b,dc=0,dr=0) :
+def sub(a,b,dc=0,dr=0,box=None) :
     """ 
     Subracts b from a, paying attention to CNPIX 
     """
-    if check_hdu(a) is False or check_hdu(b) is False : return
-    ay1,ay2,ax1,ax2,by1,by2,bx1,bx2 = get_overlap(a,b,dr=dr,dc=dc)
+    if __check_hdu(a) is False or __check_hdu(b) is False : return
+    ay1,ay2,ax1,ax2,by1,by2,bx1,bx2 = __get_overlap(a,b,dr=dr,dc=dc,box=box)
     a.data[ay1:ay2,ax1:ax2] -= b.data[by1:by2,bx1:bx2]
 
-def mul(a,b,dc=0,dr=0) :
+def mul(a,b,dc=0,dr=0,box=None) :
     """ 
     Multiplies b by a, paying attention to CNPIX 
     """
-    if check_hdu(a) is False or check_hdu(b) is False : return
-    ay1,ay2,ax1,ax2,by1,by2,bx1,bx2 = get_overlap(a,b,dr=dr,dc=dc)
+    if __check_hdu(a) is False or __check_hdu(b) is False : return
+    ay1,ay2,ax1,ax2,by1,by2,bx1,bx2 = __get_overlap(a,b,dr=dr,dc=dc,box=box)
     a.data[ay1:ay2,ax1:ax2] *= b.data[by1:by2,bx1:bx2]
 
-def div(a,b,dc=0,dr=0) :
+def div(a,b,dc=0,dr=0,box=None) :
     """ 
     Divides a by b, paying attention to CNPIX 
     """
-    if check_hdu(a) is False or check_hdu(b) is False : return
-    ay1,ay2,ax1,ax2,by1,by2,bx1,bx2 = get_overlap(a,b,dr=dr,dc=dc)
+    if __check_hdu(a) is False or __check_hdu(b) is False : return
+    ay1,ay2,ax1,ax2,by1,by2,bx1,bx2 = __get_overlap(a,b,dr=dr,dc=dc,box=box)
     a.data[ay1:ay2,ax1:ax2] /= b.data[by1:by2,bx1:bx2]
 
-def clip(hd,min=None,max=None,vmin=None,vmax=None) :
+def clip(hd,min=None,max=None,vmin=None,vmax=None,box=None) :
     """
     Clipping tasks: sets all values above or below input values to specified values
 
@@ -198,8 +203,12 @@ def clip(hd,min=None,max=None,vmin=None,vmax=None) :
          max=  (float) : clip values above max
          vmax= (float) : values to clip max values to. If max= is not given clips values >vmax to vmax
     """
-    if check_hdu(data) is False : return
-    
+    if __check_hdu(data) is False : return
+   
+    if box is not None :
+        print 'need to implement box=!'
+        return
+ 
     if min is not None or vmin is not None :
         if vmin is None: 
             clipval=0
@@ -221,3 +230,16 @@ def clip(hd,min=None,max=None,vmin=None,vmax=None) :
         j=np.where(hd.data > max)[0]
         iy,ix = np.unravel_index(j,hd.data.shape)
         hd.data[iy,ix]=clipval
+
+def buf(hd) :
+    """
+    Display information about HDU
+    """ 
+    if __check_hdu(hd) is False : return
+
+    print '    SC    NC    SR    NR  Exp       Date     Name'
+    cnpix1,cnpix2 = __get_cnpix(hd)
+    npix1 = hd.header['NAXIS1']
+    npix2 = hd.header['NAXIS2']
+    print '{:6d}{:6d}{:6d}{:6d}'.format(cnpix1,npix1,cnpix2,npix2)
+

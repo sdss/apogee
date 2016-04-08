@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import glob
 import bz2
 import os
+import pyds9
 import pdb
 
 def setup(name='*',dir='./',idet=1) :
@@ -234,6 +235,14 @@ def getdet(idet) :
        d.rn=7
        d.biasbox.set(2052,2057,20,2028)
        d.trimbox.set(200,1850,0,2047)
+    elif idet == 17 :
+       # APO 1m APOGEE
+       d.gain=3.8
+       d.rn=6
+       d.biastype=0
+       d.biasbox.set(520,540,10,500)
+       d.normbox.set(400,600,400,600)
+       d.formstr = "{:03d}"
     elif idet == 36 :
        # APO ARCTIC
        d.gain=3.8
@@ -327,7 +336,7 @@ def tv(disp,hd,min=None,max=None) :
     else :
         data=hd.data
 
-    if type(disp) == 'pyds9.DS9' :
+    if type(disp) is pyds9.DS9 :
         disp.set_np2arr(data)
         if min is not None and max is not None :
             disp.set("scale limits {:5d} {:5d}".format(min,max))

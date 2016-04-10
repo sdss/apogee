@@ -8,6 +8,7 @@ import glob
 import bz2
 import os
 import pdb
+import image
 try: 
     import pyds9
 except:
@@ -31,7 +32,7 @@ def setup(name='*',dir='./',idet=1) :
     indir = dir+'/'
     det = getdet(idet)
 
-def rd(num,ext=0,bias=True,verbose=False) :
+def read(num,ext=0,bias=True,verbose=False) :
     """ 
     Reads image by name or number, by default subtracts bias using overscan
 
@@ -88,7 +89,7 @@ def reduce(num,bias=None,flat=None,trim=False,verbose=False) :
       HDU : hdu of reduced image
     """
     if verbose: print 'reading: ', num
-    hdu=rd(num,verbose=verbose)
+    hdu=read(num,verbose=verbose)
     if bias is not None :
         if verbose: print 'subtracting bias'
         hdu.data -= bias
@@ -171,9 +172,9 @@ class DET() :
         self.gain = 0.
         self.rn = 0.
         self.biastype = 0
-        self.biasbox = BOX()
-        self.normbox = BOX()
-        self.trimbox = BOX()
+        self.biasbox = imred.BOX()
+        self.normbox = imred.BOX()
+        self.trimbox = imred.BOX()
         self.formstr = "{:04d}"
 
 def getdet(idet) :
@@ -233,7 +234,7 @@ def look(disp,pause=True,ds9=False,i1=None,i2=None,min=None, max=None) :
     else :
         files=glob.glob(indir+'/*.fits*')
     for file in files :
-       hd=rd(file)
+       hd=read(file)
        tv(disp,hd,min=min,max=max)
        plt.plot(hd.data[:,2060:2080].mean(axis=1))
        print hd.data[:,2060:2080].mean(),hd.data[:,2060:2080].std()

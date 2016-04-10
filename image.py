@@ -17,11 +17,19 @@ class BOX() :
     """ 
     Defines BOX class
     """
-    def __init__(self) :
-        self.xmin = -1
-        self.xmax = -1
-        self.ymin = -1
-        self.ymax = -1
+    def __init__(self,xmin=-1,xmax=-1,ymin=-1,ymax=-1,xr=None, yr=None) :
+        if xr is not None :
+            self.xmin=xr[0]
+            self.xmax=xr[1]
+        else :
+          self.xmin = xmin
+          self.xmax = xmax
+        if yr is not None :
+            self.ymin=yr[0]
+            self.ymay=yr[1]
+        else :
+          self.ymin = ymin
+          self.ymay = xmax
 
     def set(self,xmin,xmax,ymin,ymax):
         self.xmin = xmin
@@ -243,3 +251,35 @@ def buf(hd) :
     npix2 = hd.header['NAXIS2']
     print '{:6d}{:6d}{:6d}{:6d}'.format(cnpix1,npix1,cnpix2,npix2)
 
+def rd(file,ext=0) :
+    """
+    Read files into HDU
+    """
+    return fits.open(file)[ext]
+
+def create(box=None,n=None,nr=None,nc=None,sr=1,sc=1,cr=None,cc=None) :
+    """
+    Creates a new HDU
+    """
+    if box is not None:
+        nr=box.nrow()
+        nc=box.ncol()
+        sc=box.xmin
+        sr=box.ymin
+    else :
+        if nr is None and nc is None :
+            try :
+                nr=n
+                nc=n
+            except:
+                print 'You must specify either box=, n=, or nr= and nc='
+                return
+        if cr is not None and cc is not None :
+            sr=cr-nr/2
+            sc=cc-nr/2
+    im=np.zeros([nr,nc])
+    hd=fits.PrimaryHDU(im)
+    hd.header['CNPIX1'] = sc
+    hd.header['CNPIX2'] = sr
+    return hd
+ 

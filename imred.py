@@ -68,7 +68,7 @@ def read(num,ext=0,bias=True,verbose=False) :
             hdu[ext].data -= b
         elif det.biastype == 1 :
             over=np.median(hdu[ext].data[:,det.biasbox.xmin:det.biasbox.xmax],axis=1)
-            over=stretch(over,ncol=hdu[ext].data.shape[1])
+            over=image.stretch(over,ncol=hdu[ext].data.shape[1])
             hdu[ext].data -= over
     return hdu[ext]
 
@@ -172,9 +172,9 @@ class DET() :
         self.gain = 0.
         self.rn = 0.
         self.biastype = 0
-        self.biasbox = imred.BOX()
-        self.normbox = imred.BOX()
-        self.trimbox = imred.BOX()
+        self.biasbox = image.BOX()
+        self.normbox = image.BOX()
+        self.trimbox = image.BOX()
         self.formstr = "{:04d}"
 
 def getdet(idet) :
@@ -225,20 +225,15 @@ def getdet(idet) :
        d.formstr='{:04d}r'
     return d
 
-def look(disp,pause=True,ds9=False,i1=None,i2=None,min=None, max=None) :
+def look(disp,pause=True,files=None,min=None, max=None) :
     """ 
     Displays series of files 
     """
-    if i1 is not None and i2 is not None :
-        files=range(i1,i2+1)
-    else :
+    if files is None :
         files=glob.glob(indir+'/*.fits*')
     for file in files :
-       hd=read(file)
+       hd=read(file,verbose=True,bias=False)
        tv(disp,hd,min=min,max=max)
-       plt.plot(hd.data[:,2060:2080].mean(axis=1))
-       print hd.data[:,2060:2080].mean(),hd.data[:,2060:2080].std()
-       plt.draw()
        if pause :
            pdb.set_trace()
 

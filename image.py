@@ -255,7 +255,10 @@ def rd(file,ext=0) :
     """
     Read files into HDU
     """
-    return fits.open(file)[ext]
+    try:
+        return fits.open(file)[ext]
+    except :
+        print 'cannot open file: ', file, ' extension: ', ext
 
 def create(box=None,n=None,nr=None,nc=None,sr=1,sc=1,cr=None,cc=None) :
     """

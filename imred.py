@@ -233,7 +233,7 @@ def look(disp,pause=True,files=None,min=None, max=None) :
         files=glob.glob(indir+'/*.fits*')
     for file in files :
        hd=read(file,verbose=True,bias=False)
-       tv(disp,hd,min=min,max=max)
+       disp(disp,hd,min=min,max=max)
        if pause :
            pdb.set_trace()
 
@@ -260,7 +260,7 @@ def getfiles(type,listfile=None,filter=None,verbose=False) :
         list=ascii.read(indir+listfile,Reader=ascii.NoHeader)['col1']
     return list
 
-def tv(disp,hd,min=None,max=None) :
+def disp(disp,hd,min=None,max=None) :
     """ 
     Displays HDU or data array on specified ds9/tv device
     """

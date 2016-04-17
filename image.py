@@ -211,7 +211,7 @@ def clip(hd,min=None,max=None,vmin=None,vmax=None,box=None) :
          max=  (float) : clip values above max
          vmax= (float) : values to clip max values to. If max= is not given clips values >vmax to vmax
     """
-    if __check_hdu(data) is False : return
+    if __check_hdu(hd) is False : return
    
     if box is not None :
         print 'need to implement box=!'
@@ -224,8 +224,7 @@ def clip(hd,min=None,max=None,vmin=None,vmax=None,box=None) :
             clipval=vmin
         if min is None:
             min=vmin
-        j=np.where(hd.data > min)[0]
-        iy,ix = np.unravel_index(j,hd.data.shape)
+        iy,ix=np.where(hd.data > min)
         hd.data[iy,ix]=clipval
 
     if max is not None or vmax is not None :
@@ -235,8 +234,7 @@ def clip(hd,min=None,max=None,vmin=None,vmax=None,box=None) :
             clipval=vmax
         if max is None:
             max=vmax
-        j=np.where(hd.data > max)[0]
-        iy,ix = np.unravel_index(j,hd.data.shape)
+        iy,ix=np.where(hd.data > max)
         hd.data[iy,ix]=clipval
 
 def buf(hd) :
@@ -260,7 +258,7 @@ def rd(file,ext=0) :
     except :
         print 'cannot open file: ', file, ' extension: ', ext
 
-def create(box=None,n=None,nr=None,nc=None,sr=1,sc=1,cr=None,cc=None) :
+def create(box=None,n=None,nr=None,nc=None,sr=1,sc=1,cr=None,cc=None,const=None) :
     """
     Creates a new HDU
     """
@@ -280,9 +278,15 @@ def create(box=None,n=None,nr=None,nc=None,sr=1,sc=1,cr=None,cc=None) :
         if cr is not None and cc is not None :
             sr=cr-nr/2
             sc=cc-nr/2
-    im=np.zeros([nr,nc])
+    try :
+        im=np.zeros([nr,nc])
+    except :
+        print 'must specify image size '
+        return
     hd=fits.PrimaryHDU(im)
     hd.header['CNPIX1'] = sc
     hd.header['CNPIX2'] = sr
+    if const is not None :
+        hd.data += const
     return hd
  

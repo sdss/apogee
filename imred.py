@@ -68,6 +68,8 @@ def read(num,ext=0,bias=True,verbose=False) :
             hdu[ext].data -= b
         elif det.biastype == 1 :
             over=np.median(hdu[ext].data[:,det.biasbox.xmin:det.biasbox.xmax],axis=1)
+            boxcar = Box1DKernel(10)
+            over=convolve(over,boxcar,boundary='extend')
             over=image.stretch(over,ncol=hdu[ext].data.shape[1])
             hdu[ext].data -= over
     return hdu[ext]
@@ -102,7 +104,8 @@ def reduce(num,bias=None,flat=None,trim=False,verbose=False) :
         out= hdu  
     return out
 
-def combine(ims,norm=False,bias=None,flat=None,trim=False,verbose=False) :
+def combine(ims,norm=False,bias=None,flat=None,trim=False,verbose=False,
+            disp=None,min=None,max=None,div=False) :
     """ 
     Combines input list of images (names or numbers) by median, 
     optionally normalizes before combination
@@ -130,7 +133,24 @@ def combine(ims,norm=False,bias=None,flat=None,trim=False,verbose=False) :
         else :
             cube.append(h.data)
     print 'Combining: ', ims
-    return np.median(cube,axis=0)
+    comb = np.median(cube,axis=0)
+    if disp is not None :
+        for im in ims :
+            print im
+            h=reduce(im,bias=bias,flat=flat,trim=trim,verbose=verbose) 
+            if norm :
+                b=det.normbox
+                norm=np.median(h.data[b.ymin:b.ymax,b.xmin:b.xmax])
+                h.data /= norm
+            print 'Normalizing image by : ', norm
+            if div :
+                disp.tv(h.data/comb,min=min,max=max)
+            else :
+                disp.tv(h.data-comb,min=min,max=max)
+            pdb.set_trace()
+        disp.tv(comb,min=min,max=max)
+        pdb.set_trace()
+    return comb
     
 def specflat(flat,rows=True,indiv=False,wid=100) :
     """

@@ -186,7 +186,6 @@ class TV:
                     autopy.mouse.move(int(x-xs),y)
 
             elif event.key == 'right' and subPlotNr == 0 :
-                print 'right'
                 xs,ys = scale()
                 x,y= autopy.mouse.get_pos()
                 if xs < 1. :

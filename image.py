@@ -26,10 +26,10 @@ class BOX() :
           self.xmax = xmax
         if yr is not None :
             self.ymin=yr[0]
-            self.ymay=yr[1]
+            self.ymax=yr[1]
         else :
           self.ymin = ymin
-          self.ymay = xmax
+          self.ymax = xmax
 
     def set(self,xmin,xmax,ymin,ymax):
         self.xmin = xmin

@@ -90,6 +90,9 @@ class TV:
 
         #event handling 
         self.event = None
+        # turn off default key bindings
+        tv.canvas.mpl_disconnect(tv.canvas.manager.key_press_handler_id)
+        # set up our event handler
         self.cid = tv.canvas.mpl_connect('key_press_event', self.__onEvent)
         self.cid2 = tv.canvas.mpl_connect('button_press_event', self.__onEvent)
         self.cid3 = tv.canvas.mpl_connect('button_release_event', self.__onEvent)
@@ -114,9 +117,9 @@ class TV:
             # function for computing "scale"
             def scale() :
                 # compute screen pixels per image pixel
-                p1 = self.ax.transData.transform((0,0))
-                p2 = self.ax.transData.transform((1,1))
-                return p2[1]-p1[1], p2[0]-p1[0]
+                p1 = self.ax.transData.transform((0.,0.))
+                p2 = self.ax.transData.transform((100.,100.))
+                return (p2[1]-p1[1])/100., (p2[0]-p1[0])/100.
 
             if event.key == '-' or event.key == '+' or event.key == '=':
                 if event.key == '-' :
@@ -177,22 +180,35 @@ class TV:
             elif event.key == 'left' and subPlotNr == 0 :
                 xs,ys = scale()
                 x,y= autopy.mouse.get_pos()
-                autopy.mouse.move(int(x-xs),y)
+                if xs < 1. :
+                    autopy.mouse.move(x-1,y)
+                else :
+                    autopy.mouse.move((x-xs),y)
 
             elif event.key == 'right' and subPlotNr == 0 :
+                print 'right'
                 xs,ys = scale()
                 x,y= autopy.mouse.get_pos()
-                autopy.mouse.move(int(x+xs),y)
+                if xs < 1. :
+                    autopy.mouse.move(x+1,y)
+                else :
+                    autopy.mouse.move(int(x+xs),y)
 
             elif event.key == 'up' and subPlotNr == 0 :
                 xs,ys = scale()
                 x,y= autopy.mouse.get_pos()
-                autopy.mouse.move(x,int(y-ys))
+                if ys < 1. :
+                    autopy.mouse.move(x,y-1)
+                else :
+                    autopy.mouse.move(x,int(y-ys))
 
             elif event.key == 'down' and subPlotNr == 0 :
                 xs,ys = scale()
                 x,y = autopy.mouse.get_pos()
-                autopy.mouse.move(x,int(y+ys))
+                if ys < 1. :
+                    autopy.mouse.move(x,y+1)
+                else :
+                    autopy.mouse.move(x,int(y+ys))
 
             elif event.key == 'a' and subPlotNr == 0 :
                 if self.axis :

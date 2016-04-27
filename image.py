@@ -17,19 +17,30 @@ class BOX() :
     """ 
     Defines BOX class
     """
-    def __init__(self,xmin=-1,xmax=-1,ymin=-1,ymax=-1,xr=None, yr=None) :
+    def __init__(self,n=None,nr=None,nc=None,sr=1,sc=1,cr=None,cc=None,const=None,xr=None,yr=None) :
+        if nr is None and nc is None :
+            try :
+                nr=n
+                nc=n
+            except:
+                print 'You must specify either n=, or nr= and nc='
+                return
+        if cr is not None and cc is not None :
+            sr=cr-nr/2
+            sc=cc-nr/2
+
         if xr is not None :
             self.xmin=xr[0]
             self.xmax=xr[1]
         else :
-          self.xmin = xmin
-          self.xmax = xmax
+            self.xmin = sc
+            self.xmax = sc+nc-1
         if yr is not None :
             self.ymin=yr[0]
             self.ymax=yr[1]
         else :
-          self.ymin = ymin
-          self.ymax = xmax
+            self.ymin = sr
+            self.ymax = sr+nr-1
 
     def set(self,xmin,xmax,ymin,ymax):
         self.xmin = xmin
@@ -44,22 +55,23 @@ class BOX() :
         return(self.xmax-self.xmin)
 
     def show(self):
-        print '[{:4d}:{:4d},{:4d}:{:4d}]'.format(self.ymin,self.ymax,self.xmin,self.xmax)
+        print '    SC    NC    SR    NR  Exp       Date     Name'
+        print ' {:6d} {:6d} {:6d} {:6d} '.format(self.xmin,self.ncol(),self.ymin,self.nrow())
 
     def mean(self,data):
-        return data[self.ymin:self.ymax,self.xmin:self.xmax].mean() 
+        return data[self.ymin:self.ymax+1,self.xmin:self.xmax+1].mean() 
 
     def stdev(self,data):
-        return data[self.ymin:self.ymax,self.xmin:self.xmax].std() 
+        return data[self.ymin:self.ymax+1,self.xmin:self.xmax+1].std() 
 
     def max(self,data):
-        return data[self.ymin:self.ymax,self.xmin:self.xmax].max() 
+        return data[self.ymin:self.ymax+1,self.xmin:self.xmax+1].max() 
 
     def min(self,data):
-        return data[self.ymin:self.ymax,self.xmin:self.xmax].min() 
+        return data[self.ymin:self.ymax+1,self.xmin:self.xmax+1].min() 
 
     def median(self,data):
-        return np.median(data[self.ymin:self.ymax,self.xmin:self.xmax])
+        return np.median(data[self.ymin:self.ymax+1,self.xmin:self.xmax+1])
 
 def abx(im,box) :
     """ 
@@ -289,4 +301,27 @@ def create(box=None,n=None,nr=None,nc=None,sr=1,sc=1,cr=None,cc=None,const=None)
     if const is not None :
         hd.data += const
     return hd
- 
+
+def sky(im,box=None,max=None,min=None):
+    """
+    Estimate sky value in an image
+    """
+    if type(im) is fits.hdu.image.PrimaryHDU :
+        data = im.data
+    else :
+        data = im
+    if box is not None :
+        reg = data[box.ymin:box.ymax+1,box.xmin:box.xmax+1]
+    else :
+        reg = data
+
+    # get median and stdev in desired region
+    med = np.median(reg)
+    sig = reg.std()
+
+    # create histogram around median and find peak
+    gd = np.where((reg.flatten() > med-2*sig) & (reg.flatten() < med+2*sig))[0]
+    hist,bins = np.histogram(reg.flatten()[gd],bins=np.arange(med-2*sig,med+2*sig))
+    max = np.max(hist)
+    imax = np.argmax(hist)
+    pdb.set_trace()

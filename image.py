@@ -302,10 +302,20 @@ def create(box=None,n=None,nr=None,nc=None,sr=1,sc=1,cr=None,cc=None,const=None)
         hd.data += const
     return hd
 
-def sky(im,box=None,max=None,min=None):
+def sky(im,box=None,max=None,min=None,plot=None):
     """
-    Estimate sky value in an image
+    Estimate sky value in an image by fitting parabola to peak of histogram
+
+    Args:
+        im (HDU or numpy array): input image data 
+
+    Keyword args:
+        box=   : only use values within specified box (default=None)
+        min=   : ignore values below min in sky computation (default=None)
+        max=   : ignore values above max in sky computation (default=None)
+        plot=  : matplotlib axes to view histogram and fit (default=None)
     """
+
     if type(im) is fits.hdu.image.PrimaryHDU :
         data = im.data
     else :
@@ -315,13 +325,38 @@ def sky(im,box=None,max=None,min=None):
     else :
         reg = data
 
+    if min is None: min = reg.min()
+    if max is None: max = reg.max()
+    gd = np.where((reg >min) & (reg<max))
+
     # get median and stdev in desired region
-    med = np.median(reg)
-    sig = reg.std()
+    med = np.median(reg[gd])
+    sig = reg[gd].std()
+    print 'initial median, sigma: ', med, sig
 
     # create histogram around median and find peak
     gd = np.where((reg.flatten() > med-2*sig) & (reg.flatten() < med+2*sig))[0]
     hist,bins = np.histogram(reg.flatten()[gd],bins=np.arange(med-2*sig,med+2*sig))
     max = np.max(hist)
     imax = np.argmax(hist)
-    pdb.set_trace()
+
+    # find half power points on either side of peak
+    i1=imax
+    while hist[i1] > max/2. and i1 > 0 :
+        i1-=1
+    i2=imax
+    while hist[i2] > max/2. and i2 < len(hist) :
+        i2+=1
+
+    # fit parabola to peak, and determine location of fit max
+    binwidth=bins[1]-bins[0]
+    p_init=models.Polynomial1D(degree=2)
+    fit=fitting.LinearLSQFitter()
+    p=fit(p_init,bins[i1:i2+1]+binwidth,hist[i1:i2+1])
+    sky=-p.parameters[1]/(2.*p.parameters[2])
+    if plot is not None:
+        plot.plot(bins[i1:i2+1]+binwidth,hist[i1:i2+1])
+        plot.plot(bins[i1:i2+1]+binwidth,p(bins[i1:i2+1]+binwidth))
+        plt.draw()
+
+    return sky

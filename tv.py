@@ -183,7 +183,7 @@ class TV:
                 if xs < 1. :
                     autopy.mouse.move(x-1,y)
                 else :
-                    autopy.mouse.move((x-xs),y)
+                    autopy.mouse.move(int(x-xs),y)
 
             elif event.key == 'right' and subPlotNr == 0 :
                 print 'right'

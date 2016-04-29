@@ -261,6 +261,11 @@ def buf(hd) :
     npix2 = hd.header['NAXIS2']
     print '{:6d}{:6d}{:6d}{:6d}'.format(cnpix1,npix1,cnpix2,npix2)
 
+    #dict=globals()
+    #for key in dict :
+    #    if type(dict[key]) is fits.hdu.image.PrimaryHDU : print key
+
+
 def rd(file,ext=0) :
     """
     Read files into HDU
@@ -327,7 +332,12 @@ def sky(im,box=None,max=None,min=None,plot=None):
 
     if min is None: min = reg.min()
     if max is None: max = reg.max()
+    if min > max :
+        raise ValueError("min must be less than max")
+
     gd = np.where((reg >min) & (reg<max))
+    if len(gd[0]) < 1 :
+        raise ValueError("no pixels between min and max")
 
     # get median and stdev in desired region
     med = np.median(reg[gd])

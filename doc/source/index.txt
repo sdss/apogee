@@ -6,6 +6,14 @@
 Welcome to pyvista's documentation!
 ===================================
 
+pyvista is package that provides image display, processing, and analysis tools for 
+a versatile quick analysis environment
+
+Dependencies:
+   numpy
+   scipy
+   autopy (for keystroke controlled moves in the display)
+
 Contents:
 
 .. toctree::

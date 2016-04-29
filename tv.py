@@ -5,7 +5,12 @@ import matplotlib
 from astropy.wcs import wcs
 import cmap
 import mmm
-import autopy
+try:
+   import autopy
+   have_autopy=True
+except:
+   print 'autopy does not seem to be available, disabling arrow key cursor moves'
+   have_autopy=False
 import pdb
  
 class TV:
@@ -121,7 +126,7 @@ class TV:
                 p2 = self.ax.transData.transform((100.,100.))
                 return (p2[1]-p1[1])/100., (p2[0]-p1[0])/100.
 
-            if event.key == '-' or event.key == '+' or event.key == '=':
+            if have_autopy and event.key == '-' or event.key == '+' or event.key == '=':
                 if event.key == '-' :
                     self.current = (self.current-1) % self.images
                 elif event.key == '+' or event.key == '=':
@@ -145,7 +150,7 @@ class TV:
                 x,y= autopy.mouse.get_pos()
                 autopy.mouse.move(x,y)
 
-            elif (event.key == 'p' or event.key == 'v') and subPlotNr == 0 :
+            elif have_autopy and (event.key == 'p' or event.key == 'v') and subPlotNr == 0 :
                 n=7
                 xdata=int(round(event.xdata))
                 ydata=int(round(event.ydata))
@@ -177,7 +182,7 @@ class TV:
                 self.aximage.set_cmap(cm)
                 plt.draw()
 
-            elif event.key == 'left' and subPlotNr == 0 :
+            elif have_autopy and event.key == 'left' and subPlotNr == 0 :
                 xs,ys = scale()
                 x,y= autopy.mouse.get_pos()
                 if xs < 1. :
@@ -185,7 +190,7 @@ class TV:
                 else :
                     autopy.mouse.move(int(x-xs),y)
 
-            elif event.key == 'right' and subPlotNr == 0 :
+            elif have_autopy and event.key == 'right' and subPlotNr == 0 :
                 xs,ys = scale()
                 x,y= autopy.mouse.get_pos()
                 if xs < 1. :
@@ -193,7 +198,7 @@ class TV:
                 else :
                     autopy.mouse.move(int(x+xs),y)
 
-            elif event.key == 'up' and subPlotNr == 0 :
+            elif have_autopy and event.key == 'up' and subPlotNr == 0 :
                 xs,ys = scale()
                 x,y= autopy.mouse.get_pos()
                 if ys < 1. :
@@ -201,7 +206,7 @@ class TV:
                 else :
                     autopy.mouse.move(x,int(y-ys))
 
-            elif event.key == 'down' and subPlotNr == 0 :
+            elif have_autopy and event.key == 'down' and subPlotNr == 0 :
                 xs,ys = scale()
                 x,y = autopy.mouse.get_pos()
                 if ys < 1. :

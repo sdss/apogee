@@ -12,7 +12,9 @@ a versatile quick analysis environment
 Dependencies:
    numpy
    scipy
-   autopy (for keystroke controlled moves in the display)
+   astropy
+   bz2
+   autopy (optional but valuable, for keystroke controlled moves in the display)
 
 Contents:
 

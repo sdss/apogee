@@ -1,6 +1,26 @@
 import sys
 import numpy as np
 
+def getfile(file=None,access='w') :
+    if file is not None : 
+        f = open(file,'w') 
+    else : 
+        f=sys.stdout
+    return f
+
+def head(file=None,sorttable=None) :
+    f=getfile(file=file)
+    f.write('<HTML>\n')
+    if sorttable is not None:
+        f.write('<HEAD><script type=text/javascript src='+sorttable+'></script></head>')
+    f.write('<BODY>\n')
+    return f
+
+def tail(f) :
+    f.write('</BODY>\n')
+    f.write('</HTML>\n')
+    f.close()
+
 def htmltab(plots, file=None, xtitle=None, ytitle=None, size=100, header=None) :
     """
     Given 2D list of plots, generates HTML that displays these in a table, with optional
@@ -18,11 +38,7 @@ def htmltab(plots, file=None, xtitle=None, ytitle=None, size=100, header=None) :
     nx=p.shape[1]
     ny=p.shape[0]
 
-    if file is not None : 
-        f = open(file,'w') 
-    else : 
-        f=sys.stdout
-    f.write('<HTML><BODY>\n')
+    f=head(file=file)
     if header is not None :
         f.write(header+'<p>\n')
     f.write('<TABLE BORDER=2>\n')
@@ -42,33 +58,23 @@ def htmltab(plots, file=None, xtitle=None, ytitle=None, size=100, header=None) :
                     '<IMG SRC='+p[iy][ix]+' WIDTH='+str(size)+'%></A>\n')
             f.write('</TD>\n')
     f.write('</TABLE>\n')
-    f.write('</BODY></HTML>\n')
+    tail(f)
 
-def tab(tab,file=None,sorttable=None) :
+def tab(tab,file=sys.stdout,sorttable=None) :
     """
     Makes HTML table from input structured array
     """
 
-    if file is not None : 
-        f = open(file,'w') 
-    else : 
-        f=sys.stdout
-    f.write('<HTML>\n')
     if sorttable is not None:
-        f.write('<HEAD><script type=text/javascript src='+sorttable+'></script></head>')
-    f.write('<BODY>\n')
-    if sorttable is not None:
-        f.write('Click on column headings to sort<br>')
-        f.write('<TABLE BORDER=2 CLASS=sortable>\n')
+        file.write('Click on column headings to sort<br>')
+        file.write('<TABLE BORDER=2 CLASS=sortable>\n')
     else :
-        f.write('<TABLE BORDER=2>\n')
-    f.write('<TR>\n')
+        file.write('<TABLE BORDER=2>\n')
+    file.write('<TR>\n')
     for name in tab.dtype.names :
-        f.write('<TD>'+name+'\n')
+        file.write('<TD>'+name+'\n')
     for i in range(len(tab)) :
-        f.write('<TR>\n')
+        file.write('<TR>\n')
         for name in tab.dtype.names :
-            f.write('<TD>'+str(tab[name][i])+'\n')
-    f.write('</TABLE>')
-    f.write('</BODY>')
-    f.write('</HTML>')
+            file.write('<TD>'+str(tab[name][i])+'\n')
+    file.write('</TABLE>')

@@ -83,10 +83,8 @@ def plotrow(ax,img,r,norm=True,draw=True) :
     if draw : plt.draw()
 
 def plotp(ax,x,y,xr=None,yr=None,marker='o',size=5,linewidth='0',color='r',facecolors=None,xt=None,yt=None,draw=True,xerr=None,yerr=None) :
-    try: ax.set_xlim(xr[0],xr[1])
-    except : pass
-    try : ax.set_ylim(yr[0],yr[1])
-    except : pass
+    if xr is not None : ax.set_xlim(xr[0],xr[1])
+    if yr is not None : ax.set_ylim(yr[0],yr[1])
     if xt is not None : ax.set_xlabel(xt) 
     if yt is not None : ax.set_ylabel(yt)
     #ax.plot(x,y,sym)

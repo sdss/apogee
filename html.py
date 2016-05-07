@@ -57,14 +57,18 @@ def tab(tab,file=None,sorttable=None) :
     if sorttable is not None:
         f.write('<HEAD><script type=text/javascript src='+sorttable+'></script></head>')
     f.write('<BODY>\n')
-    f.write('<TABLE BORDER=2>\n')
+    if sorttable is not None:
+        f.write('Click on column headings to sort<br>')
+        f.write('<TABLE BORDER=2 CLASS=sortable>\n')
+    else :
+        f.write('<TABLE BORDER=2>\n')
     f.write('<TR>\n')
     for name in tab.dtype.names :
         f.write('<TD>'+name+'\n')
     for i in range(len(tab)) :
         f.write('<TR>\n')
         for name in tab.dtype.names :
-            f.write('<TD>'+tab[name][i]+'\n')
+            f.write('<TD>'+str(tab[name][i])+'\n')
     f.write('</TABLE>')
     f.write('</BODY>')
     f.write('</HTML>')

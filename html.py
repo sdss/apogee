@@ -44,3 +44,27 @@ def htmltab(plots, file=None, xtitle=None, ytitle=None, size=100, header=None) :
     f.write('</TABLE>\n')
     f.write('</BODY></HTML>\n')
 
+def tab(tab,out=None,sorttable=None) :
+    """
+    Makes HTML table from input structured array
+    """
+
+    if file is not None : 
+        f = open(file,'w') 
+    else : 
+        f=sys.stdout
+    f.write('<HTML>\n')
+    if sorttable is not None:
+        f.write('<HEAD><script type=text/javascript src='+sorttable+'></script></head>')
+    f.write('<BODY>\n')
+    f.write('<TABLE BORDER=2>\n')
+    f.write('<TR>\n')
+    for name in tab.dtype.names :
+        f.write('<TD>'+name+'\n')
+    for i in range(len(tab)) :
+        f.write('<TR>\n')
+        for name in tab.dtype.names :
+            f.write('<TD>'+tab[name][i]+'\n')
+    f.write('</TABLE>')
+    f.write('</BODY>')
+    f.write('</HTML>')

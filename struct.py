@@ -54,7 +54,7 @@ def list(s,cols=None, cond=None, ind=None, table=None, iformat='{:6d}',fformat='
             ind=[ind]
         inds = np.array(ind)
     else :
-        inds = np.arange(len(s))
+        inds = np.arange([0])
    
     # if not specified, use table format for multiple entries
     if table is None :

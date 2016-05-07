@@ -60,12 +60,12 @@ def htmltab(plots, file=None, xtitle=None, ytitle=None, size=100, header=None) :
     f.write('</TABLE>\n')
     tail(f)
 
-def tab(tab,file=sys.stdout,sorttable=None) :
+def tab(tab,file=sys.stdout,sortable=False) :
     """
     Makes HTML table from input structured array
     """
 
-    if sorttable is not None:
+    if sortable :
         file.write('Click on column headings to sort<br>')
         file.write('<TABLE BORDER=2 CLASS=sortable>\n')
     else :

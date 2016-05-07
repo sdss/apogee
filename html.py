@@ -44,7 +44,7 @@ def htmltab(plots, file=None, xtitle=None, ytitle=None, size=100, header=None) :
     f.write('</TABLE>\n')
     f.write('</BODY></HTML>\n')
 
-def tab(tab,out=None,sorttable=None) :
+def tab(tab,file=None,sorttable=None) :
     """
     Makes HTML table from input structured array
     """

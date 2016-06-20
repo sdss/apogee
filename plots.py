@@ -109,4 +109,6 @@ def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True) :
     if draw : plt.draw()
     return line
     
-
+def ax(subplot=111) :
+    fig=plt.figure()
+    return fig.add_subplot(subplot)

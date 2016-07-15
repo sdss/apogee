@@ -28,7 +28,7 @@ def event(fig) :
             struct.list(_data,ind=_index,cols=_id_cols)
     cid = fig.canvas.mpl_connect('key_press_event',onpress)
 
-def plotc(ax,x,y,z,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,xt=None,yt=None,zt=None,label=None,linewidth='0',marker='o',draw=True,orientation=None) :
+def plotc(ax,x,y,z,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,xt=None,yt=None,zt=None,label=None,linewidth='0',marker='o',draw=True,orientation='vertical') :
     """
     Plots a scatter plot with point colors
 

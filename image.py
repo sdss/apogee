@@ -17,7 +17,7 @@ class BOX() :
     """ 
     Defines BOX class
     """
-    def __init__(self,n=None,nr=None,nc=None,sr=1,sc=1,cr=None,cc=None,const=None,xr=None,yr=None) :
+    def __init__(self,n=0,nr=None,nc=None,sr=1,sc=1,cr=None,cc=None,const=None,xr=None,yr=None) :
         if nr is None and nc is None :
             try :
                 nr=n
@@ -49,31 +49,37 @@ class BOX() :
         self.ymax = ymax
 
     def nrow(self):
-        return(self.ymax-self.ymin)
+        return(self.ymax-self.ymin+1)
 
     def ncol(self):
-        return(self.xmax-self.xmin)
+        return(self.xmax-self.xmin+1)
 
     def show(self):
         print '    SC    NC    SR    NR  Exp       Date     Name'
         print ' {:6d} {:6d} {:6d} {:6d} '.format(self.xmin,self.ncol(),self.ymin,self.nrow())
 
     def mean(self,data):
+        if self.nrow() <= 0 or self.ncol() <= 0 : return 0.
         return data[self.ymin:self.ymax+1,self.xmin:self.xmax+1].mean() 
 
     def stdev(self,data):
+        if self.nrow() == 0 or self.ncol() == 0 : return 0.
         return data[self.ymin:self.ymax+1,self.xmin:self.xmax+1].std() 
 
     def max(self,data):
+        if self.nrow() == 0 or self.ncol() == 0 : return 0.
         return data[self.ymin:self.ymax+1,self.xmin:self.xmax+1].max() 
 
     def min(self,data):
+        if self.nrow() == 0 or self.ncol() == 0 : return 0.
         return data[self.ymin:self.ymax+1,self.xmin:self.xmax+1].min() 
 
     def median(self,data):
+        if self.nrow() == 0 or self.ncol() == 0 : return 0.
         return np.median(data[self.ymin:self.ymax+1,self.xmin:self.xmax+1])
 
 def abx(im,box) :
+ 
     """ 
     Returns dictionary with image statistics in box 
     """
@@ -94,6 +100,7 @@ def gfit(data,xcen,ycen,size=5,sub=True) :
     y,x=np.mgrid[ycen-size:ycen+size,xcen-size:xcen+size]
     z=data[ycen-size:ycen+size,xcen-size:xcen+size]
     g=fit(g_init,x,y,z)
+    return g
     if sub :
         out=data
         out[ycen-size:ycen+size,xcen-size:xcen+size]-=g[0](x,y)

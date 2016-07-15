@@ -53,7 +53,9 @@ def read(num,ext=0,bias=True,verbose=False) :
     else :
         file=glob.glob(indir+'/'+root+'.'+det.formstr.format(num)+'.fits*')
         if len(file) > 0 : file=file[0]
-    if verbose: print 'Reading: ', file
+    if verbose: 
+        print 'root: ', root
+        print 'Reading: ', file
     if '.bz2' in file :
         hdu=fits.open(bz2.BZ2File(file),ignore=True,ignore_missing_end=True)
     else :

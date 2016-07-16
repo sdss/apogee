@@ -6,6 +6,7 @@ import numpy as np
 import sys
 import pdb
 
+# default values for event handling
 _index = 0
 _data = None
 _button = None
@@ -14,6 +15,10 @@ _data_x = None
 _data_y = None
 
 def event(fig) :
+    '''
+    Define event handler, on a key press, will set _button (key pressed) and _index (index of nearest point), and
+    if _data is not None, will list _id_cols from the structure _data[_index]
+    '''
     def onpress(event) :
         global _index
         _button = event.key
@@ -30,7 +35,7 @@ def event(fig) :
 
 def plotc(ax,x,y,z,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,xt=None,yt=None,zt=None,label=None,linewidth='0',marker='o',draw=True,orientation='vertical') :
     """
-    Plots a scatter plot with point colors
+    Plots a scatter plot with point color-coded by z data
 
     Args:
       ax (axis)  : existing axes
@@ -69,36 +74,79 @@ def plotc(ax,x,y,z,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,
     if draw : plt.draw()
 
 def plotc_append(ax,x,y,z,size=25,linewidth=1,marker='o',facecolor='none',draw=True) :
+    '''
+    Adds points to a plot
+    '''
     scat=ax.scatter(x,y,c=z,s=size,linewidth=linewidth,marker=marker,facecolor=facecolor)
     if draw : plt.draw()
 
-
 def plotrow(ax,img,r,norm=True,draw=True) :
+    '''
+    Plots a row of an input image
+
+    Args:
+      ax (axis)    : existing axes
+      img (float)  : image to plot
+      r (int)      : row or rows ([rmin,rmax]) to plot
+
+    Keyword args:
+      norm         : for multiple row plots, average instead of sum (default=True)
+    '''
     ax.set_xlim(xr[0],xr[1])
     ax.set_ylim(yr[0],yr[1])
     if len(r) == 1 :
         ax.plotl(img[r,:])
     elif len(r) == 2 :
-        ax.plotl(np.average(img[r[0]:r[1],:],axis=1))
+        if norm :
+            ax.plotl(np.average(img[r[0]:r[1],:],axis=1))
+        else :
+            ax.plotl(np.sum(img[r[0]:r[1],:],axis=1))
     if draw : plt.draw()
 
-def plotp(ax,x,y,xr=None,yr=None,marker='o',size=5,linewidth='0',color='r',facecolors=None,xt=None,yt=None,draw=True,xerr=None,yerr=None) :
+def plotp(ax,x,y,z=None,types=None,xr=None,yr=None,markers='o',sizes=5,linewidth='0',color='r',facecolors=None,xt=None,yt=None,draw=True,xerr=None,yerr=None) :
+    '''
+    Plot points, optionally with a series of different markers/sizes keyed to z data
+    '''
     if xr is not None : ax.set_xlim(xr[0],xr[1])
     if yr is not None : ax.set_ylim(yr[0],yr[1])
     if xt is not None : ax.set_xlabel(xt) 
     if yt is not None : ax.set_ylabel(yt)
-    #ax.plot(x,y,sym)
     if facecolors is None: facecolors=color
-    print 'color: ', color
-    print 'marker: ', marker
-    print 'facecolors: ', facecolors
-    print 'edgecolors: ', color
-    ax.scatter(x,y,marker=marker,s=size,linewidth=linewidth,facecolors=facecolors,edgecolors=color)
-    if xerr is not None or yerr is not None :
-      ax.errorbar(x,y,marker=marker,xerr=xerr,yerr=yerr,fmt='none',capsize=0,ecolor=color)
+
+    if z is not None and types is not None :
+        # Make sure types, sizes, markers are all lists
+        try :
+            test = len(types)
+        except :
+            types = [types]
+        try :
+            test = len(size)
+        except :
+            size = [size]
+        try :
+            test = len(marker)
+        except :
+            marker = [marker]
+
+        # loop through the types
+        for i in range(len(types)) :
+            gd = np.where(z == types[i])[0]
+            sz= size[i] if (len(size) > 1)  else size[0]
+            mark=marker[i] if (len(marker) > 1) else marker[0]
+            ax.scatter(ax,x[gd],y[gd],z[gd],size=sz,marker=mark)
+    else :
+        ax.scatter(x,y,marker=marker,s=size,linewidth=linewidth,facecolors=facecolors,edgecolors=color)
+        if xerr is not None or yerr is not None :
+            ax.errorbar(x,y,marker=marker,xerr=xerr,yerr=yerr,fmt='none',capsize=0,ecolor=color)
+
     if draw : plt.draw()
 
+
+
 def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True) :
+    '''
+    Plot connected points
+    '''
     try: ax.set_xlim(xr[0],xr[1])
     except : pass
     try : ax.set_ylim(yr[0],yr[1])
@@ -110,5 +158,55 @@ def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True) :
     return line
     
 def ax(subplot=111) :
+    '''
+    Return axes object for a new figure and desired subplots
+
+    Keyword args :
+
+    subplot  : matplotlib subplot specification
+    '''
     fig=plt.figure()
     return fig.add_subplot(subplot)
+
+def multi(nx,ny,figsize=None,hspace=1,wspace=1) :
+    '''
+    Returns figure and axes array for grid of nx by ny plots, suppressing appropriate axes if requested by hspace and wspace
+
+    Args:
+       nx : number of plots in horizontal direction
+       ny : number of plots in vertical direction
+
+    Keyword args:
+       figsize  : specifies figure size
+       hspace   : space (0.-1.) between vertical plots (height)
+       wspace   : space (0.-1.) between horizont plots (width)
+    '''
+    fig,ax = plt.subplots(ny,nx)
+    fig.subplots_adjust(hspace=hspace,wspace=wspace)
+    if (hspace < 0.01) & (ny>1):
+        # if we are vertical stacking, turn off xticks for all except bottom
+        if nx == 1 :
+            ticklabels = ax[0].get_xticklabels()
+            for i in range(1,ny-1) : ticklabels = ticklabels + ax[i].get_xticklabels()
+        else :
+            ticklabels = ax[0,0].get_xticklabels()
+            for i in range(nx) :
+                for j in range(0,ny-1) : 
+                    print i, j
+                    ticklabels = ticklabels + ax[j,i].get_xticklabels()
+        plt.setp(ticklabels, visible=False)
+    if (wspace < 0.01) & (nx> 1):
+        # if we are horizontal stacking, turn off yticks for all except left
+        if ny == 1 :
+            ticklabels = ax[1].get_yticklabels()
+            for i in range(2,nx) : ticklabels = ticklabels + ax[i].get_yticklabels()
+        else :
+            ticklabels = ax[0,1].get_yticklabels()
+            for i in range(1,nx) :
+                for j in range(ny) : 
+                    print j, i
+                    ticklabels = ticklabels + ax[j,i].get_yticklabels()
+        plt.setp(ticklabels, visible=False)
+    return fig,ax
+
+

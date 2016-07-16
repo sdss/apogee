@@ -103,7 +103,7 @@ def plotrow(ax,img,r,norm=True,draw=True) :
             ax.plotl(np.sum(img[r[0]:r[1],:],axis=1))
     if draw : plt.draw()
 
-def plotp(ax,x,y,z=None,types=None,xr=None,yr=None,markers='o',sizes=5,linewidth='0',color='r',facecolors=None,xt=None,yt=None,draw=True,xerr=None,yerr=None) :
+def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='o',size=5,linewidth='0',color='r',facecolors=None,xt=None,yt=None,draw=True,xerr=None,yerr=None,label=None) :
     '''
     Plot points, optionally with a series of different markers/sizes keyed to z data
     '''
@@ -113,7 +113,7 @@ def plotp(ax,x,y,z=None,types=None,xr=None,yr=None,markers='o',sizes=5,linewidth
     if yt is not None : ax.set_ylabel(yt)
     if facecolors is None: facecolors=color
 
-    if z is not None and types is not None :
+    if typeref is not None and types is not None :
         # Make sure types, sizes, markers are all lists
         try :
             test = len(types)
@@ -127,17 +127,32 @@ def plotp(ax,x,y,z=None,types=None,xr=None,yr=None,markers='o',sizes=5,linewidth
             test = len(marker)
         except :
             marker = [marker]
+        try :
+            test = len(color)
+        except :
+            color = [color]
 
         # loop through the types
         for i in range(len(types)) :
-            gd = np.where(z == types[i])[0]
+            print types[i]
+            gd = np.where(typeref == types[i])[0]
             sz= size[i] if (len(size) > 1)  else size[0]
             mark=marker[i] if (len(marker) > 1) else marker[0]
-            ax.scatter(ax,x[gd],y[gd],z[gd],size=sz,marker=mark)
+            col=color[i] if (len(color) > 1) else color[0]
+            if z is not None :
+                if zr is not None :
+                    ax.scatter(x[gd],y[gd],c=z[gd],s=sz,marker=mark,vmin=zr[0],vmax=zr[1])
+                else :
+                    ax.scatter(x[gd],y[gd],c=z[gd],s=sz,marker=mark)
+            else :
+                ax.scatter(x[gd],y[gd],s=sz,marker=mark,facecolors=col,edgecolors=col)
     else :
         ax.scatter(x,y,marker=marker,s=size,linewidth=linewidth,facecolors=facecolors,edgecolors=color)
         if xerr is not None or yerr is not None :
             ax.errorbar(x,y,marker=marker,xerr=xerr,yerr=yerr,fmt='none',capsize=0,ecolor=color)
+
+    if label is not None :
+        ax.text(label[0],label[1],label[2])
 
     if draw : plt.draw()
 

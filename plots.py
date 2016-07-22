@@ -20,15 +20,19 @@ def event(fig) :
     if _data is not None, will list _id_cols from the structure _data[_index]
     '''
     def onpress(event) :
+        print 'event: ', event.x, event.y
         global _index
         _button = event.key
-        A = event.inaxes.transData.transform(zip(_data_x,_data_y))
         #A[spatial.KDTree(A).query([event.x,event.y])[1]]
         #distance,index = spatial.KDTree(A).query([event.x,event.y])
+        print 'Transform'
+        A = event.inaxes.transData.transform(zip(_data_x,_data_y))
+        print 'KDTree'
         tree=spatial.KDTree(A)
+        print 'query'
         distance,index = tree.query([event.x,event.y])
-        #print distance, index
         _index = [index]
+        print '_index: ',_index
         if _data is not None :
             struct.list(_data,ind=_index,cols=_id_cols)
     cid = fig.canvas.mpl_connect('key_press_event',onpress)
@@ -67,11 +71,14 @@ def plotc(ax,x,y,z,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,
     else :
         scat=ax.scatter(x,y,c=z,vmin=zr[0],vmax=zr[1],s=size,cmap=cmap,linewidth=linewidth,marker=marker)
     if label is not None :
-        ax.text(label[0],label[1],label[2]) 
+        ax.text(label[0],label[1],label[2],transform=ax.transAxes) 
     if colorbar :
         cb=plt.colorbar(scat,ax=ax,orientation=orientation)
         cb.ax.set_ylabel(zt)
     if draw : plt.draw()
+    _data_x = x[np.isfinite(x)]
+    _data_y = y[np.isfinite(y)]
+    return scat
 
 def plotc_append(ax,x,y,z,size=25,linewidth=1,marker='o',facecolor='none',draw=True) :
     '''
@@ -152,7 +159,7 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
             ax.errorbar(x,y,marker=marker,xerr=xerr,yerr=yerr,fmt='none',capsize=0,ecolor=color)
 
     if label is not None :
-        ax.text(label[0],label[1],label[2])
+        ax.text(label[0],label[1],label[2],transform=ax.transAxes)
 
     if draw : plt.draw()
 
@@ -196,7 +203,7 @@ def multi(nx,ny,figsize=None,hspace=1,wspace=1) :
        hspace   : space (0.-1.) between vertical plots (height)
        wspace   : space (0.-1.) between horizont plots (width)
     '''
-    fig,ax = plt.subplots(ny,nx)
+    fig,ax = plt.subplots(ny,nx,figsize=figsize)
     fig.subplots_adjust(hspace=hspace,wspace=wspace)
     if (hspace < 0.01) & (ny>1):
         # if we are vertical stacking, turn off xticks for all except bottom

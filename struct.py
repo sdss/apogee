@@ -112,3 +112,10 @@ def add_cols(a,b):
          newrecarray[name] = a[name]
     return newrecarray
 
+def wrfits(a,file) :
+    '''
+    write input FITS structure to file
+    '''
+    tab=fits.BinTableHDU.from_columns(a)
+    tab.writeto(file,clobber=True)
+

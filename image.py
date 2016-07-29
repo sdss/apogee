@@ -80,9 +80,9 @@ class BOX() :
 
 def abx(im,box) :
  
-    """ 
-    Returns dictionary with image statistics in box 
-    """
+    ''' 
+    Returns dictionary with image statistics in box.
+    '''
     return {'mean': box.mean(im),
             'stdev': box.stdev(im),
             'max': box.max(im),

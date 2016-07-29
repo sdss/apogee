@@ -14,6 +14,8 @@ Contents:
    plots
    html
    struct
+   fit
+   match
 
 
 Indices and tables

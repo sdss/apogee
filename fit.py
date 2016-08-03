@@ -30,7 +30,7 @@ def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=Non
     """
 
     # set up fitter and do fit
-    fit_p = fitting.LevMarLSQFitter()
+    fit_p = fitting.LinearLSQLSQFitter()
     p_init = models.Polynomial1D(degree=degree)
     pfit = fit_p(p_init, xdata, zdata)
     # rejection of points?
@@ -104,7 +104,7 @@ def fit2d(xdata,ydata,zdata,degree=1,plot=None,xr=None,yr=None,zr=None,xt=None,y
         zfit = zdata
 
     # set up fitter and do fit
-    fit_p = fitting.LevMarLSQFitter()
+    fit_p = fitting.LinearLSQLSQFitter()
     p_init = models.Polynomial2D(degree=degree)
     pfit = fit_p(p_init, xfit, yfit, zfit)
     
@@ -122,3 +122,29 @@ def fit2d(xdata,ydata,zdata,degree=1,plot=None,xr=None,yr=None,zr=None,xt=None,y
         plt.show()
 
     return pfit
+
+def linear(data,design,err=None) :
+    '''
+    Given data array (npts) and design matrix (npar, npts), return linear solution
+    '''
+    npar=design.shape[0]
+    npts=design.shape[1]
+    if err is None:
+        err = np.ones([npts])
+
+    ATA = np.dot(design, design.T / err[:, None]**2)
+    soln = np.linalg.solve(ATA, np.dot(design, data / err**2))
+    inv = np.linalg.inv(ATA)
+
+    #alpha=np.zeros([npar,npar])
+    #beta=np.zeros([npar])
+    #for ipar in range(npar) :
+    #    beta[ipar]+=(data*design[ipar,:]/err**2).sum()
+    #    for jpar in range(npar) :
+    #        alpha[ipar,jpar]+=(design[ipar,:]*design[jpar,:]/err**2).sum()
+    #c=np.linalg.inv(alpha)
+    #soln=np.dot(c,beta)
+    #pdb.set_trace()
+
+    return soln, inv
+ 

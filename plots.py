@@ -167,18 +167,19 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
 
         # loop through the types
         for i in range(len(types)) :
-            print types[i]
             gd = np.where(typeref == types[i])[0]
             sz= size[i] if (len(size) > 1)  else size[0]
             mark=marker[i] if (len(marker) > 1) else marker[0]
             col=color[i] if (len(color) > 1) else color[0]
+            if facecolors is 'none' : facecol = 'none'
+            else : facecol = col
             if z is not None :
                 if zr is not None :
                     ax.scatter(x[gd],y[gd],c=z[gd],s=sz,marker=mark,vmin=zr[0],vmax=zr[1])
                 else :
                     ax.scatter(x[gd],y[gd],c=z[gd],s=sz,marker=mark)
             else :
-                ax.scatter(x[gd],y[gd],s=sz,marker=mark,facecolors=col,edgecolors=col)
+                ax.scatter(x[gd],y[gd],s=sz,marker=mark,facecolors=facecol,edgecolors=col)
     else :
         ax.scatter(x,y,marker=marker,s=size,linewidth=linewidth,facecolors=facecolors,edgecolors=color)
         if xerr is not None or yerr is not None :

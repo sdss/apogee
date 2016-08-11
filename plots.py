@@ -25,14 +25,14 @@ def event(fig) :
         _button = event.key
         #A[spatial.KDTree(A).query([event.x,event.y])[1]]
         #distance,index = spatial.KDTree(A).query([event.x,event.y])
-        print 'Transform'
+        print 'Transform', len(_data_x)
         A = event.inaxes.transData.transform(zip(_data_x,_data_y))
         print 'KDTree'
         tree=spatial.KDTree(A)
         print 'query'
         distance,index = tree.query([event.x,event.y])
         _index = [index]
-        print '_index: ',_index
+        print '_index: ',_index,_data_x[_index],_data_y[_index]
         if _data is not None :
             struct.list(_data,ind=_index,cols=_id_cols)
     cid = fig.canvas.mpl_connect('key_press_event',onpress)
@@ -260,3 +260,9 @@ def multi(nx,ny,figsize=None,hspace=1,wspace=1) :
     return fig,ax
 
 
+def close(n=50) :
+    '''
+    Close open plots windows
+    '''
+    for i in range(n) :
+        plt.close()

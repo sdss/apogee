@@ -36,7 +36,7 @@ def wavecal(hd,file=None,wref=None,disp=None,wid=[3],rad=5,snr=3,degree=2):
         w=float(line.split()[0])
         name=line[10:].strip()
         pix=(w-w0)/disp+pix0
-        print pix, w, name
+        print(pix, w, name)
         if pix > 0 and pix < sz[1] :
             plt.text(pix,0.,'{:7.1f}'.format(w),rotation='vertical',va='top',ha='center')
             lines.append(w)
@@ -48,13 +48,13 @@ def wavecal(hd,file=None,wref=None,disp=None,wid=[3],rad=5,snr=3,degree=2):
         if peak > rad and peak < sz[1]-rad :
             cents.append((spec[peak-rad:peak+rad]*np.arange(peak-rad,peak+rad)).sum()/spec[peak-rad:peak+rad].sum())
     cents=np.array(cents)
-    print 'cents:', cents
+    print('cents:', cents)
     waves=[]
     weight=[]
     for cent in cents :
         w=(cent-pix0)*disp+w0
         plt.plot([cent,cent],[0,10000],'k')
-        print cent, w, lines[np.abs(w-lines).argmin()]
+        print(cent, w, lines[np.abs(w-lines).argmin()])
         waves.append(lines[np.abs(w-lines).argmin()])
         weight.append(1.)
     waves=np.array(waves)
@@ -74,7 +74,7 @@ def wavecal(hd,file=None,wref=None,disp=None,wid=[3],rad=5,snr=3,degree=2):
         diff=p(cents[gd])-waves[gd]
         plt.ylim(diff.min()-1,diff.max()+1)
         for i in range(len(cents)) :
-            print cents[i],p(cents[i])-waves[i],'{:2d}'.format(i)
+            print(cents[i],p(cents[i])-waves[i],'{:2d}'.format(i))
             plt.subplot(212)
             plt.text(cents[i],p(cents[i])-waves[i],'{:2d}'.format(i),va='top',ha='center')
             plt.subplot(211)
@@ -84,7 +84,7 @@ def wavecal(hd,file=None,wref=None,disp=None,wid=[3],rad=5,snr=3,degree=2):
               plt.plot([cents[i],cents[i]],[0,10000],'r')
         plt.draw()
         for i in range(len(cents)) :
-            print i, cents[i], p(cents[i]), waves[i], waves[i]-p(cents[i])
+            print(i, cents[i], p(cents[i]), waves[i], waves[i]-p(cents[i]))
         i = raw_input('enter ID of line to remove (-n for all lines<n, +n for all lines>n, return to continue): ')
         if i is '' :
             done = True
@@ -95,7 +95,7 @@ def wavecal(hd,file=None,wref=None,disp=None,wid=[3],rad=5,snr=3,degree=2):
         elif int(i) >= 0 :
             weight[int(i)] = 0.
         else :
-            print 'invalid input'
+            print('invalid input')
 
     return p
 

@@ -34,7 +34,7 @@ def process(root,dir='./',verbose=True) :
     iraf.hedit('flat_mag.fits',fields='CCDSEC',value='[200:1850,1:8189]',
            add=no,addonly=no,delete=no,verify=no,show=yes,update=yes)
     iraf.hedit('flat_mag.fits','dispaxis','1',add=yes,verify=no,show=yes,update=yes)
-    if verbose: print 'Modeling and extracting the superflat...'
+    if verbose: print( 'Modeling and extracting the superflat...')
     iraf.apall(input='flat_mag.fits',ref='echtrace130522',format='echelle',
            interactive=no,find=no,recenter=yes,resize=yes,edit=no,trace=yes,
            fittrace=no,extract=yes,extras=no,review=no,line=825,nsum=10,
@@ -57,17 +57,17 @@ def process(root,dir='./',verbose=True) :
     # arcs
     arcs = imred.getfiles('comp',verbose=verbose,listfile='arcs.lis')
     for arc in arcs :
-        if verbose: print 'arc: ', arc
+        if verbose: print('arc: ', arc)
         data=imred.reduce(arc,bias=bias,trim=True)
         arcfile='arc.{:04d}.fits'.format(arc)
         outfile='arc.{:04d}.ec.fits'.format(arc)
         data.writeto(arcfile,clobber=True)
-        if verbose: print 'Resampling the arc by a factor of 4 in the y direction...'
+        if verbose: print('Resampling the arc by a factor of 4 in the y direction...')
         iraf.magnify(input=arcfile,output=arcfile,xmag=1,ymag=4)
         iraf.hedit(images=arcfile,fields='CCDSEC',value='[200:1850,1:8189]',add=no,
                addonly=no,delete=no,verify=no,show=yes,update=yes)
         iraf.hedit(arcfile,'dispaxis','1',add=yes,verify=no,show=yes,update=yes)
-        if verbose: print 'Applying model apertures to the arc and extracting spectra...'
+        if verbose: print('Applying model apertures to the arc and extracting spectra...')
         if os.path.isfile(outfile) : os.remove(outfile)
         iraf.apall(input=arcfile,output=outfile,reference='flat_mag',format='echelle',
                interactive=no,find=no,recenter=no,resize=no,edit=no,

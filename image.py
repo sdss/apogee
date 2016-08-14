@@ -11,7 +11,7 @@ import pdb
 try: 
     import pyds9
 except:
-    print 'pyds9 is not available, proceeding'
+    print('pyds9 is not available, proceeding')
 
 class BOX() :
     """ 
@@ -23,7 +23,7 @@ class BOX() :
                 nr=n
                 nc=n
             except:
-                print 'You must specify either n=, or nr= and nc='
+                print('You must specify either n=, or nr= and nc=')
                 return
         if cr is not None and cc is not None :
             sr=cr-nr/2
@@ -55,8 +55,8 @@ class BOX() :
         return(self.xmax-self.xmin+1)
 
     def show(self):
-        print '    SC    NC    SR    NR  Exp       Date     Name'
-        print ' {:6d} {:6d} {:6d} {:6d} '.format(self.xmin,self.ncol(),self.ymin,self.nrow())
+        print('    SC    NC    SR    NR  Exp       Date     Name')
+        print(' {:6d} {:6d} {:6d} {:6d} '.format(self.xmin,self.ncol(),self.ymin,self.nrow()))
 
     def mean(self,data):
         if self.nrow() <= 0 or self.ncol() <= 0 : return 0.
@@ -124,10 +124,10 @@ def stretch(a,ncol=None,nrow=None) :
     Stretches a 1D image into a 2D image along rows or columns 
     """
     if nrow is None and ncol is None :
-        print 'Must specify either nrow= or ncol='
+        print('Must specify either nrow= or ncol=')
         return
     if nrow is not None and ncol is not None :
-        print 'Must specify only one of nrow= or ncol='
+        print('Must specify only one of nrow= or ncol=')
         return
     if ncol is not None :
         out=np.zeros([a.shape[0],ncol])
@@ -160,7 +160,7 @@ def __get_overlap(a,b,dc=0,dr=0,box=None) :
     """
     
     if box is not None :
-        print 'need to implement box=!'
+        print('need to implement box=!')
         return
  
     a_cnpix1,a_cnpix2 = __get_cnpix(a)
@@ -182,7 +182,7 @@ def __check_hdu(a) :
     if type(a) is fits.hdu.image.PrimaryHDU :
         return True
     else:
-        print 'Input must be HDU type, with header and data!'
+        print('Input must be HDU type, with header and data!')
         return False
 
 def add(a,b,dc=0,dr=0,box=None) :
@@ -233,7 +233,7 @@ def clip(hd,min=None,max=None,vmin=None,vmax=None,box=None) :
     if __check_hdu(hd) is False : return
    
     if box is not None :
-        print 'need to implement box=!'
+        print('need to implement box=!')
         return
  
     if min is not None or vmin is not None :
@@ -262,15 +262,15 @@ def buf(hd) :
     """ 
     if __check_hdu(hd) is False : return
 
-    print '    SC    NC    SR    NR  Exp       Date     Name'
+    print('    SC    NC    SR    NR  Exp       Date     Name')
     cnpix1,cnpix2 = __get_cnpix(hd)
     npix1 = hd.header['NAXIS1']
     npix2 = hd.header['NAXIS2']
-    print '{:6d}{:6d}{:6d}{:6d}'.format(cnpix1,npix1,cnpix2,npix2)
+    print('{:6d}{:6d}{:6d}{:6d}'.format(cnpix1,npix1,cnpix2,npix2))
 
     #dict=globals()
     #for key in dict :
-    #    if type(dict[key]) is fits.hdu.image.PrimaryHDU : print key
+    #    if type(dict[key]) is fits.hdu.image.PrimaryHDU : print(key)
 
 
 def rd(file,ext=0) :
@@ -280,7 +280,7 @@ def rd(file,ext=0) :
     try:
         return fits.open(file)[ext]
     except :
-        print 'cannot open file: ', file, ' extension: ', ext
+        print('cannot open file: ', file, ' extension: ', ext)
 
 def create(box=None,n=None,nr=None,nc=None,sr=1,sc=1,cr=None,cc=None,const=None) :
     """
@@ -297,7 +297,7 @@ def create(box=None,n=None,nr=None,nc=None,sr=1,sc=1,cr=None,cc=None,const=None)
                 nr=n
                 nc=n
             except:
-                print 'You must specify either box=, n=, or nr= and nc='
+                print('You must specify either box=, n=, or nr= and nc=')
                 return
         if cr is not None and cc is not None :
             sr=cr-nr/2
@@ -305,7 +305,7 @@ def create(box=None,n=None,nr=None,nc=None,sr=1,sc=1,cr=None,cc=None,const=None)
     try :
         im=np.zeros([nr,nc])
     except :
-        print 'must specify image size '
+        print('must specify image size ')
         return
     hd=fits.PrimaryHDU(im)
     hd.header['CNPIX1'] = sc
@@ -349,7 +349,7 @@ def sky(im,box=None,max=None,min=None,plot=None):
     # get median and stdev in desired region
     med = np.median(reg[gd])
     sig = reg[gd].std()
-    print 'initial median, sigma: ', med, sig
+    print('initial median, sigma: ', med, sig)
 
     # create histogram around median and find peak
     gd = np.where((reg.flatten() > med-2*sig) & (reg.flatten() < med+2*sig))[0]

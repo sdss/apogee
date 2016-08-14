@@ -12,7 +12,7 @@ import image
 try: 
     import pyds9
 except:
-    print 'pyds9 is not available, proceeding'
+    print('pyds9 is not available, proceeding')
 
 def setup(name='*',dir='./',idet=1) :
     """ 
@@ -54,8 +54,8 @@ def read(num,ext=0,bias=True,verbose=False) :
         file=glob.glob(indir+'/'+root+'.'+det.formstr.format(num)+'.fits*')
         if len(file) > 0 : file=file[0]
     if verbose: 
-        print 'root: ', root
-        print 'Reading: ', file
+        print('root: ', root)
+        print('Reading: ', file)
     if '.bz2' in file :
         hdu=fits.open(bz2.BZ2File(file),ignore=True,ignore_missing_end=True)
     else :
@@ -66,7 +66,7 @@ def read(num,ext=0,bias=True,verbose=False) :
     if bias :
         if det.biastype == 0 :
             b=det.biasbox.mean(hdu[ext].data)
-            if verbose: print 'subtracting overscan: ', b
+            if verbose: print('subtracting overscan: ', b)
             hdu[ext].data -= b
         elif det.biastype == 1 :
             over=np.median(hdu[ext].data[:,det.biasbox.xmin:det.biasbox.xmax],axis=1)
@@ -92,13 +92,13 @@ def reduce(num,bias=None,flat=None,trim=False,verbose=False) :
     Returns:
       HDU : hdu of reduced image
     """
-    if verbose: print 'reading: ', num
+    if verbose: print('reading: ', num)
     hdu=read(num,verbose=verbose)
     if bias is not None :
-        if verbose: print 'subtracting bias'
+        if verbose: print('subtracting bias')
         hdu.data -= bias
     if flat is not None :
-        if verbose: print 'dividing by flat'
+        if verbose: print('dividing by flat')
         hdu.data /= flat
     if trim :
         out= window(hdu,det.trimbox)
@@ -125,26 +125,26 @@ def combine(ims,norm=False,bias=None,flat=None,trim=False,verbose=False,
     """
     cube=[]
     for im in ims :
-        print 'Reading image: ', im
+        print('Reading image: ', im)
         h=reduce(im,bias=bias,flat=flat,trim=trim,verbose=verbose) 
         if norm :
             b=det.normbox
             norm=np.median(h.data[b.ymin:b.ymax,b.xmin:b.xmax])
-            print 'Normalizing image by : ', norm
+            print('Normalizing image by : ', norm)
             cube.append(h.data/norm)
         else :
             cube.append(h.data)
-    print 'Combining: ', ims
+    print('Combining: ', ims)
     comb = np.median(cube,axis=0)
     if disp is not None :
         for im in ims :
-            print im
+            print(im)
             h=reduce(im,bias=bias,flat=flat,trim=trim,verbose=verbose) 
             if norm :
                 b=det.normbox
                 norm=np.median(h.data[b.ymin:b.ymax,b.xmin:b.xmax])
                 h.data /= norm
-            print 'Normalizing image by : ', norm
+            print('Normalizing image by : ', norm)
             if div :
                 disp.tv(h.data/comb,min=min,max=max)
             else :
@@ -181,7 +181,7 @@ def specflat(flat,rows=True,indiv=False,wid=100) :
                 smooth[row,:] /= c
 
     else :
-        print 'smoothing by columns not yet implemented!'
+        print('smoothing by columns not yet implemented!')
         pdb.set_trace()
       
     return smooth 
@@ -265,12 +265,12 @@ def getfiles(type,listfile=None,filter=None,verbose=False) :
     """
     if listfile is None :
         list=[]
-        if verbose: print 'directory: ', indir
+        if verbose: print('directory: ', indir)
         for file in glob.glob(indir+'/'+root+'*.fits*') :
             head=fits.open(file)[0].header
             #if verbose :
-            #   print 'file: ', file
-            #   print 'IMAGETYPE: ', head['IMAGETYP']
+            #   print('file: ', file)
+            #   print('IMAGETYPE: ', head['IMAGETYP'])
 
             try :
                 if head['IMAGETYP'] == type :

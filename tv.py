@@ -9,7 +9,7 @@ try:
    import autopy
    have_autopy=True
 except:
-   print 'autopy does not seem to be available, disabling arrow key cursor moves'
+   print('autopy does not seem to be available, disabling arrow key cursor moves')
    have_autopy=False
 import pdb
  
@@ -226,19 +226,19 @@ class TV:
                 plt.draw()
 
             elif event.key == 'h' or event.key == '?' :
-                print 'Asynchronous commands: '
-                print 'Image window: '
-                print '  mouse:'
-                print '    left mouse  : zoom in, centered on cursoe'
-                print '    center mouse: zoom out, centered on cursoe'
-                print '    right mouse : pan, center to cursor'
-                print '  keys:'
-                print '    r           : redraw at default zoom'
-                print '    +/=         : toggle to next image in stack'
-                print '    -           : toggle to previous image in stack'
-                print '    arrow keys  : move single image pixels'
-                print '    a           : toggle axes on/off'
-                print '    h/?         : print this help'
+                print('Asynchronous commands: ')
+                print('Image window: ')
+                print('  mouse:')
+                print('    left mouse  : zoom in, centered on cursoe')
+                print('    center mouse: zoom out, centered on cursoe')
+                print('    right mouse : pan, center to cursor')
+                print('  keys:')
+                print('    r           : redraw at default zoom')
+                print('    +/=         : toggle to next image in stack')
+                print('    -           : toggle to previous image in stack')
+                print('    arrow keys  : move single image pixels')
+                print('    a           : toggle axes on/off')
+                print('    h/?         : print this help')
 
             if self.blocking == 1 : self.__stopBlock()
 
@@ -348,7 +348,7 @@ class TV:
         elif isinstance(img.data, (np.ndarray)) :
             data = img.data
         else :
-            print 'input must be numpy array or have data attribute that is'
+            print('input must be numpy array or have data attribute that is')
             return
 
         # set figure and axes

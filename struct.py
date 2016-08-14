@@ -8,7 +8,7 @@ import pdb
 
 def pformat(file,val,iformat,fformat,sformat) :
     """ Utility routine for printing a value """
-    #print 'type: ', val, type(val)
+    #print('type: ', val, type(val))
     if isinstance(val,np.ndarray) :
         for v in val :
             #call pformat in case of Nd array
@@ -106,9 +106,9 @@ def add_cols(a,b):
     # create new array
     newrecarray = np.empty(len(a), dtype = newdtype)
     # fill in all of the old columns
-    print 'copying...'
+    print('copying...')
     for name in a.dtype.names:
-         print name
+         print(name)
          newrecarray[name] = a[name]
     return newrecarray
 

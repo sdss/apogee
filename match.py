@@ -32,9 +32,9 @@ def match(A,B,test=False):
     m1=udx1[m[gd]]
 
     if test :
-        if len(m1) != len(m2) : print 'length of index arrays does not match!'
+        if len(m1) != len(m2) : print('length of index arrays does not match!')
         for i in range(len(m1)) :
-            if A[m1[i]] != B[m2[i]] : print 'failed! ' 
+            if A[m1[i]] != B[m2[i]] : print('failed! ' )
 
     return m1, m2
 

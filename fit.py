@@ -38,8 +38,8 @@ def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=Non
         gd=np.where(abs(zdata-pfit(xdata)) < reject)[0]
         bd=np.where(abs(zdata-pfit(xdata)) >= reject)[0]
         #for i in bd :
-        #    print x[i],10.**data[i]
-        print 'rejected ',len(xdata)-len(gd),' of ',len(xdata),' points'
+        #    print(x[i],10.**data[i])
+        print('rejected ',len(xdata)-len(gd),' of ',len(xdata),' points')
         pfit = fit_p(p_init, xdata[gd], zdata[gd])
 
     # plot if requested

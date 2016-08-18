@@ -114,7 +114,7 @@ def fit2d(xdata,ydata,zdata,degree=1,plot=None,xr=None,yr=None,zr=None,xt=None,y
         if zr is None : zr = [zfit.min(),zfit.max()]
         # plot data
         plots.plotc(plot,xfit,yfit,zfit,xr=xr,yr=yr,zr=zr,
-                xt=xt,yt=xt,zt=zt,colorbar=True,size=15,linewidth=1)
+                xt=xt,yt=yt,zt=zt,colorbar=True,size=15,linewidth=1)
         # create independent variable grid for model and display
         y, x = np.mgrid[yr[1]:yr[0]:200j, xr[1]:xr[0]:200j]
         plot.imshow(pfit(x,y),extent=[xr[1],xr[0],yr[1],yr[0]],

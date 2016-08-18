@@ -4,7 +4,7 @@ from holtz.tools import plots
 import numpy as np
 import pdb
 
-def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=None,yr=None,zr=None,xt=None,yt=None,zt=None) :
+def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=None,yr=None,zr=None,xt=None,yt=None,zt=None,pfit=None,log=False) :
     """ 
     Do a 1D polynomial fit to data set and plot if requested
 
@@ -30,46 +30,64 @@ def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=Non
     """
 
     # set up fitter and do fit
-    fit_p = fitting.LinearLSQFitter()
-    p_init = models.Polynomial1D(degree=degree)
-    pfit = fit_p(p_init, xdata, zdata)
-    # rejection of points?
-    if reject > 0 :
-        gd=np.where(abs(zdata-pfit(xdata)) < reject)[0]
-        bd=np.where(abs(zdata-pfit(xdata)) >= reject)[0]
-        #for i in bd :
-        #    print(x[i],10.**data[i])
-        print('rejected ',len(xdata)-len(gd),' of ',len(xdata),' points')
-        pfit = fit_p(p_init, xdata[gd], zdata[gd])
+    if pfit is None :
+        fit_p = fitting.LinearLSQFitter()
+        p_init = models.Polynomial1D(degree=degree)
+        pfit = fit_p(p_init, xdata, zdata)
+        # rejection of points?
+        if reject > 0 :
+            gd=np.where(abs(zdata-pfit(xdata)) < reject)[0]
+            bd=np.where(abs(zdata-pfit(xdata)) >= reject)[0]
+            #for i in bd :
+            #    print(x[i],10.**data[i])
+            print('rejected ',len(xdata)-len(gd),' of ',len(xdata),' points')
+            pfit = fit_p(p_init, xdata[gd], zdata[gd])
 
     # plot if requested
     if plot is not None :
         if xr is None : xr = [xdata.min(),xdata.max()]
         if yr is None and ydata is not None : yr = [ydata.min(),ydata.max()]
-        if zr is None : zr = [zdata.min(),zdata.max()]
+        if log :
+           zplot=10.**zdata
+        else :
+           zplot=zdata
+        if zr is None : zr = [zplot.min(),zplot.max()]
         if ydata is None :
-            # straight 1D plot
-            plots.plotp(plot,xdata,zdata,xr=xr,yr=yr,zr=zr,
-                   xt=xt,yt=yt,size=15)
             x = np.linspace(xr[0],xr[1],200)
-            plots.plotl(plot,x,pfit(x))
+            if log :
+               zfit=10.**pfit(x)
+            else :
+               zfit=pfit(x)
+            # straight 1D plot
+            plots.plotp(plot,xdata,zplot,xr=xr,yr=yr,zr=zr,
+                   xt=xt,yt=yt,size=15)
+            plots.plotl(plot,x,zfit)
+            pdb.set_trace()
         elif plot2d :
             # 2D image plot with auxiliary variable
             y, x = np.mgrid[yr[1]:yr[0]:200j, xr[1]:xr[0]:200j]
-            plots.plotc(plot,xdata,ydata,zdata,xr=xr,yr=yr,zr=zr,
+            if log :
+               zfit=10.**pfit(x)
+            else :
+               zfit=pfit(x)
+            plots.plotc(plot,xdata,ydata,zplot,xr=xr,yr=yr,zr=zr,
                    xt=xt,yt=xt,zt=yt,colorbar=True,size=15)
-            plot.imshow(pfit(x),extent=[xr[1],xr[0],yr[1],yr[0]],
+            plot.imshow(zfit,extent=[xr[1],xr[0],yr[1],yr[0]],
                 aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower')
         else :
             # 1D plot color-coded by auxiliary variable
-            plots.plotc(plot,xdata,zdata,ydata,xr=xr,yr=zr,zr=yr,
-                   xt=xt,yt=yt,size=15)
             x = np.linspace(xr[0],xr[1],200)
-            plots.plotl(plot,x,pfit(x),color='k')
+            if log :
+               zfit=10.**pfit(x)
+            else :
+               zfit=pfit(x)
+            plots.plotc(plot,xdata,zplot,ydata,xr=xr,yr=zr,zr=yr,
+                   xt=xt,yt=yt,size=15)
+            plots.plotl(plot,x,zfit,color='k')
         pdb.set_trace()
     return pfit
 
-def fit2d(xdata,ydata,zdata,degree=1,plot=None,xr=None,yr=None,zr=None,xt=None,yt=None,zt=None,gdrange=None) :
+def fit2d(xdata,ydata,zdata,degree=1,plot=None,xr=None,yr=None,zr=None,xt=None,yt=None,zt=None,gdrange=None,pfit=None) :
     """ 
     Do a 2D polynomial fit to data set and plot if requested
 
@@ -104,9 +122,10 @@ def fit2d(xdata,ydata,zdata,degree=1,plot=None,xr=None,yr=None,zr=None,xt=None,y
         zfit = zdata
 
     # set up fitter and do fit
-    fit_p = fitting.LinearLSQFitter()
-    p_init = models.Polynomial2D(degree=degree)
-    pfit = fit_p(p_init, xfit, yfit, zfit)
+    if pfit is None :
+        fit_p = fitting.LinearLSQFitter()
+        p_init = models.Polynomial2D(degree=degree)
+        pfit = fit_p(p_init, xfit, yfit, zfit)
     
     if plot is not None :
         if xr is None : xr = [xfit.min(),xfit.max()]
@@ -114,7 +133,7 @@ def fit2d(xdata,ydata,zdata,degree=1,plot=None,xr=None,yr=None,zr=None,xt=None,y
         if zr is None : zr = [zfit.min(),zfit.max()]
         # plot data
         plots.plotc(plot,xfit,yfit,zfit,xr=xr,yr=yr,zr=zr,
-                xt=xt,yt=yt,zt=zt,colorbar=True,size=15,linewidth=1)
+                xt=xt,yt=xt,zt=zt,colorbar=True,size=15,linewidth=1)
         # create independent variable grid for model and display
         y, x = np.mgrid[yr[1]:yr[0]:200j, xr[1]:xr[0]:200j]
         plot.imshow(pfit(x,y),extent=[xr[1],xr[0],yr[1],yr[0]],

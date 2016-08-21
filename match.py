@@ -11,6 +11,8 @@ def match(A,B,test=False):
     # Get sorted unique elements of A and B and the indices based on the uniqueness
     unqA,udx1,idx1 = np.unique(A,return_inverse=True,return_index=True)
     unqB,udx2,idx2 = np.unique(B,return_inverse=True,return_index=True)
+    unqA=unqA.tolist()
+    unqB=unqB.tolist()
 
     # Create mask equivalent to np.in1d(A,B) and np.in1d(B,A) for unique elements
     # mask will be true for matching elements

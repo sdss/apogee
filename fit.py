@@ -4,7 +4,7 @@ from holtz.tools import plots
 import numpy as np
 import pdb
 
-def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=None,yr=None,zr=None,xt=None,yt=None,zt=None,pfit=None,log=False) :
+def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=None,yr=None,zr=None,xt=None,yt=None,zt=None,pfit=None,log=False,colorbar=False) :
     """ 
     Do a 1D polynomial fit to data set and plot if requested
 
@@ -38,8 +38,6 @@ def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=Non
         if reject > 0 :
             gd=np.where(abs(zdata-pfit(xdata)) < reject)[0]
             bd=np.where(abs(zdata-pfit(xdata)) >= reject)[0]
-            #for i in bd :
-            #    print(x[i],10.**data[i])
             print('rejected ',len(xdata)-len(gd),' of ',len(xdata),' points')
             pfit = fit_p(p_init, xdata[gd], zdata[gd])
 
@@ -82,9 +80,8 @@ def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=Non
             else :
                zfit=pfit(x)
             plots.plotc(plot,xdata,zplot,ydata,xr=xr,yr=zr,zr=yr,
-                   xt=xt,yt=yt,size=15)
+                   xt=xt,yt=yt,zt=zt,size=15,colorbar=colorbar)
             plots.plotl(plot,x,zfit,color='k')
-        pdb.set_trace()
     return pfit
 
 def fit2d(xdata,ydata,zdata,degree=1,plot=None,xr=None,yr=None,zr=None,xt=None,yt=None,zt=None,gdrange=None,pfit=None) :

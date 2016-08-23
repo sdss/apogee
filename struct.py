@@ -5,6 +5,7 @@ Utilities for numpy structured arrays
 import numpy as np
 import sys
 import pdb
+from astropy.io import fits
 
 def pformat(file,val,iformat,fformat,sformat) :
     """ Utility routine for printing a value """
@@ -111,6 +112,32 @@ def add_cols(a,b):
          print(name)
          newrecarray[name] = a[name]
     return newrecarray
+
+
+def append(a,b) :
+    '''
+    Append two structured arrays, checking for same fields, and increasing size of character fields
+    as needed
+    '''
+
+    dt_a=a.dtype.descr
+    dt_b=a.dtype.descr
+    if len(dt_a) != len(dt_b) :
+        print("structures don't have same number of fields")
+
+    dt=dt_a
+    for i in range(len(dt_a)) :
+        if dt_a[i][0] != dt_b[i][0] :
+            print("fields don't match",i,dt_a[i],dt_b[i])
+        elif dt_a[i][1].find('S') >= 0 :
+            j=dt_a[i][1].find('S')
+            n=len(dt_a[i][1])
+            s_a=int(dt_a[i][1][j+1:n])
+            s_b=int(dt_b[i][1][j+1:n])
+            dt[i]=(dt_a[i][0],dt_a[i][1][0:j+1]+'{:<d}'.format(max([s_a,s_b])))
+            #print(dt_a[i][0],dt_a[i][1],dt_b[i][1],dt[i][1])
+    dt=np.dtype(dt)
+    return np.append(a.astype(dt),b.astype(dt))
 
 def wrfits(a,file) :
     '''

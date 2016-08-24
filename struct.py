@@ -3,6 +3,7 @@ Utilities for numpy structured arrays
 """
 
 import numpy as np
+import glob
 import sys
 import pdb
 from astropy.io import fits
@@ -87,8 +88,6 @@ def add_cols(a,b):
     return new recarray
     """
 
-    #newdtype = sum((tmp.dtype.descr for tmp in [a,b]), [])
-
     # need to handle array elements properly
     newdtype = []
     names = a.dtype.names+b.dtype.names
@@ -107,9 +106,9 @@ def add_cols(a,b):
     # create new array
     newrecarray = np.empty(len(a), dtype = newdtype)
     # fill in all of the old columns
-    print('copying...')
+    #print('copying...')
     for name in a.dtype.names:
-         print(name)
+         #print(name)
          newrecarray[name] = a[name]
     return newrecarray
 
@@ -121,7 +120,7 @@ def append(a,b) :
     '''
 
     dt_a=a.dtype.descr
-    dt_b=a.dtype.descr
+    dt_b=b.dtype.descr
     if len(dt_a) != len(dt_b) :
         print("structures don't have same number of fields")
 
@@ -133,11 +132,45 @@ def append(a,b) :
             j=dt_a[i][1].find('S')
             n=len(dt_a[i][1])
             s_a=int(dt_a[i][1][j+1:n])
+            n=len(dt_b[i][1])
             s_b=int(dt_b[i][1][j+1:n])
             dt[i]=(dt_a[i][0],dt_a[i][1][0:j+1]+'{:<d}'.format(max([s_a,s_b])))
-            #print(dt_a[i][0],dt_a[i][1],dt_b[i][1],dt[i][1])
+            #print(dt_a[i][0],dt_a[i][1],dt_b[i][0],dt_b[i][1],dt[i][1],s_a,s_b)
     dt=np.dtype(dt)
     return np.append(a.astype(dt),b.astype(dt))
+
+def concat(files,hdu=1) :
+    '''
+    Create concatenation of structures from an input list of files files; structures must have identical tags
+
+    Args:
+        files : single file name(str) or list of files, can include wildcards (expanded using glob)
+  
+    Keyword args:
+        hdu=  : specifies which HDU to read/concatenation (default=1)
+
+    Returns:
+        structure with concatenated records
+    '''
+    if type(files) == str:
+        files=[files]
+    allfiles=[]
+    for file in files :
+        allfiles.extend(glob.glob(file))
+    if len(allfiles) == 0 :
+        print('no files found!',file)
+        return
+
+    for file in allfiles :
+        print(file)
+        a=fits.open(file)[hdu].data
+        if file == allfiles[0] :
+            all=a
+        else :
+            all=append(all,a)
+        print len(all), len(a)
+    return all
+
 
 def wrfits(a,file) :
     '''

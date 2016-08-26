@@ -139,7 +139,7 @@ def append(a,b) :
     dt=np.dtype(dt)
     return np.append(a.astype(dt),b.astype(dt))
 
-def concat(files,hdu=1) :
+def concat(files,hdu=1,verbose=False) :
     '''
     Create concatenation of structures from an input list of files files; structures must have identical tags
 
@@ -162,13 +162,13 @@ def concat(files,hdu=1) :
         return
 
     for file in allfiles :
-        print(file)
+        if verbose: print(file)
         a=fits.open(file)[hdu].data
         if file == allfiles[0] :
             all=a
         else :
             all=append(all,a)
-        print len(all), len(a)
+        if verbose: print len(all), len(a)
     return all
 
 

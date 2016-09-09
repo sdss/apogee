@@ -60,7 +60,6 @@ def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=Non
             plots.plotp(plot,xdata,zplot,xr=xr,yr=yr,zr=zr,
                    xt=xt,yt=yt,size=15)
             plots.plotl(plot,x,zfit)
-            pdb.set_trace()
         elif plot2d :
             # 2D image plot with auxiliary variable
             y, x = np.mgrid[yr[1]:yr[0]:200j, xr[1]:xr[0]:200j]
@@ -84,7 +83,7 @@ def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=Non
             plots.plotl(plot,x,zfit,color='k')
     return pfit
 
-def fit2d(xdata,ydata,zdata,degree=1,plot=None,xr=None,yr=None,zr=None,xt=None,yt=None,zt=None,gdrange=None,pfit=None) :
+def fit2d(xdata,ydata,zdata,degree=1,reject=0,plot=None,xr=None,yr=None,zr=None,xt=None,yt=None,zt=None,gdrange=None,pfit=None) :
     """ 
     Do a 2D polynomial fit to data set and plot if requested
 
@@ -95,6 +94,7 @@ def fit2d(xdata,ydata,zdata,degree=1,plot=None,xr=None,yr=None,zr=None,xt=None,y
 
     Keyword args:
         degree: degree of polynomial to fit (default=1 for linear fit)
+        reject : single iteration rejection of points that deviate from initial by more than specified value (default=0, no rejection)
 	ydata : auxiliary variable for plots (default=None)
         plot  : axes to plot into (default=None)
         xr[2] : xrange for plot
@@ -123,6 +123,12 @@ def fit2d(xdata,ydata,zdata,degree=1,plot=None,xr=None,yr=None,zr=None,xt=None,y
         fit_p = fitting.LinearLSQFitter()
         p_init = models.Polynomial2D(degree=degree)
         pfit = fit_p(p_init, xfit, yfit, zfit)
+        # rejection of points?
+        if reject > 0 :
+            gd=np.where(abs(zfit-pfit(xfit,yfit)) < reject)[0]
+            bd=np.where(abs(zfit-pfit(xfit,yfit)) >= reject)[0]
+            print('rejected ',len(xdata)-len(gd),' of ',len(xdata),' points')
+            pfit = fit_p(p_init, xfit[gd], yfit[gd], zfit[gd])
     
     if plot is not None :
         if xr is None : xr = [xfit.min(),xfit.max()]
@@ -130,12 +136,12 @@ def fit2d(xdata,ydata,zdata,degree=1,plot=None,xr=None,yr=None,zr=None,xt=None,y
         if zr is None : zr = [zfit.min(),zfit.max()]
         # plot data
         plots.plotc(plot,xfit,yfit,zfit,xr=xr,yr=yr,zr=zr,
-                xt=xt,yt=xt,zt=zt,colorbar=True,size=15,linewidth=1)
+                xt=xt,yt=yt,zt=zt,colorbar=True,size=15,linewidth=1)
         # create independent variable grid for model and display
         y, x = np.mgrid[yr[1]:yr[0]:200j, xr[1]:xr[0]:200j]
         plot.imshow(pfit(x,y),extent=[xr[1],xr[0],yr[1],yr[0]],
                 aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower')
-        plt.show()
+        #plt.show()
 
     return pfit
 

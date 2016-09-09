@@ -6,6 +6,7 @@ import numpy as np
 import glob
 import sys
 import pdb
+import copy
 from astropy.io import fits
 
 def pformat(file,val,iformat,fformat,sformat) :
@@ -124,7 +125,7 @@ def append(a,b) :
     if len(dt_a) != len(dt_b) :
         print("structures don't have same number of fields")
 
-    dt=dt_a
+    dt=copy.copy(dt_a)
     for i in range(len(dt_a)) :
         if dt_a[i][0] != dt_b[i][0] :
             print("fields don't match",i,dt_a[i],dt_b[i])
@@ -136,8 +137,16 @@ def append(a,b) :
             s_b=int(dt_b[i][1][j+1:n])
             dt[i]=(dt_a[i][0],dt_a[i][1][0:j+1]+'{:<d}'.format(max([s_a,s_b])))
             #print(dt_a[i][0],dt_a[i][1],dt_b[i][0],dt_b[i][1],dt[i][1],s_a,s_b)
+        try :
+            # kludge to get nD array elements done properly, instead of being converted to 1D, don't know why this is necessary
+            # somehow dtype doesn't have the information, although shape gets it
+            if a[dt_a[i][0]].ndim > 2 :
+                dt[i]=(dt_a[i][0],dt_a[i][1],a[dt_a[i][0]].shape[1:len(a[dt_a[i][0]].shape)])
+        except :
+            pass
     dt=np.dtype(dt)
-    return np.append(a.astype(dt),b.astype(dt))
+    # unforutantely, broadcasting of the ND array in np.append doesn't seem to work!
+    return np.append(a.astype(dt),b.astype(dt)), dt
 
 def concat(files,hdu=1,verbose=False) :
     '''
@@ -161,14 +170,37 @@ def concat(files,hdu=1,verbose=False) :
         print('no files found!',file)
         return
 
+    # first go through and determine the maximally sized dtypes to be able to store data from all files
+    # append the arrays using np.append, but unfortunately, this doesn't seem to work for nD fields
+    ntot=0
     for file in allfiles :
         if verbose: print(file)
         a=fits.open(file)[hdu].data
         if file == allfiles[0] :
-            all=a
+            app=a
         else :
-            all=append(all,a)
+            app,dt=append(app,a)
+        ntot+=len(a)
+        if verbose: print len(app), len(a)
+
+    # since broadcasting in np.append doesn't seem to work, create an empty structure using the maximal
+    #    dtype, and load it up line by line, and field by field
+    all=np.empty(ntot,dt)
+
+    j=0
+    for file in allfiles :
+        if verbose: print(file)
+        a=fits.open(file)[hdu].data
+        for i in range(len(a)) :
+          for name in all.dtype.names :
+            # strings and chararrays need to behandled properly
+            try:
+              all[name][j] = a[name][i]
+            except:
+              all[name][j] = a[name][i][0]
+          j+=1
         if verbose: print len(all), len(a)
+
     return all
 
 

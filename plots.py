@@ -71,7 +71,6 @@ def plotc(ax,x,y,z,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,
     if yr is not None : ax.set_ylim(yr[0],yr[1])
     if xt is not None : ax.set_xlabel(xt) 
     if yt is not None : ax.set_ylabel(yt)
-    print('marker: ', marker, type(marker),type('o'))
     if zr is None :
         scat=ax.scatter(x,y,c=z,s=size,cmap=cmap,linewidth=linewidth,marker=marker)
     else :
@@ -242,7 +241,6 @@ def multi(nx,ny,figsize=None,hspace=1,wspace=1) :
             ticklabels = ax[0,0].get_xticklabels()
             for i in range(nx) :
                 for j in range(0,ny-1) : 
-                    print(i, j)
                     ticklabels = ticklabels + ax[j,i].get_xticklabels()
         plt.setp(ticklabels, visible=False)
     if (wspace < 0.01) & (nx> 1):
@@ -254,7 +252,6 @@ def multi(nx,ny,figsize=None,hspace=1,wspace=1) :
             ticklabels = ax[0,1].get_yticklabels()
             for i in range(1,nx) :
                 for j in range(ny) : 
-                    print(j, i)
                     ticklabels = ticklabels + ax[j,i].get_yticklabels()
         plt.setp(ticklabels, visible=False)
     return fig,ax

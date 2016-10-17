@@ -179,6 +179,8 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
                     ax.scatter(x[gd],y[gd],c=z[gd],s=sz,marker=mark)
             else :
                 ax.scatter(x[gd],y[gd],s=sz,marker=mark,facecolors=facecol,edgecolors=col)
+            if yerr is not None :
+                ax.errorbar(x[gd],y[gd],marker=mark,yerr=yerr[gd],fmt='none',capsize=0,ecolor=col)
     else :
         ax.scatter(x,y,marker=marker,s=size,linewidth=linewidth,facecolors=facecolors,edgecolors=color)
         if xerr is not None or yerr is not None :
@@ -192,7 +194,7 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
 
 
 
-def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True) :
+def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None,ls=None) :
     '''
     Plot connected points
     '''
@@ -202,7 +204,8 @@ def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True) :
     except : pass
     if xt is not None : ax.set_xlabel(xt) 
     if yt is not None : ax.set_ylabel(yt)
-    line = ax.plot(x,y,color=color)
+    if ls is None : ls='-'
+    line = ax.plot(x,y,color=color,label=label,ls=ls)
     if draw : plt.draw()
     return line
     
@@ -217,7 +220,7 @@ def ax(subplot=111) :
     fig=plt.figure()
     return fig.add_subplot(subplot)
 
-def multi(nx,ny,figsize=None,hspace=1,wspace=1) :
+def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False) :
     '''
     Returns figure and axes array for grid of nx by ny plots, suppressing appropriate axes if requested by hspace and wspace
 
@@ -230,7 +233,7 @@ def multi(nx,ny,figsize=None,hspace=1,wspace=1) :
        hspace   : space (0.-1.) between vertical plots (height)
        wspace   : space (0.-1.) between horizont plots (width)
     '''
-    fig,ax = plt.subplots(ny,nx,figsize=figsize)
+    fig,ax = plt.subplots(ny,nx,figsize=figsize,sharex=sharex,sharey=sharey)
     fig.subplots_adjust(hspace=hspace,wspace=wspace)
     if (hspace < 0.01) & (ny>1):
         # if we are vertical stacking, turn off xticks for all except bottom

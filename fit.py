@@ -41,6 +41,8 @@ def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=Non
             print('rejected ',len(xdata)-len(gd),' of ',len(xdata),' points')
             pfit = fit_p(p_init, xdata[gd], zdata[gd])
 
+    print '1D rms: ',(zdata-pfit(xdata)).std()
+
     # plot if requested
     if plot is not None :
         if xr is None : xr = [xdata.min(),xdata.max()]
@@ -83,7 +85,7 @@ def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=Non
             plots.plotl(plot,x,zfit,color='k')
     return pfit
 
-def fit2d(xdata,ydata,zdata,degree=1,reject=0,plot=None,xr=None,yr=None,zr=None,xt=None,yt=None,zt=None,gdrange=None,pfit=None) :
+def fit2d(xdata,ydata,zdata,degree=1,reject=0,plot=None,xr=None,yr=None,zr=None,xt=None,yt=None,zt=None,gdrange=None,pfit=None,log=False) :
     """ 
     Do a 2D polynomial fit to data set and plot if requested
 
@@ -129,8 +131,12 @@ def fit2d(xdata,ydata,zdata,degree=1,reject=0,plot=None,xr=None,yr=None,zr=None,
             bd=np.where(abs(zfit-pfit(xfit,yfit)) >= reject)[0]
             print('rejected ',len(xdata)-len(gd),' of ',len(xdata),' points')
             pfit = fit_p(p_init, xfit[gd], yfit[gd], zfit[gd])
+
+    print '2D rms: ',(zfit-pfit(xfit,yfit)).std()
     
     if plot is not None :
+        if log :
+            zfit = 10.**zfit
         if xr is None : xr = [xfit.min(),xfit.max()]
         if yr is None : yr = [yfit.min(),yfit.max()]
         if zr is None : zr = [zfit.min(),zfit.max()]
@@ -139,13 +145,17 @@ def fit2d(xdata,ydata,zdata,degree=1,reject=0,plot=None,xr=None,yr=None,zr=None,
                 xt=xt,yt=yt,zt=zt,colorbar=True,size=15,linewidth=1)
         # create independent variable grid for model and display
         y, x = np.mgrid[yr[1]:yr[0]:200j, xr[1]:xr[0]:200j]
-        plot.imshow(pfit(x,y),extent=[xr[1],xr[0],yr[1],yr[0]],
+        if log :
+            plot.imshow(10.**pfit(x,y),extent=[xr[1],xr[0],yr[1],yr[0]],
+                aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower')
+        else :
+            plot.imshow(pfit(x,y),extent=[xr[1],xr[0],yr[1],yr[0]],
                 aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower')
         #plt.show()
 
     return pfit
 
-def linear(data,design,err=None) :
+def linear(data,design,err=None,reject=0) :
     '''
     Given data array (npts) and design matrix (npar, npts), return linear solution
     '''

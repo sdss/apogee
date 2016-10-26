@@ -37,7 +37,7 @@ def event(fig) :
             struct.list(_data,ind=_index,cols=_id_cols)
     cid = fig.canvas.mpl_connect('key_press_event',onpress)
 
-def plotc(ax,x,y,z,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,xt=None,yt=None,zt=None,label=None,linewidth='0',marker='o',draw=True,orientation='vertical',labelcolor='k') :
+def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,xt=None,yt=None,zt=None,label=None,linewidth='0',marker='o',draw=True,orientation='vertical',labelcolor='k') :
     """
     Plots a scatter plot with point color-coded by z data
 
@@ -75,6 +75,8 @@ def plotc(ax,x,y,z,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,
         scat=ax.scatter(x,y,c=z,s=size,cmap=cmap,linewidth=linewidth,marker=marker)
     else :
         scat=ax.scatter(x,y,c=z,vmin=zr[0],vmax=zr[1],s=size,cmap=cmap,linewidth=linewidth,marker=marker)
+    if yerr is not None :
+        ax.errorbar(x,y,yerr=yerr,fmt='none',capsize=0,ecolor='k')
     if label is not None :
         ax.text(label[0],label[1],label[2],transform=ax.transAxes,color=labelcolor) 
     if colorbar :

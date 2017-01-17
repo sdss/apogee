@@ -7,10 +7,8 @@ import cmap
 import mmm
 try:
    import autopy
-   have_autopy=True
 except:
    print('autopy does not seem to be available, disabling arrow key cursor moves')
-   have_autopy=False
 import pdb
  
 class TV:
@@ -80,11 +78,11 @@ class TV:
                        object=self.hdr['object']
                     except:
                        object=None
-                    return "[x,y]=[%4d, %4d] val=%8.1f   [%s %s]=[%10.6f,%10.6f]   OBJECT: %s" % (x,y, self.img[y, x], mywcs.wcs.ctype[0],mywcs.wcs.ctype[1],world[0,0], world[0,1], object)
+                    return "[x,y]=[%4d, %4d] val=%8.5g   [%s %s]=[%10.6f,%10.6f]   OBJECT: %s" % (x,y, self.img[y, x], mywcs.wcs.ctype[0],mywcs.wcs.ctype[1],world[0,0], world[0,1], object)
 		except:
                     mywcs=None
                 try:
-                    return "[x,y]\n [%4i, %4i] val=%8.1f OBJECT: %s" % (x,y, self.img[y, x], object)
+                    return "[x,y]\n [%4i, %4i] val=%8.5g OBJECT: %s" % (x,y, self.img[y, x], object)
                 except IndexError:
                     return ""
             except:
@@ -126,7 +124,7 @@ class TV:
                 p2 = self.ax.transData.transform((100.,100.))
                 return (p2[1]-p1[1])/100., (p2[0]-p1[0])/100.
 
-            if have_autopy and event.key == '-' or event.key == '+' or event.key == '=':
+            if event.key == '-' or event.key == '+' or event.key == '=':
                 if event.key == '-' :
                     self.current = (self.current-1) % self.images
                 elif event.key == '+' or event.key == '=':
@@ -147,10 +145,12 @@ class TV:
                 #cm=cmap.remap(self.cmap,self.bottom,self.top)
                 #self.aximage.set_cmap(cm)
                 plt.draw()
-                x,y= autopy.mouse.get_pos()
-                autopy.mouse.move(x,y)
+                try:
+                    x,y= autopy.mouse.get_pos()
+                    autopy.mouse.move(x,y)
+                except: pass
 
-            elif have_autopy and (event.key == 'p' or event.key == 'v') and subPlotNr == 0 :
+            elif (event.key == 'p' or event.key == 'v') and subPlotNr == 0 :
                 n=7
                 xdata=int(round(event.xdata))
                 ydata=int(round(event.ydata))
@@ -162,9 +162,11 @@ class TV:
                                               self.img[ydata-n:ydata+n,xdata-n:xdata+n].shape)
                 px-=n
                 py-=n
-                x,y= autopy.mouse.get_pos()
-                xs,ys = scale()
-                autopy.mouse.move(int(x+px*xs),int(y-py*ys))
+                try:
+                    x,y= autopy.mouse.get_pos()
+                    xs,ys = scale()
+                    autopy.mouse.move(int(x+px*xs),int(y-py*ys))
+                except: pass
 
             elif event.key == 'r' and subPlotNr == 0 :
                 dim=np.shape(self.img)
@@ -182,37 +184,45 @@ class TV:
                 self.aximage.set_cmap(cm)
                 plt.draw()
 
-            elif have_autopy and event.key == 'left' and subPlotNr == 0 :
+            elif event.key == 'left' and subPlotNr == 0 :
                 xs,ys = scale()
-                x,y= autopy.mouse.get_pos()
-                if xs < 1. :
-                    autopy.mouse.move(x-1,y)
-                else :
-                    autopy.mouse.move(int(x-xs),y)
+                try:
+                    x,y= autopy.mouse.get_pos()
+                    if xs < 1. :
+                        autopy.mouse.move(x-1,y)
+                    else :
+                        autopy.mouse.move(int(x-xs),y)
+                except: pass
 
-            elif have_autopy and event.key == 'right' and subPlotNr == 0 :
+            elif event.key == 'right' and subPlotNr == 0 :
                 xs,ys = scale()
-                x,y= autopy.mouse.get_pos()
-                if xs < 1. :
-                    autopy.mouse.move(x+1,y)
-                else :
-                    autopy.mouse.move(int(x+xs),y)
+                try:
+                    x,y= autopy.mouse.get_pos()
+                    if xs < 1. :
+                        autopy.mouse.move(x+1,y)
+                    else :
+                        autopy.mouse.move(int(x+xs),y)
+                except: pass
 
-            elif have_autopy and event.key == 'up' and subPlotNr == 0 :
+            elif event.key == 'up' and subPlotNr == 0 :
                 xs,ys = scale()
-                x,y= autopy.mouse.get_pos()
-                if ys < 1. :
-                    autopy.mouse.move(x,y-1)
-                else :
-                    autopy.mouse.move(x,int(y-ys))
+                try:
+                    x,y= autopy.mouse.get_pos()
+                    if ys < 1. :
+                        autopy.mouse.move(x,y-1)
+                    else :
+                        autopy.mouse.move(x,int(y-ys))
+                except: pass
 
-            elif have_autopy and event.key == 'down' and subPlotNr == 0 :
+            elif event.key == 'down' and subPlotNr == 0 :
                 xs,ys = scale()
-                x,y = autopy.mouse.get_pos()
-                if ys < 1. :
-                    autopy.mouse.move(x,y+1)
-                else :
-                    autopy.mouse.move(x,int(y+ys))
+                try:
+                    x,y = autopy.mouse.get_pos()
+                    if ys < 1. :
+                        autopy.mouse.move(x,y+1)
+                    else :
+                        autopy.mouse.move(x,int(y+ys))
+                except: pass
 
             elif event.key == 'a' and subPlotNr == 0 :
                 if self.axis :

@@ -19,7 +19,7 @@ def head(file=None,sorttable=None) :
 def tail(f) :
     f.write('</BODY>\n')
     f.write('</HTML>\n')
-    f.close()
+    if f is not sys.stdout : f.close()
 
 def htmltab(plots, file=None, xtitle=None, ytitle=None, size=100, header=None) :
     """

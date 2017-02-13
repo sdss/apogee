@@ -117,7 +117,7 @@ def plotrow(ax,img,r,norm=True,draw=True) :
             ax.plotl(np.sum(img[r[0]:r[1],:],axis=1))
     if draw : plt.draw()
 
-def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='o',size=5,linewidth='0',color='r',facecolors=None,xt=None,yt=None,draw=True,xerr=None,yerr=None,label=None,labelcolor='k') :
+def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='o',size=5,linewidth='0',color='r',facecolors=None,xt=None,yt=None,draw=True,xerr=None,yerr=None,label=None,labelcolor='k',linewidths=None) :
     '''
     Plot points, optionally with a series of different markers/sizes keyed to z data
 
@@ -176,15 +176,15 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
             else : facecol = col
             if z is not None :
                 if zr is not None :
-                    ax.scatter(x[gd],y[gd],c=z[gd],s=sz,marker=mark,vmin=zr[0],vmax=zr[1])
+                    ax.scatter(x[gd],y[gd],c=z[gd],s=sz,marker=mark,vmin=zr[0],vmax=zr[1],linewidths=linewidths)
                 else :
-                    ax.scatter(x[gd],y[gd],c=z[gd],s=sz,marker=mark)
+                    ax.scatter(x[gd],y[gd],c=z[gd],s=sz,marker=mark,linewidths=linewidths)
             else :
-                ax.scatter(x[gd],y[gd],s=sz,marker=mark,facecolors=facecol,edgecolors=col)
+                ax.scatter(x[gd],y[gd],s=sz,marker=mark,facecolors=facecol,edgecolors=col,linewidths=linewidths)
             if yerr is not None :
                 ax.errorbar(x[gd],y[gd],marker=mark,yerr=yerr[gd],fmt='none',capsize=0,ecolor=col)
     else :
-        ax.scatter(x,y,marker=marker,s=size,linewidth=linewidth,facecolors=facecolors,edgecolors=color)
+        ax.scatter(x,y,marker=marker,s=size,linewidth=linewidth,facecolors=facecolors,edgecolors=color,linewidths=linewidths)
         if xerr is not None or yerr is not None :
             ax.errorbar(x,y,marker=marker,xerr=xerr,yerr=yerr,fmt='none',capsize=0,ecolor=color)
 

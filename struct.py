@@ -206,8 +206,44 @@ def concat(files,hdu=1,verbose=False) :
 
 def wrfits(a,file) :
     '''
-    write input FITS structure to file
+    write input structure to FITS file
     '''
     tab=fits.BinTableHDU.from_columns(a)
     tab.writeto(file,clobber=True)
+
+
+def dict2struct(d) :
+    '''
+    convert dictionary to structure
+    '''
+
+    # loop over keys, build up dtype
+    dt=[]
+    for key in sorted(d) :
+        val = d[key]
+        if isinstance(val,np.ndarray) :
+            l = len(val)
+            val = val[0]
+        else :
+            l = 1
+        if isinstance(val,str) : 
+            tt = 'S{:d}'.format(len(val))
+        if isinstance(val,int) : 
+            if l == 1 :
+                tt = 'i4'.format(l)
+            else :
+                tt = '{:d}d4'.format(l)
+        if isinstance(val,float) : 
+            if l == 1 :
+                tt = 'f4'.format(l)
+            else :
+                tt = '{:d}f4'.format(l)
+        dt.append((key,tt))
+
+    # declare and fill structured array
+    rec = np.recarray(1,dtype=dt)
+    for key in d :
+        rec[key] = d[key]
+
+    return(rec)
 

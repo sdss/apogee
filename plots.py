@@ -37,7 +37,7 @@ def event(fig) :
             struct.list(_data,ind=_index,cols=_id_cols)
     cid = fig.canvas.mpl_connect('key_press_event',onpress)
 
-def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,xt=None,yt=None,zt=None,label=None,linewidth='0',marker='o',draw=True,orientation='vertical',labelcolor='k') :
+def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,xt=None,yt=None,zt=None,label=None,linewidth='0',marker='o',draw=True,orientation='vertical',labelcolor='k',tit=None,nxtick=None,nytick=None) :
     """
     Plots a scatter plot with point color-coded by z data
 
@@ -67,14 +67,15 @@ def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',color
       aximage
 
     """
-    if xr is not None : ax.set_xlim(xr[0],xr[1])
-    if yr is not None : ax.set_ylim(yr[0],yr[1])
+    set_limits_ticks(ax,xr,yr,nxtick,nytick)
     if xt is not None : ax.set_xlabel(xt) 
     if yt is not None : ax.set_ylabel(yt)
+    if tit is not None : ax.set_title(tit)
     if zr is None :
         scat=ax.scatter(x,y,c=z,s=size,cmap=cmap,linewidth=linewidth,marker=marker)
     else :
         scat=ax.scatter(x,y,c=z,vmin=zr[0],vmax=zr[1],s=size,cmap=cmap,linewidth=linewidth,marker=marker)
+
     if yerr is not None :
         ax.errorbar(x,y,yerr=yerr,fmt='none',capsize=0,ecolor='k')
     if label is not None :
@@ -86,6 +87,14 @@ def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',color
     _data_x = x[np.isfinite(x)]
     _data_y = y[np.isfinite(y)]
     return scat
+
+def set_limits_ticks(ax,xr,yr,nxtick=None,nytick=None) :
+    if xr is not None : ax.set_xlim(xr[0]+0.01*(xr[1]-xr[0]),xr[1]-0.01*(xr[1]-xr[0]))
+    if yr is not None : ax.set_ylim(yr[0]+0.01*(yr[1]-yr[0]),yr[1]-0.01*(yr[1]-yr[0]))
+    if nxtick is not None:
+        ax.xaxis.set_ticks(np.linspace(ax.get_xlim()[0],ax.get_xlim()[1],nxtick)[1:-1])
+    if nytick is not None:
+        ax.yaxis.set_ticks(np.linspace(ax.get_ylim()[0],ax.get_ylim()[1],nytick)[1:-1])
 
 def plotc_append(ax,x,y,z,size=25,linewidth=1,marker='o',facecolor='none',draw=True) :
     '''
@@ -117,7 +126,7 @@ def plotrow(ax,img,r,norm=True,draw=True) :
             ax.plotl(np.sum(img[r[0]:r[1],:],axis=1))
     if draw : plt.draw()
 
-def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='o',size=5,linewidth='0',color='r',facecolors=None,xt=None,yt=None,draw=True,xerr=None,yerr=None,label=None,labelcolor='k',linewidths=None) :
+def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='o',size=5,linewidth='0',color='r',facecolors=None,xt=None,yt=None,draw=True,xerr=None,yerr=None,label=None,labelcolor='k',linewidths=None,nxtick=None,nytick=None,tit=None,contour=None,levels=None,alpha=None) :
     '''
     Plot points, optionally with a series of different markers/sizes keyed to z data
 
@@ -141,10 +150,10 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
         labelcolor=  : color for label
        
     '''
-    if xr is not None : ax.set_xlim(xr[0],xr[1])
-    if yr is not None : ax.set_ylim(yr[0],yr[1])
+    set_limits_ticks(ax,xr,yr,nxtick,nytick)
     if xt is not None : ax.set_xlabel(xt) 
     if yt is not None : ax.set_ylabel(yt)
+    if tit is not None : ax.set_title(tit)
     if facecolors is None: facecolors=color
 
     if typeref is not None and types is not None :
@@ -183,11 +192,21 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
                 ax.scatter(x[gd],y[gd],s=sz,marker=mark,facecolors=facecol,edgecolors=col,linewidths=linewidths)
             if yerr is not None :
                 ax.errorbar(x[gd],y[gd],marker=mark,yerr=yerr[gd],fmt='none',capsize=0,ecolor=col)
+    elif contour is not None:
+        im = np.histogram2d(y,x,range=[yr,xr],bins=20)
+        if levels is None:
+            levels=np.linspace(1.,im[0].max(),contour)
+        ax.contour((im[2][0:-1]+im[2][1:])/2.,(im[1][0:-1]+im[1][1:])/2.,im[0],
+           colors=color,levels=levels,alpha=alpha)
     else :
-        ax.scatter(x,y,marker=marker,s=size,linewidth=linewidth,facecolors=facecolors,edgecolors=color,linewidths=linewidths)
+        ax.scatter(x,y,marker=marker,s=size,linewidth=linewidth,facecolors=facecolors,edgecolors=color,linewidths=linewidths,alpha=alpha)
         if xerr is not None or yerr is not None :
             ax.errorbar(x,y,marker=marker,xerr=xerr,yerr=yerr,fmt='none',capsize=0,ecolor=color)
 
+    if nxtick is not None:
+        ax.xaxis.set_ticks(np.linspace(ax.get_xlim()[0],ax.get_xlim()[1],nxtick)[1:-1])
+    if nytick is not None:
+        ax.yaxis.set_ticks(np.linspace(ax.get_ylim()[0],ax.get_ylim()[1],nytick)[1:-1])
     if label is not None :
         if labelcolor is 'k' and color is not None : labelcolor=color
         ax.text(label[0],label[1],label[2],transform=ax.transAxes,color=labelcolor)
@@ -234,6 +253,8 @@ def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False) :
        figsize  : specifies figure size
        hspace   : space (0.-1.) between vertical plots (height)
        wspace   : space (0.-1.) between horizont plots (width)
+       sharex   : force subplots to have same x-axes
+       sharey   : force subplots to have same y-axes
     '''
     fig,ax = plt.subplots(ny,nx,figsize=figsize,sharex=sharex,sharey=sharey)
     fig.subplots_adjust(hspace=hspace,wspace=wspace)
@@ -241,7 +262,8 @@ def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False) :
         # if we are vertical stacking, turn off xticks for all except bottom
         if nx == 1 :
             ticklabels = ax[0].get_xticklabels()
-            for i in range(1,ny-1) : ticklabels = ticklabels + ax[i].get_xticklabels()
+            for i in range(1,ny-1) : 
+                ticklabels = ticklabels + ax[i].get_xticklabels()
         else :
             ticklabels = ax[0,0].get_xticklabels()
             for i in range(nx) :
@@ -252,7 +274,8 @@ def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False) :
         # if we are horizontal stacking, turn off yticks for all except left
         if ny == 1 :
             ticklabels = ax[1].get_yticklabels()
-            for i in range(2,nx) : ticklabels = ticklabels + ax[i].get_yticklabels()
+            for i in range(2,nx) : 
+                ticklabels = ticklabels + ax[i].get_yticklabels()
         else :
             ticklabels = ax[0,1].get_yticklabels()
             for i in range(1,nx) :

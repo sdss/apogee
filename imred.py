@@ -224,6 +224,14 @@ def getdet(idet) :
        d.biasbox.set(520,540,10,500)
        d.normbox.set(400,600,400,600)
        d.formstr = "{:03d}"
+    elif idet == 32 :
+       # APO 1m Leach
+       d.gain=1
+       d.rn=7
+       d.biastype=0
+       d.biasbox.set(2060,2090,10,2000)
+       d.normbox.set(900,1200,900,1200)
+       d.formstr = "{:03d}"
     elif idet == 36 :
        # APO ARCTIC
        d.gain=3.8

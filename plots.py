@@ -126,7 +126,7 @@ def plotrow(ax,img,r,norm=True,draw=True) :
             ax.plotl(np.sum(img[r[0]:r[1],:],axis=1))
     if draw : plt.draw()
 
-def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='o',size=5,linewidth='0',color='r',facecolors=None,xt=None,yt=None,draw=True,xerr=None,yerr=None,label=None,labelcolor='k',linewidths=None,nxtick=None,nytick=None,tit=None,contour=None,levels=None,alpha=None) :
+def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='o',size=5,linewidth='0',color='r',facecolors=None,xt=None,yt=None,draw=True,xerr=None,yerr=None,label=None,text=None,labelcolor='k',linewidths=None,nxtick=None,nytick=None,tit=None,contour=None,levels=None,alpha=None) :
     '''
     Plot points, optionally with a series of different markers/sizes keyed to z data
 
@@ -146,7 +146,8 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
         yr : y limits (default=None)
         xt : x title (default=None)
         yt : y title (default=None)
-        label=[x,y,text] : put text at (x,y) relative coords
+        label : label for legend
+        text=[x,y,text] : put text at (x,y) relative coords
         labelcolor=  : color for label
        
     '''
@@ -199,7 +200,7 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
         ax.contour((im[2][0:-1]+im[2][1:])/2.,(im[1][0:-1]+im[1][1:])/2.,im[0],
            colors=color,levels=levels,alpha=alpha)
     else :
-        ax.scatter(x,y,marker=marker,s=size,linewidth=linewidth,facecolors=facecolors,edgecolors=color,linewidths=linewidths,alpha=alpha)
+        ax.scatter(x,y,marker=marker,s=size,linewidth=linewidth,facecolors=facecolors,edgecolors=color,linewidths=linewidths,alpha=alpha,label=label)
         if xerr is not None or yerr is not None :
             ax.errorbar(x,y,marker=marker,xerr=xerr,yerr=yerr,fmt='none',capsize=0,ecolor=color)
 
@@ -207,15 +208,15 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
         ax.xaxis.set_ticks(np.linspace(ax.get_xlim()[0],ax.get_xlim()[1],nxtick)[1:-1])
     if nytick is not None:
         ax.yaxis.set_ticks(np.linspace(ax.get_ylim()[0],ax.get_ylim()[1],nytick)[1:-1])
-    if label is not None :
+    if text is not None :
         if labelcolor is 'k' and color is not None : labelcolor=color
-        ax.text(label[0],label[1],label[2],transform=ax.transAxes,color=labelcolor)
+        ax.text(text[0],text[1],text[2],transform=ax.transAxes,color=labelcolor)
 
     if draw : plt.draw()
 
 
 
-def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None,ls=None) :
+def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None,ls=None,linewidth=None) :
     '''
     Plot connected points
     '''
@@ -226,7 +227,7 @@ def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None
     if xt is not None : ax.set_xlabel(xt) 
     if yt is not None : ax.set_ylabel(yt)
     if ls is None : ls='-'
-    line = ax.plot(x,y,color=color,label=label,ls=ls)
+    line = ax.plot(x,y,color=color,label=label,ls=ls,linewidth=linewidth)
     if draw : plt.draw()
     return line
     
@@ -241,7 +242,7 @@ def ax(subplot=111) :
     fig=plt.figure()
     return fig.add_subplot(subplot)
 
-def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False) :
+def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False,squeeze=True) :
     '''
     Returns figure and axes array for grid of nx by ny plots, suppressing appropriate axes if requested by hspace and wspace
 
@@ -256,7 +257,7 @@ def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False) :
        sharex   : force subplots to have same x-axes
        sharey   : force subplots to have same y-axes
     '''
-    fig,ax = plt.subplots(ny,nx,figsize=figsize,sharex=sharex,sharey=sharey)
+    fig,ax = plt.subplots(ny,nx,figsize=figsize,sharex=sharex,sharey=sharey,squeeze=squeeze)
     fig.subplots_adjust(hspace=hspace,wspace=wspace)
     if (hspace < 0.01) & (ny>1):
         # if we are vertical stacking, turn off xticks for all except bottom

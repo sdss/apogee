@@ -100,7 +100,7 @@ def gfit(data,xcen,ycen,size=5,sub=True) :
     y,x=np.mgrid[ycen-size:ycen+size,xcen-size:xcen+size]
     z=data[ycen-size:ycen+size,xcen-size:xcen+size]
     g=fit(g_init,x,y,z)
-    return g
+    #return g
     if sub :
         out=data
         out[ycen-size:ycen+size,xcen-size:xcen+size]-=g[0](x,y)
@@ -377,3 +377,16 @@ def sky(im,box=None,max=None,min=None,plot=None):
         plt.draw()
 
     return sky
+
+def getdata(hd) :
+
+    if isinstance(hd, (np.ndarray)) :
+        data=hd
+    elif isinstance(hd, (astropy.io.fits.hdu.hdulist.HDUList)) :
+        data=hd[0].data
+    elif isinstance(hd, (astropy.io.fits.hdu.image.PrimaryHDU)) :
+        data=hd.data
+    else :
+        print('Unrecognized data type: ',type(hd))
+    return(data)
+ 

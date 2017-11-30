@@ -1,4 +1,5 @@
 import numpy as np
+import astropy
 from astropy.io import fits
 from astropy.io import ascii
 from astropy.modeling import models, fitting
@@ -67,7 +68,7 @@ def read(num,ext=0,bias=True,verbose=False) :
         if det.biastype == 0 :
             b=det.biasbox.mean(hdu[ext].data)
             if verbose: print('subtracting overscan: ', b)
-            hdu[ext].data -= b
+            hdu[ext].data = hdu[ext].data.astype(float)-b
         elif det.biastype == 1 :
             over=np.median(hdu[ext].data[:,det.biasbox.xmin:det.biasbox.xmax],axis=1)
             boxcar = Box1DKernel(10)
@@ -255,15 +256,23 @@ def getdet(idet) :
        d.formstr='{:04d}r'
     return d
 
-def look(disp,pause=True,files=None,min=None, max=None) :
+def look(tv,pause=True,files=None,list=None,min=None, max=None) :
     """ 
     Displays series of files 
     """
-    if files is None :
+    if files is None and list is None :
         files=glob.glob(indir+'/*.fits*')
+    if list is not None :
+        f=open(indir+list,'r')
+        files=[]
+        for line in f :
+            files.extend(np.arange(int(line.split()[0]),int(line.split()[1])))
+        f.close()
+        pdb.set_trace()
+ 
     for file in files :
        hd=read(file,verbose=True,bias=False)
-       disp(disp,hd,min=min,max=max)
+       disp(tv,hd,min=min,max=max)
        if pause :
            pdb.set_trace()
 
@@ -290,19 +299,35 @@ def getfiles(type,listfile=None,filter=None,verbose=False) :
         list=ascii.read(indir+listfile,Reader=ascii.NoHeader)['col1']
     return list
 
-def disp(disp,hd,min=None,max=None) :
+def disp(tv,hd,min=None,max=None,sky=False) :
     """ 
     Displays HDU or data array on specified ds9/tv device
     """
-    if isinstance(hd, (np.ndarray)) :
-        data=hd
-    else :
-        data=hd.data
 
-    if type(disp) is pyds9.DS9 :
-        disp.set_np2arr(data)
+    if type(tv) is pyds9.DS9 :
+        if isinstance(hd, (np.ndarray)) :
+            tv.set_np2arr(hd)
+            data=hd
+        elif isinstance(hd, (astropy.io.fits.hdu.hdulist.HDUList)) :
+            tv.set_pyfits(hd)
+            data=hd[0].data
+        elif isinstance(hd, (astropy.io.fits.hdu.image.PrimaryHDU)) :
+            tv.set_np2arr(hd.data)
+            data=hd.data
+        else :
+            print('Unrecognized data type for display: ',type(hd)) 
+        if sky :
+           skyval = mmm.mmm(data)
+           min = skyval[0]-5*skyval[1]
+           max = skyval[0]+20*skyval[1]
         if min is not None and max is not None :
-            disp.set("scale limits {:5d} {:5d}".format(min,max))
+            tv.set("scale limits {:5d} {:5d}".format(min,max))
+        else :
+            tv.set("scale histequ")
+
     else :
-        disp.tv(data,min=min,max=max)
+        if isinstance(hd, (astropy.io.fits.hdu.hdulist.HDUList)) :
+            tv.tv(hd[0],min=min,max=max)
+        else :
+            tv.tv(hd,min=min,max=max)
 

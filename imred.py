@@ -33,7 +33,7 @@ def setup(name='*',dir='./',idet=1) :
     indir = dir+'/'
     det = getdet(idet)
 
-def read(num,ext=0,bias=True,verbose=False) :
+def read(num,ext=0,bias=True,verbose=False, formstr=None) :
     """ 
     Reads image by name or number, by default subtracts bias using overscan
 
@@ -52,7 +52,8 @@ def read(num,ext=0,bias=True,verbose=False) :
     if type(num) == str :
         file=num
     else :
-        file=glob.glob(indir+'/'+root+'.'+det.formstr.format(num)+'.fits*')
+        if formstr is None : formstr=det.formstr
+        file=glob.glob(indir+'/'+root+formstr.format(num)+'.fits*')
         if len(file) > 0 : file=file[0]
     if verbose: 
         print('root: ', root)
@@ -198,7 +199,7 @@ class DET() :
         self.biasbox = image.BOX()
         self.normbox = image.BOX()
         self.trimbox = image.BOX()
-        self.formstr = "{:04d}"
+        self.formstr = ".{:04d}"
 
 def getdet(idet) :
     """ 
@@ -224,7 +225,7 @@ def getdet(idet) :
        d.biastype=0
        d.biasbox.set(520,540,10,500)
        d.normbox.set(400,600,400,600)
-       d.formstr = "{:03d}"
+       d.formstr = ".{:03d}"
     elif idet == 32 :
        # APO 1m Leach
        d.gain=1
@@ -232,7 +233,7 @@ def getdet(idet) :
        d.biastype=0
        d.biasbox.set(2060,2090,10,2000)
        d.normbox.set(900,1200,900,1200)
-       d.formstr = "{:03d}"
+       d.formstr = ".{:03d}"
     elif idet == 36 :
        # APO ARCTIC
        d.gain=3.8
@@ -246,14 +247,14 @@ def getdet(idet) :
        d.rn=3.9
        d.biasbox.set(1030,1050,0,2047)
        d.trimbox.set(0,2047,0,1023)
-       d.formstr='{:04d}b'
+       d.formstr='.{:04d}b'
     elif idet == 45 :
        # DIS red
        d.gain=1.71
        d.rn=3.9
        d.biasbox.set(1030,1050,0,2047)
        d.trimbox.set(0,2047,0,1023)
-       d.formstr='{:04d}r'
+       d.formstr='.{:04d}r'
     return d
 
 def look(tv,pause=True,files=None,list=None,min=None, max=None) :

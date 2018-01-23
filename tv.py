@@ -429,7 +429,7 @@ class TV:
         # plt.draw()
 
             
-    def tvbox(self,x,y,size=None,color=None) :
+    def tvbox(self,x,y,box=None,size=None,color=None) :
         """
         displays a patch (box by default) on an image
 
@@ -443,7 +443,19 @@ class TV:
         plt.figure(self.fig.number)
         if size == None : size = 3
         if color == None : color = 'm'
-        self.ax.add_patch(patches.Rectangle((x-size/2-0.5,y-size/2-0.5),size,size,fill=False,color=color))
+        if box is not None :
+            x0=box.xmin
+            x1=box.xmax
+            y0=box.ymin
+            y1=box.ymax
+            xsize=(x1-x0)
+            ysize=(y1-y0)
+        else :
+            x0=x-size/2-0.5
+            xsize=size
+            y0=y-size/2-0.5
+            ysize=size
+        self.ax.add_patch(patches.Rectangle((x0,y0),xsize,ysize,fill=False,color=color))
         plt.draw()
 
     def tvclear(self) :

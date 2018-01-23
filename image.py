@@ -1,4 +1,5 @@
 import numpy as np
+from holtz.tools import plots
 from astropy.io import fits
 from astropy.io import ascii
 from astropy.modeling import models, fitting
@@ -90,22 +91,50 @@ def abx(im,box) :
             'peakx': np.unravel_index(im[box.ymin:box.ymax,box.xmin:box.xmax].argmax(),(box.nrow(),box.ncol()))[1]+box.xmin,
             'peaky': np.unravel_index(im[box.ymin:box.ymax,box.xmin:box.xmax].argmax(),(box.nrow(),box.ncol()))[0]+box.ymin}
 
-def gfit(data,xcen,ycen,size=5,sub=True) :
+def gfit(data,x0,y0,size=5,fwhm=3,sub=True,plot=None,fig=1,scale=1) :
     """ 
     Does gaussian fit to input data given initial xcen,ycen
     """
-    g_init=models.Gaussian2D(x_mean=xcen,y_mean=ycen,x_stddev=1,y_stddev=1,amplitude=data[ycen,xcen])+models.Const2D(0.)
     fit=fitting.LevMarLSQFitter()
     #fit=fitting.SLSQPLSQFitter()
+    z=data[y0-size:y0+size,x0-size:x0+size]
+    xcen,ycen=np.unravel_index(np.argmax(z),z.shape)
+    xcen+=(x0-size)
+    ycen+=(y0-size)
     y,x=np.mgrid[ycen-size:ycen+size,xcen-size:xcen+size]
     z=data[ycen-size:ycen+size,xcen-size:xcen+size]
+    g_init=models.Gaussian2D(x_mean=xcen,y_mean=ycen,x_stddev=fwhm/2.354,y_stddev=fwhm/2.354,amplitude=data[ycen,xcen])+models.Const2D(0.)
     g=fit(g_init,x,y,z)
-    return g
+    xfwhm=g[0].x_stddev*2.354*scale
+    yfwhm=g[0].y_stddev*2.354*scale
+    fwhm=np.sqrt(xfwhm*yfwhm)
+    xcen=g[0].x_mean.value
+    ycen=g[0].y_mean.value
+    print('xFWHM:{:8.2f}   yFWHM:{:8.2f}   FWHM:{:8.2f}  SCALE:{:8.2f}'.format(xfwhm,yfwhm,fwhm,scale))
+    if plot is not None:
+        r = np.sqrt((y-ycen)**2 + (x-xcen)**2)
+        plots.plotp(plot,r,z,xt='R(pixels)',yt='Intensity')
+        r = np.arange(0.,5*fwhm/2.354/scale)
+        peak=g[0].amplitude
+        plot.plot(r,peak*np.exp(-np.power(r, 2.) / (2 * np.power(g[0].x_stddev, 2.)))+g[1].amplitude)
+        plot.plot(r,peak*np.exp(-np.power(r, 2.) / (2 * np.power(g[0].y_stddev, 2.)))+g[1].amplitude)
+        plot.text(0.9,0.9,'x: {:7.1f} y: {:7.1f} fw: {:8.2f}'.format(xcen,ycen,fwhm),transform=plot.transAxes,ha='right')
+        plt.figure(fig)
+        plt.draw()
+       
     if sub :
         out=data
         out[ycen-size:ycen+size,xcen-size:xcen+size]-=g[0](x,y)
         return out
     return g[0](x,y)+g[1](x,y)
+
+def tvstar(tv,plot,size=5,fwhm=3,scale=1) :
+    key=''
+    print('Hit key near star center, "q" to quit')
+    while key != 'q' :
+        key,x,y=tv.tvmark()
+        plot[1].cla()
+        gfit(tv.img,x,y,size=size,fwhm=fwhm,scale=scale,plot=plot[1],fig=plot[0].number,sub=False)
 
 def window(hdu,box) :
     """
@@ -377,3 +406,16 @@ def sky(im,box=None,max=None,min=None,plot=None):
         plt.draw()
 
     return sky
+
+def getdata(hd) :
+
+    if isinstance(hd, (np.ndarray)) :
+        data=hd
+    elif isinstance(hd, (astropy.io.fits.hdu.hdulist.HDUList)) :
+        data=hd[0].data
+    elif isinstance(hd, (astropy.io.fits.hdu.image.PrimaryHDU)) :
+        data=hd.data
+    else :
+        print('Unrecognized data type: ',type(hd))
+    return(data)
+ 

@@ -91,26 +91,26 @@ def abx(im,box) :
             'peakx': np.unravel_index(im[box.ymin:box.ymax,box.xmin:box.xmax].argmax(),(box.nrow(),box.ncol()))[1]+box.xmin,
             'peaky': np.unravel_index(im[box.ymin:box.ymax,box.xmin:box.xmax].argmax(),(box.nrow(),box.ncol()))[0]+box.ymin}
 
-def gfit(data,x0,y0,size=5,fwhm=3,sub=True,plot=None,fig=1,scale=1) :
+def gfit(data,x0,y0,size=5,fwhm=3,sub=True,plot=None,fig=1,scale=1,pafixed=False) :
     """ 
     Does gaussian fit to input data given initial xcen,ycen
     """
     fit=fitting.LevMarLSQFitter()
     #fit=fitting.SLSQPLSQFitter()
-    z=data[y0-size:y0+size,x0-size:x0+size]
+    z=data[int(y0)-size:int(y0)+size,int(x0)-size:int(x0)+size]
     xcen,ycen=np.unravel_index(np.argmax(z),z.shape)
-    xcen+=(x0-size)
-    ycen+=(y0-size)
+    xcen+=(int(x0)-size)
+    ycen+=(int(y0)-size)
     y,x=np.mgrid[ycen-size:ycen+size,xcen-size:xcen+size]
     z=data[ycen-size:ycen+size,xcen-size:xcen+size]
-    g_init=models.Gaussian2D(x_mean=xcen,y_mean=ycen,x_stddev=fwhm/2.354,y_stddev=fwhm/2.354,amplitude=data[ycen,xcen])+models.Const2D(0.)
+    g_init=models.Gaussian2D(x_mean=xcen,y_mean=ycen,x_stddev=fwhm/2.354,y_stddev=fwhm/2.354,amplitude=data[ycen,xcen],theta=0.,fixed={'theta':pafixed})+models.Const2D(0.)
     g=fit(g_init,x,y,z)
     xfwhm=g[0].x_stddev*2.354*scale
     yfwhm=g[0].y_stddev*2.354*scale
     fwhm=np.sqrt(xfwhm*yfwhm)
     xcen=g[0].x_mean.value
     ycen=g[0].y_mean.value
-    print('xFWHM:{:8.2f}   yFWHM:{:8.2f}   FWHM:{:8.2f}  SCALE:{:8.2f}'.format(xfwhm,yfwhm,fwhm,scale))
+    print('xFWHM:{:8.2f}   yFWHM:{:8.2f}   FWHM:{:8.2f}  SCALE:{:8.2f}  PA:{:8.2f}'.format(xfwhm,yfwhm,fwhm,scale,g[0].theta.value))
     if plot is not None:
         r = np.sqrt((y-ycen)**2 + (x-xcen)**2)
         plots.plotp(plot,r,z,xt='R(pixels)',yt='Intensity')
@@ -126,15 +126,15 @@ def gfit(data,x0,y0,size=5,fwhm=3,sub=True,plot=None,fig=1,scale=1) :
         out=data
         out[ycen-size:ycen+size,xcen-size:xcen+size]-=g[0](x,y)
         return out
-    return g[0](x,y)+g[1](x,y)
+    return g
 
-def tvstar(tv,plot,size=5,fwhm=3,scale=1) :
+def tvstar(tv,plot,size=5,fwhm=3,scale=1,pafixed=False) :
     key=''
     print('Hit key near star center, "q" to quit')
     while key != 'q' :
         key,x,y=tv.tvmark()
         plot[1].cla()
-        gfit(tv.img,x,y,size=size,fwhm=fwhm,scale=scale,plot=plot[1],fig=plot[0].number,sub=False)
+        gfit(tv.img,x,y,size=size,fwhm=fwhm,scale=scale,plot=plot[1],fig=plot[0].number,sub=False,pafixed=pafixed)
 
 def window(hdu,box) :
     """

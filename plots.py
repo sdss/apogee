@@ -13,29 +13,44 @@ _button = None
 _id_cols = ['APOGEE_ID']
 _data_x = None
 _data_y = None
+_block = 0
 
 def event(fig) :
     '''
     Define event handler, on a key press, will set _button (key pressed) and _index (index of nearest point), and
     if _data is not None, will list _id_cols from the structure _data[_index]
     '''
+    global _block
     def onpress(event) :
-        print('event: ', event.x, event.y)
-        global _index
+        global _index, _block, _x, _y, _button
         _button = event.key
+        inv = event.inaxes.transData.inverted()
+        _x,_y = inv.transform((event.x,event.y))
+        print _x, _y
         #A[spatial.KDTree(A).query([event.x,event.y])[1]]
         #distance,index = spatial.KDTree(A).query([event.x,event.y])
-        print('Transform', len(_data_x))
-        A = event.inaxes.transData.transform(zip(_data_x,_data_y))
-        print('KDTree')
-        tree=spatial.KDTree(A)
-        print('query')
-        distance,index = tree.query([event.x,event.y])
-        _index = [index]
-        print('_index: ',_index,_data_x[_index],_data_y[_index])
-        if _data is not None :
-            struct.list(_data,ind=_index,cols=_id_cols)
+        if _data_x is not None and _data_y is not None :
+            print('Transform', len(_data_x))
+            A = event.inaxes.transData.transform(zip(_data_x,_data_y))
+            print('KDTree')
+            tree=spatial.KDTree(A)
+            print('query')
+            distance,index = tree.query([event.x,event.y])
+            _index = [index]
+            print('_index: ',_index,_data_x[_index],_data_y[_index])
+            if _data is not None :
+                struct.list(_data,ind=_index,cols=_id_cols)
+        if _block == 1 :
+            _block = 0
+            fig.canvas.stop_event_loop()
     cid = fig.canvas.mpl_connect('key_press_event',onpress)
+
+def mark(fig) :
+    global _block, _x, _y, _button
+    _block = 1
+    fig.canvas.start_event_loop(-1)
+    return _x, _y, _button
+
 
 def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,xt=None,yt=None,zt=None,label=None,linewidth='0',marker='o',draw=True,orientation='vertical',labelcolor='k') :
     """
@@ -196,7 +211,7 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
 
 
 
-def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None,ls=None) :
+def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None,ls=None,semilogy=False) :
     '''
     Plot connected points
     '''
@@ -207,7 +222,10 @@ def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None
     if xt is not None : ax.set_xlabel(xt) 
     if yt is not None : ax.set_ylabel(yt)
     if ls is None : ls='-'
-    line = ax.plot(x,y,color=color,label=label,ls=ls)
+    if semilogy :
+        line = ax.semilogy(x,y,color=color,label=label,ls=ls)
+    else :
+        line = ax.plot(x,y,color=color,label=label,ls=ls)
     if draw : plt.draw()
     return line
     

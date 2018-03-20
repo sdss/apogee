@@ -104,12 +104,16 @@ def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',color
     return scat
 
 def set_limits_ticks(ax,xr,yr,nxtick=None,nytick=None) :
-    if xr is not None : ax.set_xlim(xr[0]+0.01*(xr[1]-xr[0]),xr[1]-0.01*(xr[1]-xr[0]))
-    if yr is not None : ax.set_ylim(yr[0]+0.01*(yr[1]-yr[0]),yr[1]-0.01*(yr[1]-yr[0]))
     if nxtick is not None:
+        if xr is not None : ax.set_xlim(xr[0],xr[1])
         ax.xaxis.set_ticks(np.linspace(ax.get_xlim()[0],ax.get_xlim()[1],nxtick)[1:-1])
+    else :
+        if xr is not None : ax.set_xlim(xr[0]+0.01*(xr[1]-xr[0]),xr[1]-0.01*(xr[1]-xr[0]))
     if nytick is not None:
+        if yr is not None : ax.set_ylim(yr[0],yr[1])
         ax.yaxis.set_ticks(np.linspace(ax.get_ylim()[0],ax.get_ylim()[1],nytick)[1:-1])
+    else :
+        if yr is not None : ax.set_ylim(yr[0]+0.01*(yr[1]-yr[0]),yr[1]-0.01*(yr[1]-yr[0]))
 
 def plotc_append(ax,x,y,z,size=25,linewidth=1,marker='o',facecolor='none',draw=True) :
     '''
@@ -231,7 +235,7 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
 
 
 
-def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None,ls=None,semilogy=False,linewidth=None) :
+def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None,ls=None,semilogy=False,linewidth=1.) :
     '''
     Plot connected points
     '''
@@ -245,7 +249,7 @@ def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None
     if semilogy :
         line = ax.semilogy(x,y,color=color,label=label,ls=ls,linewidth=linewidth)
     else :
-        line = ax.plot(x,y,color=color,label=label,ls=ls)
+        line = ax.plot(x,y,color=color,label=label,ls=ls,linewidth=linewidth)
     if draw : plt.draw()
     return line
     

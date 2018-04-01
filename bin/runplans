@@ -1,0 +1,83 @@
+#!/bin/csh -f
+
+#runflag handles job management for multiple run jobs
+#arguments
+#  $1  1 or 0 for clobber
+#  $2  bitwise flag for different processing steps (see aprun.pro)
+#  $3....$n  parameter files to run
+
+set host=`hostname | awk -F. '{print $1}'`
+
+mkdir $APOGEE_LOCALDIR
+ls $APOGEE_LOCALDIR
+'rm' -rf $APOGEE_LOCALDIR/*
+echo apogee_localdir: $APOGEE_LOCALDIR
+
+set clobber=`printenv APOGEE_CLOBBER`
+if ( $clobber == "") then
+  set clobber = 0
+endif
+echo clobber: $clobber
+
+set flag = 111111
+
+set maxobj=`printenv APOGEE_MAXOBJ`
+if ( $maxobj == "") then
+  set maxobj = 1000
+endif
+echo maxobj: $maxobj
+
+set maxrun=`printenv APOGEE_MAXRUN`
+if ( $maxrun == "") then
+  set maxrun = 16
+endif
+echo maxrun: $maxrun
+
+set nobj = 0
+set nrun = 0
+set nloop = 0
+
+echo 1: $1
+set cmd = "$1"
+shift
+set plans = ( $* )
+
+echo cmd: $cmd
+echo plans: "$plans"
+
+mkdir log
+touch log/plan.$host
+
+foreach plan ( $plans )
+ echo plan: $plan
+ set base = `basename $plan`
+ if ( ! { done log/$base } ) then
+   set nrun = `'ls' log/*.$host | wc | awk '{print $1}'`
+   @ nrun = $nrun - 1
+   echo notdone: $nrun $maxrun $nobj $maxobj
+   while ( $nrun >= $maxrun || $nobj >= $maxobj )
+     sleep 6
+     set nrun = `'ls' log/*.$host | wc | awk '{print $1}'`
+     @ nrun = $nrun - 1
+     echo nrun: $nrun maxrun: $maxrun  nobj: $nobj maxobj: $maxobj 
+   end
+
+   # setrunning will check for done or already running before starting and return status appropriately
+   if ( { setrunning log/$base } )  then
+     touch log/$base.$host
+
+     echo $cmd $plan --host $host --done log/$base
+     $cmd $plan --host $host --done log/$base >& log/$base.$host.log &
+
+     @ nobj = $nobj + 1
+     sleep 2
+   endif
+ else
+   echo done: $base
+ endif
+ if ( -e log/stop.$host) break
+ if ( $nobj >= $maxobj ) break
+
+end
+
+wait

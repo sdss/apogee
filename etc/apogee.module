@@ -44,7 +44,14 @@ module-whatis Sets up $product/$version in your environment.
 # command.  An optional dependency is not followed by a prereq statement.
 #
 
-
+module load python
+prereq python
+module load sdss_python_module
+prereq sdss_python_module
+module load tree
+prereq tree
+module load idl/8.5.1
+module load idlutils
 
 #
 # ENVIRONMENT SECTION

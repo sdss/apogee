@@ -1,0 +1,212 @@
+Intel(R) Advisor can now assist with vectorization and show optimization
+  report messages with your source code.
+See "https://software.intel.com/en-us/intel-advisor-xe" for details.
+
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINING OPTION VALUES:
+  -inline-factor: 100
+  -inline-min-size: 30
+  -inline-max-size: 230
+  -inline-max-total-size: 2000
+  -inline-max-per-routine: 10000
+  -inline-max-per-compile: 500000
+
+
+Begin optimization report for: BSYNB
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (BSYNB) [1] ../source-v15.1/bsynb.f(1,18)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at ../source-v15.1/bsynb.f(94,9)
+   remark #15300: LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/bsynb.f(94,9)
+<Remainder loop for vectorization>
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/bsynb.f(94,9)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/bsynb.f(117,7)
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at ../source-v15.1/bsynb.f(119,9)
+      remark #25399: memcopy generated
+      remark #15542: loop was not vectorized: inner loop was already vectorized
+
+      LOOP BEGIN at ../source-v15.1/bsynb.f(119,9)
+         remark #15300: LOOP WAS VECTORIZED
+      LOOP END
+
+      LOOP BEGIN at ../source-v15.1/bsynb.f(119,9)
+      <Remainder loop for vectorization>
+      LOOP END
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/bsynb.f(124,11)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+      remark #15346: vector dependence: assumed FLOW dependence between at (125:13) and at (125:13)
+
+      LOOP BEGIN at ../source-v15.1/bsynb.f(125,13)
+         remark #25436: completely unrolled by 5   (pre-vector) 
+      LOOP END
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/bsynb.f(162,7)
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at ../source-v15.1/bsynb.f(163,9)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+      remark #15346: vector dependence: assumed FLOW dependence between XLSINGLE (168:11) and XLSINGLE (169:20)
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/bsynb.f(177,11)
+      remark #25260: Invariant Condition eliminated(Proven False) at line 243
+      remark #15542: loop was not vectorized: inner loop was already vectorized
+
+      LOOP BEGIN at ../source-v15.1/bsynb.f(193,15)
+         remark #15542: loop was not vectorized: inner loop was already vectorized
+
+         LOOP BEGIN at ../source-v15.1/bsynb.f(206,17)
+            remark #15300: LOOP WAS VECTORIZED
+         LOOP END
+
+         LOOP BEGIN at ../source-v15.1/bsynb.f(206,17)
+         <Remainder loop for vectorization>
+            remark #15335: remainder loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+         LOOP END
+      LOOP END
+
+      LOOP BEGIN at ../source-v15.1/bsynb.f(222,15)
+         remark #15335: loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+         remark #25439: unrolled with remainder by 2  
+         remark #25456: Number of Array Refs Scalar Replaced In Loop: 2
+      LOOP END
+
+      LOOP BEGIN at ../source-v15.1/bsynb.f(222,15)
+      <Remainder>
+      LOOP END
+
+      LOOP BEGIN at ../source-v15.1/bsynb.f(240,13)
+      <Predicate Optimized v1>
+         remark #25422: Invariant Condition at line 250 hoisted out of this loop
+         remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+         remark #15346: vector dependence: assumed FLOW dependence between ZOLD (261:15) and ZOLD (244:17)
+         remark #25456: Number of Array Refs Scalar Replaced In Loop: 11
+      LOOP END
+
+      LOOP BEGIN at ../source-v15.1/bsynb.f(240,13)
+      <Predicate Optimized v2>
+         remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+         remark #15346: vector dependence: assumed FLOW dependence between ZOLD (261:15) and ZOLD (244:17)
+         remark #25456: Number of Array Refs Scalar Replaced In Loop: 5
+      LOOP END
+
+      LOOP BEGIN at ../source-v15.1/bsynb.f(264,13)
+         remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+         remark #15346: vector dependence: assumed FLOW dependence between TAULAMBDA(K) (265:15) and TAULAMBDA(K-1) (265:15)
+         remark #25439: unrolled with remainder by 2  
+         remark #25456: Number of Array Refs Scalar Replaced In Loop: 2
+      LOOP END
+
+      LOOP BEGIN at ../source-v15.1/bsynb.f(264,13)
+      <Remainder>
+      LOOP END
+
+      LOOP BEGIN at ../source-v15.1/bsynb.f(269,15)
+         remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+         remark #15346: vector dependence: assumed FLOW dependence between TAULAMBDA(K) (270:17) and TAULAMBDA(K-1) (270:17)
+         remark #25439: unrolled with remainder by 2  
+         remark #25456: Number of Array Refs Scalar Replaced In Loop: 2
+      LOOP END
+
+      LOOP BEGIN at ../source-v15.1/bsynb.f(269,15)
+      <Remainder>
+      LOOP END
+
+      LOOP BEGIN at ../source-v15.1/bsynb.f(283,15)
+         remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+         remark #15346: vector dependence: assumed FLOW dependence between at (284:17) and at (284:17)
+      LOOP END
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/bsynb.f(310,13)
+      remark #15300: LOOP WAS VECTORIZED
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/bsynb.f(310,13)
+   <Remainder loop for vectorization>
+      remark #15335: remainder loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/bsynb.f(333,11)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+      remark #15346: vector dependence: assumed FLOW dependence between at (333:11) and at (333:11)
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/bsynb.f(338,9)
+   <Peeled loop for vectorization>
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/bsynb.f(338,9)
+      remark #15300: LOOP WAS VECTORIZED
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/bsynb.f(338,9)
+   <Remainder loop for vectorization>
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/bsynb.f(366,11)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../source-v15.1/bsynb.f(369,29) ]
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/bsynb.f(310,13)
+   <Peeled loop for vectorization>
+      remark #25436: completely unrolled by 3  
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/bsynb.f(120,11):remark #34026: call to memcpy implemented as a call to optimized library version
+../source-v15.1/bsynb.f(1,18):remark #34051: REGISTER ALLOCATION : [bsynb_] ../source-v15.1/bsynb.f:1
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   29[ rax rdx rcx rbx rsi rdi r8-r10 r12-r15 zmm0-zmm15]
+        
+    Routine temporaries
+        Total         :    1195
+            Global    :     223
+            Local     :     972
+        Regenerable   :     681
+        Spilled       :      39
+        
+    Routine stack
+        Variables     :    1040 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :     156 [2.22e+10 ~ 0.0%]
+        Spills        :     272 bytes*
+            Reads     :      63 [1.22e+10 ~ 0.0%]
+            Writes    :      47 [2.13e+09 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================

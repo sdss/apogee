@@ -1,0 +1,260 @@
+Intel(R) Advisor can now assist with vectorization and show optimization
+  report messages with your source code.
+See "https://software.intel.com/en-us/intel-advisor-xe" for details.
+
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINING OPTION VALUES:
+  -inline-factor: 100
+  -inline-min-size: 30
+  -inline-max-size: 230
+  -inline-max-total-size: 2000
+  -inline-max-per-routine: 10000
+  -inline-max-per-compile: 500000
+
+
+Begin optimization report for: HYDROPAC
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (HYDROPAC) [1] ../source-v15.1/hydropac.f(1,18)
+  -> INLINE: (170,16) DCALC
+    -> INLINE: (407,7) WCALC
+    -> INLINE: (408,10) WCALC
+  -> INLINE: (238,16) DCALC
+    -> INLINE: (407,7) WCALC
+    -> INLINE: (408,10) WCALC
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at ../source-v15.1/hydropac.f(77,7)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hydropac.f(82,10)
+   remark #15326: loop was not vectorized: implied FP exception model prevents vectorization. Consider changing compiler flags and/or directives in the source to enable fast FP model and to mask FP exceptions   [ ../source-v15.1/hydropac.f(89,27) ]
+
+   LOOP BEGIN at ../source-v15.1/hydropac.f(92,11)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../source-v15.1/hydropac.f(98,13) ]
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hydropac.f(137,7)
+<Distributed chunk1>
+   remark #25426: Loop Distributed (3 way) 
+   remark #15301: PARTIAL LOOP WAS VECTORIZED
+   remark #25456: Number of Array Refs Scalar Replaced In Loop: 4
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hydropac.f(137,7)
+<Remainder loop for vectorization, Distributed chunk1>
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #25456: Number of Array Refs Scalar Replaced In Loop: 2
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hydropac.f(137,7)
+<Remainder loop for vectorization, Distributed chunk1>
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hydropac.f(137,7)
+<Distributed chunk2>
+   remark #15301: PARTIAL LOOP WAS VECTORIZED
+   remark #25456: Number of Array Refs Scalar Replaced In Loop: 2
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hydropac.f(137,7)
+<Remainder loop for vectorization, Distributed chunk2>
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #25456: Number of Array Refs Scalar Replaced In Loop: 1
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hydropac.f(137,7)
+<Remainder loop for vectorization, Distributed chunk2>
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hydropac.f(137,7)
+<Distributed chunk3>
+   remark #15301: PARTIAL LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hydropac.f(137,7)
+<Remainder loop for vectorization, Distributed chunk3>
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hydropac.f(137,7)
+<Remainder loop for vectorization, Distributed chunk3>
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hydropac.f(164,7)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../source-v15.1/hydropac.f(166,9)
+      remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+      LOOP BEGIN at ../source-v15.1/hydropac.f(401,7) inlined into ../source-v15.1/hydropac.f(191,16)
+         remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+         remark #15346: vector dependence: assumed OUTPUT dependence between call:powf (459:22) and call:powf (461:28)
+      LOOP END
+
+      LOOP BEGIN at ../source-v15.1/hydropac.f(171,11)
+         remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+         LOOP BEGIN at ../source-v15.1/hydropac.f(195,15)
+            remark #15523: loop was not vectorized: loop control variable II was found, but loop iteration count cannot be computed before executing the loop
+         LOOP END
+      LOOP END
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hydropac.f(219,10)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../source-v15.1/hydropac.f(237,9)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+      remark #15346: vector dependence: assumed OUTPUT dependence between call:powf (459:22) and call:powf (461:28)
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/hydropac.f(257,11)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../source-v15.1/hydropac.f(273,13) ]
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/hydropac.f(282,9)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+      remark #15346: vector dependence: assumed OUTPUT dependence between call:powf (288:17) and call:hlinop_ (349:21)
+
+      LOOP BEGIN at ../source-v15.1/hydropac.f(294,11)
+         remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../source-v15.1/hydropac.f(331,38) ]
+      LOOP END
+
+      LOOP BEGIN at ../source-v15.1/hydropac.f(343,11)
+         remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../source-v15.1/hydropac.f(362,38) ]
+      LOOP END
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/hydropac.f(1,18):remark #34051: REGISTER ALLOCATION : [hydropac_] ../source-v15.1/hydropac.f:1
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   27[ rax rdx rcx rbx rsi rdi r8-r10 r12-r15 zmm0-zmm13]
+        
+    Routine temporaries
+        Total         :    1159
+            Global    :     298
+            Local     :     861
+        Regenerable   :     417
+        Spilled       :      88
+        
+    Routine stack
+        Variables     :     544 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :      73 [1.50e+05 ~ 9.9%]
+        Spills        :     664 bytes*
+            Reads     :     154 [1.22e+05 ~ 8.1%]
+            Writes    :     137 [6.49e+04 ~ 4.3%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: DCALC
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (DCALC) [2] ../source-v15.1/hydropac.f(387,18)
+  -> INLINE: (407,7) WCALC
+  -> INLINE: (408,10) WCALC
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at ../source-v15.1/hydropac.f(401,7)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+   remark #15346: vector dependence: assumed OUTPUT dependence between call:powf (459:22) and call:powf (461:28)
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/hydropac.f(387,18):remark #34051: REGISTER ALLOCATION : [dcalc_] ../source-v15.1/hydropac.f:387
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   28[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm13]
+        
+    Routine temporaries
+        Total         :     246
+            Global    :      70
+            Local     :     176
+        Regenerable   :      45
+        Spilled       :      29
+        
+    Routine stack
+        Variables     :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+        Spills        :     232 bytes*
+            Reads     :      52 [7.60e+01 ~ 12.1%]
+            Writes    :      49 [5.91e+01 ~ 9.4%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: WCALC
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (WCALC) [3] ../source-v15.1/hydropac.f(415,23)
+
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/hydropac.f(415,23):remark #34051: REGISTER ALLOCATION : [wcalc_] ../source-v15.1/hydropac.f:415
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   19[ rdx rcx rbx rsi rdi r8 r12-r15 zmm0-zmm8]
+        
+    Routine temporaries
+        Total         :     121
+            Global    :      32
+            Local     :      89
+        Regenerable   :      21
+        Spilled       :      14
+        
+    Routine stack
+        Variables     :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+        Spills        :      72 bytes*
+            Reads     :      19 [6.54e+00 ~ 6.3%]
+            Writes    :      18 [5.54e+00 ~ 5.3%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================

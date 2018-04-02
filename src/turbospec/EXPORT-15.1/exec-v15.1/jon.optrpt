@@ -1,0 +1,153 @@
+Intel(R) Advisor can now assist with vectorization and show optimization
+  report messages with your source code.
+See "https://software.intel.com/en-us/intel-advisor-xe" for details.
+
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINING OPTION VALUES:
+  -inline-factor: 100
+  -inline-min-size: 30
+  -inline-max-size: 230
+  -inline-max-total-size: 2000
+  -inline-max-per-routine: 10000
+  -inline-max-per-compile: 500000
+
+
+Begin optimization report for: JON
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (JON) [1] ../source-v15.1/jon.f(2,18)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at ../source-v15.1/jon.f(118,9)
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ ../source-v15.1/jon.f(118,9) ]
+   remark #15300: LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/jon.f(118,9)
+<Remainder loop for vectorization>
+   remark #25436: completely unrolled by 1  
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/jon.f(146,9)
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ ../source-v15.1/jon.f(146,9) ]
+   remark #25426: Loop Distributed (2 way) 
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+   remark #15346: vector dependence: assumed FLOW dependence between PFAK(J) (147:7) and PFAK(J-1) (147:7)
+   remark #25436: completely unrolled by 4  
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/jon.f(146,9)
+<Distributed chunk2>
+   remark #15301: PARTIAL LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/jon.f(160,9)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../source-v15.1/jon.f(172,9)
+      remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+
+      LOOP BEGIN at ../source-v15.1/jon.f(191,9)
+         remark #15331: loop was not vectorized: precise FP model implied by the command line or a directive prevents vectorization. Consider using fast FP model   [ ../source-v15.1/jon.f(192,7) ]
+         remark #25436: completely unrolled by 4  
+      LOOP END
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/jon.f(216,9)
+      remark #25084: Preprocess Loopnests: Moving Out Store    [ ../source-v15.1/jon.f(216,9) ]
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+      remark #15346: vector dependence: assumed ANTI dependence between FIL (218:7) and FIL (218:7)
+      remark #25439: unrolled with remainder by 2  
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/jon.f(216,9)
+   <Remainder>
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/jon.f(221,9)
+      remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/jon.f(240,9)
+      remark #25084: Preprocess Loopnests: Moving Out Store    [ ../source-v15.1/jon.f(240,9) ]
+      remark #15331: loop was not vectorized: precise FP model implied by the command line or a directive prevents vectorization. Consider using fast FP model   [ ../source-v15.1/jon.f(243,7) ]
+      remark #25439: unrolled with remainder by 4  
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/jon.f(240,9)
+   <Remainder>
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/jon.f(165,10)
+      remark #25084: Preprocess Loopnests: Moving Out Store    [ ../source-v15.1/jon.f(165,10) ]
+      remark #15335: loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+      remark #25439: unrolled with remainder by 2  
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/jon.f(165,10)
+   <Remainder>
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/jon.f(360,10)
+<Peeled loop for vectorization>
+   remark #25436: completely unrolled by 3  
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/jon.f(360,10)
+   remark #15300: LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/jon.f(360,10)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/jon.f(393,10)
+   remark #25408: memset generated
+   remark #15398: loop was not vectorized: loop was transformed to memset or memcpy
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/jon.f(413,9)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+   remark #15346: vector dependence: assumed OUTPUT dependence between at (415:7) and at (416:7)
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/jon.f(394,9):remark #34000: call to memset implemented inline with stores with proven (alignment, offset): (32, 20)
+../source-v15.1/jon.f(2,18):remark #34051: REGISTER ALLOCATION : [jon_] ../source-v15.1/jon.f:2
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   30[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm15]
+        
+    Routine temporaries
+        Total         :     642
+            Global    :     120
+            Local     :     522
+        Regenerable   :     238
+        Spilled       :      31
+        
+    Routine stack
+        Variables     :     400 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :      53 [1.69e+02 ~ 2.9%]
+        Spills        :     208 bytes*
+            Reads     :      49 [1.06e+02 ~ 1.8%]
+            Writes    :      44 [7.23e+01 ~ 1.3%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================

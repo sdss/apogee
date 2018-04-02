@@ -1,0 +1,76 @@
+Turbospectrum package v15.1 (June 15, 2015) by B. Plez
+With the help and patience of many colleagues, cf Readme in source-v15.1 directory.
+
+This package contains the Turbospectrum code 
+(Alvarez, R. and Plez, B., 1998, A&A 330, 1109, Plez, B., 2012, ASCL 1205.004)
+
+The current version is v15.1. There is a Readme file in the source-v15.1 directory 
+that details changes made in successive versions.
+There is unfortunately no user manual yet.
+
+==================================================
+To compile, use the Makefile in the exec-v15.1 directory, for the ifort compiler,
+or in the exec-gf-v15.1 for gfortran.
+It should be possible to use other fortran compiler by modifying the compiler options. 
+One important option to include is one that saves the content of variables between 
+successive calls to a subroutine.
+
+==================================================
+The structure of the directory is the following:
+
+drwxr-xr-x+ 2 plez  staff   748 Jun 15 10:49 DATA               -> data needed to run the code
+-rw-r--r--@ 1 plez  staff  5093 Jun 15 10:50 README_getstarted  -> this file
+drwxr-xr-x+ 2 plez  staff   442 Jun 15 10:56 Utilities          -> a few useful programs (see below)
+drwxr-xr-x+ 6 plez  staff   510 Jun 15 11:12 COM-v15.1          -> the place to run the code from (scripts are there)
+drwxr-xr-x+ 2 plez  staff  3094 Jun 16 13:26 source-v15.1       -> the source code
+drwxr-xr-x+ 2 plez  staff   102 Jun 16 13:28 exec-v15.1         -> executable ifort (Makefile is there)
+drwxr-xr-x+ 2 plez  staff   102 Jun 16 13:28 exec-gf-v15.1      -> executable gfortran (Makefile is there)
+
+
+Utilities:
+
+-rw-r-xr-x+ 1 plez  staff    271 Jul  1  1999 lambda.par
+-rw-r-xr-x+ 1 plez  staff    852 Sep 19  2007 parameter.inc
+-rw-r-----+ 1 plez  staff  29637 Apr  8  2008 tapet.f           -> reads MARCS binary model files
+-rw-------+ 1 plez  staff   8205 Mar 29  2012 faltbo3.f90       -> convolution of spectra with various profiles
+-rw-------+ 1 plez  staff   7711 Mar 30  2012 faltbo2.f90       -> same thing with different input format
+-rwx--x--x@ 1 plez  staff  13808 Jun  6  2012 ALL.com           -> example script to use translate_molec_linelists.f
+-rw-r--r--@ 1 plez  staff  19743 Oct 17  2012 vald2bsyn.f       -> Converts atomic line lists from VALD2 (obsolete)
+-rw-r-x---@ 1 plez  staff  43181 Jul 18  2014 vald3line-BPz.f   -> translates line lists from VALD3; both molecular and atomic lines can be used
+-rw-r--r--+ 1 plez  staff  40515 Sep 26  2014 translate_molec_linelists.f       -> translates (most) molecular line lists from Plez
+-rw-r-x---@ 1 plez  staff  46090 Apr 29 15:46 vald3line-BPz-v2.f	-> Same as vald3line-BPz.f, that also reads "stellar" format
+
+COM-v15.1:
+
+drwxr-xr-x+ 2 plez  staff    170 Apr  6  2012 models                    -> directory for model files
+drwxr-xr-x+ 2 plez  staff    238 Sep 30  2014 linelists                 -> directory for line lists
+-rwxr-x--x+ 1 plez  staff   1792 Jun 15 11:04 script-sun-eqw.com        -> example script for an eqw run : compute eqw for a line list
+-rwxr-x--x+ 1 plez  staff   2153 Jun 15 11:04 script-sun-findabu.com    -> example script for an eqw run : find abundances from measured eqw
+-rwxr-x--x+ 1 plez  staff   1565 Jun 15 11:05 script-sun.com            -> example script to compute spectrum
+lrwxr-xr-x  1 plez  staff      7 Jun 15 11:08 DATA -> ../DATA           -> link to DATA/ above
+-rw-r--r--+ 1 plez  staff  35953 Jun 15 11:08 logeqw-benchmark          -> log file for eqw run
+-rw-r--r--+ 1 plez  staff  35714 Jun 15 11:09 logfindabu-benchmark      -> log file for eqw find abundances run
+-rw-r--r--+ 1 plez  staff  67211 Jun 15 11:11 logsun-benchmark          -> log for spectrum computation run
+-rw-r--r--+ 1 plez  staff   2192 Jun 15 11:11 dummy-output.dat
+drwxr-xr-x+ 2 plez  staff    136 Jun 15 11:13 contopac                  -> output : continuous opacity files from babsma_lu
+drwxr-xr-x+ 2 plez  staff    170 Jun 15 11:14 syntspec                  -> directory for output spectra or eqw data
+
+linelists:
+
+-rw-r--r--@ 1 plez  staff    9701 Oct 17  2012 vald_eqw.list		-> example list (Fe lines) with a few measured eqw (used in benchmark runs)
+-rw-r--r--@ 1 plez  staff  800391 Sep 30  2014 BertrandPlez.002060	-> extraction from VALD3 (longformat, extract all, with 	Energy unit: eV - Medium: air - Wavelength unit: angstrom - VdW syntax: extended)
+-rw-r--r--@ 1 plez  staff   31642 Sep 30  2014 BertrandPlez.002060.bib	-> references for VALD3 data
+-rw-r--r--+ 1 plez  staff  203565 Sep 30  2014 vald-6700-6720.list	-> VALD3 extraction reformatted to tubospectrum format using Utilities/vald3lines-BPz.f
+
+syntspec:
+
+-rw-r--r--+ 1 plez  staff   7600 Jun 15 11:08 5777g4.44z+0.00a+0.00t01-ref107857_6700-6720_xit1.0.eqw-benchmark         -> benchmark output for eqw run
+-rw-r--r--+ 1 plez  staff    657 Jun 15 11:09 5777g4.44z+0.00a+0.00t01-ref107857_6700-6720_xit1.0.findabu-benchmark     -> benchmark output when computin
+g abundances from measured eqw
+-rw-r--r--+ 1 plez  staff  72036 Jun 15 11:11 5777g4.44z+0.00a+0.00t01-ref107857_6700-6720_xit1.0.spec-benchmark        -> benchmark spectrum
+
+contopac:
+
+-rw-r--r--+ 1 plez  staff       0 Sep 30  2014 5777g4.44z+0.00a+0.00t01-ref107857opac.mod       -> empty file generated by a run
+-rw-r--r--+ 1 plez  staff  175725 Jun 15 11:11 5777g4.44z+0.00a+0.00t01-ref107857opac-benchmark -> continuous opacity file generated by a run (output from babsma_lu, used as input by bsyn_lu or eqwidt_lu)
+

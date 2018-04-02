@@ -1,0 +1,244 @@
+Intel(R) Advisor can now assist with vectorization and show optimization
+  report messages with your source code.
+See "https://software.intel.com/en-us/intel-advisor-xe" for details.
+
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINING OPTION VALUES:
+  -inline-factor: 100
+  -inline-min-size: 30
+  -inline-max-size: 230
+  -inline-max-total-size: 2000
+  -inline-max-per-routine: 10000
+  -inline-max-per-compile: 500000
+
+
+Begin optimization report for: TRANFR
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (TRANFR) [1] ../source-v15.1/tranfr.f(2,18)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(34,10)
+   remark #25260: Invariant Condition eliminated(Proven False) at line 43
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at ../source-v15.1/tranfr.f(40,10)
+      remark #25258: Invariant Condition eliminated(Loop at level 2 peeled) at line 43 
+      remark #25261: Invariant Condition eliminated(Proven True) at line 43
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+      remark #15346: vector dependence: assumed FLOW dependence between ZOLD (48:7) and ZOLD (44:7)
+      remark #25456: Number of Array Refs Scalar Replaced In Loop: 4
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/tranfr.f(50,10)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+      remark #15346: vector dependence: assumed FLOW dependence between blk(K) (51:7) and blk(K-1) (51:7)
+      remark #25439: unrolled with remainder by 2  
+      remark #25456: Number of Array Refs Scalar Replaced In Loop: 2
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/tranfr.f(50,10)
+   <Remainder>
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/tranfr.f(57,12)
+      remark #15527: loop was not vectorized: function call to logf cannot be vectorized   [ ../source-v15.1/tranfr.f(58,21) ]
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/tranfr.f(74,10)
+      remark #25427: Loop Statements Reordered
+      remark #15300: LOOP WAS VECTORIZED
+      remark #25456: Number of Array Refs Scalar Replaced In Loop: 2
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/tranfr.f(74,10)
+   <Remainder loop for vectorization>
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/tranfr.f(96,10)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+      remark #15346: vector dependence: assumed FLOW dependence between blk(K+1,I) (98:7) and blk(K,I) (98:7)
+      remark #25456: Number of Array Refs Scalar Replaced In Loop: 10
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/tranfr.f(74,10)
+   <Peeled loop for vectorization>
+      remark #25436: completely unrolled by 3  
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(115,10)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+   remark #15346: vector dependence: assumed ANTI dependence between TMP1 (122:10) and TMP1 (123:4)
+   remark #25439: unrolled with remainder by 2  
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(115,10)
+<Remainder>
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(140,10)
+<Peeled loop for vectorization>
+   remark #25436: completely unrolled by 3  
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(140,10)
+   remark #15300: LOOP WAS VECTORIZED
+   remark #25456: Number of Array Refs Scalar Replaced In Loop: 4
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(140,10)
+<Remainder loop for vectorization>
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+   remark #25456: Number of Array Refs Scalar Replaced In Loop: 2
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(140,10)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(149,10)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+   remark #15346: vector dependence: assumed FLOW dependence between blk(K+1) (150:7) and blk(K) (150:7)
+   remark #25439: unrolled with remainder by 2  
+   remark #25456: Number of Array Refs Scalar Replaced In Loop: 2
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(149,10)
+<Remainder>
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(159,10)
+   remark #15520: loop was not vectorized: loop with multiple exits cannot be vectorized unless it meets search loop idiom criteria   [ ../source-v15.1/tranfr.f(165,26) ]
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(329,7)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+   remark #15346: vector dependence: assumed OUTPUT dependence between at (329:7) and at (329:7)
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(216,10)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+   remark #15346: vector dependence: assumed OUTPUT dependence between call:logf (221:25) and call:for_write_seq_lis_xmit (223:14)
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(231,10)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+   remark #15346: vector dependence: assumed OUTPUT dependence between call:log (246:14) and call:log (247:14)
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(262,10)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(276,10)
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at ../source-v15.1/tranfr.f(278,10)
+      remark #15300: LOOP WAS VECTORIZED
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/tranfr.f(278,10)
+   <Remainder loop for vectorization>
+      remark #15301: REMAINDER LOOP WAS VECTORIZED
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/tranfr.f(278,10)
+   <Remainder loop for vectorization>
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/tranfr.f(278,10)
+   <Peeled loop for vectorization>
+      remark #25436: completely unrolled by 3  
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(283,10)
+   remark #15300: LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(283,10)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(292,10)
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at ../source-v15.1/tranfr.f(294,12)
+      remark #15300: LOOP WAS VECTORIZED
+      remark #25456: Number of Array Refs Scalar Replaced In Loop: 3
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/tranfr.f(294,12)
+   <Remainder loop for vectorization>
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/tranfr.f(294,12)
+   <Peeled loop for vectorization>
+      remark #25436: completely unrolled by 3  
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(311,10)
+<Peeled loop for vectorization>
+   remark #25436: completely unrolled by 3  
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(311,10)
+   remark #15300: LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(311,10)
+<Remainder loop for vectorization>
+   remark #15335: remainder loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../source-v15.1/tranfr.f(133,10)
+   remark #15522: loop was not vectorized: loop control flow is too complex. Try using canonical loop form from OpenMP specification
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/tranfr.f(141,33):remark #34055: adjacent dense (unit-strided stencil) loads are not optimized. Details: stride { 4 }, step { 4 }, types { F32-V128, F32-V128, F32-V128 }, number of elements { 4 }, select mask { 0x000000007 }.
+../source-v15.1/tranfr.f(141,33):remark #34055: adjacent dense (unit-strided stencil) loads are not optimized. Details: stride { 4 }, step { 4 }, types { F32-V128, F32-V128, F32-V128 }, number of elements { 4 }, select mask { 0x000000007 }.
+../source-v15.1/tranfr.f(141,33):remark #34055: adjacent dense (unit-strided stencil) loads are not optimized. Details: stride { 4 }, step { 4 }, types { F32-V128, F32-V128, F32-V128 }, number of elements { 4 }, select mask { 0x000000007 }.
+../source-v15.1/tranfr.f(2,18):remark #34051: REGISTER ALLOCATION : [tranfr_] ../source-v15.1/tranfr.f:2
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   30[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm15]
+        
+    Routine temporaries
+        Total         :    1008
+            Global    :     227
+            Local     :     781
+        Regenerable   :     252
+        Spilled       :      30
+        
+    Routine stack
+        Variables     :     432 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :      52 [7.20e+02 ~ 0.0%]
+        Spills        :     200 bytes*
+            Reads     :      34 [6.58e+02 ~ 0.0%]
+            Writes    :      35 [7.17e+02 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================

@@ -1,0 +1,447 @@
+Intel(R) Advisor can now assist with vectorization and show optimization
+  report messages with your source code.
+See "https://software.intel.com/en-us/intel-advisor-xe" for details.
+
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINING OPTION VALUES:
+  -inline-factor: 100
+  -inline-min-size: 30
+  -inline-max-size: 230
+  -inline-max-total-size: 2000
+  -inline-max-per-routine: 10000
+  -inline-max-per-compile: 500000
+
+
+Begin optimization report for: HLINOP
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (HLINOP) [1] ../source-v15.1/hlinop.f(38,21)
+  -> INLINE: (131,32) VACAIR
+  -> INLINE: (151,37) VACAIR
+  -> INLINE: (153,24) HPROFL
+    -> INLINE: (421,14) HFNM
+    -> INLINE: (423,14) HFNM
+    -> (635,24) STARK1
+    -> (656,34) STARK1
+    -> (708,43) STARK1
+  -> INLINE: (157,35) HPROFL
+    -> INLINE: (421,14) HFNM
+    -> INLINE: (423,14) HFNM
+    -> (635,24) STARK1
+    -> (656,34) STARK1
+    -> (708,43) STARK1
+  -> INLINE: (180,38) VACAIR
+  -> (182,21) HPROFL
+  -> (187,15) HPROFL
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(94,9)
+   remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(102,12)
+   remark #15300: LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(102,12)
+<Remainder loop for vectorization>
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(104,12)
+   remark #15300: LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(104,12)
+<Remainder loop for vectorization>
+   remark #15335: remainder loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+   remark #25436: completely unrolled by 4  
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(122,12)
+   remark #15300: LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(438,16) inlined into ../source-v15.1/hlinop.f(153,24)
+   remark #15300: LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(438,16) inlined into ../source-v15.1/hlinop.f(153,24)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(448,16) inlined into ../source-v15.1/hlinop.f(153,24)
+   remark #15300: LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(448,16) inlined into ../source-v15.1/hlinop.f(153,24)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(511,14) inlined into ../source-v15.1/hlinop.f(153,24)
+   remark #15326: loop was not vectorized: implied FP exception model prevents vectorization. Consider changing compiler flags and/or directives in the source to enable fast FP model and to mask FP exceptions   [ ../source-v15.1/hlinop.f(513,15) ]
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/hlinop.f(38,21):remark #34051: REGISTER ALLOCATION : [hlinop_] ../source-v15.1/hlinop.f:38
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   30[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm15]
+        
+    Routine temporaries
+        Total         :     703
+            Global    :     151
+            Local     :     552
+        Regenerable   :      93
+        Spilled       :      45
+        
+    Routine stack
+        Variables     :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+        Spills        :     320 bytes*
+            Reads     :     107 [6.13e+00 ~ 0.1%]
+            Writes    :      89 [4.02e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: STARK1
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (STARK1) [2] ../source-v15.1/hlinop.f(724,16)
+  -> INLINE: (855,42) VCSE1F
+  -> INLINE: (855,57) VCSE1F
+  -> INLINE: (862,14) SOFBET
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(1127,25) inlined into ../source-v15.1/hlinop.f(862,14)
+   remark #15523: loop was not vectorized: loop control variable JP was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/hlinop.f(724,16):remark #34051: REGISTER ALLOCATION : [stark1_] ../source-v15.1/hlinop.f:724
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   28[ rax rdx rcx rbx rsi rdi r8-r9 r12-r15 zmm0-zmm15]
+        
+    Routine temporaries
+        Total         :     397
+            Global    :      99
+            Local     :     298
+        Regenerable   :      50
+        Spilled       :      30
+        
+    Routine stack
+        Variables     :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+        Spills        :     200 bytes*
+            Reads     :      81 [3.48e+01 ~ 9.3%]
+            Writes    :      49 [2.51e+01 ~ 6.7%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: HPROFL
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (HPROFL) [3] ../source-v15.1/hlinop.f(195,21)
+  -> INLINE: (421,14) HFNM
+  -> INLINE: (423,14) HFNM
+  -> (635,24) STARK1
+  -> (656,34) STARK1
+  -> (708,43) STARK1
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(438,16)
+   remark #15300: LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(438,16)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(448,16)
+   remark #15300: LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(448,16)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(511,14)
+   remark #15326: loop was not vectorized: implied FP exception model prevents vectorization. Consider changing compiler flags and/or directives in the source to enable fast FP model and to mask FP exceptions   [ ../source-v15.1/hlinop.f(513,15) ]
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/hlinop.f(195,21):remark #34051: REGISTER ALLOCATION : [hprofl_] ../source-v15.1/hlinop.f:195
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   28[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm13]
+        
+    Routine temporaries
+        Total         :     563
+            Global    :     130
+            Local     :     433
+        Regenerable   :      72
+        Spilled       :      41
+        
+    Routine stack
+        Variables     :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+        Spills        :     288 bytes*
+            Reads     :      87 [4.85e+01 ~ 9.8%]
+            Writes    :      55 [2.55e+01 ~ 5.1%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: VACAIR
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (VACAIR) [4] ../source-v15.1/hlinop.f(1183,23)
+
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/hlinop.f(1183,23):remark #34051: REGISTER ALLOCATION : [vacair_] ../source-v15.1/hlinop.f:1183
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :    7[ rdi zmm0-zmm5]
+        
+    Routine temporaries
+        Total         :      24
+            Global    :       0
+            Local     :      24
+        Regenerable   :       5
+        Spilled       :       0
+        
+    Routine stack
+        Variables     :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: HFNM
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (HFNM) [5] ../source-v15.1/hlinop.f(902,16)
+
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/hlinop.f(902,16):remark #34051: REGISTER ALLOCATION : [hfnm_] ../source-v15.1/hlinop.f:902
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   13[ rax rdx rsi rdi r12-r13 zmm0-zmm6]
+        
+    Routine temporaries
+        Total         :     102
+            Global    :      29
+            Local     :      73
+        Regenerable   :      16
+        Spilled       :       8
+        
+    Routine stack
+        Variables     :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+        Spills        :      48 bytes*
+            Reads     :       8 [1.62e+00 ~ 3.2%]
+            Writes    :       8 [1.62e+00 ~ 3.2%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: SOFBET
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (SOFBET) [6] ../source-v15.1/hlinop.f(969,16)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at ../source-v15.1/hlinop.f(1127,25)
+   remark #15523: loop was not vectorized: loop control variable JP was found, but loop iteration count cannot be computed before executing the loop
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/hlinop.f(969,16):remark #34051: REGISTER ALLOCATION : [sofbet_] ../source-v15.1/hlinop.f:969
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   17[ rax rdx rcx rsi rdi zmm0-zmm11]
+        
+    Routine temporaries
+        Total         :     112
+            Global    :      28
+            Local     :      84
+        Regenerable   :      13
+        Spilled       :       0
+        
+    Routine stack
+        Variables     :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: VCSE1F
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (VCSE1F) [7] ../source-v15.1/hlinop.f(944,16)
+
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/hlinop.f(944,16):remark #34051: REGISTER ALLOCATION : [vcse1f_] ../source-v15.1/hlinop.f:944
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :    6[ rdi r14 zmm0-zmm3]
+        
+    Routine temporaries
+        Total         :      49
+            Global    :      14
+            Local     :      35
+        Regenerable   :       6
+        Spilled       :       2
+        
+    Routine stack
+        Variables     :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+        Spills        :       8 bytes*
+            Reads     :       1 [1.52e-01 ~ 0.6%]
+            Writes    :       1 [1.52e-01 ~ 0.6%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: AIRVAC
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (AIRVAC) [8] ../source-v15.1/hlinop.f(1162,23)
+
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/hlinop.f(1162,23):remark #34051: REGISTER ALLOCATION : [airvac_] ../source-v15.1/hlinop.f:1162
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   17[ rdi zmm0-zmm15]
+        
+    Routine temporaries
+        Total         :      43
+            Global    :       0
+            Local     :      43
+        Regenerable   :       6
+        Spilled       :       0
+        
+    Routine stack
+        Variables     :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================

@@ -1,0 +1,146 @@
+Intel(R) Advisor can now assist with vectorization and show optimization
+  report messages with your source code.
+See "https://software.intel.com/en-us/intel-advisor-xe" for details.
+
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINING OPTION VALUES:
+  -inline-factor: 100
+  -inline-min-size: 30
+  -inline-max-size: 230
+  -inline-max-total-size: 2000
+  -inline-max-per-routine: 10000
+  -inline-max-per-compile: 500000
+
+
+Begin optimization report for: TRANEQ
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (TRANEQ) [1] ../source-v15.1/traneq.f(2,18)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at ../source-v15.1/traneq.f(52,10)
+<Distributed chunk1>
+   remark #25426: Loop Distributed (2 way) 
+   remark #15301: PARTIAL LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/traneq.f(52,10)
+<Remainder loop for vectorization, Distributed chunk1>
+   remark #15335: remainder loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/traneq.f(52,10)
+<Distributed chunk2, Predicate Optimized v1>
+   remark #25423: Condition at line 58 hoisted out of this loop
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+   remark #15346: vector dependence: assumed FLOW dependence between DBPLB (62:7) and DBPLB (61:7)
+   remark #25456: Number of Array Refs Scalar Replaced In Loop: 11
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/traneq.f(52,10)
+<Distributed chunk2, Predicate Optimized v2>
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+   remark #15346: vector dependence: assumed FLOW dependence between DBPLB (62:7) and DBPLB (61:7)
+   remark #25456: Number of Array Refs Scalar Replaced In Loop: 11
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/traneq.f(83,10)
+   remark #25408: memset generated
+   remark #15398: loop was not vectorized: loop was transformed to memset or memcpy
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/traneq.f(95,10)
+   remark #15331: loop was not vectorized: precise FP model implied by the command line or a directive prevents vectorization. Consider using fast FP model   [ ../source-v15.1/traneq.f(97,7) ]
+   remark #25456: Number of Array Refs Scalar Replaced In Loop: 2
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/traneq.f(102,10)
+   remark #15300: LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/traneq.f(102,10)
+<Remainder loop for vectorization>
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/traneq.f(102,10)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/traneq.f(111,10)
+   remark #15300: LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/traneq.f(111,10)
+<Remainder loop for vectorization>
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/traneq.f(111,10)
+<Remainder loop for vectorization>
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/traneq.f(130,10)
+   remark #15300: LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/traneq.f(130,10)
+<Remainder loop for vectorization>
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/traneq.f(130,10)
+<Remainder loop for vectorization>
+LOOP END
+
+
+Non-optimizable loops:
+
+
+LOOP BEGIN at ../source-v15.1/traneq.f(139,11)
+   remark #15536: loop was not vectorized: inner loop throttling prevents vectorization of this outer loop. Refer to inner loop message for more details.   [ ../source-v15.1/traneq.f(85,10) ]
+
+   LOOP BEGIN at ../source-v15.1/traneq.f(85,10)
+      remark #15522: loop was not vectorized: loop control flow is too complex. Try using canonical loop form from OpenMP specification
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/traneq.f(84,7):remark #34026: call to memset implemented as a call to optimized library version
+../source-v15.1/traneq.f(2,18):remark #34051: REGISTER ALLOCATION : [traneq_] ../source-v15.1/traneq.f:2
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   30[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm15]
+        
+    Routine temporaries
+        Total         :     478
+            Global    :     100
+            Local     :     378
+        Regenerable   :     175
+        Spilled       :       8
+        
+    Routine stack
+        Variables     :     512 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :      61 [1.51e+02 ~ 0.1%]
+        Spills        :      24 bytes*
+            Reads     :       3 [3.00e+00 ~ 0.0%]
+            Writes    :       6 [5.90e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================

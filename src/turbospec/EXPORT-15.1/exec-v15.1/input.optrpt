@@ -1,0 +1,117 @@
+Intel(R) Advisor can now assist with vectorization and show optimization
+  report messages with your source code.
+See "https://software.intel.com/en-us/intel-advisor-xe" for details.
+
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINING OPTION VALUES:
+  -inline-factor: 100
+  -inline-min-size: 30
+  -inline-max-size: 230
+  -inline-max-total-size: 2000
+  -inline-max-per-routine: 10000
+  -inline-max-per-compile: 500000
+
+
+Begin optimization report for: INPUT
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (INPUT) [1] ../source-v15.1/input.f(1,18)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at ../source-v15.1/input.f(44,7)
+   remark #25045: Fused Loops: ( 44 47 48 )
+
+   remark #15301: FUSED LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/input.f(47,7)
+   remark #25046: Loop lost in Fusion 
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/input.f(48,7)
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/input.f(88,7)
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at ../source-v15.1/input.f(99,11)
+      remark #15300: LOOP WAS VECTORIZED
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/input.f(102,11)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+      remark #15346: vector dependence: assumed FLOW dependence between at (103:13) and at (103:13)
+
+      LOOP BEGIN at ../source-v15.1/input.f(103,13)
+         remark #25436: completely unrolled by 10   (pre-vector) 
+      LOOP END
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/input.f(121,9)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+      remark #15346: vector dependence: assumed FLOW dependence between at (122:11) and at (124:11)
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/input.f(136,9)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+      remark #15346: vector dependence: assumed FLOW dependence between at (137:11) and at (137:11)
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/input.f(161,9)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+      remark #15346: vector dependence: assumed FLOW dependence between at (162:11) and at (162:11)
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/input.f(99,11)
+   <Remainder loop for vectorization>
+      remark #25436: completely unrolled by 4  
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/input.f(232,7)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+   remark #15346: vector dependence: assumed FLOW dependence between at (233:9) and at (233:9)
+
+   LOOP BEGIN at ../source-v15.1/input.f(233,9)
+      remark #25436: completely unrolled by 10   (pre-vector) 
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/input.f(1,18):remark #34051: REGISTER ALLOCATION : [input_] ../source-v15.1/input.f:1
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   18[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm3]
+        
+    Routine temporaries
+        Total         :    1025
+            Global    :     104
+            Local     :     921
+        Regenerable   :     846
+        Spilled       :      14
+        
+    Routine stack
+        Variables     :    1432 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :     295 [5.89e+02 ~ 16.5%]
+        Spills        :      80 bytes*
+            Reads     :      26 [4.42e+00 ~ 0.1%]
+            Writes    :      19 [3.47e+00 ~ 0.1%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================

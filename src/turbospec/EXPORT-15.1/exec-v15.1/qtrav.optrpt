@@ -1,0 +1,66 @@
+Intel(R) Advisor can now assist with vectorization and show optimization
+  report messages with your source code.
+See "https://software.intel.com/en-us/intel-advisor-xe" for details.
+
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINING OPTION VALUES:
+  -inline-factor: 100
+  -inline-min-size: 30
+  -inline-max-size: 230
+  -inline-max-total-size: 2000
+  -inline-max-per-routine: 10000
+  -inline-max-per-compile: 500000
+
+
+Begin optimization report for: QTRAV
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (QTRAV) [1] ../source-v15.1/qtrav.f(1,16)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at ../source-v15.1/qtrav.f(39,10)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+
+   LOOP BEGIN at ../source-v15.1/qtrav.f(53,12)
+      remark #15326: loop was not vectorized: implied FP exception model prevents vectorization. Consider changing compiler flags and/or directives in the source to enable fast FP model and to mask FP exceptions   [ ../source-v15.1/qtrav.f(55,17) ]
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/qtrav.f(1,16):remark #34051: REGISTER ALLOCATION : [qtrav_] ../source-v15.1/qtrav.f:1
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   18[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm3]
+        
+    Routine temporaries
+        Total         :      67
+            Global    :      36
+            Local     :      31
+        Regenerable   :      10
+        Spilled       :      17
+        
+    Routine stack
+        Variables     :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+        Spills        :     136 bytes*
+            Reads     :      19 [2.30e+02 ~ 10.3%]
+            Writes    :      20 [2.97e+01 ~ 1.3%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================

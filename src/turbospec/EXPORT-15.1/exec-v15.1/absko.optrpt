@@ -1,0 +1,162 @@
+Intel(R) Advisor can now assist with vectorization and show optimization
+  report messages with your source code.
+See "https://software.intel.com/en-us/intel-advisor-xe" for details.
+
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINING OPTION VALUES:
+  -inline-factor: 100
+  -inline-min-size: 30
+  -inline-max-size: 230
+  -inline-max-total-size: 2000
+  -inline-max-per-routine: 10000
+  -inline-max-per-compile: 500000
+
+
+Begin optimization report for: ABSKO
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (ABSKO) [1] ../source-v15.1/absko.f(2,18)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at ../source-v15.1/absko.f(74,14)
+   remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+
+   LOOP BEGIN at ../source-v15.1/absko.f(119,7)
+      remark #15521: loop was not vectorized: loop control variable was not identified. Explicitly compute the iteration count before executing the loop or try using canonical loop form from OpenMP specification
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/absko.f(85,9)
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at ../source-v15.1/absko.f(106,9)
+      remark #25399: memcopy generated
+      remark #15542: loop was not vectorized: inner loop was already vectorized
+
+      LOOP BEGIN at ../source-v15.1/absko.f(106,9)
+         remark #15300: LOOP WAS VECTORIZED
+      LOOP END
+
+      LOOP BEGIN at ../source-v15.1/absko.f(106,9)
+      <Remainder loop for vectorization>
+         remark #25456: Number of Array Refs Scalar Replaced In Loop: 1
+      LOOP END
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/absko.f(110,9)
+   <Peeled loop for vectorization>
+      remark #25456: Number of Array Refs Scalar Replaced In Loop: 1
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/absko.f(110,9)
+      remark #15300: LOOP WAS VECTORIZED
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/absko.f(110,9)
+   <Alternate Alignment Vectorized Loop>
+   LOOP END
+
+   LOOP BEGIN at ../source-v15.1/absko.f(110,9)
+   <Remainder loop for vectorization>
+      remark #25456: Number of Array Refs Scalar Replaced In Loop: 1
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/absko.f(128,9)
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ ../source-v15.1/absko.f(128,9) ]
+   remark #15300: LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/absko.f(128,9)
+<Remainder loop for vectorization>
+   remark #15335: remainder loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/absko.f(139,9)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at ../source-v15.1/absko.f(145,9)
+      remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+      LOOP BEGIN at ../source-v15.1/absko.f(161,9)
+         remark #15326: loop was not vectorized: implied FP exception model prevents vectorization. Consider changing compiler flags and/or directives in the source to enable fast FP model and to mask FP exceptions   [ ../source-v15.1/absko.f(162,20) ]
+         remark #25439: unrolled with remainder by 2  
+         remark #25456: Number of Array Refs Scalar Replaced In Loop: 2
+      LOOP END
+
+      LOOP BEGIN at ../source-v15.1/absko.f(161,9)
+      <Remainder>
+         remark #25456: Number of Array Refs Scalar Replaced In Loop: 2
+      LOOP END
+
+      LOOP BEGIN at ../source-v15.1/absko.f(178,9)
+         remark #15344: loop was not vectorized: vector dependence prevents vectorization. First dependence is shown below. Use level 5 report for details
+         remark #15346: vector dependence: assumed OUTPUT dependence between blk(KOMP) (212:7) and blk(KOMP) (214:7)
+
+         LOOP BEGIN at ../source-v15.1/absko.f(190,9)
+            remark #15331: loop was not vectorized: precise FP model implied by the command line or a directive prevents vectorization. Consider using fast FP model   [ ../source-v15.1/absko.f(191,7) ]
+            remark #25439: unrolled with remainder by 2  
+            remark #25456: Number of Array Refs Scalar Replaced In Loop: 1
+         LOOP END
+
+         LOOP BEGIN at ../source-v15.1/absko.f(190,9)
+         <Remainder>
+            remark #25456: Number of Array Refs Scalar Replaced In Loop: 1
+         LOOP END
+      LOOP END
+   LOOP END
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/absko.f(242,9)
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ ../source-v15.1/absko.f(245,9) ]
+   remark #15300: LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/absko.f(242,9)
+<Remainder loop for vectorization>
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at ../source-v15.1/absko.f(242,9)
+<Remainder loop for vectorization>
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+../source-v15.1/absko.f(107,7):remark #34026: call to memcpy implemented as a call to optimized library version
+../source-v15.1/absko.f(2,18):remark #34051: REGISTER ALLOCATION : [absko_] ../source-v15.1/absko.f:2
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   19[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm4]
+        
+    Routine temporaries
+        Total         :     386
+            Global    :     157
+            Local     :     229
+        Regenerable   :     118
+        Spilled       :      28
+        
+    Routine stack
+        Variables     :     200 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :      20 [1.14e+06 ~ 13.6%]
+        Spills        :     168 bytes*
+            Reads     :      33 [7.48e+04 ~ 0.9%]
+            Writes    :      29 [8.81e+03 ~ 0.1%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================

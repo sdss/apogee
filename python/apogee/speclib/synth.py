@@ -447,3 +447,56 @@ def mkgriddirs(configfile) :
         os.environ['NO_NODES'] = 'yes'
         subprocess.call(['mkslurm','mkgrid','"plan/'+name+'_a[mp]*vp??.par"'])
         subprocess.call(['mkslurm','bundle','"plan/'+name+'_??.par"'])
+
+def mini_linelist(elem,linelist,maskdir) :
+    """ Produce an abbreviated line list for minigrid construction given mask file
+    """
+
+    wind=ascii.read(os.environ['APOGEE_DIR']+'/lib/'+maskdir+'/'+elem+'./wave',names=['w1','w2'])
+    
+pro speclib_wline,elem,linelist,maskdir,wair=wair,wvac=wvac
+;
+; takes a linelist and element, and produces modified linelists only with lines in the
+; windows for that element in a subdirectory of the linelist directory
+; handles master linelist + 2 H2O linelists + HI linelist
+;
+;elem='Ce'
+;linelist='linelist.20170418'
+readcol,getenv('SPECLIB_DIR')+'/lib/'+maskdir+'/'+elem+'.wave',w1,w2,format='(d,d)'
+vactoair,w1,w1air
+vactoair,w2,w2air
+wair=[]
+wvac=[]
+awk='$1<0'
+tawk='NR>2&&$1<0'
+for i=0,n_elements(w1)-1 do begin
+  wair=[[wair],[w1air[i],w2air[i]]]
+  wvac=[[wvac],[w1[i],w2[i]]]
+  awk=awk+'||($1>='+string(w1air[i]/10.,format='(f9.4)')+'&&$1<='+string(w2air[i]/10.,format='(f9.4)')+')'
+  tawk=tawk+'||($1>='+string(w1air[i],format='(f10.4)')+'&&$1<='+string(w2air[i],format='(f10.4)')+')'
+endfor
+linelistdir=getenv('APOGEE_SPECLIB')+'/linelists/'
+file_mkdir,elem
+openw,lun,elem+'.csh',/get_lun
+printf,lun,'#!/bin/csh -f'
+printf,lun,'awk '+"'"+awk+"' "+linelistdir+linelist+' >'+elem+'/'+linelist
+printf,lun,'turboscript '+elem+'/'+linelist
+
+lists=['turbospec.20170418.Hlinedata','turbospec.h2o-BC8.5V.molec','turbospec.h2o-BC9.5V.molec']
+code=['01.000000','010108.000000000','010108.00000000']
+comment=['HI culled','Barber culled','Barber culled']
+for ilist=0,n_elements(lists)-1 do begin
+  printf,lun,'awk '+"'"+tawk+"' "+linelistdir+lists[ilist]+' >'+elem+'/'+lists[ilist]+'.tmp'
+  printf,lun,"set n=`wc -l "+elem+"/"+lists[ilist]+".tmp | awk '{print $1}'`"
+  printf,lun,"echo \'"+code[ilist]+"                 \'    1   $n>"+elem+'/'+lists[ilist]
+  printf,lun,"echo \'"+comment[ilist]+"\'>>"+elem+'/'+lists[ilist]
+  printf,lun,'cat '+elem+'/'+lists[ilist]+'.tmp >>'+elem+'/'+lists[ilist]
+endfor
+free_lun,lun
+spawn,'csh '+elem+'.csh'
+end
+~                                                                                                                                                                   
+~                                                                                                                                                                   
+~                                                                                                                                                                   
+~                                                                                                                                                                   
+

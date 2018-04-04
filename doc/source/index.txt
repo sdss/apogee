@@ -1,0 +1,35 @@
+.. pyvista documentation master file, created by
+   sphinx-quickstart on Sat Apr  2 10:54:17 2016.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
+Welcome to pyvista's documentation!
+===================================
+
+pyvista is package that provides image display, processing, and analysis tools for 
+a versatile quick analysis environment
+
+Dependencies:
+   numpy
+   scipy
+   astropy
+   bz2
+   autopy (optional but valuable, for keystroke controlled moves in the display)
+
+Contents:
+
+.. toctree::
+   :maxdepth: 2
+
+   tv
+   image
+   imred
+
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+

@@ -22,7 +22,7 @@ import traceback
 import sys
 import warnings
 
-from logging import PercentStyle
+#from logging import PercentStyle
 from logging.handlers import TimedRotatingFileHandler
 # from textwrap import TextWrapper
 

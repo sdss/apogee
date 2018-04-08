@@ -1,3 +1,16 @@
+# encoding: utf-8
+#
+# @Author: Jon Holtzman
+# @Date: March 2018
+# @Filename: synth.py
+# @License: BSD 3-Clause
+# @Copyright: Jon Holtzman
+
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import unicode_literals
+
 from astropy.io import fits
 import os
 from sdss_access.path import path
@@ -483,9 +496,9 @@ def _readchip(file,root,hdu=None,tuple=None) :
            print('file: ', file,' read into dictionary with entries a, b, c')
            return {'a' : a, 'b' : b, 'c' : c, 'filename' : file}
     else :
-        a[hdu].header.set('filename',file.replace(root,root+'-a').basename)
-        b[hdu].header.set('filename',file.replace(root,root+'-b').basename)
-        c[hdu].header.set('filename',file.replace(root,root+'-c').basename)
+        a[hdu].header.set('filename',os.path.basename(file.replace(root,root+'-a')))
+        b[hdu].header.set('filename',os.path.basename(file.replace(root,root+'-b')))
+        c[hdu].header.set('filename',os.path.basename(file.replace(root,root+'-c')))
         if tuple :
             data =( a[hdu].data, b[hdu].data, c[hdu].data)
             header =( a[hdu].header, b[hdu].header, c[hdu].header)

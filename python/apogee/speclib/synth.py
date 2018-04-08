@@ -6,6 +6,11 @@
 # @License: BSD 3-Clause
 # @Copyright: Jon Holtzman
 
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import unicode_literals
+
 import os
 import glob
 import pdb
@@ -15,7 +20,8 @@ import sys
 import numpy as np
 from apogee.speclib import atmos
 from apogee.utils import atomic
-from sdss.utilities import yanny
+#from sdss.utilities import yanny
+from sdss import yanny
 from astropy.io import ascii
 from astropy.io import fits
 
@@ -184,7 +190,7 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
             fout.write("EOF\n")
             fout.close()
             if run :
-                os.chmod(root+'_babsma.csh', 0777)
+                os.chmod(root+'_babsma.csh', 0o777)
                 os.chdir(workdir)
                 subprocess.call(['time','./'+os.path.basename(root)+'_babsma.csh'],stdout=stdout)
                 os.chdir('..')
@@ -274,7 +280,7 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         fout.write('endif\n')
         fout.close()
         if run :
-            os.chmod(root+'_bsyn.csh', 0777)
+            os.chmod(root+'_bsyn.csh', 0o777)
             os.chdir(workdir)
             subprocess.call(['time','./'+os.path.basename(root)+'_bsyn.csh'],stdout=stdout)
             os.chdir('..')
@@ -355,7 +361,7 @@ def mkgrid(planfile,clobber=False,resmooth=False,renorm=False,save=False,run=Tru
                     elem=elem,linedir=linelistdir,linelist=linelist,vmicro=vout,
                     solarisotopes=solarisotopes,
                     nskip=nskip,kurucz=kurucz,run=run,save=save,split=split) 
-	          nskip = nskip+dskip if isinstance(spec,float) else -1
+                  nskip = nskip+dskip if isinstance(spec,float) else -1
                 specdata[:,imh,ilogg,iteff,:]=spec
 
           # FITS header and output
@@ -453,7 +459,7 @@ def mini_linelist(elem,linelist,maskdir) :
     """
 
     wind=ascii.read(os.environ['APOGEE_DIR']+'/lib/'+maskdir+'/'+elem+'./wave',names=['w1','w2'])
-    
+'''    
 pro speclib_wline,elem,linelist,maskdir,wair=wair,wvac=wvac
 ;
 ; takes a linelist and element, and produces modified linelists only with lines in the
@@ -495,8 +501,4 @@ endfor
 free_lun,lun
 spawn,'csh '+elem+'.csh'
 end
-~                                                                                                                                                                   
-~                                                                                                                                                                   
-~                                                                                                                                                                   
-~                                                                                                                                                                   
-
+'''

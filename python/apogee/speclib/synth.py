@@ -262,13 +262,13 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         fout.write("{:s}/bin/bsyn_lu < {:s} &\n".format(os.environ['APOGEE_DIR'],os.path.basename(bsynfile)))
         fout.write('set bsynjob = $!\n')
         fout.write("set ok = 0\n")
-        fout.write("set runtime = `ps -q $bsynjob -o cputime | tail -1 | awk -F: '{print ($1*3600)+($2*60)+$3}'`\n")
+        fout.write("set runtime = `ps -p $bsynjob -o cputime | tail -1 | awk -F: '{print ($1*3600)+($2*60)+$3}'`\n")
         tmax=120*int(.05/min([0.05,dw]))
         if h2o == 1 : tmax*=2
         if h2o == 2 : tmax*=5
         fout.write('while ( $runtime < {:d} && $ok == 0 )\n'.format(tmax))
         fout.write('  usleep 200000\n')
-        fout.write("  set runtime = `ps -q $bsynjob -o cputime | tail -1 | awk -F: '{print ($1*3600)+($2*60)+$3}'`\n")
+        fout.write("  set runtime = `ps -p $bsynjob -o cputime | tail -1 | awk -F: '{print ($1*3600)+($2*60)+$3}'`\n")
         fout.write('  if ( `ps -p $bsynjob -o comm=` == "" ) then\n')
         fout.write('    echo process done, exiting!\n')
         fout.write('    set ok = 1\n')

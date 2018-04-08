@@ -453,7 +453,7 @@ def mini_linelist(elem,linelist,maskdir) :
     """
 
     wind=ascii.read(os.environ['APOGEE_DIR']+'/lib/'+maskdir+'/'+elem+'./wave',names=['w1','w2'])
-    
+"""    
 pro speclib_wline,elem,linelist,maskdir,wair=wair,wvac=wvac
 ;
 ; takes a linelist and element, and produces modified linelists only with lines in the
@@ -495,8 +495,4 @@ endfor
 free_lun,lun
 spawn,'csh '+elem+'.csh'
 end
-~                                                                                                                                                                   
-~                                                                                                                                                                   
-~                                                                                                                                                                   
-~                                                                                                                                                                   
-
+"""

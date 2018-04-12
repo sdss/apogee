@@ -1,0 +1,2 @@
+apogee contains the python routines written for APOGEE
+pyvista is a subtree from holtzmanjon/pyvista, with the tv module (and some reduction utilities, not used)

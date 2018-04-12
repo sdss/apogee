@@ -1,0 +1,63 @@
+# darks:   start end   name     frames
+dark       57800 99999 22620001 22620001-22620030
+# flats:   start  end  name     frames     nexpperframe
+flat       57800 99999 22660002 22660002-22660031 1 0
+# bpm      start end   name     darkid   flatid 
+bpm        57822 99999 22620001 22620001 22660002
+# det      start end   name     linid
+det        57000 99999 22810006 0
+#
+#
+# sparse   start end   name      psfs              darks             dmax maxread
+sparse     57822 99999 22600009 22600009-22600028 0                 21    30,30,30
+# fiber
+fiber      57802 57802 22400203
+fiber      57803 57803 22400214
+fiber      57820 99999 22600030
+# bad fibers
+#
+# littrow ghost mask
+#littrow  57800 99999  22690119 22690119
+# persistence mask
+# persistence correction (note that chip c correction MJD range is hardwired in ap3d.pro)
+#persistmodel    55600 56860     0
+# response function
+# wavecals:start  end   name     frames          psfid
+wave       57822 99999 22600042 22600042 22600030
+# lsfs
+lsf        57802 57802 22400202 22400202        22400203
+lsf        57803 57803 22410231 22410231        22410214
+lsf        57820 99999 22670019 22670019        22670005
+# readout noise:  two frames
+
+
+# dark frames
+# 57824  but cold shutter open (still disabled)
+
+#sparse pack
+# 57822
+#
+
+# intflats
+# 57828
+
+#linearity frames/long intflats 57828
+
+# APOGEES focus 57817
+#
+# Instrument and cal history
+#
+# Feb 2017: first observing run, instrument not fully temperature equilibrated
+# 2/19/17 (57802), 2/20/17 (57803): first data
+# 3/5/17 (57817) : focus run
+# 3/10/17 (57822) : focus instrument to 1701, sparse pack, arcs
+# 3/11/17 (57823) : tests with MTP throughtput
+# 3/12/17 (57824) : sequence of long (100 read) darks
+# 3/15/17 (57827) : LEDs connected (shutter left unconnected)
+# 3/16/17 (57828) : sequence of INTFLATS (30 reads), fixed exptime, plus ramp set for linearity
+# 3/18/17 (57830) : start of first stable run
+# 3/30/17 (57842) : fiber mapping tests, intflats (5 reads)
+# 3/31/17 (57843) : series of different length darks (intflats: 10 and 15 reads)
+# 4/1/17  (57844) : more intflats (20 reads)
+# 4/28/17 (57871) : persistence test
+# 10/21/17 (58047) : darks

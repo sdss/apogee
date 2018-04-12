@@ -1,0 +1,218 @@
+# darks:   start end   name     frames
+dark       99999 99999 01380094 1380094-1380103
+dark       99999 99999 01470001 1470001-1470010
+dark       99999 99999 01470011 1470011-1470020
+dark       99999 99999 01480001 1480001-1480010
+dark       99999 99999 01980075 1980075-1980084
+dark       99999 99999 02350001 2350001-2350010
+dark       99999 99999 02410001 2410001-2410010
+dark       99999 99999 05560001 5560001-5560020
+dark       55600 56860 12910009 12910009-12910037
+dark       99999 99999 13380002 13380002-13380030
+dark       56861 99999 15640003 15640003-15640021
+# flats:   start  end  name     frames     nexpperframe
+flat       99999 55761 01380106 1380106-1380134 1 1
+flat       99999 99999 02410013 2410013-2410022 1 0
+flat       99999 99999 02410014 2410014-2410022 1 0
+flat       99999 99999 01550012 1550012-1550098 3 1
+flat       99999 99999 01980090 1980090-1980176 3 1
+flat       99999 99999 02350011 2350011-2350020 1 0
+flat       99999 99999 02440060 2440060         1 0
+flat       99999 99999 02700069 2700069-2700078 1 0
+flat       99999 99999 03310013 3310013-3310022 1 0
+flat       99999 99999 04680009 4680009-4680018 1 0
+flat       99999 99999 04680029 4680029-4680038 1 0
+flat       99999 99999 04680044 4680044-4680053 1 0
+flat       99999 99999 04680056 4680056-4680065 1 0
+flat       55600 56860 04750009 4750009-4750028 1 0
+flat       99999 99999 05570002 5570002-5570021 1 0
+flat       99999 99999 12480067 12480067-12480086 1 0 
+flat       99999 99999 12900001 12900002-12900021 1 0 
+flat       56861 99999 13360054 13360054-13360083 1 0 
+# bpm      start end   name     darkid   flatid 
+bpm        99999 99999 05560001 5560001  4750009
+bpm        55600 56860 12910009 12910009 4750009
+bpm        99999 99999 01380094 2410001  1380106
+bpm        99999 99999 02410001 2410001  2410013
+bpm        99999 99999 13380002 13380002 13360054
+bpm        56861 99999 15640003 15640003 13360054
+# det      start end   name     linid
+det        99999 99999 55640     0
+det        55600 56860 11870003 11870003
+det        56861 99999 13390003 13390003
+# sparse   start end   name      psfs              darks             dmax maxread
+sparse     55600 55761 01590015 1590015-1590024  0                   21  30,30,20
+sparse     55797 99999 02410059 2410059-2410068  2410058,2410069     21  30,30,20
+sparse     99999 99999 12920092 12920092-12920111 0                  21  30,30,20
+sparse     99999 99999 15640022 15640022-15640041 0                  21  30,30,20
+#sparse     56861 99999 02410059 2410059-2410068  2410058,2410069     21  30,30,20
+# fiber
+fiber      55600 55761 01970078
+fiber      55797 56860 02410024
+fiber      56861 99999 13400051
+# bad fibers
+badfiber   55600 57008   0
+badfiber   57009 57177   195
+badfiber   57178 57183   195,1-30
+badfiber   57184 57230   195,1-30,271-300
+badfiber   57231 57008   0
+badfiber   57970 58012   121-150
+badfiber   58037 58037   31-60
+# special fiber mapping
+fixfiber   56764 56773   1
+fixfiber   58038 58046   2
+# littrow ghost mask
+littrow    55600 56860 06670109 6670109
+littrow    56861 99999 13400052 13400052
+# persistence mask
+persist    55600 56860 04680019 4680019 4680018 0.03
+persist    56861 99999 13400061 13400061 13400060 0.03
+# persistence correction (note that chip c correction MJD range is hardwired in ap3d.pro)
+persistmodel    55600 56860 57184  
+#persistmodel    55600 56860     0
+persistmodel    56861 99999 0  
+# response function
+#response   55600 56860 01710042 1710042 1710042 423
+#response   56861 99999 01710042 1710042 1710042 423
+response   55600 99999  0  0   0 0
+# wavecals:start  end   name     frames          psfid
+wave       55699 55699 01370096 1370096,1370099  1370098
+wave       55700 55700 01380079 1380079          1380081
+wave       55701 55701 01390089 1390089          1390087
+wave       55702 55702 01400091 1400091          1400089
+wave       55703 55703 01410088 1410088-1410089  1410091
+wave       55704 55704 01420023 1420023          1420021
+wave       55705 55761 01970081 1970081,1970082  1970080
+wave       55797 56860 02420038 2420038,2420039  2420037
+wave       99999 99999 02900003 2900003,2900004  2900002
+wave       99999 99999 04210062 4210062,4210063  4210061
+wave       99999 99999 04210064 4210064,4210062,4210063          4210061
+wave       99999 99999 09740041 9740041,9740042  9740040
+wave       56861 99999 13400053 13400053,13400054 13400052
+#wave       55797 99999 03430116 03430116         3430120
+# lsfs
+lsf        55699 55761 01890036 1890036          1890037
+lsf        99999 99999 02490024 2490024          2490028
+lsf        55797 55981 02490025 2490025,2490026  2490028
+lsf        99999 99999 04210024 4210024          4210016
+lsf        55982 55984 04210064 4210064          4210061
+lsf        99999 99999 02900021 2900021          2900022
+lsf        99999 99999 05440019 5440019          5440023
+lsf        55985 56860 05440020 5440020,5440021  5440023
+lsf        99999 99999 09740021 9740021          9740025
+lsf        99999 99999 02490012 2490012          2490011
+lsf        56861 99999 13400033 13400033        13400051
+lsf        99999 99999 13400034 13400034        13400051
+# readout noise:  two frames
+rn 1380094 1380095
+rn 1380102 1380103
+rn 1470001 1470002
+rn 1470009 1470010
+rn 1470011 1470012
+rn 1470019 1470020
+rn 1480009 1480010
+rn 1980075 1980076
+rn 1980083 1980084
+
+#persistence testing
+# 55802
+# 55815
+# 55834
+# 56030  flats followed by darks
+# 56037
+# 56038  10, 30 and 60 read intflats, followed by darks, 2 reps of each
+# 56040
+# 56041
+# 56042
+# 56043
+# 56048 : 10 read internal flat to look for different charge loss as f(total)
+# 56050 : 30 read internal flat to look for different charge loss as f(total)
+# 56051 : 3 quartzes on unexposed chip to look for different charge loss as
+#          a function of rate
+# 56092 : ThAr tests at various levels, followed by darks
+# 568[32,33,34,36,38,39,40,43,45] different lengths (20,40,80 reads) with LED=[1,2,3], followed by 180-read darks
+
+#FFP testing
+# 55982
+# 55983
+# 55984
+#
+# new blue chip: summer 2014
+# summer 2017: dewar warmed but not opened, recooled
+
+#darks: 56118, 56853, 56898, 56899, 56900, 57126 (100-read, day 1564, 4/14/15), 57949, 57951
+#flats: 56037, 56119, 56810, 56852, 56853, 56898, 57950, 57951
+#sparse:  56854, 57126
+#dither test: 56119, monthly runs starting in spring 2014
+# fine dither:  568554
+#
+#
+# gain 57952
+#linearity frames/long intflats 56749
+#test of intflats LED bandks 56802
+#
+# twilight solar spectra 56846
+#
+# APOGEE2 focus 56898
+#
+# 150/150 plate:  APOGEE-2, 8072, APOGEE-1 4914/55807
+#
+# board swaps from Mike Skrutskie
+#
+# First visit 11/15/2014 - Survey day 1415 :       This trip consisted of looking for contact issues in the existing board.  No swap of boards.   Left existing board in place with the low frequency drift in Stripe 11.
+#
+# Second visit   3/24/2015 - Attempt swap in of new board. Original Board is SN 178.    Although I don't have it in my notes I believe the replacement board did not have the correct configuration so the original board (SN 178) was left in place.
+#
+# Third visit  7/20/2015 - Survey day 1662 -  Remove board SN 178 replace with board SN 281.   Board 281 shows excess noise that looks like pickup but can be corrected with reference stripes. Leave SN 281 in the system while we acquire a replacement board from Leach.
+# Fourth visit 7/1/2016 - Survey day 2008 - Remove board SN 281 install new board SN 447.   High frequency pattern noise seems reduced, spiky noise still there (occasional/patterned 100 DN pixels).   Left board SN 447 in place.   Noise level still around 13 DN.
+#
+#
+#
+# summer 2017: rodents check through fiber bundle that has fibers 121-150, repaired by Rob Stoll 9/20/17, also attempted repair of fiber 277
+# october 2017: MTP#2 comes out, was re-inserted but came out again, finally glued back in (reversed?)
+#
+#
+# Instrument history
+#
+# May 2011 : first commissioning run
+#    instrument found to have astigmatism, opened and replaced bent fold (?)
+#    discovered that correction was put in wrong direction
+# summer 2011: instrument opened and new correction put in
+# 8/5/11 (55788) : focus run
+# 8/9/11 (55792) : pitch, yaw, focus
+# 8/14/11 (55797):  intflats, sparsepack, darks
+# 8/20/11 (55803):  darks, intflats, dither
+# 2/25-27/12 (55982-55984): FFP tests
+# 4/20/12 (56037) : intflats (20x60reads)
+# 4/21/12 (56038) : intflats at different exp levels, followed by long darks
+# 7/10/12 (56118): darks
+# 4/2/14  (56749) : 3 long intflats (200 reads)
+# 7/15/14 (56852): intflats
+# 7/15/14 (56853): darks
+# 7/15/14 (56854) : sparse pack, deep ThArNe sequence
+# summer 2014: instrument opened, blue detector replaced, start APOGEE-2
+# 8/29/14 (56898) : focus run, darks, intflats
+# 8/30/14 (56899) : darks
+# 8/31/14 (56900) : darks
+# 11/15/14 - Survey day 1415 :  Skrutskie visit for blue channel quadrant 3 diagnosis:
+#         This trip consisted of looking for contact issues in the existing board.  No swap of boards.   
+#         Left existing board in place with the low frequency drift in Stripe 11.
+# 3/24/15 - Skrutskie visit 2: Attempt swap in of new board. Original Board is SN 178.    Although 
+#          I don't have it in my notes I believe the replacement board did not have the correct 
+#          configuration so the original board (SN 178) was left in place.
+# 4/14/15 (57126) : 100-read darks, quartz flats (sparse)
+# 7/20/15 - Skrutsie visit 3 Survey day 1662 -  Remove board SN 178 replace with board SN 281.   
+#             Board 281 shows excess noise that looks like pickup but can be corrected with reference stripes. 
+#             Leave SN 281 in the system while we acquire a replacement board from Leach.
+# 7/1/16 - Skrutskie visit 4 Survey day 2008 - Remove board SN 281 install new board SN 447.   
+#             High frequency pattern noise seems reduced, spiky noise still there (occasional/patterned 100 DN pixels).   Left board SN 447 in p#lace#              Noise level still around 13 DN.
+# 7/15/17 (57949) : 100-read darks
+# 7/17/17 (57951) : 100-read darks
+# 7/18/17 (57952) : single intflats at multiple exptimes
+# summer 2017 : instrument warmed but not opened
+# summer 2017: rodents check through fiber bundle that has fibers 121-150
+# summer 2017: intflat LEDs no longer working after cooldown
+# 9/20/17:  121-150 repaired by Rob Stoll 9/20/17, also attempted repair of fiber 277
+# october 2017: MTP#2 comes out, was re-inserted but came out again
+# 10/12/17:  MTP#2 glue in, but reversed!
+# 11/7/17: 25020009-11 sparse ThArNe frames

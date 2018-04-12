@@ -54,6 +54,8 @@ module load tree
 prereq tree
 module load idl/8.5.1
 module load idlutils
+module load platelist
+module load cfitsio
 
 #
 # ENVIRONMENT SECTION

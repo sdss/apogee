@@ -16,7 +16,7 @@ function getdir,apogeedir,caldir,spectrodir,vers,libdir,prefix,v=v,apred_vers=ap
   ; override
   if n_elements(ver) gt 0 then apred_vers=ver else begin
     ; strict versioning
-    vers=apogeereduce_version()
+    vers=getenv('APOGEE_VERS')
     apred_vers=vers
   endelse
   vers=apred_vers
@@ -24,8 +24,8 @@ function getdir,apogeedir,caldir,spectrodir,vers,libdir,prefix,v=v,apred_vers=ap
   apogeedir=getenv('APOGEE_REDUX')
   speclib=getenv('APOGEE_SPECLIB')
   aspcap=getenv('APOGEE_ASPCAP')
-  pipedir = getenv('APOGEEREDUCE_DIR')
-  libdir=pipedir+'/lib/'
+  pipedir = getenv('APOGEE_DIR')
+  libdir=pipedir+'/data/'
   if telescop eq 'apo1m' then begin
     datadir=getenv('APOGEE_DATA_1M')+'/'
   endif else if telescop eq 'lco25m' then begin

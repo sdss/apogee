@@ -16,6 +16,7 @@ import os
 from sdss_access.path import path
 from sdss_access.sync.http import HttpAccess
 import pdb
+import sys
 
 apred = 'r6'
 apstar = 'stars'
@@ -243,13 +244,17 @@ def ap2D(*args,**kwargs) :
              if hdu=N : returns dictionaries (data, header) for specified HDU
              if tuple=True : returns tuples rather than dictionaries
     """
+    fz=''
+    for key in kwargs : 
+        if key == 'fz' : fz='fz'
     if len(args) != 1 :
         print('Usage: ap2D(imagenumber)')
     else :
         try :
             file = allfile(
-               '2D',num=args[0],mjd=cmjd(args[0]),chips=True,
+               '2D'+fz,num=args[0],mjd=cmjd(args[0]),chips=True,
                apred=apred,apstar=apstar,aspcap=aspcap,results=results,dr='collab')
+            print('file: ', file)
             return _readchip(file,'2D',**kwargs)
         except :
             printerror()
@@ -472,9 +477,9 @@ def aspcapField(*args, **kwargs) :
 def cmjd(frame) :
     """ Get chracter MJD from frame number """
     num = (frame - frame%10000 ) / 10000
-    return('{:05d}'.format(num+55562) )
+    return('{:05d}'.format(int(num)+55562) )
 
-def _readchip(file,root,hdu=None,tuple=None) :
+def _readchip(file,root,hdu=None,tuple=None,fz=None) :
     """ low level routine to read set of 3 chip files and return data as requested"""
     print('Reading from file: ', file)
     try:
@@ -535,7 +540,7 @@ def allfile(root,dr=None,apred=None,apstar=None,aspcap=None,results=None,locatio
     http_access=HttpAccess(verbose=True)
     print('http_access.remote..')
     http_access.remote()
-
+    sys.stdout.flush()
     if instrument == 'apogee-n' :
         if root == 'R' :
             prefix='ap'
@@ -563,7 +568,7 @@ def allfile(root,dr=None,apred=None,apstar=None,aspcap=None,results=None,locatio
         return filePath
     else :
         for chip in ['a','b','c'] :
-            print chip,root,num,mjd,prefix
+            print(chip,root,num,mjd,prefix)
             filePath = sdss_path.full(sdssroot,apred=apred,apstar=apstar,aspcap=aspcap,results=results,
                 location=location,obj=obj,plate=plate,mjd=mjd,num=num,telescope=telescope,fiber=fiber,
                 chip=chip,prefix=prefix,instrument=instrument)

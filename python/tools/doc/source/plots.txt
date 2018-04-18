@@ -1,0 +1,14 @@
+plots module
+***********
+
+The plots module provides routines to make labelled plots with single calls,
+as well a a routine to set up multipanel plots with or without space between
+plots.  A variety of different plot routines is available. Also provides 
+routine to allow interactive query of data points.
+
+Module functions
+
+.. automodule:: holtz.tools.plots
+   :members:
+   :member-order: bysource
+

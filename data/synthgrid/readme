@@ -1,0 +1,22 @@
+1) Reading mini grid for coarse characterization
+
+IDL>read_synth,'f_apg5coarse.dat',g=g
+
+you will end up with the grid in the array g
+IDL>help,g
+G               FLOAT     = Array[2, 4, 4, 11257]
+where the first three dimensions are for metallicity 
+([Fe/H]=-2 and 0), Teff (3500,4000,4500,5000 K), and
+logg (0.0,1.5,3.0, 4.5 dex).
+
+
+2) Rad. Velocity by cross-correlation 
+
+IDL>xlib,'f_apg5coarse.dat','*fits',30000.,'output.txt'
+
+Expects to read FITS files with dim. 3xnpix, where npix
+is the number of wavelengths and the three layers
+in the first dimension give wavelengths, fluxes and errors.
+This part will obviously need to be adjusted.
+
+Carlos, May 2010

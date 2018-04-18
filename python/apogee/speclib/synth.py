@@ -105,6 +105,7 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
     # output directory and filename
     workdir=(prefix+'m{:s}a{:s}c{:s}n{:s}v{:s}'+elem).format(
              atmos.cval(mh),atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(vmicro))
+    workdir=os.environ['APOGEE_LOCALDIR']+'/'+workdir
     try: os.mkdir(workdir)
     except: pass
     root=workdir+'/'+(prefix+'t{:04d}g{:s}m{:s}a{:s}c{:s}n{:s}v{:s}'+elem).format(teff, atmos.cval(logg), 
@@ -191,9 +192,9 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
             fout.close()
             if run :
                 os.chmod(root+'_babsma.csh', 0o777)
+                cwd = os.getcwd()
                 os.chdir(workdir)
                 subprocess.call(['time','./'+os.path.basename(root)+'_babsma.csh'],stdout=stdout)
-                os.chdir('..')
 
         # create bsyn control file
         bsynfile = file+'bsyn{:02d}.inp'.format(ielem)
@@ -283,7 +284,7 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
             os.chmod(root+'_bsyn.csh', 0o777)
             os.chdir(workdir)
             subprocess.call(['time','./'+os.path.basename(root)+'_bsyn.csh'],stdout=stdout)
-            os.chdir('..')
+            os.chdir(cwd)
             try:
                 out=ascii.read(file)
                 if ielem == 0 : 

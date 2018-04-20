@@ -1,0 +1,7 @@
+Mask/Flag values get set in
+  getmaskvals
+  getstarflags
+
+which associate named characteristics with bits, and also
+provides a mask to determine which of these characteristics
+marks a pixel/mask as BAD, as opposed to just providing information

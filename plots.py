@@ -1,10 +1,14 @@
-import matplotlib.colors as colors
+#import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 from scipy import spatial
 import struct
 import numpy as np
 import sys
 import pdb
+
+from matplotlib.widgets import Lasso
+from matplotlib.collections import RegularPolyCollection
+from matplotlib import colors as mcolors, path
 
 # default values for event handling
 _index = 0
@@ -26,7 +30,7 @@ def event(fig) :
         _button = event.key
         inv = event.inaxes.transData.inverted()
         _x,_y = inv.transform((event.x,event.y))
-        print _x, _y
+        print(_x, _y)
         #A[spatial.KDTree(A).query([event.x,event.y])[1]]
         #distance,index = spatial.KDTree(A).query([event.x,event.y])
         if _data_x is not None and _data_y is not None :
@@ -308,9 +312,45 @@ def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False,squeeze
     return fig,ax
 
 
-def close(n=50) :
+def close() :
     '''
     Close open plots windows
     '''
-    for i in range(n) :
-        plt.close()
+    plt.close('all')
+
+"""
+Show how to use a lasso to select a set of points and get the indices
+of the selected points.  A callback is used to change the color of the
+selected points
+
+This is currently a proof-of-concept implementation (though it is
+usable as is).  There will be some refinement of the API.
+"""
+
+class LassoManager(object):
+    def __init__(self, ax, x, y):
+        self.axes = ax
+        self.canvas = ax.figure.canvas
+        self.Nxy = len(x)
+
+        self.xys=[]
+        for i in range(len(x)) :
+            self.xys.append((x[i],y[i]))
+        self.cid = self.canvas.mpl_connect('button_press_event', self.onpress)
+
+    def callback(self, verts):
+        p = path.Path(verts)
+        self.ind = p.contains_points(self.xys)
+        self.canvas.widgetlock.release(self.lasso)
+        del self.lasso
+
+    def onpress(self, event):
+        if self.canvas.widgetlock.locked():
+            return
+        if event.inaxes is None:
+            return
+        self.lasso = Lasso(event.inaxes,
+                           (event.xdata, event.ydata),
+                           self.callback)
+        # acquire a lock on the widget drawing
+        self.canvas.widgetlock(self.lasso)

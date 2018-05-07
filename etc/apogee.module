@@ -57,6 +57,7 @@ module load idlutils
 module load idlspec2d/apogee-v5_6_5
 module load platelist
 module load cfitsio
+module load apogeereduceplan
 
 #
 # ENVIRONMENT SECTION
@@ -71,6 +72,7 @@ set PRODUCT_DIR $PRODUCT_ROOT/$product/$version
 # directory of your product.
 #
 setenv [string toupper $product]_DIR $PRODUCT_DIR
+setenv [string toupper $product]_VER $version
 #
 # The lines below set various other environment variables.  They assume the
 # template product layout.  These will be set or commented as needed by the

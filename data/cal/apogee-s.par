@@ -1,7 +1,9 @@
 # darks:   start end   name     frames
 dark       57800 99999 22620001 22620001-22620030
+dark       99999 99999 26710001 26710001-22620028
 # flats:   start  end  name     frames     nexpperframe
 flat       57800 99999 22660002 22660002-22660031 1 0
+flat       99999 99999 26710029 26710029-26710058 1 0
 # bpm      start end   name     darkid   flatid 
 bpm        57822 99999 22620001 22620001 22660002
 # det      start end   name     linid
@@ -61,3 +63,4 @@ lsf        57820 99999 22670019 22670019        22670005
 # 4/1/17  (57844) : more intflats (20 reads)
 # 4/28/17 (57871) : persistence test
 # 10/21/17 (58047) : darks
+# 4/25/18 (58233)  : darks and flats

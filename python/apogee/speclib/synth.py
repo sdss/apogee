@@ -12,11 +12,14 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import os
+import errno
 import glob
 import pdb
 import shutil
 import subprocess
 import sys
+import tempfile
+import multiprocessing as mp
 import numpy as np
 from apogee.speclib import atmos
 from apogee.utils import atomic
@@ -24,6 +27,7 @@ from apogee.utils import atomic
 from sdss import yanny
 from astropy.io import ascii
 from astropy.io import fits
+
 
 def kurucz2turbo(infile,outfile,trim=0) :
     """ Convert Kurucz model atmosphere for use by Turbospectrum 
@@ -59,7 +63,12 @@ def marcs2turbo(infile,outfile,trim=0) :
     try:
         fp=open(infile,'r')
     except :
-        fp=open(infile+'.filled','r')
+        try :
+            fp=open(infile+'.filled','r')
+        except :
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filename)
+            return
+
     fout=open(outfile,'w')
     layer = 0
     for iline,line in enumerate(fp) :
@@ -74,10 +83,10 @@ def marcs2turbo(infile,outfile,trim=0) :
             except :
                 fout.write(line)
 
-def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elem='',welem=None,
-    atmod=None,kurucz=True,atmosroot=None,atmosdir=None,nskip=0,endskip=0,
+def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
+    els=None,atmod=None,kurucz=True,atmosroot=None,atmosdir=None,nskip=0,endskip=0,
     linelist='20150714',h2o=None,linedir=None,
-    save=False,run=True,split=200) :
+    save=False,run=True,split=200,fluxcol=2) :
 
     """ Runs Turbospectrum for specified input parameters
     """
@@ -103,12 +112,16 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
     else : prefix=atmoscode+'g'
 
     # output directory and filename
-    workdir=(prefix+'m{:s}a{:s}c{:s}n{:s}v{:s}'+elem).format(
-             atmos.cval(mh),atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(vmicro))
-    workdir=os.environ['APOGEE_LOCALDIR']+'/'+workdir
-    try: os.mkdir(workdir)
-    except: pass
-    root=workdir+'/'+(prefix+'t{:04d}g{:s}m{:s}a{:s}c{:s}n{:s}v{:s}'+elem).format(teff, atmos.cval(logg), 
+    if save :
+        workdir=(prefix+'m{:s}a{:s}c{:s}n{:s}v{:s}'+elemgrid).format(
+                 atmos.cval(mh),atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(vmicro))
+        workdir=os.environ['APOGEE_LOCALDIR']+'/'+workdir
+        try: os.mkdir(workdir)
+        except: pass
+    else :
+        workdir=tempfile.mkdtemp(dir=os.environ['APOGEE_LOCALDIR'])
+
+    root=workdir+'/'+(prefix+'t{:04d}g{:s}m{:s}a{:s}c{:s}n{:s}v{:s}'+elemgrid).format(teff, atmos.cval(logg), 
                       atmos.cval(mh), atmos.cval(am), atmos.cval(cm), atmos.cval(nm),atmos.cval(vmicro))
     if save :
         stdout = None
@@ -126,21 +139,28 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         if nskip > 2 : return 0.
         kurucz2turbo(atmod,workdir+'/'+os.path.basename(atmod),trim=trim )
     else :
-        marcs2turbo(atmod,workdir+'/'+os.path.basename(atmod),trim=nskip )
+        try :
+            marcs2turbo(atmod,workdir+'/'+os.path.basename(atmod),trim=nskip )
+        except:
+            return 0.
 
     # Turbospectrum setup
     try: os.symlink(os.environ['APOGEE_DIR']+'/src/turbospec/DATA',workdir+'/DATA')
     except: pass
 
     # individual element grid?
-    if elem != '' :
-        elemnum=atomic.periodic(elem)
-        eabun=np.arange(atomic.solar(elem)-0.75,0.25,10)
+    nels = 3
+    if elemgrid != '' :
+        elemnum=atomic.periodic(elemgrid)[0]
+        eabun=np.arange(atomic.solar(elemgrid)[0]-0.75,0.25,10)
         nelem=1
-        linelistdir=linelistdir+elem+'/'
+        nels+=1
+        linelistdir=linelistdir+elemgrid+'/'
     else :
         eabun=np.array([0.])
         nelem=0
+    if els is not None :
+        nels += len(els)
 
     # welem only computes in windows, but it is easier/faster to compute the whole range with a linelist that only 
     #   has lines in windows!
@@ -177,10 +197,15 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
             fout.write("'HELIUM:'  '{:8.3f}'\n".format(0.00))
             fout.write("'R-PROCESS:'  '{:8.3f}'\n".format(0.00))
             fout.write("'S-PROCESS:'  '{:8.3f}'\n".format(0.00))
-            fout.write("'INDIVIDUAL ABUNDANCES:'  '3'\n")
+            fout.write("'INDIVIDUAL ABUNDANCES:'  '{:2d}'\n".format(nels))
             fout.write("    6  {:8.3f}\n".format(8.39+mh+cm))
             fout.write("    7  {:8.3f}\n".format(7.78+mh+nm))
             fout.write("    8  {:8.3f}\n".format(8.66+mh+am))
+            if els is not None :
+                for el in els :
+                  num=atomic.periodic(el[0])[0]
+                  ab=atomic.solar(el[0])[0]+el[1]
+                  fout.write("{:5d}  {:8.3f}\n".format(num,ab+mh))
             if not solarisotopes :
               fout.write("'ISOTOPES:'  '2'\n")
               # adopt ratio of 12C/13C=15
@@ -214,11 +239,16 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         fout.write("'HELIUM:'  '{:8.3f}'\n".format(0.00))
         fout.write("'R-PROCESS:'  '{:8.3f}'\n".format(0.00))
         fout.write("'S-PROCESS:'  '{:8.3f}'\n".format(0.00))
-        fout.write("'INDIVIDUAL ABUNDANCES:'  '3'\n")
+        fout.write("'INDIVIDUAL ABUNDANCES:'  '{:2d}'\n".format(nels))
         fout.write("    6  {:8.3f}\n".format(8.39+mh+cm))
         fout.write("    7  {:8.3f}\n".format(7.78+mh+nm))
         fout.write("    8  {:8.3f}\n".format(8.66+mh+am))
-        if elem != '' : fout.write("{:6d}  {:8.3f}\n".format(elemnum,abun+mh))
+        if elemgrid != '' : fout.write("{:6d}  {:8.3f}\n".format(elemnum,abun+mh))
+        if els is not None :
+            for el in els :
+              num=atomic.periodic(el[0])[0]
+              ab=atomic.solar(el[0])[0]+el[1]
+              fout.write("{:5d}  {:8.3f}\n".format(num,ab+mh))
         if  not solarisotopes :
           fout.write("'ISOTOPES:'  '2'\n")
           # adopt ratio of 12C/13C=15
@@ -286,11 +316,11 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
             subprocess.call(['time','./'+os.path.basename(root)+'_bsyn.csh'],stdout=stdout)
             os.chdir(cwd)
             try:
-                out=ascii.read(file)
+                out=np.loadtxt(file)
                 if ielem == 0 : 
-                    spec=out['col3']
+                    spec=out[:,fluxcol]
                 else :
-                    spec=np.vstack(spec,out['col3'])
+                    spec=np.vstack(spec,out[:,fluxcol])
             except :
                 return 0.
 
@@ -359,7 +389,7 @@ def mkgrid(planfile,clobber=False,resmooth=False,renorm=False,save=False,run=Tru
                 while nskip >= 0 and nskip < 10 :
                   spec=mkturbospec(int(teff),logg,mh,am,cm,nm,
                     wrange=wrange,dw=dw,atmosdir=marcsdir,
-                    elem=elem,linedir=linelistdir,linelist=linelist,vmicro=vout,
+                    elemgrid=elem,linedir=linelistdir,linelist=linelist,vmicro=vout,
                     solarisotopes=solarisotopes,
                     nskip=nskip,kurucz=kurucz,run=run,save=save,split=split) 
                   nskip = nskip+dskip if isinstance(spec,float) else -1
@@ -455,6 +485,46 @@ def mkgriddirs(configfile) :
         subprocess.call(['mkslurm','mkgrid','"plan/'+name+'_a[mp]*vp??.par"'])
         subprocess.call(['mkslurm','bundle','"plan/'+name+'_??.par"'])
 
+def mkspec(pars) :
+    teff=pars[0].astype('int')
+    logg=pars[1]
+    mh=pars[2]
+    vmicro=pars[3]
+    vrot=pars[4]
+    cm=round(pars[5]/0.25)*0.25
+    nm=round(pars[6]/0.5)*0.5
+    am=round(pars[7]/0.25)*0.25
+    elems=[]
+    els = ['C','N','O','Na','Mg','Al','Si','P','S','K','Ca','Ti','V','Cr','Mn','Co','Ni','Cu','Ge','Rb','Ce','Nd']
+    for j,el in enumerate(els) :
+        elems.append([el,pars[5+j]])
+    print(teff,logg,mh,vmicro,am,cm,nm)
+    spec=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=False)
+    return pars,spec
+    
+
+def mksynth(file,wrange=[15100,17000],threads=8) :
+    """ Make a series of spectra from parameters in an input file
+    """
+    pars=np.loadtxt(file)
+    out=[]
+    outpar=[]
+
+    pool = mp.Pool(threads)
+    specs = pool.map_async(mkspec, pars).get()
+    pool.close()
+    pool.join()
+
+    for spec in specs :
+        if isinstance(spec[1],np.ndarray) :
+            out.append(spec[1])
+            outpar.append(spec[0])
+
+    hdu=fits.HDUList()
+    hdu.append(fits.ImageHDU(out))
+    hdu.append(fits.ImageHDU(outpar))
+    hdu.writeto('synth.fits',overwrite=True)
+    
 def mini_linelist(elem,linelist,maskdir) :
     """ Produce an abbreviated line list for minigrid construction given mask file
     """

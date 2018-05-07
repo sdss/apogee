@@ -64,10 +64,12 @@ for ichip=0,n_elements(chips)-1 do begin
     if ichip eq 0 then red=fltarr(2048,2048,sz[3],nframes) else red*=0.
   endif
   red[*,*,*,ii]=r
+  apgundef,r
   for iread=sz[3]-1,1,-1 do begin
     red[*,*,iread,ii]-=red[*,*,1,ii]
   endfor
   ii=ii+1
+  help,/mem
  endfor
  
  ; median them all

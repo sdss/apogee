@@ -1,0 +1,14 @@
+
+This script takes the APOGEE linelist and creates a VALD formated linelist.
+
+To use this list you must have the valdscript and the vald.awk in the 
+same directory as the linelist you wish to convert.   The useage of
+the valdscript is
+
+valdscript linelist
+
+Example:
+
+valdscript linelist.201009180859
+
+Questions should be addressed to Matthew Shetrone shetrone@astro.as.utexas.edu

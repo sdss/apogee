@@ -1,0 +1,61 @@
+
+To run the conversion script on a linelist, e.g. linelist.201006142148
+run the command "awk -f moog7_ast.awk linelist.201006142148".
+
+This linelist uses the hyperfine and isotope adjustment columns 
+for elements (not molecules) within this linelist to make 
+changes to the source gf value.   
+
+It also assumes that you will choose the damping=0 option in the 
+parameter file so that you can use the vdW damping given in the 
+linelist.
+
+For the _ast version the astrophysical gf is taken in preference.  
+The one without the _ast will completely ignore the astrophysical 
+gf value but it will take any new or lab gf value over the original
+gf value.
+
+You will also need to include in the parameter file the full molecular
+splitting you want to addopt e.g. for a dwarf:
+
+isotopes   17     1
+  108.00116       1.001
+  606.01212       1.001
+  606.01213       89
+  606.01313       189
+  607.01214       1.001
+  607.01314       89
+  607.01215       100
+  608.01216        1.001
+  608.01316       89
+  608.01217       100
+  608.01218       100
+  114.00128       1.001
+  114.00129        100
+  114.00130        100
+  101.00101      1.001    
+  101.00102      1000     
+  126.00156       1         
+
+For a giant:
+
+isotopes   17     1
+  108.00116       1.1
+  606.01212       1.1
+  606.01213       10
+  606.01313       121
+  607.01214       1.1
+  607.01314       10
+  607.01215       100
+  608.01216        1.1
+  608.01316       10
+  608.01217       100
+  608.01218       100
+  114.00128       1.01
+  114.00129        100
+  114.00130        100
+  101.00101      1.001    
+  101.00102      1000     
+  126.00156       1         
+
+

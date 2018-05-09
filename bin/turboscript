@@ -1,0 +1,40 @@
+#!/bin/csh -f
+
+# makes Turbospectrum format linelists from master APOGEE list
+# will separate output list into atoms and molecules
+# output filename will be as input name, but changing linelist to turbospec, and adding .atoms and .molec
+#
+  if (-e $1) echo making list using $1, output will be in two files: output.atoms and output.molec
+  else echo usage   turboscript inputfile e.g. turboscript linelist.201009180859
+  endif
+  echo ""
+  set file=$1
+  #set outfile = `basename $file | sed 's/linelist/turbospec/'`
+  set outfile = `echo $file | sed 's/linelist\./turbospec\./'`
+  echo outfile = $outfile
+
+# do the atoms
+   awk '{if (substr($0,1,1) != "#" && substr($0,146,6)*1.0 == 0) printf("%12.5f \n",substr($0,47,8)*1.0)}' $file > mattmp1 
+   awk '{if (substr($0,1,1) != "#" && substr($0,146,6)*1.0 != 0) printf("%12.5f \n",substr($0,47,8)+substr($0,143,3)/100000)}' $file >> mattmp1 
+   # sort -n mattmp1 | awk '{if ($1 != lastone && count > 0) printf("%12.5f %10.0f\n",lastone,count); if ($1 != lastone) count=0; count=count+1;lastone = $1}' > mattmp2
+   # find unique list of atomic species
+   sort -n mattmp1 | uniq -c | awk '{printf("%12s%11s\n", $2, $1)}' > mattmp2
+   cp $file mattmp3
+   # output all of the lines for each species
+   rm -rf $outfile.atoms
+   awk -f $APOGEE_DIR/scripts/turbo_atom.awk inputfile="mattmp3" mattmp2 > $outfile.atoms
+   rm -rf mattmp2 mattmp3 mattmp1
+
+# do the molecules
+   awk '{if (substr($0,1,1) != "#" && substr($0,146,6)*1.0 == 0) printf("%12.5f \n",substr($0,47,8)*1.0)}' $file > mattmp1 
+   awk '{if (substr($0,1,1) != "#" && substr($0,146,6)*1.0 != 0) printf("%12.5f \n",substr($0,47,8)+substr($0,143,3)/100000)}' $file >> mattmp1 
+   #sort -n mattmp1 | awk '{if ($1 != lastone && count > 0) printf("%12.5f %10.0f\n",lastone,count); if ($1 != lastone) count=0; count=count+1;lastone = $1}' > oldtmp2
+   # find unique list of molecular species
+   sort -n mattmp1 | uniq -c | awk '{printf("%12s%11s\n", $2, $1)}' > mattmp2
+   cp $file mattmp3
+   # output all of the lines for each species
+   rm -rf $outfile.molec
+   awk -f $APOGEE_DIR/scripts/turbo_molec.awk inputfile="mattmp3" mattmp2 > $outfile.molec
+   rm -rf mattmp2 mattmp3 mattmp1
+   
+  if (-e $1) echo output files in : $outfile.atoms and $outfile.molec

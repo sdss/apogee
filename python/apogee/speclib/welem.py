@@ -5,6 +5,7 @@ from astropy.io import ascii
 import pdb
 
 el='Ce'
+halfwidth=1.2
 
 wave=ascii.read('wave.dat',Reader=ascii.NoHeader)['col1']
 pix=ascii.read('wave.dat',Reader=ascii.NoHeader)['col2']
@@ -15,9 +16,9 @@ start=-1
 cens=[]
 for i in range(len(filt) ):
   if filt[i] > 0 and start < 0:
-    start=wave[i]-2.
+    start=wave[i]-halfwidth
   elif filt[i] == 0. and start >=0 :
-    wind=[start,wave[i]+2.]
+    wind=[start,wave[i]+halfwidth]
     cens.append(wind)
     start=-1
 

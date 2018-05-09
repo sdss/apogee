@@ -23,6 +23,7 @@ import multiprocessing as mp
 import numpy as np
 from apogee.speclib import atmos
 from apogee.utils import atomic
+from apogee.utils import spectra
 #from sdss.utilities import yanny
 from sdss import yanny
 from astropy.io import ascii
@@ -85,7 +86,7 @@ def marcs2turbo(infile,outfile,trim=0) :
 
 def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
     els=None,atmod=None,kurucz=True,atmosroot=None,atmosdir=None,nskip=0,endskip=0,
-    linelist='20150714',h2o=None,linedir=None,
+    linelist='20150714',h2o=None,linelistdir=None,
     save=False,run=True,split=200,fluxcol=2) :
 
     """ Runs Turbospectrum for specified input parameters
@@ -93,7 +94,7 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
 
     # directory setup
     if atmosroot is None : atmosroot=os.environ['APOGEE_SPECLIB']+'/atmos/'
-    if linedir is None : linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/' 
+    if linelistdir is None : linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/' 
  
     # atmosphere and filename set up 
     geo = 'p'
@@ -152,13 +153,9 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
     nels = 3
     if elemgrid != '' :
         elemnum=atomic.periodic(elemgrid)[0]
-        eabun=np.arange(atomic.solar(elemgrid)[0]-0.75,0.25,10)
-        nelem=1
-        nels+=1
-        linelistdir=linelistdir+elemgrid+'/'
+        eabun=atomic.solar(elemgrid)[0]+np.arange(-0.75,1.20,0.25)
     else :
         eabun=np.array([0.])
-        nelem=0
     if els is not None :
         nels += len(els)
 
@@ -220,6 +217,7 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
                 cwd = os.getcwd()
                 os.chdir(workdir)
                 subprocess.call(['time','./'+os.path.basename(root)+'_babsma.csh'],stdout=stdout)
+            if elemgrid != '' : nels+=1
 
         # create bsyn control file
         bsynfile = file+'bsyn{:02d}.inp'.format(ielem)
@@ -265,18 +263,18 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
               h2o=0
         nlists=3
         # if no HI lines, don't use that list: it takes a while to read
-        n_HI = len(open(linelistdir+'turbospec.'+linelist+'.Hlinedata').readlines())
+        n_HI = len(open(linelistdir+'/turbospec.'+linelist+'.Hlinedata').readlines())
         if n_HI < 3 : nlists-=1
         # if we are using H2O, add that list
         if h2o > 0 : nlists+=1
         fout.write("'NFILES:'  '{:4d}'\n".format(nlists))
-        if n_HI >= 3 : fout.write(linelistdir+'turbospec.'+linelist+'.Hlinedata\n')
-        fout.write(linelistdir+'turbospec.'+linelist+'.atoms\n')
-        fout.write(linelistdir+'turbospec.'+linelist+'.molec\n')
+        if n_HI >= 3 : fout.write(linelistdir+'/turbospec.'+linelist+'.Hlinedata\n')
+        fout.write(linelistdir+'/turbospec.'+linelist+'.atoms\n')
+        fout.write(linelistdir+'/turbospec.'+linelist+'.molec\n')
         if h2o == 1 :
-            fout.write(linelistdir+'turbospec.h2o-BC8.5V'+'.molec\n')
+            fout.write(linelistdir+'/turbospec.h2o-BC8.5V'+'.molec\n')
         elif h2o == 2 :
-            fout.write(linelistdir+'turbospec.h2o-BC9.5V'+'.molec\n')
+            fout.write(linelistdir+'/turbospec.h2o-BC9.5V'+'.molec\n')
         if geo == 's' :
             fout.write("'SPHERICAL:'  'T'\n")
         else :
@@ -320,13 +318,14 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
                 if ielem == 0 : 
                     spec=out[:,fluxcol]
                 else :
-                    spec=np.vstack(spec,out[:,fluxcol])
+                    spec=np.vstack([spec,out[:,fluxcol]])
             except :
+                print('failed...',file)
                 return 0.
 
-            if not save : shutil.rmtree(workdir)
-              
-            return spec
+    if run :
+        if not save : shutil.rmtree(workdir)
+        return spec
 
 def prange(start,delta,n) :
     return float(start)+np.arange(int(n))*float(delta)
@@ -357,20 +356,31 @@ def mkgrid(planfile,clobber=False,resmooth=False,renorm=False,save=False,run=Tru
     marcsdir = p['marcsdir'] if p.get('marcsdir') else None
     solarisotopes = p['solarisotopes'] if p.get('solarisotopes') else 0
     elem = p['elem'] if p.get('elem') else ''
+    maskdir = p['maskdir'] if p.get('maskdir') else None
     vmicrofit = p['vmicrofit'] if p.get('vmicrofit') else 0
     vmicro = p['vmicro'] if p.get('vmicro') else 0
     vmacrofit = p['vmacrofit'] if p.get('vmacrofit') else 0
     vmacro = p['vmacro'] if p.get('vmacro') else 0
     specdir = os.environ['APOGEE_SPECLIB']+'/synth/'+p['specdir'] if p.get('specdir') else './'
-    linelistdir = None
+    linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/' 
     linelist = p['linelist'] if p.get('linelist') else None
-
-    if elem == '' :
-        nelem=1
 
     # wavelength array
     nspec=int((wrange[1]-wrange[0])/dw)+1
     rawwave=wrange[0]+np.arange(nspec)*dw
+
+    # if element minigrid, create mini linelist and get wavelengths to store
+    if elem == '' :
+        nelem=1
+        gd=range(nspec)
+    else :
+        nelem=8
+        wvac = mini_linelist(elem,linelist,maskdir)
+        nwind=wvac.shape[0]
+        gd=[]
+        for iwind in range(nwind) :
+            gd.extend(np.where( (rawwave >= wvac[iwind,0]) & (rawwave <= wvac[iwind,1]) )[0])
+        nspec=len(gd)
 
     # make the grid(s)
     for am in prange(p['am0'],p['dam'],p['nam']) :
@@ -389,16 +399,22 @@ def mkgrid(planfile,clobber=False,resmooth=False,renorm=False,save=False,run=Tru
                 while nskip >= 0 and nskip < 10 :
                   spec=mkturbospec(int(teff),logg,mh,am,cm,nm,
                     wrange=wrange,dw=dw,atmosdir=marcsdir,
-                    elemgrid=elem,linedir=linelistdir,linelist=linelist,vmicro=vout,
+                    elemgrid=elem,linelistdir=linelistdir+'/'+elem+'/',linelist=linelist,vmicro=vout,
                     solarisotopes=solarisotopes,
                     nskip=nskip,kurucz=kurucz,run=run,save=save,split=split) 
                   nskip = nskip+dskip if isinstance(spec,float) else -1
-                specdata[:,imh,ilogg,iteff,:]=spec
+                specdata[:,imh,ilogg,iteff,:]=spec[:,gd]
 
           # FITS header and output
           hdu=fits.PrimaryHDU(np.squeeze(specdata))
           idim=1
-          add_dim(hdu.header,rawwave[0],rawwave[1]-rawwave[0],1,'WAVELENGTH',idim)
+          if elem == '' :
+              add_dim(hdu.header,rawwave[0],rawwave[1]-rawwave[0],1,'WAVELENGTH',idim)
+          else :
+              header.append('CDELT1',rawwave[1]-rawwave[0])
+              for iwind in range(nwind) :
+                  header.append(('WIND0_{:d}'.format(iwind),wvac[iwind,0]))
+                  header.append(('WIND1_{:d}'.format(iwind),wvac[iwind,1]))
           if int(p['nteff']) > 1 :
               idim+=1
               add_dim(hdu.header,float(p['teff0']),float(p['dteff']),1,'TEFF',idim)
@@ -486,6 +502,8 @@ def mkgriddirs(configfile) :
         subprocess.call(['mkslurm','bundle','"plan/'+name+'_??.par"'])
 
 def mkspec(pars) :
+    """ Makes a single spectrum given input pars
+    """
     teff=pars[0].astype('int')
     logg=pars[1]
     mh=pars[2]
@@ -520,56 +538,58 @@ def mksynth(file,wrange=[15100,17000],threads=8) :
             out.append(spec[1])
             outpar.append(spec[0])
 
+    # write the spectra out
     hdu=fits.HDUList()
     hdu.append(fits.ImageHDU(out))
     hdu.append(fits.ImageHDU(outpar))
     hdu.writeto('synth.fits',overwrite=True)
-    
+   
+def filter_lines(infile,outfile,wind,nskip=0) :
+    """ Read from infile, output comments and lines falling in windows of [w1,w2] to outfile
+    """
+    fin=open(infile,'r')
+    fout=open(outfile,'w')
+    nout = 0
+    nwind=wind.shape[0]
+    for iline,line in enumerate(fin) :
+        if iline >= nskip : 
+            w=line.split()[0]
+            if w[0] == '#' :
+                    fout.write(line)
+            else :
+              for i in range(nwind) :
+                if (float(w) >= wind[i,0]) and (float(w) <=wind[i,1]) :
+                    fout.write(line)
+                    nout+=1
+    fout.close()
+    return nout
+ 
 def mini_linelist(elem,linelist,maskdir) :
-    """ Produce an abbreviated line list for minigrid construction given mask file
+    """ Produce an abbreviated line list for minigrid construction given mask file and lineist file IN AIR
+        Return array of vacuum wavelength ranges
     """
 
-    wind=ascii.read(os.environ['APOGEE_DIR']+'/lib/'+maskdir+'/'+elem+'./wave',names=['w1','w2'])
-"""    
-pro speclib_wline,elem,linelist,maskdir,wair=wair,wvac=wvac
-;
-; takes a linelist and element, and produces modified linelists only with lines in the
-; windows for that element in a subdirectory of the linelist directory
-; handles master linelist + 2 H2O linelists + HI linelist
-;
-;elem='Ce'
-;linelist='linelist.20170418'
-readcol,getenv('SPECLIB_DIR')+'/lib/'+maskdir+'/'+elem+'.wave',w1,w2,format='(d,d)'
-vactoair,w1,w1air
-vactoair,w2,w2air
-wair=[]
-wvac=[]
-awk='$1<0'
-tawk='NR>2&&$1<0'
-for i=0,n_elements(w1)-1 do begin
-  wair=[[wair],[w1air[i],w2air[i]]]
-  wvac=[[wvac],[w1[i],w2[i]]]
-  awk=awk+'||($1>='+string(w1air[i]/10.,format='(f9.4)')+'&&$1<='+string(w2air[i]/10.,format='(f9.4)')+')'
-  tawk=tawk+'||($1>='+string(w1air[i],format='(f10.4)')+'&&$1<='+string(w2air[i],format='(f10.4)')+')'
-endfor
-linelistdir=getenv('APOGEE_SPECLIB')+'/linelists/'
-file_mkdir,elem
-openw,lun,elem+'.csh',/get_lun
-printf,lun,'#!/bin/csh -f'
-printf,lun,'awk '+"'"+awk+"' "+linelistdir+linelist+' >'+elem+'/'+linelist
-printf,lun,'turboscript '+elem+'/'+linelist
+    wind=np.loadtxt(os.environ['APOGEE_DIR']+'/data/windows/'+maskdir+'/'+elem+'.wave')
+    wair=spectra.vactoair(wind)
+   
+    outdir = os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'/'
+    try: os.mkdir(outdir)
+    except: pass
+    nout=filter_lines(os.environ['APOGEE_SPECLIB']+'/linelists/linelist.'+linelist,outdir+linelist,wair/10.)
+    subprocess.call(['turboscript',outdir+linelist])
 
-lists=['turbospec.20170418.Hlinedata','turbospec.h2o-BC8.5V.molec','turbospec.h2o-BC9.5V.molec']
-code=['01.000000','010108.000000000','010108.00000000']
-comment=['HI culled','Barber culled','Barber culled']
-for ilist=0,n_elements(lists)-1 do begin
-  printf,lun,'awk '+"'"+tawk+"' "+linelistdir+lists[ilist]+' >'+elem+'/'+lists[ilist]+'.tmp'
-  printf,lun,"set n=`wc -l "+elem+"/"+lists[ilist]+".tmp | awk '{print $1}'`"
-  printf,lun,"echo \'"+code[ilist]+"                 \'    1   $n>"+elem+'/'+lists[ilist]
-  printf,lun,"echo \'"+comment[ilist]+"\'>>"+elem+'/'+lists[ilist]
-  printf,lun,'cat '+elem+'/'+lists[ilist]+'.tmp >>'+elem+'/'+lists[ilist]
-endfor
-free_lun,lun
-spawn,'csh '+elem+'.csh'
-end
-"""
+    lists=['turbospec.20170418.Hlinedata','turbospec.h2o-BC8.5V.molec','turbospec.h2o-BC9.5V.molec']
+    code=['01.000000','010108.000000000','010108.00000000']
+    comment=['HI culled','Barber culled','Barber culled']
+    for i,list in enumerate(lists) :
+        nout=filter_lines(os.environ['APOGEE_SPECLIB']+'/linelists/'+list,outdir+list+'.tmp',wair,nskip=2)
+        fin=open(outdir+list+'.tmp','r')
+        fout=open(outdir+list,'w')
+        fout.write("'"+code[i]+" '  1 "+'{:d}\n'.format(nout))
+        fout.write("'"+comment[i]+"' \n")
+        for line in fin :
+            fout.write(line)
+        fout.close()
+        fin.close()
+        os.remove(outdir+list+'.tmp')
+    return wind

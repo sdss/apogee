@@ -411,10 +411,10 @@ def mkgrid(planfile,clobber=False,resmooth=False,renorm=False,save=False,run=Tru
           if elem == '' :
               add_dim(hdu.header,rawwave[0],rawwave[1]-rawwave[0],1,'WAVELENGTH',idim)
           else :
-              header.append('CDELT1',rawwave[1]-rawwave[0])
+              hdu.header.append('CDELT1',rawwave[1]-rawwave[0])
               for iwind in range(nwind) :
-                  header.append(('WIND0_{:d}'.format(iwind),wvac[iwind,0]))
-                  header.append(('WIND1_{:d}'.format(iwind),wvac[iwind,1]))
+                  hdu.header.append(('WIND0_{:d}'.format(iwind),wvac[iwind,0]))
+                  hdu.header.append(('WIND1_{:d}'.format(iwind),wvac[iwind,1]))
           if int(p['nteff']) > 1 :
               idim+=1
               add_dim(hdu.header,float(p['teff0']),float(p['dteff']),1,'TEFF',idim)
@@ -499,6 +499,7 @@ def mkgriddirs(configfile) :
         specdir = p['synthcode'].strip("'")+'/'+p['GRID']['atmos'][i]+'/'+iso+'/'+name
         os.environ['NO_NODES'] = 'yes'
         subprocess.call(['mkslurm','mkgrid','"plan/'+name+'_a[mp]*vp??.par"'])
+        subprocess.call(['mkslurm','mkgridlsf','"plan/'+name+'_a[mp]*vp??.par"'])
         subprocess.call(['mkslurm','bundle','"plan/'+name+'_??.par"'])
 
 def mkspec(pars) :

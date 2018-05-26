@@ -1,16 +1,26 @@
 #!/bin/csh 
 
+set cmd = $1
+
 if ( ! $?QUERYHOST ) setenv QUERYHOST `hostname`
-if ( ! $?QUERYPORT ) setenv QUERYPORT 1052
-if ( ! $?APOGEE_MAXRUN ) then
-  if ( $?TACC_SYSTEM) setenv APOGEE_MAXRUN 40
-  if ( $?UUFSCELL ) setenv APOGEE_MAXRUN 32
+if ( $cmd == apred ) then
+  if ( ! $?QUERYPORT ) setenv QUERYPORT 1050
+  if ( ! $?APOGEE_MAXRUN ) then
+    if ( $?TACC_SYSTEM) setenv APOGEE_MAXRUN 10
+    if ( $?UUFSCELL ) setenv APOGEE_MAXRUN 8
+  endif
+  if ( ! $?IDL_CPU_TPOOL_NTHREADS ) setenv IDL_CPU_TPOOL_NTHREADS 4
+else if ( $cmd == mkgrid ) then
+  if ( ! $?QUERYPORT ) setenv QUERYPORT 1052
+  if ( ! $?APOGEE_MAXRUN ) then
+    if ( $?TACC_SYSTEM) setenv APOGEE_MAXRUN 40
+    if ( $?UUFSCELL ) setenv APOGEE_MAXRUN 32
+  endif
+  if ( ! $?IDL_CPU_TPOOL_NTHREADS ) setenv IDL_CPU_TPOOL_NTHREADS 1
 endif
-if ( ! $?IDL_CPU_TPOOL_NTHREADS ) setenv IDL_CPU_TPOOL_NTHREADS 1
 
 set top = `pwd`
 
-set cmd = $1
 set prog = `echo $cmd | awk '{print $1}'`
 shift
 

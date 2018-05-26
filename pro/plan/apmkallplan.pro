@@ -1,4 +1,9 @@
 pro apmkallplan,mjdstart,mjdend,vers=vers
+;+
+; procedure to make a single allplan.pro file than runs all of
+; the individual MJD5.pro files to create plan files, given
+; mjdstart and mjdend
+;-
 
 pipedir = getenv('APOGEEREDUCEPLAN_DIR')
 plandir=pipedir+'/pro/'

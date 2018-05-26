@@ -1,0 +1,27 @@
+#!/bin/tcsh
+
+set vers=$1
+echo vers: $vers
+
+mkdir $1
+mkdir $1/cal
+mkdir $1/cal/bpm
+mkdir $1/cal/darkcorr
+mkdir $1/cal/detector
+mkdir $1/cal/flatcorr
+mkdir $1/cal/flux
+mkdir $1/cal/littrow
+mkdir $1/cal/lsf
+mkdir $1/cal/persist
+mkdir $1/cal/psf
+mkdir $1/cal/telluric
+mkdir $1/cal/trace
+mkdir $1/cal/wave
+mkdir $1/plates
+mkdir $1/location_id
+mkdir $1/exposures
+mkdir $1/visit
+mkdir $1/log
+mkdir $1/html
+cp $APOGEE_REDUX/.htaccess $1/
+cp $APOGEE_DIR/etc/sorttable.js $1/html/

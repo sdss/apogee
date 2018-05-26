@@ -1,0 +1,32 @@
+#!/bin/tcsh
+
+set configfile = $1
+shift
+
+set cmd = `awk '{printf("set %s = %s\n",$1,$2)}' $configfile`
+$cmd
+#if ( $?UUFSCELL ) then
+#  module purge
+#  module load apogeereduce/$apogeereduce
+##  source /uufs/chpc.utah.edu/sys/pkg/idl/7.1/idl/bin/idl_setup
+##  alias ittlicense $IDL_DIR/bin/ittlicencse
+##  alias idl $IDL_DIR/bin/idl
+#else
+#  setup apogeereduce $apogeereduce
+#endif
+
+
+cd $APOGEE_REDUX/$apred_vers
+mkdir $apstar_vers
+
+idl  << endidl
+  fields='$*'
+  field=strsplit(fields,' ',/ext)
+  help,fields,field
+  print,fields
+  print,field
+  print,'$apred_vers'
+  mkstarplan,field,apred_vers='$apred_vers',apstar_vers='$apstar_vers',mjdstart='$mjdstart',mjdend='$mjdend'
+
+endidl
+

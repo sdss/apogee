@@ -1,0 +1,19 @@
+#!/bin/tcsh
+
+set configfile = $1
+set cmd = `awk '{printf("set %s = %s\n",$1,$2)}' $configfile`
+$cmd
+
+module purge
+module load apogee/$apogee_ver
+
+cd $APOGEE_REDUX
+mkvers $apred_vers 
+cd $apred_vers
+
+idl  << endidl
+  apmkallplan,$mjdstart,$mjdend,vers='$apred_vers'
+  @allplan
+endidl
+
+echo "Remember to copy apPersistModel files !"

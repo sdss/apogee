@@ -1,4 +1,4 @@
-#!/bin/csh
+#!/bin/csh -f
 set port = $1
 shift
 foreach file ( $* )

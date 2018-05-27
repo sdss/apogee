@@ -1,0 +1,139 @@
+#!/usr/bin/env python
+
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
+
+# Process guide camera images into a single roll-up file with statistics.
+
+import numpy as np
+import os
+import fitsio
+import astropy.time as time
+import re
+import argparse
+
+
+def gproc(mjd=None, instrument=None, outfile=None):
+    """Process an MJD of processed guide camera files into a single file
+
+    Parameters:
+    -----------
+
+    mjd : integer
+      MJD (days) of observation
+    instrument : str
+      which instrument ('apogee-s' or 'apogee-n')
+
+    Comments:
+    --------
+
+    Writes gcam-[mjd].fits in local directory with binary table containing
+    a row for each guider image.
+
+    Note that 'date-obs' from each guider image header is translated into
+    a floating point 'mjd'.
+    """
+
+    if(instrument == 'apogee-s'):
+        gdir = os.path.join(os.getenv('GCAM_DATA_2S'), str(mjd))
+    else:
+        gdir = os.path.join(os.getenv('GCAM_DATA'), str(mjd))
+    files = os.listdir(gdir)
+    gcam0_dtype = [('gdrms', np.dtype(np.float32), 1),
+                   ('seeing', np.dtype(np.float32), 1),
+                   ('fwhm_median', np.dtype(np.float32), 1),
+                   ('fwhm_mean', np.dtype(np.float32), 1),
+                   ('indx', np.dtype(np.int32), 1),
+                   ('date-obs', np.dtype(np.str_), 21),
+                   ('mjd', np.dtype(np.float64), 1),
+                   ('ra', np.dtype(np.float64), 17),
+                   ('dec', np.dtype(np.float64), 17),
+                   ('xFocal', np.dtype(np.float32), 17),
+                   ('yFocal', np.dtype(np.float32), 17),
+                   ('focusOffset', np.dtype(np.float32), 17),
+                   ('xstar', np.dtype(np.float32), 17),
+                   ('ystar', np.dtype(np.float32), 17),
+                   ('xCenter', np.dtype(np.float32), 17),
+                   ('yCenter', np.dtype(np.float32), 17),
+                   ('dx', np.dtype(np.float32), 17),
+                   ('dy', np.dtype(np.float32), 17),
+                   ('dRA', np.dtype(np.float32), 17),
+                   ('dDec', np.dtype(np.float32), 17),
+                   ('fwhm', np.dtype(np.float32), 17),
+                   ('flux', np.dtype(np.float32), 17),
+                   ('mag', np.dtype(np.float32), 17),
+                   ('sky', np.dtype(np.float32), 17),
+                   ('skymag', np.dtype(np.float32), 17)]
+                   
+    count = 0
+    for file in sorted(files):
+        if(file.startswith('proc-')):
+            count = count + 1
+    gcam = np.zeros(count, dtype=gcam0_dtype)
+
+    count = 0
+    for file in sorted(files):
+        if(file.startswith('proc-')):
+            indx_search = re.search("proc-gimg-([0-9]{4}).fits", file)
+            indx = np.int32(indx_search.group(1))
+            header = fitsio.read_header(os.path.join(gdir, file), ext=0)
+            if('object' in header['IMAGETYP']):
+                try:
+                    rescale = (3600. / np.float32(header['PLATSCAL']))
+                except:
+                    rescale = 0.
+                data = fitsio.read(os.path.join(gdir, file), ext=6)
+                ii = np.nonzero((data['enabled'] == True) &
+                                (data['gprobebits'] == 0) &
+                                (data['dx'] == data['dx']))[0]
+                soff = (data['dx'][ii]**2 + data['dy'][ii]**2)
+                rms = np.sqrt(soff.mean())
+                if(rms == rms):
+                    gcam['gdrms'][count] = rms * rescale
+                ii = np.nonzero((data['enabled'] == True) &
+                                (data['gprobebits'] == 0) &
+                                (data['focusOffset'] == 0.) &
+                                (data['fwhm'] == data['fwhm']))[0]
+                fwhm_median = np.median(data['fwhm'][ii])
+                if(fwhm_median == fwhm_median):
+                    gcam['fwhm_median'][count] = fwhm_median
+                fwhm_mean = np.mean(data['fwhm'][ii])
+                if(fwhm_mean == fwhm_mean):
+                    gcam['fwhm_mean'][count] = fwhm_mean
+                for (name, indx) in zip(gcam.dtype.names,
+                                        range(len(gcam.dtype.names))):
+                    if(indx >= 7):
+                        try:
+                            gcam[name][count] = data[name]
+                        except ValueError:
+                            pass
+                gcam['seeing'][count] = np.float32(header['SEEING'])
+                dt = str(header['DATE-OBS'].decode())
+                gcam['date-obs'][count] = dt
+                gcam['indx'][count] = indx
+                tt = time.Time(dt)
+                tt.format = 'mjd'
+                gcam['mjd'][count] = tt.value
+                count = count + 1
+
+    gcam = gcam[0:count - 1]
+    if outfile is None: 
+        outfile='gcam-{mjd}.fits'.format(mjd=mjd)
+    #fitsio.write('gcam-{mjd}.fits'.format(mjd=mjd), gcam, clobber=True)
+    fitsio.write(outfile, gcam, clobber=True)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Process guide images into one file",
+                                     usage="gcam_process --mjd 12345 --instrument apogee-s")
+    parser.add_argument("-m", "--mjd", type=np.int32,
+                        required=True, help="MJD to process")
+    parser.add_argument("-i", "--instrument", type=str,
+                        required=True,
+                        help="instrument to process",
+                        choices=['apogee-s', 'apogee-n'])
+    parser.add_argument("-o", "--output", type=str,
+                        required=False, help="output file name")
+    args = parser.parse_args()
+    gproc(mjd=args.mjd, instrument=args.instrument, outfile=args.output) 

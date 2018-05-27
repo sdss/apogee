@@ -59,7 +59,7 @@ t0_0 = systime(1)
 ; Get APOGEE directories
 dirs=getdir(apogee_dir,cal_dir,spectro_dir,apogee_vers,lib_dir)
 lsf_dir = cal_dir+'/lsf/'
-linelist_dir = lib_dir+'linelists/'
+linelist_dir = lib_dir+'skylines/'
 
 apgundef,lsfstr
 

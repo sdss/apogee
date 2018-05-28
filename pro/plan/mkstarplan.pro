@@ -30,7 +30,7 @@ print,survey
  dirs=getdir()
  ;if size(field,/type) ne 7 then cfield=strtrim(string(format='(i)',field),2) else cfield=field
  openw,newplan,outdir+'/'+dirs.prefix+'Star-'+cfield+'.par',/get_lun
- printf,newplan,'apogeereduce_version  ',apogeereduce_version()
+ printf,newplan,'apogee_ver  ',getenv('APOGEE_VER')
  printf,newplan,'apred_vers '''+apred_vers+''''
  printf,newplan,'apstar_vers '''+apstar_vers+''''
  if keyword_set(mjdstart) then printf,newplan,'mjdstart ',mjdstart

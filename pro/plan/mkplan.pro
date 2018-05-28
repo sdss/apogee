@@ -46,7 +46,7 @@ print,planfile
 ; open plan file and write header
 file_delete,planfile,/allow_nonexistent
 openw,fplan,/get_lun,planfile
-printf,fplan,'apogeereduce_version  ',getenv('APOGEE_VER')
+printf,fplan,'apogee_ver  ',getenv('APOGEE_VER')
 ;printf,fplan,'plateid ',plate
 printf,fplan,'telescope '''+telescope+''''
 printf,fplan,'instrument '''+dirs.instrument+''''

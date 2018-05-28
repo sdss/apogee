@@ -5,16 +5,9 @@ shift
 
 set cmd = `awk '{printf("set %s = %s\n",$1,$2)}' $configfile`
 $cmd
-#if ( $?UUFSCELL ) then
-#  module purge
-#  module load apogeereduce/$apogeereduce
-##  source /uufs/chpc.utah.edu/sys/pkg/idl/7.1/idl/bin/idl_setup
-##  alias ittlicense $IDL_DIR/bin/ittlicencse
-##  alias idl $IDL_DIR/bin/idl
-#else
-#  setup apogeereduce $apogeereduce
-#endif
 
+module purge
+module load apogee/$apogee_ver
 
 cd $APOGEE_REDUX/$apred_vers
 mkdir $apstar_vers

@@ -59,41 +59,5 @@ foreach node ( $cmd )
   echo echo "DONE" >> $file
 end
 
-#if ( ! $?NO_NODES) then
-#
-## echo "Enter run to start job manager and submit jobs, else quit"
-# set input = $<
-#
-# if ( $input == run ) then
-#
-#  # start job manager and register completed jobs
-#  set qjob=`ps uxww | grep "queryhost $QUERYPORT" | grep -v grep | awk '{print $2}'`
-#  if ( $qjob != "" ) then
-#    kill -9 $qjob
-#    sleep 60
-#  endif
-#  echo running queryhost
-#  queryhost $QUERYPORT >& queryhost.log &
-#  
-#  foreach plan ( $* )
-#    set base = `basename $plan`
-#    if ( -e log/$base.done) queryclient $QUERYHOST $QUERYPORT done $base 1
-#  end
-#  
-#  # submit jobs
-#  if ( $?PBS_NODES ) then
-#    set nodes = $PBS_NODES
-#  else
-#    set nodes = 16
-#  endif
-#  cd pbs
-#  set inode = 0
-#  while ( $inode < $nodes )
-#    sbatch speclib.pbs
-#    @ inode = $inode + 1
-#    sleep 3
-#  end
-#
-# endif
 endif
 exit

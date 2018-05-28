@@ -403,7 +403,10 @@ def mkgrid(planfile,clobber=False,resmooth=False,renorm=False,save=False,run=Tru
                     solarisotopes=solarisotopes,
                     nskip=nskip,kurucz=kurucz,run=run,save=save,split=split) 
                   nskip = nskip+dskip if isinstance(spec,float) else -1
-                specdata[:,imh,ilogg,iteff,:]=spec[:,gd]
+                if elem == '' :
+                    specdata[0,imh,ilogg,iteff,:]=spec
+                else :
+                    specdata[:,imh,ilogg,iteff,:]=spec[:,gd]
 
           # FITS header and output
           hdu=fits.PrimaryHDU(np.squeeze(specdata))

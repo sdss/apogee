@@ -37,12 +37,15 @@ if nf gt 0 then begin
 
      if survey eq 'manga-apogee2' and keyword_set(addloc) then cname = cname+'_loc'+strtrim(string(format='(i4)',loc),2)
 
-     ;; remove APG_ if necessary
-     if(strmatch(cname, 'APG_*')) then $
+     ; remove APG_ if necessary
+     if (strmatch(cname, 'APG_*')) then $
         cname= strmid(cname, 4)
 
-     if(strmatch(cname, 'APGS_*')) then $
+     if (strmatch(cname, 'APGS_*')) then $
         cname= strmid(cname, 5)
+
+     ; combine LMC-,SMC- with LMC, SMC
+     cname = cname.replace('MC-','MC')
 
      case cname of
         'BULGE_04+00': cname='004+00'

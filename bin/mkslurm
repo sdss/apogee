@@ -10,7 +10,7 @@ if ( $cmd == apred ) then
     if ( $?UUFSCELL ) setenv APOGEE_MAXRUN 8
   endif
   if ( ! $?IDL_CPU_TPOOL_NTHREADS ) setenv IDL_CPU_TPOOL_NTHREADS 4
-else if ( $cmd == mkgrid ) then
+else
   if ( ! $?QUERYPORT ) setenv QUERYPORT 1052
   if ( ! $?APOGEE_MAXRUN ) then
     if ( $?TACC_SYSTEM) setenv APOGEE_MAXRUN 40

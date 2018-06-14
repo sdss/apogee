@@ -21,6 +21,9 @@ import sys
 import tempfile
 import multiprocessing as mp
 import numpy as np
+import time
+import struct
+from apogee.aspcap import ferre
 from apogee.speclib import atmos
 from apogee.utils import atomic
 from apogee.utils import spectra
@@ -28,7 +31,20 @@ from apogee.utils import spectra
 from sdss import yanny
 from astropy.io import ascii
 from astropy.io import fits
+from sklearn.decomposition import PCA
+from sklearn.decomposition import IncrementalPCA
+import matplotlib.pyplot as plt
+from tools import plots
 
+colors=['r','g','b','c','m','y']
+
+def showtime(string) :
+    print(string+' {:8.2f}'.format(time.time()))
+    sys.stdout.flush()
+
+def vector(header,axis) :
+    caxis='{:1d}'.format(axis)
+    return header['CRVAL'+caxis]+header['CDELT'+caxis]*np.arange(header['NAXIS'+caxis])
 
 def kurucz2turbo(infile,outfile,trim=0) :
     """ Convert Kurucz model atmosphere for use by Turbospectrum 
@@ -173,7 +189,7 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         # not tested!
         nrange = welem[0]
     else :
-        nrange=1
+        drange=1
 
     # loop over individual element abundances
     for ielem,abun in enumerate(eabun) :
@@ -338,6 +354,197 @@ def get_vmicro(vmicrofit,vmicro) :
         pdb.set_trace()
     return  float(vmicro)
 
+
+def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whiten=False,plot=False,writeraw=False,test=False, fz=False, incremental=False) :
+    """ Read in grid of spectra
+    """
+
+    showtime('start:')
+    # input directory 
+    if dir is None : 
+        dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5'
+    indir=os.environ['APOGEE_SPECLIB']+'/synth/turbospec/'+dir+'/'
+    print('indir: ', indir)
+
+    # Read planfile and set output file name
+    if not os.path.isfile(indir+'/plan/'+planfile): 
+        print('{:s} does not exist'.format(indir+'/plan/'+planfile))
+        return
+    p=yanny.yanny(indir+'/plan/'+planfile,np=True)
+    outfile=os.path.basename(p['name'])
+    if test :
+        p['nvt'] = '1'
+        p['nam'] = '1'
+        p['ncm'] = '1'
+        p['nnm'] = '1'
+
+#   uncompress if needed
+    if fz :
+      for iam,am in enumerate(prange(p['am0'],p['dam'],p['nam'])) :
+        for icm,cm in enumerate(prange(p['cm0'],p['dcm'],p['ncm'])) :
+          for inm,nm in enumerate(prange(p['nm0'],p['dnm'],p['nnm'])) :
+           for ivm,vm in enumerate(prange(p['vt0'],p['dvt'],p['nvt'])) :
+            file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
+                   atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
+            subprocess.call(['funpack',indir+file+'.fz'])
+
+    # Read reference spectrum to plot and to determine number of pixel wavelengths
+    refhead=fits.open(indir+'ap00cp00np00vp20.fits')[1].header
+    wave=10.**vector(refhead,1)
+    ref=fits.open(indir+'ap00cp00np00vp20.fits')[1].data[10,5,0,:]
+    for ichip in range(2,4) :
+        refhead=fits.open(indir+'ap00cp00np00vp20.fits')[ichip].header
+        wave=np.append(wave,10.**vector(refhead,1))
+        ref=np.append(ref,fits.open(indir+'ap00cp00np00vp20.fits')[ichip].data[10,5,0,:])
+    nwave=ref.shape[0]
+
+    # loop over requested combinations of npieces and npca
+    if pcas is None : pcas = (int(p['npart']),int(p['npca']))
+    npiece,npca = pcas
+
+    showtime('start config:')
+    # determine number of pixels per piece
+    nspec=int(np.ceil(nwave/npiece))
+    print(npiece,npca,nspec)
+
+    # initialize PCA object, output figure and file
+    if incremental :
+        pca = IncrementalPCA(n_components=npca,whiten=whiten,batch_size=1e5)
+    else :
+        pca = PCA(n_components=npca,whiten=whiten)
+    if plot : fig,ax=plots.multi(1,3,hspace=0.001,wspace=0.001,figsize=(12,4))
+    fout=open(outfile+'_{:03d}_{:03d}.txt'.format(npiece,npca),'w')
+
+    # initialize eigenvector array
+    eigen = np.zeros([npca,nwave])
+    mean = np.zeros([nwave])
+
+    # loop over pieces
+    npixels = []
+    for ipiece in range(npiece) :
+      w1=ipiece*nspec
+      w2=(ipiece+1)*nspec if ipiece < npiece -1 else nwave
+      npix=w2-w1
+      npixels.append(npix)
+      print(ipiece,w1,w2)
+
+      # load data for this piece
+      pcadata=np.zeros([int(p['nam'])*int(p['ncm'])*int(p['nnm'])*int(p['nvt'])*int(p['nmh'])*int(p['nlogg'])*int(p['nteff']),npix],dtype=np.float32)
+      t0=time.time()
+      showtime('start piece:')
+      nmod=0
+      for iam,am in enumerate(prange(p['am0'],p['dam'],p['nam'])) :
+        for icm,cm in enumerate(prange(p['cm0'],p['dcm'],p['ncm'])) :
+          for inm,nm in enumerate(prange(p['nm0'],p['dnm'],p['nnm'])) :
+           for ivm,vm in enumerate(prange(p['vt0'],p['dvt'],p['nvt'])) :
+            file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
+                   atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
+            s1=fits.open(indir+file)[1].data
+            s2=fits.open(indir+file)[2].data
+            s3=fits.open(indir+file)[3].data
+            for imh,mh in enumerate(prange(p['mh0'],p['dmh'],p['nmh'])) :
+              for ilogg,logg in enumerate(prange(p['logg0'],p['dlogg'],p['nlogg'])) :
+                for iteff,teff in enumerate(prange(p['teff0'],p['dteff'],p['nteff'])) :
+                  s=np.append(s1[imh,ilogg,iteff,:],s2[imh,ilogg,iteff,:])
+                  s=np.append(s,s3[imh,ilogg,iteff,:])
+                  pcadata[nmod,:] = s[w1:w2]
+                  nmod+=1
+      del s1, s2, s3, s
+
+      # do the PCA decomposition 
+      print(pcadata.shape)
+      t1=time.time()
+      showtime('start pca:')
+      model=pca.fit_transform(pcadata)
+      print(pca.explained_variance_ratio_)
+      eigen[:,w1:w2] = pca.components_
+      mean[w1:w2] = pca.mean_
+      t2=time.time()
+      showtime('start inverse:')
+      # do the PCA reconstruction
+      fit=pca.inverse_transform(model)
+      t3=time.time()
+      print(t1-t0,t2-t1,t3-t2)
+      fout.write('{:8.2f}{:8.2f}{:8.2f}\n'.format(t1-t0,t2-t1,t3-t2))
+      rat=pcadata/fit
+      # plot results
+      if plot :
+          showtime('start plot:')
+          #for j in range(0,nmod,1000) :
+          #    plots.plotl(ax[0],wave[w1:w2],rat[j,:],xr=[wave[0],wave[-1]],yr=[0.7,1.3])
+          ax[0].text(wave[w1]+0.1*(wave[w2-1]-wave[w1]),1.3,'{:.2f}'.format(rat.min()),va='top',ha='left')
+          ax[0].text(wave[w2-1]+0.1*(wave[w2-1]-wave[w1]),1.3,'{:.2f}'.format(rat.max()),va='top',ha='right')
+          plots.plotl(ax[1],wave[w1:w2],ref[w1:w2],xr=[wave[0],wave[-1]],color=colors[ipiece%6],yr=[0.7,1.3])
+          hist,bins=np.histogram(rat.flatten(),bins=np.arange(0.5,1.51,0.01),density=True)
+          plots.plotl(ax[2],np.arange(0.5+0.005,1.5,0.01),hist,color=colors[ipiece%6],semilogy=True)
+          #plt.draw()
+          #plt.show()
+
+      # write out uncompressed and compressed in binary to local file
+      showtime('start write:')
+      if writeraw: fraw=open(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.raw'.format(npiece,npca,ipiece),'wb')
+      fpca=open(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.pca'.format(npiece,npca,ipiece),'wb')
+      for i in range(nmod) :
+          if writeraw: fraw.write(struct.pack('f'*npix,*pcadata[i,:]))
+          fpca.write(struct.pack('f'*npca,*model[i,:]))
+      if writeraw: fraw.close()
+      fpca.close()
+      showtime('done piece:')
+
+    # save plot and close CPU time file
+    if plot :
+        fig.savefig(outfile+'_{:03d}_{:03d}.png'.format(npiece,npca))
+        plt.close()
+    fout.close()
+    del pca
+
+#   uncompress if needed
+    if fz :
+      for iam,am in enumerate(prange(p['am0'],p['dam'],p['nam'])) :
+        for icm,cm in enumerate(prange(p['cm0'],p['dcm'],p['ncm'])) :
+          for inm,nm in enumerate(prange(p['nm0'],p['dnm'],p['nnm'])) :
+           for ivm,vm in enumerate(prange(p['vt0'],p['dvt'],p['nvt'])) :
+            file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
+                   atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
+            os.remove(indir+file)
+
+    # header file for PCA
+    ferre.wrhead(p,'p_aps'+outfile+'_{:03d}_{:03d}.hdr'.format(npiece,npca),npca=npixels,npix=npiece*npca)
+    # output eigenvectors
+    fp = open('p_aps'+outfile+'_{:03d}_{:03d}.hdr'.format(npiece,npca),'a')
+    out=np.append(mean.reshape((1,nwave)),mean.reshape((1,nwave))*0.,axis=0)
+    out=np.append(out,eigen,axis=0)
+    np.savetxt(fp,out)
+    
+    # bundle the files into a single file
+    allpca=open('p_aps'+outfile+'_{:03d}_{:03d}.unf'.format(npiece,npca),'wb')
+    fpca=[]
+    if writeraw: 
+        ferre.wrhead(p,'f_aps'+outfile+'.hdr',npix=nwave)
+        allraw=open('f_aps'+outfile+'.unf','wb')
+        fraw=[]
+    for ipiece in range(npiece) :
+        if writeraw: fraw.append(open(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.raw'.format(npiece,npca,ipiece),'rb'))
+        fpca.append(open(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.pca'.format(npiece,npca,ipiece),'rb'))
+    for i in range(nmod) :
+        for ipiece in range(npiece) :
+            w1=ipiece*nspec
+            w2=(ipiece+1)*nspec if ipiece < npiece -1 else nwave
+            npix=w2-w1
+            pca=fpca[ipiece].read(npca*4)
+            allpca.write(pca)
+            if writeraw: 
+                raw=fraw[ipiece].read(npix*4)
+                allraw.write(raw)
+    allpca.close()
+    if writeraw: allraw.close()
+    for ipiece in range(npiece) :
+        fpca[ipiece].close()
+        os.remove(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.pca'.format(npiece,npca,ipiece))
+        if writeraw: 
+            fraw[ipiece].close()
+            os.remove(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.raw'.format(npiece,npca,ipiece))
+
 def mkgrid(planfile,clobber=False,resmooth=False,renorm=False,save=False,run=True,split=None,highres=9) :
     """ Create a grid of synthetic spectra 
     """
@@ -501,7 +708,7 @@ def mkgriddirs(configfile) :
         os.chdir('..')
         specdir = p['synthcode'].strip("'")+'/'+p['GRID']['atmos'][i]+'/'+iso+'/'+name
         os.environ['NO_NODES'] = 'yes'
-        subprocess.call(['mkslurm','mkgrid','"plan/'+name+'_a[mp]*vp??.par"'])
+        subprocess.call(['mkslurm','mkgrid','"plan/'+name+'_a[mp]*vp20.par"','"plan/'+name+'_a[mp]*vp??.par"'])
         subprocess.call(['mkslurm','mkgridlsf','"plan/'+name+'_a[mp]*vp??.par"'])
         subprocess.call(['mkslurm','bundle','"plan/'+name+'_??.par"'])
 

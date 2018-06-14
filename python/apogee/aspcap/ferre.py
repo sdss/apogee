@@ -286,6 +286,49 @@ def elemmask(libfile,wspec,spec,dw=0.1,thresh=0.,out=None) :
     return np.array(mask)
             
 
+def wrhead(planstr,file,npca=None,npix=None) :
+    """ Write header of library file given plan structure
+    """
+    ndim=0
+    name=[]
+    llimits=[]
+    steps=[]
+    n=[]
+    idim = 0
+    for dim in ['vt','cm','nm','am','mh','rot','logg','teff'] :
+        if int(planstr['n'+dim]) > 1 : 
+            ndim+=1
+            n.append(int(planstr['n'+dim]))
+            llimits.append(float(planstr[dim+'0']))
+            steps.append(float(planstr['d'+dim]))
+            if dim == 'vt' : name.append('LOG10VDOP')
+            if dim == 'cm' : name.append('C')
+            if dim == 'nm' : name.append('N')
+            if dim == 'am' : name.append('O Mg Si S Ca Ti')
+            if dim == 'rot' : name.append('LGVSINI')
+            if dim == 'mh' : name.append('METALS')
+            if dim == 'logg' : name.append('LOGG')
+            if dim == 'teff' : name.append('TEFF')
+    fp=open(file,'w')
+    fp.write(" &SYNTH\n")
+    #fp.write(" MULTI = 3\n")
+    if npca is not None:
+        fp.write(" NPCA = ".format(ndim))
+        for item in npca : fp.write('{:4d}'.format(item))
+        fp.write("\n")
+    if npix is not None: fp.write(" NPIX = {:d}\n".format(npix))
+    fp.write(" N_OF_DIM = {:d}\n".format(ndim))
+    fp.write(" N_P = ")
+    for item in n : fp.write('{:4d}'.format(item))
+    for i,item in enumerate(name) : fp.write("\n LABEL({:1d}) = '{:s}'".format(i+1,item))
+    fp.write("\n LLIMITS = ")
+    for item in llimits : fp.write('{:11.5f}'.format(item))
+    fp.write("\n STEPS = ")
+    for item in steps : fp.write('{:11.5f}'.format(item))
+    fp.write("\n /\n")
+    fp.close()
+
+
 #def plotspec(w,spec,n=0) :
 #    fig,ax=plots.multi(1,2)
 #    plots.plotl(ax[0],w,spec['obs'][n,:],yr=[0,1.3]) 

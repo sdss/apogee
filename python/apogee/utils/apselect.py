@@ -384,7 +384,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],raw=False,firstgen=Fal
 
     return jc
 
-from astroquery.gaia import Gaia
+#from astroquery.gaia import Gaia
 def getpm(apogee_id) :
 
     pmra=[]
@@ -394,11 +394,7 @@ def getpm(apogee_id) :
     for star in apogee_id :
         tmass = star.strip('2M')
 
-        job=Gaia.launch_job_async("SELECT gaia.pmra, gaia.pmra_error, gaia.pmdec, gaia.pmdec_error 
-                                   FROM gaiadr2.gaia_source AS gaia,
-                                        gaiadr2.tmass_best_neighbour AS xm
-                                   WHERE gaia.source_id = xm.source_id 
-                                     AND xm.original_ext_source_id='17192349-5856297';")
+        job=Gaia.launch_job_async("SELECT gaia.pmra, gaia.pmra_error, gaia.pmdec, gaia.pmdec_error FROM gaiadr2.gaia_source AS gaia, gaiadr2.tmass_best_neighbour AS xm WHERE gaia.source_id = xm.source_id AND xm.original_ext_source_id='17192349-5856297';")
         pmra.append(job['pmra'])
         pmra_error.append(job['pmra_error'])
         pmdec.append(job['pmdec'])

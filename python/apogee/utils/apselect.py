@@ -9,7 +9,7 @@
 from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
-from __future__ import unicode_literals
+#from __future__ import unicode_literals
 
 from astropy.io import fits
 from astropy.io import ascii
@@ -18,10 +18,12 @@ from sdss_access.path import path
 from sdss_access.sync.http import HttpAccess
 import pdb
 import sys
+from astroquery.gaia import Gaia
 
 import numpy as np
 import copy
 from tools import plots
+from tools import match
 from apogee.utils import bitmask
 import matplotlib.pyplot as plt
 
@@ -189,8 +191,8 @@ def clustdata() :
         'N188','M67','N7789','Pleiades','N6819',
         'N6791']
     out = np.recarray(len(clust),dtype=[
-                       ('name','S24'),
-                       ('field','S24'),
+                       ('name','U24'),
+                       ('field','U24'),
                        ('rv','f4'),
                        ('drv','f4'),
                        ('mh','f4'),
@@ -200,8 +202,8 @@ def clustdata() :
                        ('ra','f4'),
                        ('dec','f4'),
                        ('rad','f4'),
-                       ('ebv','f4'),
-                       ])
+                        ('ebv','f4')
+                        ])
     out['ebv']=[0.02,0.1,0.02,0.,0.02,
                 0.06,0.02,0.01,0.03,0.19,0.33,
                 0.25,0.051,0.157,0.36,0.262,0.05,
@@ -293,7 +295,8 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],raw=False,firstgen=Fal
         jf=np.where((np.abs(ra-clust[ic].ra)*np.cos(clust[ic].dec*np.pi/180.) < 1.5) & 
                 (np.abs(data['DEC']-clust[ic].dec) < 1.5))[0]
         fig,ax=plots.multi(1,1)
-        plots.plotp(ax,ra[jf],data['DEC'][jf],color='k',size=20,draw=False)
+        fig.suptitle(cluster)
+        plots.plotp(ax,ra[jf],data['DEC'][jf],color='k',size=20,draw=False,xt='RA',yt='DEC')
         plots.plotp(ax,ra[jc],data['DEC'][jc],color='g',size=20,draw=False)
         if hard is not None :
             print(hard+'/'+clust[ic].name[0]+'_pos.jpg')
@@ -310,10 +313,13 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],raw=False,firstgen=Fal
     if plot :
         ax.cla() 
         ax.hist(vhelio[jf],color='k',bins=np.arange(clust[ic].rv-100,clust[ic].rv+100,1.),histtype='step')
-        ax.hist(vhelio[jc],color='g',bins=np.arange(clust[ic].rv-100,clust[ic].rv+100,1.),histtype='step')
+        ax.hist(vhelio[jc],color='r',bins=np.arange(clust[ic].rv-100,clust[ic].rv+100,1.),histtype='step')
+        ax.hist(vhelio[jc[j]],color='g',bins=np.arange(clust[ic].rv-100,clust[ic].rv+100,1.),histtype='step',linewidth=3)
+        ax.set_xlabel('RV')
         if hard is not None :
             fig.savefig(hard+'/'+clust[ic].name[0]+'_rv.jpg')
         else :
+            plt.draw()
             pdb.set_trace()
     if len(j) > 0 :
         jc=jc[j]
@@ -322,19 +328,29 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],raw=False,firstgen=Fal
         jc=[]
 
     # proper motion criterion
-    pmra, pmra_error, pmdec, pmdec_error = getpm(data['APOGEE_ID'][jc])
-    j=np.where( (np.abs(pmra-clust[ic].pmra) < clust[ic].dpm) & 
-                (np.abs(pmdec-clust[ic].pmdec) < clust[ic].dpm) )[0]
+    job=Gaia.launch_job_async("SELECT xm.original_ext_source_id, gaia.pmra, gaia.pmra_error, gaia.pmdec, gaia.pmdec_error FROM gaiadr2.gaia_source AS gaia, gaiadr2.tmass_best_neighbour AS xm WHERE gaia.source_id = xm.source_id AND CONTAINS(POINT('ICRS',gaia.ra,gaia.dec),CIRCLE('ICRS',{:12.6f},{:12.6f},{:12.6f}))=1;".format(clust[ic].ra[0],clust[ic].dec[0],clust[ic].rad[0]/60.))
+    gaia=job.get_results()
+    i1, i2 = match.match(np.core.defchararray.replace(data['APOGEE_ID'][jc],'2M',''),gaia['original_ext_source_id'])
+    # convert to velocities (note mas and kpc cancel out) and get median
+    vra=4.74*gaia['pmra']*clust[ic].dist
+    vdec=4.74*gaia['pmdec']*clust[ic].dist
+    med_vra=np.median(vra[i2])
+    med_vdec=np.median(vdec[i2])
+    j=np.where((vra[i2]-med_vra)**2+(vdec[i2]-med_vdec)**2 < clust[ic].drv**2)[0]
+
     if plot :
         ax.cla() 
-        plots.plotp(ax,pmra,pmdec,color='k')
-        plots.plotp(ax,pmra[j],pmdec[j],color='g')
+        plots.plotp(ax,vra,vdec,color='k',
+                    xr=[med_vra-100,med_vra+200],xt='PMRA (km/sec at cluster dist)',
+                    yr=[med_vdec-100,med_vdec+100],yt='PMDEC (km/sec at cluster dist)')
+        plots.plotp(ax,vra[i2],vdec[i2],color='r',size=50)
+        plots.plotp(ax,vra[i2[j]],vdec[i2[j]],color='g',size=50)
         if hard is not None :
             fig.savefig(hard+'/'+clust[ic].name[0]+'_pm.jpg')
         else :
             pdb.set_trace()
     if len(j) > 0 :
-        jc=jc[j]
+        jc=jc[i1[j]]
     else :
         print('no stars after PM criterion')
         jc=[]
@@ -357,9 +373,9 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],raw=False,firstgen=Fal
     # Remove badstars
     if plot :
         ax.cla()
-        plots.plotp(ax,data['J'][jf]-data['K'][jf],data['K'][jf],color='k',size=20,xr=[-0.5,1.5],yr=[15,6],facecolors='none',linewidth=1,draw=False)
+        plots.plotp(ax,data['J'][jf]-data['K'][jf],data['K'][jf],color='k',size=20,xr=[-0.5,1.5],yr=[15,6],facecolors='none',linewidth=1,draw=False,xt='J-K'],yt='K')
         plots.plotp(ax,data['J'][jc]-data['K'][jc],data['K'][jc],color='g',size=30,xr=[-0.5,1.5],yr=[15,6],draw=False)
-    badstars = open(os.environ['IDLWRAP_DIR']+'/data/badcal.dat')
+    badstars = open(os.environ['APOGEE_DIR']+'/data/calib/badcal.dat')
     bad = []
     for line in badstars :
        bad.append(line.split()[0])
@@ -367,7 +383,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],raw=False,firstgen=Fal
 
     # remove non firstgen GC stars if requested
     if firstgen :
-        gcstars = ascii.read(os.environ['IDLWRAP_DIR']+'/data/gc_szabolcs.dat')
+        gcstars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/gc_szabolcs.dat')
         if firstpos :
             gd=np.where(gcstars['pop'] == 1)[0]
             jc = [x for x in jc if data[x]['APOGEE_ID'] in gcstars['id'][gd]]
@@ -383,20 +399,3 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],raw=False,firstgen=Fal
             pdb.set_trace()
 
     return jc
-
-#from astroquery.gaia import Gaia
-def getpm(apogee_id) :
-
-    pmra=[]
-    pmra_error=[]
-    pmdec=[]
-    pmdec_error=[]
-    for star in apogee_id :
-        tmass = star.strip('2M')
-
-        job=Gaia.launch_job_async("SELECT gaia.pmra, gaia.pmra_error, gaia.pmdec, gaia.pmdec_error FROM gaiadr2.gaia_source AS gaia, gaiadr2.tmass_best_neighbour AS xm WHERE gaia.source_id = xm.source_id AND xm.original_ext_source_id='17192349-5856297';")
-        pmra.append(job['pmra'])
-        pmra_error.append(job['pmra_error'])
-        pmdec.append(job['pmdec'])
-        pmdec_error.append(job['pmdec_error'])
-    return pmra, pmra_error, pmdec, pmdec_error

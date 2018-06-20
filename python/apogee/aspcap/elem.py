@@ -414,16 +414,24 @@ def globalscatter(allstar,elems) :
     members=[]
     print('selecting')
     clusts = ['N2420', 'M67', 'N188', 'N7789', 'N6819', 'N6791']
+    fp=open('global.dat','w')
     for cluster in clusts :
         j=np.array(apselect.clustmember(allstar[gd],cluster,raw=True))
         print(cluster,len(j))
         members.append(j)
-    pdb.set_trace()
+        for jj in j :
+            fp.write('{:s} {:s} {:8.3f}\n'.format(cluster,allstar['APOGEE_ID'][gd[jj]],allstar['FE_H'][gd[jj]]))
+    fp.close()
 
     iel=0
-    for el in np.append(elems,['M','alpha']) :
+    nels=len(elems[0])+2
+    fig,ax=plots.multi(2,int(round(nels/2.)),hspace=0.001,wspace=0.001,figsize=(8,12))
+    color=['r','g','b','c','m','y']
+    for iel,el in enumerate(np.append(elems,['M','alpha'])) :
         iclust=0
         all=np.array([])
+        ix=iel%2
+        iy=iel/2
         for cluster in clusts :
             i=np.where(clust.name == cluster)
             mh=clust[i].mh
@@ -445,8 +453,12 @@ def globalscatter(allstar,elems) :
                   ok=np.where(((allstar['ELEMFLAG'][gd[j],iel] & 255) == 0) & (allstar['X_M_ERR'][gd[j],iel] < 0.2) & (allstar['X_M'][gd[j],iel] > -999) )[0]
                 if len(ok) > 3 :
                     all=np.append(all,abun[ok]-abun[ok].mean())
+                    plots.plotp(ax[iy,ix],allstar['TEFF'][gd[j[ok]]],abun[ok]-abun[ok].mean(),color=color[iclust],size=10)
+
             iclust+=1
         print(el, all.mean(), all.std(), len(all))
+        ax[iy,ix].text(0.1,0.9,el.strip(),ha='left',va='top',transform=ax[iy,ix].transAxes)
+        ax[iy,ix].text(0.9,0.9,'{:8.3f}'.format(all.std()),ha='right',va='top',transform=ax[iy,ix].transAxes)
         iel+=1
 
 def getabun(data,elems,elemtoh,el,xh=False,terange=[-1,10000],calib=False) :

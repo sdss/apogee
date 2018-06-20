@@ -286,7 +286,7 @@ def elemmask(libfile,wspec,spec,dw=0.1,thresh=0.,out=None) :
     return np.array(mask)
             
 
-def wrhead(planstr,file,npca=None,npix=None) :
+def wrhead(planstr,file,npca=None,npix=None,wchip=None,cont=None) :
     """ Write header of library file given plan structure
     """
     ndim=0
@@ -311,7 +311,10 @@ def wrhead(planstr,file,npca=None,npix=None) :
             if dim == 'teff' : name.append('TEFF')
     fp=open(file,'w')
     fp.write(" &SYNTH\n")
-    #fp.write(" MULTI = 3\n")
+    fp.write(" ID = "+file+"\n")
+    if wchip is not None : 
+        nchips = len(wchip)
+        fp.write(" MULTI = {:d}\n".format(nchips))
     if npca is not None:
         fp.write(" NPCA = ".format(ndim))
         for item in npca : fp.write('{:4d}'.format(item))
@@ -326,6 +329,26 @@ def wrhead(planstr,file,npca=None,npix=None) :
     fp.write("\n STEPS = ")
     for item in steps : fp.write('{:11.5f}'.format(item))
     fp.write("\n /\n")
+    if wchip is not None :
+        for chip,c in zip(wchip,cont) :
+            fp.write(" &SYNTH\n")
+            fp.write(" ID = "+file+"\n")
+            fp.write(" N_OF_DIM = {:d}\n".format(ndim))
+            fp.write(" N_P = ")
+            for item in n : fp.write('{:4d}'.format(item))
+            for i,item in enumerate(name) : fp.write("\n LABEL({:1d}) = '{:s}'".format(i+1,item))
+            fp.write("\n LLIMITS = ")
+            for item in llimits : fp.write('{:11.5f}'.format(item))
+            fp.write("\n STEPS = ")
+            for item in steps : fp.write('{:11.5f}'.format(item))
+            fp.write("\n /\n")
+            fp.write(" NPIX = {:d}\n".format(chip[0]))
+            fp.write(" WAVE = {:16.7f}{:16.7e}\n".format(chip[1],chip[2]))
+            fp.write(" LOGW = {:d}\n".format(1))
+            fp.write(" VACUUM = {:d}\n".format(1))
+            fp.write(" RESOLUTION = {:d}\n".format(22500))
+            fp.write(" CONTINUUM = {:6d}{:6d}{:7.2f}{:7.2f}\n".format(int(round(c[0])),int(round(c[1])),c[2],c[3]))
+            fp.write("\n /\n")
     fp.close()
 
 

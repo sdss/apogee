@@ -290,12 +290,12 @@ def apCframe(*args, **kwargs) :
              if hdu=N : returns dictionaries (data, header) for specified HDU
              if tuple=True : returns tuples rather than dictionaries
     """
-    if len(args) != 3 :
-        print('Usage: apCframe(plate,mjd,imagenumber)')
+    if len(args) != 4 :
+        print('Usage: apCframe(field,plate,mjd,imagenumber)')
     else :
         try :
             file = allfile(
-               'Cframe',plate=args[0],mjd=args[1],num=args[2],chips=True,
+               'Cframe',field=args[0],plate=args[1],mjd=args[2],num=args[3],chips=True,
                apred=apred,apstar=apstar,aspcap=aspcap,results=results,dr='collab')
             return _readchip(file,'Cframe',**kwargs)
         except :
@@ -531,7 +531,7 @@ def _readhdu(file,hdu=None,verbose=False) :
         hd.close()
         return data, header
 
-def allfile(root,dr=None,apred=None,apstar=None,aspcap=None,results=None,location=None,obj=None,plate=None,mjd=None,num=None,telescope='apo25m',fiber=None,chips=False) :
+def allfile(root,dr=None,apred=None,apstar=None,aspcap=None,results=None,location=None,obj=None,plate=None,mjd=None,num=None,telescope='apo25m',fiber=None,chips=False,field=None) :
     '''
     Uses sdss_access to create filenames and download files if necessary
     '''

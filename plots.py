@@ -1,6 +1,7 @@
 #import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 from scipy import spatial
+from scipy.stats import gaussian_kde
 import struct
 import numpy as np
 import sys
@@ -217,20 +218,30 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
             if yerr is not None :
                 ax.errorbar(x[gd],y[gd],marker=mark,yerr=yerr[gd],fmt='none',capsize=0,ecolor=col)
     elif contour is not None:
-        im = np.histogram2d(y,x,range=[yr,xr],bins=20)
-        if levels is None:
-            levels=np.linspace(1.,im[0].max(),contour)
-        ax.contour((im[2][0:-1]+im[2][1:])/2.,(im[1][0:-1]+im[1][1:])/2.,im[0],
-           colors=color,levels=levels,alpha=alpha)
+        if contour <= 0 :
+            gd = np.where((x > xr[0]) & (x < xr[1]) & (y>yr[0]) & (y<yr[1]) )[0]
+            data = np.vstack([x[gd],y[gd]])
+            kde = gaussian_kde(data,bw_method=abs(contour))
+            xgrid = np.linspace(xr[0], xr[1], 40)
+            ygrid = np.linspace(yr[0], yr[1], 40)
+            Xgrid, Ygrid = np.meshgrid(xgrid, ygrid)
+            Z = kde.evaluate(np.vstack([Xgrid.ravel(), Ygrid.ravel()]))
+            # Plot the result as an image
+            ax.imshow(np.log(Z).reshape(Xgrid.shape), origin='lower', aspect='auto',vmin=0,
+                       extent=[xr[0], xr[1], yr[0], yr[1]], cmap='Blues')
+        else :
+            im = np.histogram2d(y,x,range=[yr,xr],bins=20)
+            if levels is None:
+                levels=np.linspace(1.,im[0].max(),contour)
+            ax.contour((im[2][0:-1]+im[2][1:])/2.,(im[1][0:-1]+im[1][1:])/2.,im[0],
+               colors=color,levels=levels,alpha=alpha)
     else :
         ax.scatter(x,y,marker=marker,s=size,linewidth=linewidth,facecolors=facecolors,edgecolors=color,linewidths=linewidths,alpha=alpha,label=label)
+        _data_x = x[np.isfinite(x)]
+        _data_y = y[np.isfinite(y)]
         if xerr is not None or yerr is not None :
             ax.errorbar(x,y,marker=marker,xerr=xerr,yerr=yerr,fmt='none',capsize=0,ecolor=color)
 
-    if nxtick is not None:
-        ax.xaxis.set_ticks(np.linspace(ax.get_xlim()[0],ax.get_xlim()[1],nxtick)[1:-1])
-    if nytick is not None:
-        ax.yaxis.set_ticks(np.linspace(ax.get_ylim()[0],ax.get_ylim()[1],nytick)[1:-1])
     if text is not None :
         if labelcolor is 'k' and color is not None : labelcolor=color
         ax.text(text[0],text[1],text[2],transform=ax.transAxes,color=labelcolor)
@@ -239,16 +250,14 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
 
 
 
-def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None,ls=None,semilogy=False,linewidth=1.) :
+def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None,ls=None,semilogy=False,linewidth=1.,tit=None,nxtick=None,nytick=None) :
     '''
     Plot connected points
     '''
-    try: ax.set_xlim(xr[0],xr[1])
-    except : pass
-    try : ax.set_ylim(yr[0],yr[1])
-    except : pass
+    set_limits_ticks(ax,xr,yr,nxtick,nytick)
     if xt is not None : ax.set_xlabel(xt) 
     if yt is not None : ax.set_ylabel(yt)
+    if tit is not None : ax.set_title(tit)
     if ls is None : ls='-'
     if semilogy :
         line = ax.semilogy(x,y,color=color,label=label,ls=ls,linewidth=linewidth)
@@ -318,17 +327,14 @@ def close() :
     '''
     plt.close('all')
 
-"""
-Show how to use a lasso to select a set of points and get the indices
-of the selected points.  A callback is used to change the color of the
-selected points
-
-This is currently a proof-of-concept implementation (though it is
-usable as is).  There will be some refinement of the API.
-"""
-
 class LassoManager(object):
+    ''' Simple Lasso manager to allow user to lasso points and get indices
+
+        Adapted from version from Google search on matplotlib lasso
+    '''
     def __init__(self, ax, x, y):
+        '''  Initialize manager with axes, x, and y data arrays
+        '''
         self.axes = ax
         self.canvas = ax.figure.canvas
         self.Nxy = len(x)
@@ -339,12 +345,16 @@ class LassoManager(object):
         self.cid = self.canvas.mpl_connect('button_press_event', self.onpress)
 
     def callback(self, verts):
+        ''' Once a Lasso is marked with mouse, get points within the path
+        '''
         p = path.Path(verts)
         self.ind = p.contains_points(self.xys)
         self.canvas.widgetlock.release(self.lasso)
         del self.lasso
 
     def onpress(self, event):
+        '''called on button_press_event, runs Lasso with callback
+        '''
         if self.canvas.widgetlock.locked():
             return
         if event.inaxes is None:

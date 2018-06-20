@@ -321,7 +321,8 @@ CASE suboption of
         nusesky = n_elements(best_skyplugind)
         skydist = dist[bestind]
 
-;if j eq 0 then print,'fiber index: ', i, 'sky fibers: ', best_skyplugindex,skydist
+        ; print indices of selected sky fibers
+        ;if j eq 0 then print,'fiber index: ', i, 'sky fibers: ', best_skyplugindex,skydist
 
         ; Get object fiber data
         fiber = frame.(j).flux[*,i]
@@ -556,7 +557,6 @@ CASE suboption of
         endif
         ;stop
 
-;if j eq 1 and i eq 107 then stop
         BOMB2:
       Endfor ; chip loop
 

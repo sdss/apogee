@@ -30,7 +30,6 @@ if __name__ == '__main__' :
 
     parser.add_argument("planfile", type=str, help='Plan file')
     parser.add_argument("--dir")
-    parser.add_argument("--fz", help='Compressed files?',action="store_true")
     parser.add_argument("--plot", help='Make plots?',action="store_true")
     parser.add_argument("--test", help='reduce dims?',action="store_true")
     parser.add_argument("--writeraw", help='write uncompressed file?',action="store_true")
@@ -40,7 +39,7 @@ if __name__ == '__main__' :
     parser.add_argument("--host")
     args=parser.parse_args()
 
-    synth.pca(args.planfile,plot=args.plot,pcas=tuple(args.pcas),dir=args.dir,fz=args.fz,test=args.test,writeraw=args.writeraw,incremental=args.incremental)
+    synth.pca(args.planfile,plot=args.plot,pcas=tuple(args.pcas),dir=args.dir,test=args.test,writeraw=args.writeraw,incremental=args.incremental)
 
     if args.done is not None :
         subprocess.call(['setdone',args.done])

@@ -25,6 +25,7 @@ import time
 import struct
 from apogee.aspcap import ferre
 from apogee.speclib import atmos
+from apogee.speclib import isochrones
 from apogee.utils import atomic
 from apogee.utils import spectra
 #from sdss.utilities import yanny
@@ -35,6 +36,7 @@ from sklearn.decomposition import PCA
 from sklearn.decomposition import IncrementalPCA
 import matplotlib.pyplot as plt
 from tools import plots
+from tools import match
 
 colors=['r','g','b','c','m','y']
 
@@ -355,7 +357,7 @@ def get_vmicro(vmicrofit,vmicro) :
     return  float(vmicro)
 
 
-def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whiten=False,plot=False,writeraw=False,test=False, fz=False, incremental=False) :
+def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whiten=False,plot=False,writeraw=False,test=False, incremental=False) :
     """ Read in grid of spectra
     """
 
@@ -378,22 +380,16 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
         p['ncm'] = '1'
         p['nnm'] = '1'
 
-#   uncompress if needed
-    if fz :
-      for iam,am in enumerate(prange(p['am0'],p['dam'],p['nam'])) :
-        for icm,cm in enumerate(prange(p['cm0'],p['dcm'],p['ncm'])) :
-          for inm,nm in enumerate(prange(p['nm0'],p['dnm'],p['nnm'])) :
-           for ivm,vm in enumerate(prange(p['vt0'],p['dvt'],p['nvt'])) :
-            file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
-                   atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
-            subprocess.call(['funpack',indir+file+'.fz'])
-
     # Read reference spectrum to plot and to determine number of pixel wavelengths
     refhead=fits.open(indir+'ap00cp00np00vp20.fits')[1].header
     wave=10.**vector(refhead,1)
     ref=fits.open(indir+'ap00cp00np00vp20.fits')[1].data[10,5,0,:]
+    wchip=[(refhead['NAXIS1'],refhead['CRVAL1'],refhead['CDELT1'])]
+    cont=[(refhead['ORDER'],refhead['NITER'],refhead['LOWREJ'],refhead['HIGHREJ'])]
     for ichip in range(2,4) :
         refhead=fits.open(indir+'ap00cp00np00vp20.fits')[ichip].header
+        wchip.append((refhead['NAXIS1'],refhead['CRVAL1'],refhead['CDELT1']))
+        cont.append((refhead['ORDER'],refhead['NITER'],refhead['LOWREJ'],refhead['HIGHREJ']))
         wave=np.append(wave,10.**vector(refhead,1))
         ref=np.append(ref,fits.open(indir+'ap00cp00np00vp20.fits')[ichip].data[10,5,0,:])
     nwave=ref.shape[0]
@@ -409,11 +405,11 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
 
     # initialize PCA object, output figure and file
     if incremental :
-        pca = IncrementalPCA(n_components=npca,whiten=whiten,batch_size=1e5)
+        print('using incremental PCA')
+        pca = IncrementalPCA(n_components=npca,whiten=whiten,batch_size=1000)
     else :
         pca = PCA(n_components=npca,whiten=whiten)
     if plot : fig,ax=plots.multi(1,3,hspace=0.001,wspace=0.001,figsize=(12,4))
-    fout=open(outfile+'_{:03d}_{:03d}.txt'.format(npiece,npca),'w')
 
     # initialize eigenvector array
     eigen = np.zeros([npca,nwave])
@@ -430,7 +426,6 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
 
       # load data for this piece
       pcadata=np.zeros([int(p['nam'])*int(p['ncm'])*int(p['nnm'])*int(p['nvt'])*int(p['nmh'])*int(p['nlogg'])*int(p['nteff']),npix],dtype=np.float32)
-      t0=time.time()
       showtime('start piece:')
       nmod=0
       for iam,am in enumerate(prange(p['am0'],p['dam'],p['nam'])) :
@@ -453,22 +448,17 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
 
       # do the PCA decomposition 
       print(pcadata.shape)
-      t1=time.time()
       showtime('start pca:')
       model=pca.fit_transform(pcadata)
       print(pca.explained_variance_ratio_)
       eigen[:,w1:w2] = pca.components_
       mean[w1:w2] = pca.mean_
-      t2=time.time()
-      showtime('start inverse:')
-      # do the PCA reconstruction
-      fit=pca.inverse_transform(model)
-      t3=time.time()
-      print(t1-t0,t2-t1,t3-t2)
-      fout.write('{:8.2f}{:8.2f}{:8.2f}\n'.format(t1-t0,t2-t1,t3-t2))
-      rat=pcadata/fit
       # plot results
       if plot :
+          # do the PCA reconstruction
+          showtime('start inverse:')
+          fit=pca.inverse_transform(model)
+          rat=pcadata/fit
           showtime('start plot:')
           #for j in range(0,nmod,1000) :
           #    plots.plotl(ax[0],wave[w1:w2],rat[j,:],xr=[wave[0],wave[-1]],yr=[0.7,1.3])
@@ -495,21 +485,10 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
     if plot :
         fig.savefig(outfile+'_{:03d}_{:03d}.png'.format(npiece,npca))
         plt.close()
-    fout.close()
     del pca
 
-#   uncompress if needed
-    if fz :
-      for iam,am in enumerate(prange(p['am0'],p['dam'],p['nam'])) :
-        for icm,cm in enumerate(prange(p['cm0'],p['dcm'],p['ncm'])) :
-          for inm,nm in enumerate(prange(p['nm0'],p['dnm'],p['nnm'])) :
-           for ivm,vm in enumerate(prange(p['vt0'],p['dvt'],p['nvt'])) :
-            file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
-                   atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
-            os.remove(indir+file)
-
     # header file for PCA
-    ferre.wrhead(p,'p_aps'+outfile+'_{:03d}_{:03d}.hdr'.format(npiece,npca),npca=npixels,npix=npiece*npca)
+    ferre.wrhead(p,'p_aps'+outfile+'_{:03d}_{:03d}.hdr'.format(npiece,npca),npca=npixels,npix=npiece*npca,wchip=wchip,cont=cont)
     # output eigenvectors
     fp = open('p_aps'+outfile+'_{:03d}_{:03d}.hdr'.format(npiece,npca),'a')
     out=np.append(mean.reshape((1,nwave)),mean.reshape((1,nwave))*0.,axis=0)
@@ -546,7 +525,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
             os.remove(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.raw'.format(npiece,npca,ipiece))
 
 def mkgrid(planfile,clobber=False,resmooth=False,renorm=False,save=False,run=True,split=None,highres=9) :
-    """ Create a grid of synthetic spectra 
+    """ Create a grid of synthetic spectra using Turbospectrum
     """
 
     # Read planfile
@@ -804,3 +783,154 @@ def mini_linelist(elem,linelist,maskdir) :
         fin.close()
         os.remove(outdir+list+'.tmp')
     return wind
+
+def clip(x,lim,eps=None) :
+
+    tmp=np.max([lim[0],np.min([lim[1],x])])
+    if eps is not None :
+        if np.isclose(x,lim[0]) : tmp+=eps
+        if np.isclose(x,lim[1]) : tmp-=eps
+    return tmp
+
+def sample(gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,logglim=[0.,5.],mhlim=[-2.5,0.75],nmlim=[-1.,1.],cmlim=[-0.75,1.],emlim=[-0.5,1.],vmicrolim=[0.5,8.]) :
+    """ Generate a test sample of parameters and abundances from isochrones
+    """
+
+    # set output limits
+    if gridclass == 'GK' :
+        tefflim=[3500,6000]
+        dtlo=250.
+    elif gridclass == 'M' :
+        tefflim=[3300,4000]
+        dtlo=100.
+    elif gridclass == 'F' :
+        tefflim=[5500,8000]
+        dtlo=250.
+    grid=[]
+
+    # loop through isochrone data and take grid points nearest and +/- 1
+    # accumulate unique set of these
+    files = glob.glob(os.environ['ISOCHRONE_DIR']+'/z*.dat')
+    for file in files :
+        a = isochrones.read(file)
+        print(file)
+        for i in range(len(a)) :
+            if a['teff'][i] < 4000 : dt=dtlo
+            else : dt = 250.
+            for j in range(-1,2) :
+              teff = (int(a['teff'][i]/dt)+j)*int(dt)
+              logg = (int(a['logg'][i]/0.5)+j)*0.5
+              mh = (int(a['feh'][i]/0.25)+j)*0.25
+              # clip to stay within requested grid limits
+              teff=clip(teff,tefflim)
+              logg=clip(logg,logglim)
+              mh=clip(mh,mhlim)
+              grid.append(tuple([teff,logg,mh]))
+        grid = list(set(grid))
+        print(len(grid))
+
+    # output file
+    f=open('test.grid','w')
+    finp=open('test.inp','w')
+    f.write("#   Teff   logg  [M/H] vmicro vmacro  [C/M]  [N/M]")
+    vmic=[]
+    vmac=[]
+    c=[]
+    n=[]
+    els = ['O','Na','Mg','Al','Si','P','S','K','Ca','Ti','V','Cr','Mn','Co','Ni','Cu','Ge','Rb','Ce','Nd']
+    for el in els: f.write('{:>7s}'.format(el))
+    f.write('\n')
+    nel=len(els)
+    for i,x in enumerate(grid) :
+        teff=x[0]
+        logg=x[1]
+        mh=x[2]
+#       vmicro=10.**(0.226-0.0228*logg+0.0297*logg**2-0.0113*logg**3)+np.radom.normal(0.,0.3)
+        vmicro=2.
+        vmicro=clip(vmicro,vmicrolim)
+        if (logg < 3) & (teff<6000) :
+            # for giants, use vmacro relation + small rotation
+            vmacro=10.**(0.470794-0.254120*mh)
+            vmacro+=np.random.normal(0.,3)
+            vmacro=np.max([0.5,vmacro])
+            # carbon and nitrogen with significant range
+            cm=np.random.normal(0.,0.5)
+            cm = (int(cm/0.25))*0.25
+            nm=np.random.normal(0.3,1.0)
+            nm = (int(nm/0.5))*0.5
+        else :
+            # for dwarfs, use significatn rotation
+            vmacro=abs(np.random.normal(0.,30))
+            # carbon and nitrogen with small range
+            cm=np.random.normal(0.,0.3)
+            cm = (int(cm/0.25))*0.25
+            nm=np.random.normal(0.,0.3)
+            nm = (int(cm/0.25))*0.25
+        cm=clip(cm,cmlim)
+        nm=clip(nm,nmlim)
+        el=np.zeros([nel])
+        #el=np.random.normal(0.1,0.2,size=nel)
+
+        # clip to adjust slightly off grid edges
+        teff=clip(teff,tefflim,eps=eps)
+        logg=clip(logg,logglim,eps=eps)
+        mh=clip(mh,mhlim,eps=eps)
+        cm=clip(cm,cmlim,eps=eps)
+        nm=clip(nm,nmlim,eps=eps)
+        out = '{:8.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f}'.format(teff,logg,mh,vmicro,vmacro,cm,nm)      
+        inp = 'test{:d} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:8.2f}'.format(i+1,np.log10(vmicro),cm,nm,el[0],mh,logg,teff)
+        for e in el :
+          # add element abundances
+          e=clip(e,emlim,eps=eps)
+          out = out + '{:7.2f}'.format(e)      # other elements
+        print(out)
+        f.write(out+'\n')
+        finp.write(inp+'\n')
+        vmic.append(vmicro)
+        vmac.append(vmacro)
+        c.append(cm)
+        n.append(nm)
+
+    f.close()
+    finp.close()
+
+    # plots of sample
+    t=[x[0] for x in grid]
+    g=[x[1] for x in grid]
+    m=[x[2] for x in grid]
+    fig,ax=plots.multi(1,1)
+    plots.plotc(ax,t+np.random.normal(0.,10.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),m,xr=[8000,2500],yr=[6.,-1],zr=[-2,0.5],zt='[M/H]',colorbar=True)
+    fig,ax=plots.multi(2,2)
+    plots.plotc(ax[0,0],t+np.random.normal(0.,10.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),vmic,xr=[8000,2500],yr=[6.,-1],zr=[0,4],zt='vmicro',colorbar=True)
+    plots.plotc(ax[0,1],t+np.random.normal(0.,10.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),vmac,xr=[8000,2500],yr=[6.,-1],zr=[0,30],zt='vmacro',colorbar=True)
+    plots.plotc(ax[1,0],t+np.random.normal(0.,10.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),c,xr=[8000,2500],yr=[6.,-1],zr=[-1,1.0],zt='[C/M]',colorbar=True)
+    plots.plotc(ax[1,1],t+np.random.normal(0.,10.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),n,xr=[8000,2500],yr=[6.,-1],zr=[-1,1.0],zt='[N/M]',colorbar=True)
+    fig.tight_layout()
+
+def comp(file,true='test.inp') :
+
+    true=ascii.read('test.inp',names=['id','vmicro','cm','nm','am','mh','logg','teff'])
+    ##spec=np.loadtxt('test.dat')
+
+    obs=ascii.read(file+'.spm',names=['id','vmicro','cm','nm','am','mh','logg','teff','evm','ecm','enm','eam','emh','elogg','eteff','a','b','c'])
+    #mdl=np.loadtxt(file+'.out')
+    i1,i2=match.match(true['id'],obs['id'])
+
+    fig,ax=plots.multi(2,7,hspace=0.001,wspace=0.5)
+    plots.plotc(ax[0,0],obs['teff'][i2],obs['teff'][i2]-true['teff'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$Teff',yr=[-200,200])
+    plots.plotc(ax[1,0],obs['teff'][i2],obs['logg'][i2]-true['logg'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$logg',yr=[-0.5,0.5])
+    plots.plotc(ax[2,0],obs['teff'][i2],obs['mh'][i2]-true['mh'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$[M/H]',yr=[-0.5,0.5])
+    plots.plotc(ax[3,0],obs['teff'][i2],obs['am'][i2]-true['am'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$[a/M]',yr=[-0.5,0.5])
+    plots.plotc(ax[4,0],obs['teff'][i2],obs['cm'][i2]-true['cm'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$[C/M]',yr=[-0.5,0.5])
+    plots.plotc(ax[5,0],obs['teff'][i2],obs['nm'][i2]-true['nm'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$[N/M]',yr=[-0.5,0.5])
+    plots.plotc(ax[6,0],obs['teff'][i2],10.**obs['vmicro'][i2]-10.**true['vmicro'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$vmicro',yr=[-0.5,0.5])
+    ax[0,1].hist(obs['teff'][i2]-true['teff'][i1],bins=np.arange(-200,200,10),histtype='step')
+    ax[1,1].hist(obs['logg'][i2]-true['logg'][i1],bins=np.arange(-0.5,0.5,0.01),histtype='step')
+    ax[2,1].hist(obs['mh'][i2]-true['mh'][i1],bins=np.arange(-0.5,0.5,0.01),histtype='step')
+    ax[3,1].hist(obs['am'][i2]-true['am'][i1],bins=np.arange(-0.5,0.5,0.01),histtype='step')
+    ax[4,1].hist(obs['cm'][i2]-true['cm'][i1],bins=np.arange(-0.5,0.5,0.01),histtype='step')
+    ax[5,1].hist(obs['nm'][i2]-true['nm'][i1],bins=np.arange(-0.5,0.5,0.01),histtype='step')
+    ax[6,1].hist(obs['vmicro'][i2]-true['vmicro'][i1],bins=np.arange(-0.5,0.5,0.01),histtype='step')
+    fig.suptitle(file)
+    plt.show()
+

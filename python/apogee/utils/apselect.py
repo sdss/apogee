@@ -373,7 +373,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],raw=False,firstgen=Fal
     # Remove badstars
     if plot :
         ax.cla()
-        plots.plotp(ax,data['J'][jf]-data['K'][jf],data['K'][jf],color='k',size=20,xr=[-0.5,1.5],yr=[15,6],facecolors='none',linewidth=1,draw=False,xt='J-K'],yt='K')
+        plots.plotp(ax,data['J'][jf]-data['K'][jf],data['K'][jf],color='k',size=20,xr=[-0.5,1.5],yr=[15,6],facecolors='none',linewidth=1,draw=False,xt='J-K',yt='K')
         plots.plotp(ax,data['J'][jc]-data['K'][jc],data['K'][jc],color='g',size=30,xr=[-0.5,1.5],yr=[15,6],draw=False)
     badstars = open(os.environ['APOGEE_DIR']+'/data/calib/badcal.dat')
     bad = []

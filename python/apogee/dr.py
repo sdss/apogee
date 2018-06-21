@@ -59,11 +59,11 @@ def dr_compare() :
 
         xr=[3500,6000]
  
-        axim = plots.plotc(ax[iparam,0],dr12['TEFF'][m1a],dr13[param][m2a,iparam]-dr12[param][m1a,iparam],dr12[param][m1a,3],size=1,xr=xr,yr=yr,zr=[-1,0.5],yt=yt,xt=xt)
+        axim = plots.plotc(ax[iparam,0],dr12['TEFF'][m1a],dr13[param][m2a,iparam]-dr12[param][m1a,iparam],dr12[param][m1a,3],size=1,xr=xr,yr=yr,zr=[-1,0.5],yt=yt,xt=xt,rasterize=True)
         plots.plotl(ax[iparam,0],xr,[0.,0.],ls=':')
-        plots.plotc(ax[iparam,1],dr12['TEFF'][m1b],dr14[param][m2b,iparam]-dr12[param][m1b,iparam],dr12[param][m1b,3],size=1,xr=xr,yr=yr,zr=[-1,0.5],xt=xt)
+        plots.plotc(ax[iparam,1],dr12['TEFF'][m1b],dr14[param][m2b,iparam]-dr12[param][m1b,iparam],dr12[param][m1b,3],size=1,xr=xr,yr=yr,zr=[-1,0.5],xt=xt,rasterize=True)
         plots.plotl(ax[iparam,1],xr,[0.,0.],ls=':')
-        plots.plotc(ax[iparam,2],dr13['TEFF'][m1c],dr14[param][m2c,iparam]-dr13[param][m1c,iparam],dr13[param][m1c,3],size=1,xr=xr,yr=yr,zr=[-1,0.5],xt=xt)
+        plots.plotc(ax[iparam,2],dr13['TEFF'][m1c],dr14[param][m2c,iparam]-dr13[param][m1c,iparam],dr13[param][m1c,3],size=1,xr=xr,yr=yr,zr=[-1,0.5],xt=xt,rasterize=True)
         plots.plotl(ax[iparam,2],xr,[0.,0.],ls=':')
         for iax in range(3) :
           for item in (ax[iparam,iax].get_xticklabels() + ax[iparam,iax].get_yticklabels()) :
@@ -98,21 +98,21 @@ def dr_compare() :
         dr12elem=dr12[elem.upper()+'_H'][m1a]-dr12['FE_H'][m1a]
         dr13elem=dr13[elem.upper()+'_FE'][m2a]
         gd=np.where((dr12elem > -99) & (dr13elem>-99))[0]
-        plots.plotc(ax[ielem,0],dr12['TEFF'][m1a[gd]],dr13elem[gd]-dr12elem[gd],dr12['PARAM'][m1a[gd],3],size=1,xr=[3500,6000],yr=yr,zr=[-1,0.5],yt=yt,xt=xt,nytick=5)
+        plots.plotc(ax[ielem,0],dr12['TEFF'][m1a[gd]],dr13elem[gd]-dr12elem[gd],dr12['PARAM'][m1a[gd],3],size=1,xr=[3500,6000],yr=yr,zr=[-1,0.5],yt=yt,xt=xt,nytick=5,rasterize=True)
         plots.plotl(ax[ielem,0],xr,[0.,0.],ls=':')
         ax[ielem,0].tick_params(axis='both',labelsize=8)
   
         dr12elem=dr12[elem.upper()+'_H'][m1b]-dr12['FE_H'][m1b]
         dr14elem=dr14[elem.upper()+'_FE'][m2b]
         gd=np.where((dr12elem > -99) & (dr14elem>-99))[0]
-        plots.plotc(ax[ielem,1],dr12['TEFF'][m1b[gd]],dr14elem[gd]-dr12elem[gd],dr12['PARAM'][m1b[gd],3],size=1,xr=[3500,6000],yr=yr,zr=[-1,0.5],xt=xt,nytick=5)
+        plots.plotc(ax[ielem,1],dr12['TEFF'][m1b[gd]],dr14elem[gd]-dr12elem[gd],dr12['PARAM'][m1b[gd],3],size=1,xr=[3500,6000],yr=yr,zr=[-1,0.5],xt=xt,nytick=5,rasterize=True)
         plots.plotl(ax[ielem,1],xr,[0.,0.],ls=':')
         ax[ielem,1].tick_params(axis='both',labelsize=8)
 
         dr13elem=dr13[elem.upper()+'_FE'][m1c]
         dr14elem=dr14[elem.upper()+'_FE'][m2c]
         gd=np.where((dr13elem > -99) & (dr14elem>-99))[0]
-        plots.plotc(ax[ielem,2],dr13['TEFF'][m1c[gd]],dr14elem[gd]-dr13elem[gd],dr13['PARAM'][m1c[gd],3],size=1,xr=[3500,6000],yr=yr,zr=[-1,0.5],xt=xt,nytick=5)
+        plots.plotc(ax[ielem,2],dr13['TEFF'][m1c[gd]],dr14elem[gd]-dr13elem[gd],dr13['PARAM'][m1c[gd],3],size=1,xr=[3500,6000],yr=yr,zr=[-1,0.5],xt=xt,nytick=5,rasterize=True)
         plots.plotl(ax[ielem,2],xr,[0.,0.],ls=':')
         ax[ielem,2].tick_params(axis='both',labelsize=8)
 
@@ -132,8 +132,8 @@ def kurucz_marcs() :
 
     fig,ax=plots.multi(2,1,wspace=0.001)
     plots.plotc(ax[0],dr13['FPARAM'][:,0],dr13['FPARAM'][:,1],dr13['FPARAM'] [:,3],
-                xr=[4200,3000],yr=[5,-1],zr=[-2,0.5],xt='Teff',yt='log g')
+                xr=[4200,3000],yr=[5,-1],zr=[-2,0.5],xt='Teff',yt='log g',rasterize=True)
     plots.plotc(ax[1],dr13_marcs['FPARAM'][:,0],dr13_marcs['FPARAM'][:,1],dr13_marcs['FPARAM'] [:,3],
-                xr=[4200,3000],yr=[5,-1],zr=[-2,0.5],xt='Teff')
+                xr=[4200,3000],yr=[5,-1],zr=[-2,0.5],xt='Teff',rasterize=True)
     fig.savefig('kurucz_marcs.pdf')
 

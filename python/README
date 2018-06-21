@@ -6,5 +6,6 @@ To add a remote and use it as a subtree:
 git remote add tools https://github.com/holtzmanjon/tools
 git subtree add --prefix python/tools tools master --squash
 
-To update a subtree:
+To update a subtree from external updates:
+git subtree pull --prefix python/tools tools master 
 

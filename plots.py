@@ -57,7 +57,7 @@ def mark(fig) :
     return _x, _y, _button
 
 
-def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,xt=None,yt=None,zt=None,label=None,linewidth='0',marker='o',draw=True,orientation='vertical',labelcolor='k',tit=None,nxtick=None,nytick=None,rasterize=None) :
+def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,xt=None,yt=None,zt=None,label=None,linewidth='0',marker='o',draw=True,orientation='vertical',labelcolor='k',tit=None,nxtick=None,nytick=None,rasterized=None) :
     """
     Plots a scatter plot with point color-coded by z data
 
@@ -92,9 +92,9 @@ def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',color
     if yt is not None : ax.set_ylabel(yt)
     if tit is not None : ax.set_title(tit)
     if zr is None :
-        scat=ax.scatter(x,y,c=z,s=size,cmap=cmap,linewidth=linewidth,marker=marker,rasterize=rasterize)
+        scat=ax.scatter(x,y,c=z,s=size,cmap=cmap,linewidth=linewidth,marker=marker,rasterized=rasterized)
     else :
-        scat=ax.scatter(x,y,c=z,vmin=zr[0],vmax=zr[1],s=size,cmap=cmap,linewidth=linewidth,marker=marker,rasterize=rasterize)
+        scat=ax.scatter(x,y,c=z,vmin=zr[0],vmax=zr[1],s=size,cmap=cmap,linewidth=linewidth,marker=marker,rasterized=rasterized)
 
     if yerr is not None :
         ax.errorbar(x,y,yerr=yerr,fmt='none',capsize=0,ecolor='k')

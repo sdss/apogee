@@ -492,8 +492,8 @@ if ~tag_exist(planstr,'elem') then begin
  endfor
 endif
 ; compress using gzip fpack (lossless)
-file_delete,name+'.fits.fz',/allow
-spawn,['fpack','-g','-D','-Y',name+'.fits'],/noshell
+;file_delete,name+'.fits.fz',/allow
+;spawn,['fpack','-g','-D','-Y',name+'.fits'],/noshell
 
 endfor  ; loop over planfiles
 end

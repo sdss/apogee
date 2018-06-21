@@ -3,6 +3,7 @@
 #
 import pdb
 import numpy as np
+import matplotlib.pyplot as plt
 from apogee.utils import apload
 from tools import match
 from tools import plots
@@ -41,7 +42,7 @@ def dr_compare() :
           ax=axu
         else :
           ax=axc
-        yt=r'$Delta'+tit[iparam]
+        yt=r'$\Delta$'+tit[iparam]
         if iparam == 6 : xt='Teff'
         else : xt=None
         if iparam == 0 :
@@ -58,15 +59,25 @@ def dr_compare() :
 
         xr=[3500,6000]
  
-        plots.plotc(ax[iparam,0],dr12['TEFF'][m1a],dr13[param][m2a,iparam]-dr12[param][m1a,iparam],dr12[param][m1a,3],size=1,xr=xr,yr=yr,zr=[-1,0.5],yt=yt,xt=xt)
+        axim = plots.plotc(ax[iparam,0],dr12['TEFF'][m1a],dr13[param][m2a,iparam]-dr12[param][m1a,iparam],dr12[param][m1a,3],size=1,xr=xr,yr=yr,zr=[-1,0.5],yt=yt,xt=xt)
         plots.plotl(ax[iparam,0],xr,[0.,0.],ls=':')
         plots.plotc(ax[iparam,1],dr12['TEFF'][m1b],dr14[param][m2b,iparam]-dr12[param][m1b,iparam],dr12[param][m1b,3],size=1,xr=xr,yr=yr,zr=[-1,0.5],xt=xt)
         plots.plotl(ax[iparam,1],xr,[0.,0.],ls=':')
         plots.plotc(ax[iparam,2],dr13['TEFF'][m1c],dr14[param][m2c,iparam]-dr13[param][m1c,iparam],dr13[param][m1c,3],size=1,xr=xr,yr=yr,zr=[-1,0.5],xt=xt)
         plots.plotl(ax[iparam,2],xr,[0.,0.],ls=':')
+        for iax in range(3) :
+          for item in (ax[iparam,iax].get_xticklabels() + ax[iparam,iax].get_yticklabels()) :
+            item.set_fontsize(8)
 
-    figu.savefig('drcomp_uncal.png')
-    figc.savefig('drcomp_cal.png')
+    # add colorbar
+    for fig in [figu, figc] :
+        cbaxes = fig.add_axes([0.91, 0.1, 0.01, 0.8])
+        cb = plt.colorbar(axim, cax = cbaxes)
+        cb.set_label('[M/H]')
+        for item in (cbaxes.get_xticklabels() + cbaxes.get_yticklabels()) : item.set_fontsize(8)
+
+    figu.savefig('drcomp_uncal.pdf')
+    figc.savefig('drcomp_cal.pdf')
     plots.close()
 
     # abundance figure

@@ -405,27 +405,34 @@ def main() :
     #plot(a,e,etoh)
     #plot(a,e,etoh,dwarf=True)
 
-def globalscatter(allstar,elems) :
+def globalscatter(allstar,elems,vscatter=[0,0.2],pm=True,dist=True) :
     ''' 
     Compute scatter in clusters
     '''
     clust=apselect.clustdata()
-    gd=apselect.select(allstar,badval='STAR_BAD')
+    gd=apselect.select(allstar,badval='STAR_BAD',vscatter=vscatter)
     members=[]
     print('selecting')
     clusts = ['N2420', 'M67', 'N188', 'N7789', 'N6819', 'N6791']
     fp=open('global.dat','w')
     for cluster in clusts :
-        j=np.array(apselect.clustmember(allstar[gd],cluster,raw=True))
+        j=np.array(apselect.clustmember(allstar[gd],cluster,raw=True,pm=pm,dist=dist))
         print(cluster,len(j))
         members.append(j)
         for jj in j :
-            fp.write('{:s} {:s} {:8.3f}\n'.format(cluster,allstar['APOGEE_ID'][gd[jj]],allstar['FE_H'][gd[jj]]))
+            fp.write('{:s} {:s} {:8.3f} {:8.1f} {:8.1f} {:8.1f} {:8.2f} {:s}\n'.format(
+              cluster,allstar['APOGEE_ID'][gd[jj]],allstar['FE_H'][gd[jj]],allstar['TEFF'][gd[jj]],
+              allstar['SNR'][gd[jj]],allstar['ASPCAP_CHI2'][gd[jj]],
+              allstar['VSCATTER'][gd[jj]],allstar['STARFLAGS'][gd[jj]]))
     fp.close()
 
     iel=0
     nels=len(elems[0])+2
-    fig,ax=plots.multi(2,int(round(nels/2.)),hspace=0.001,wspace=0.001,figsize=(8,12))
+    fig,ax=plots.multi(2,int(round(nels/2.)),hspace=0.001,wspace=0.001,figsize=(8,10))
+    plots.event(fig)
+    plots._data=allstar
+    plots._id_cols=['APOGEE_ID']
+
     color=['r','g','b','c','m','y']
     for iel,el in enumerate(np.append(elems,['M','alpha'])) :
         iclust=0
@@ -453,10 +460,10 @@ def globalscatter(allstar,elems) :
                   ok=np.where(((allstar['ELEMFLAG'][gd[j],iel] & 255) == 0) & (allstar['X_M_ERR'][gd[j],iel] < 0.2) & (allstar['X_M'][gd[j],iel] > -999) )[0]
                 if len(ok) > 3 :
                     all=np.append(all,abun[ok]-abun[ok].mean())
-                    plots.plotp(ax[iy,ix],allstar['TEFF'][gd[j[ok]]],abun[ok]-abun[ok].mean(),color=color[iclust],size=10)
+                    plots.plotp(ax[iy,ix],allstar['TEFF'][gd[j[ok]]],abun[ok]-abun[ok].mean(),color=color[iclust],size=10,yr=[-0.5,0.5])
 
             iclust+=1
-        print(el, all.mean(), all.std(), len(all))
+        print('{:s} {:10.3f} {:10.3f} {:d}\n'.format(el, all.mean(), all.std(), len(all)))
         ax[iy,ix].text(0.1,0.9,el.strip(),ha='left',va='top',transform=ax[iy,ix].transAxes)
         ax[iy,ix].text(0.9,0.9,'{:8.3f}'.format(all.std()),ha='right',va='top',transform=ax[iy,ix].transAxes)
         iel+=1
@@ -910,12 +917,13 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                       plots.plotp(ax[1,1],clusters[gdplt].mh,rec['mean'][iel][gdplt]-clusters[gdplt].mh,
                                   typeref=clusters[gdplt].name,types=clusts,color=colors,marker=markers,size=16,
                                   xr=[-2.5,0.5],yr=[-0.6,0.6],xt='Lit [M/H]',yt='ASPCAP-lit [M/H]',yerr=rec['rms'][iel])
-                      plots.plotp(ax2,clusters[gdplt].mh,rec['mean'][iel][gdplt]-clusters[gdplt].mh,
-                                  typeref=clusters[gdplt].name,types=clusts,color=colors,marker=markers,size=16,
-                                  xr=[-2.5,0.5],yr=[-0.6,0.6],xt='Lit [M/H]',yt='ASPCAP-lit [M/H]',yerr=rec['rms'][iel])
-                      ax2.plot([-2.5,-1.0],[0.108797,0.108797],color='k')
-                      ax2.plot([-1.0,-0.5],[0.108797,-0.0272657],color='k')
-                      ax2.plot([-0.5,0.5],[-0.0272657,-0.0272657],color='k')
+                      if sepplot :
+                          plots.plotp(ax2,clusters[gdplt].mh,rec['mean'][iel][gdplt]-clusters[gdplt].mh,
+                                      typeref=clusters[gdplt].name,types=clusts,color=colors,marker=markers,size=16,
+                                      xr=[-2.5,0.5],yr=[-0.6,0.6],xt='Lit [M/H]',yt='ASPCAP-lit [M/H]',yerr=rec['rms'][iel])
+                          ax2.plot([-2.5,-1.0],[0.108797,0.108797],color='k')
+                          ax2.plot([-1.0,-0.5],[0.108797,-0.0272657],color='k')
+                          ax2.plot([-0.5,0.5],[-0.0272657,-0.0272657],color='k')
 
 
                     else :
@@ -967,6 +975,8 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
         rec[iel]['femax'] = 99.999
         iel+=1
     if plot and hard is not None and len(doels) > 2: 
+        if iplot%2 == 1 :
+            allax[iplot//2,iplot%2].set_visible(False)
         allfig.savefig(hard+'all.jpg')
         if len(solar) > 0 : allsolarfig.savefig(hard+'allsolar.jpg')
     if errpar and hard is not None :

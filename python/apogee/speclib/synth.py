@@ -907,9 +907,9 @@ def sample(gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,logglim=[0.,5.]
     plots.plotc(ax[1,1],t+np.random.normal(0.,10.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),n,xr=[8000,2500],yr=[6.,-1],zr=[-1,1.0],zt='[N/M]',colorbar=True)
     fig.tight_layout()
 
-def comp(file,true='test.inp') :
+def comp(file,true='test.inp',hard=False) :
 
-    true=ascii.read('test.inp',names=['id','vmicro','cm','nm','am','mh','logg','teff'])
+    true=ascii.read(true,names=['id','vmicro','cm','nm','am','mh','logg','teff'])
     ##spec=np.loadtxt('test.dat')
 
     obs=ascii.read(file+'.spm',names=['id','vmicro','cm','nm','am','mh','logg','teff','evm','ecm','enm','eam','emh','elogg','eteff','a','b','c'])
@@ -933,4 +933,6 @@ def comp(file,true='test.inp') :
     ax[6,1].hist(obs['vmicro'][i2]-true['vmicro'][i1],bins=np.arange(-0.5,0.5,0.01),histtype='step')
     fig.suptitle(file)
     plt.show()
+    if hard :
+        fig.savefig(file+'.png')
 

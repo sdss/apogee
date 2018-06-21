@@ -28,7 +28,7 @@ from apogee.utils import bitmask
 import matplotlib.pyplot as plt
 
 def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,100.],alpha=[-100.,100.],sn=[0,1000], raw=False, 
-           glon=[-1,360],glat=[-90,90],grid=None,field=None,giants=None, dwarfs=None,rgb=None, rc=None,inter=None, 
+           glon=[-1,360],glat=[-90,90],vscatter=[-1,100],grid=None,field=None,giants=None, dwarfs=None,rgb=None, rc=None,inter=None, 
            id=None, redid=None, badtarg=None, gdtarg=None) :
     '''  
     Return indices of requested subsamples from input allStar structure 
@@ -129,6 +129,7 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
     g = data[param][:,1] 
     m = data[param][:,3] 
     a = data[param][:,6] 
+    vscat = data['VSCATTER']
 
     if giants is not None or dwarfs is not None :
         startype = (g < 2./1300.*(t-3500.)+2) & (g < 4) & (t < 7000)
@@ -165,6 +166,7 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
          (g > logg[0]) & (g < logg[1])  &
          (m > mh[0]) & (m < mh[1])  &
          (a > alpha[0]) & (a < alpha[1])  &
+         (vscat > vscatter[0]) & (vscat < vscatter[1])  &
          (data['GLON'] > glon[0]) & (data['GLON'] < glon[1])  &
          (data['GLAT'] > glat[0]) & (data['GLAT'] < glat[1])  &
          (snr > sn[0]) & (snr < sn[1])  
@@ -264,13 +266,14 @@ def clustdata() :
     return out.view(np.recarray)
 
 
-def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],raw=False,firstgen=False,firstpos=True,plot=False,hard=None) :
+def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=True,raw=False,firstgen=False,firstpos=True,plot=False,hard=None) :
 
     clust=clustdata()
     ic = np.where( np.core.defchararray.strip(clust.name) == cluster)[0]
     if len(ic) == 0 :
         print('no cluster found: ',cluster)
         return []
+    print('cluster: ', cluster)
 
     # adjust ra for wraparound if needed
     ra=copy.copy(data['RA'])
@@ -289,8 +292,8 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],raw=False,firstgen=Fal
                      (data[jc]['DEC']-clust[ic].dec)**2 < (clust[ic].rad/60.)**2)[0]
         jc=jc[j]
     else :
-        print('no stars after location criterion')
         jc=[]
+    print('{:d} stars after location criterion'.format(len(jc)))
     if plot :
         jf=np.where((np.abs(ra-clust[ic].ra)*np.cos(clust[ic].dec*np.pi/180.) < 1.5) & 
                 (np.abs(data['DEC']-clust[ic].dec) < 1.5))[0]
@@ -322,16 +325,21 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],raw=False,firstgen=Fal
             plt.draw()
             pdb.set_trace()
     if len(j) > 0 :
-        jc=jc[j]
+        if rv: jc=jc[j]
     else :
-        print('no stars after RV criterion')
         jc=[]
+    print('{:d} stars after RV criterion'.format(len(jc)))
+    if len(jc) == 0 : return jc
 
     # proper motion criterion
-    job=Gaia.launch_job_async("SELECT xm.original_ext_source_id, gaia.pmra, gaia.pmra_error, gaia.pmdec, gaia.pmdec_error FROM gaiadr2.gaia_source AS gaia, gaiadr2.tmass_best_neighbour AS xm WHERE gaia.source_id = xm.source_id AND CONTAINS(POINT('ICRS',gaia.ra,gaia.dec),CIRCLE('ICRS',{:12.6f},{:12.6f},{:12.6f}))=1;".format(clust[ic].ra[0],clust[ic].dec[0],clust[ic].rad[0]/60.))
+    job=Gaia.launch_job_async("SELECT xm.original_ext_source_id, gaia.pmra, gaia.pmra_error, gaia.pmdec, gaia.pmdec_error, gaia.parallax, gaia.parallax_error "+
+                               "FROM gaiadr2.gaia_source AS gaia, gaiadr2.tmass_best_neighbour AS xm "+
+                               "WHERE gaia.source_id = xm.source_id AND "+
+                                  "CONTAINS(POINT('ICRS',gaia.ra,gaia.dec),CIRCLE('ICRS',{:12.6f},{:12.6f},{:12.6f}))=1;".format(
+                                                                                  clust[ic].ra[0],clust[ic].dec[0],clust[ic].rad[0]/60.))
+    # convert to velocities (note mas and kpc cancel out) and get median
     gaia=job.get_results()
     i1, i2 = match.match(np.core.defchararray.replace(data['APOGEE_ID'][jc],'2M',''),gaia['original_ext_source_id'])
-    # convert to velocities (note mas and kpc cancel out) and get median
     vra=4.74*gaia['pmra']*clust[ic].dist
     vdec=4.74*gaia['pmdec']*clust[ic].dist
     med_vra=np.median(vra[i2])
@@ -350,10 +358,38 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],raw=False,firstgen=Fal
         else :
             pdb.set_trace()
     if len(j) > 0 :
-        jc=jc[i1[j]]
+        if pm: jc=jc[i1[j]]
     else :
-        print('no stars after PM criterion')
         jc=[]
+    print('{:d} stars after PM criterion'.format(len(jc)))
+    if len(jc) == 0 : return jc
+   
+    # parallaxes
+    gaia=job.get_results()
+    i1, i2 = match.match(np.core.defchararray.replace(data['APOGEE_ID'][jc],'2M',''),gaia['original_ext_source_id'])
+    par=gaia['parallax']
+    par_error=gaia['parallax_error']
+    gd=np.where(np.isfinite(par[i2]))[0]
+    med_par=np.median(par[i2[gd]])
+    med_par_error=np.median(par_error[i2[gd]])
+    j=np.where(np.isfinite(par[i2]) & (np.abs(par[i2]-med_par) < 3*med_par_error))[0]
+    if plot :
+        ax.cla() 
+        ax.hist(par,color='k',bins=np.arange(par.min(),par.max(),0.01),histtype='step',range=(0,2))
+        ax.hist(par[i2],color='r',bins=np.arange(par.min(),par.max(),0.01),histtype='step',range=(0,2))
+        ax.hist(par[i2[j]],color='g',bins=np.arange(par.min(),par.max(),0.01),histtype='step',range=(0,2))
+        ax.set_xlabel('Parallax')
+        if hard is not None :
+            fig.savefig(hard+'/'+clust[ic].name[0]+'_parallax.jpg')
+        else :
+            plt.draw()
+            pdb.set_trace()
+    if len(j) > 0 :
+        if dist: jc=jc[i1[j]]
+    else :
+        jc=[]
+    print('{:d} stars after parallax criterion'.format(len(jc)))
+    if len(jc) == 0 : return jc
 
     # parameters criteria
     if raw :
@@ -367,8 +403,9 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],raw=False,firstgen=Fal
             jc=jc[j]
         else :
             jc=[]
-            print('no stars after parameters criterion')
     except: pass
+    print('{:d} stars after parameters criterion'.format(len(jc)))
+    if len(jc) == 0 : return jc
 
     # Remove badstars
     if plot :
@@ -380,6 +417,8 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],raw=False,firstgen=Fal
     for line in badstars :
        bad.append(line.split()[0])
     jc = [x for x in jc if data[x]['APOGEE_ID'] not in bad]
+    print('{:d} stars after badstars rejection'.format(len(jc)))
+    if len(jc) == 0 : return jc
 
     # remove non firstgen GC stars if requested
     if firstgen :
@@ -390,12 +429,14 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],raw=False,firstgen=Fal
         else :
             bd=np.where(gcstars['pop'] != 1)[0]
             jc = [x for x in jc if data[x]['APOGEE_ID'] not in gcstars['id'][bd]]
+    print('{:d} stars after firstgen rejection'.format(len(jc)))
 
     if plot :
         plots.plotp(ax,data['J'][jc]-data['K'][jc],data['K'][jc],color='b',size=30,draw=False)
         if hard is not None :
             fig.savefig(hard+'/'+clust[ic].name[0]+'_cmd.jpg')
         else :
+            plt.draw()
             pdb.set_trace()
 
     return jc

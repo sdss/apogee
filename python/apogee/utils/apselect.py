@@ -162,14 +162,14 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
 
     gd = np.where((bad == 0)  & (targ == 0) &
          (startype) &
-         (t > teff[0]) & (t < teff[1])  &
-         (g > logg[0]) & (g < logg[1])  &
-         (m > mh[0]) & (m < mh[1])  &
-         (a > alpha[0]) & (a < alpha[1])  &
-         (vscat > vscatter[0]) & (vscat < vscatter[1])  &
-         (data['GLON'] > glon[0]) & (data['GLON'] < glon[1])  &
-         (data['GLAT'] > glat[0]) & (data['GLAT'] < glat[1])  &
-         (snr > sn[0]) & (snr < sn[1])  
+         (t >= teff[0]) & (t <= teff[1])  &
+         (g >= logg[0]) & (g <= logg[1])  &
+         (m >= mh[0]) & (m <= mh[1])  &
+         (a >= alpha[0]) & (a <= alpha[1])  &
+         (vscat >= vscatter[0]) & (vscat <= vscatter[1])  &
+         (data['GLON'] >= glon[0]) & (data['GLON'] <= glon[1])  &
+         (data['GLAT'] >= glat[0]) & (data['GLAT'] <= glat[1])  &
+         (snr >= sn[0]) & (snr <= sn[1])  
          )[0]
 
     if grid is not None :
@@ -332,21 +332,24 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
     if len(jc) == 0 : return jc
 
     # proper motion criterion
-    job=Gaia.launch_job_async("SELECT xm.original_ext_source_id, gaia.pmra, gaia.pmra_error, gaia.pmdec, gaia.pmdec_error, gaia.parallax, gaia.parallax_error "+
+    if dist or pm : gaia = True
+    else : gaia = False
+    if gaia :
+      job=Gaia.launch_job_async("SELECT xm.original_ext_source_id, gaia.pmra, gaia.pmra_error, gaia.pmdec, gaia.pmdec_error, gaia.parallax, gaia.parallax_error "+
                                "FROM gaiadr2.gaia_source AS gaia, gaiadr2.tmass_best_neighbour AS xm "+
                                "WHERE gaia.source_id = xm.source_id AND "+
                                   "CONTAINS(POINT('ICRS',gaia.ra,gaia.dec),CIRCLE('ICRS',{:12.6f},{:12.6f},{:12.6f}))=1;".format(
                                                                                   clust[ic].ra[0],clust[ic].dec[0],clust[ic].rad[0]/60.))
-    # convert to velocities (note mas and kpc cancel out) and get median
-    gaia=job.get_results()
-    i1, i2 = match.match(np.core.defchararray.replace(data['APOGEE_ID'][jc],'2M',''),gaia['original_ext_source_id'])
-    vra=4.74*gaia['pmra']*clust[ic].dist
-    vdec=4.74*gaia['pmdec']*clust[ic].dist
-    med_vra=np.median(vra[i2])
-    med_vdec=np.median(vdec[i2])
-    j=np.where((vra[i2]-med_vra)**2+(vdec[i2]-med_vdec)**2 < clust[ic].drv**2)[0]
-
-    if plot :
+      # convert to velocities (note mas and kpc cancel out) and get median
+      gaia=job.get_results()
+      i1, i2 = match.match(np.core.defchararray.replace(data['APOGEE_ID'][jc],'2M',''),gaia['original_ext_source_id'])
+      vra=4.74*gaia['pmra']*clust[ic].dist
+      vdec=4.74*gaia['pmdec']*clust[ic].dist
+      med_vra=np.median(vra[i2])
+      med_vdec=np.median(vdec[i2])
+      j=np.where((vra[i2]-med_vra)**2+(vdec[i2]-med_vdec)**2 < clust[ic].drv**2)[0]
+  
+      if plot :
         ax.cla() 
         plots.plotp(ax,vra,vdec,color='k',
                     xr=[med_vra-100,med_vra+200],xt='PMRA (km/sec at cluster dist)',
@@ -357,23 +360,23 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
             fig.savefig(hard+'/'+clust[ic].name[0]+'_pm.jpg')
         else :
             pdb.set_trace()
-    if len(j) > 0 :
+      if len(j) > 0 :
         if pm: jc=jc[i1[j]]
-    else :
+      else :
         jc=[]
-    print('{:d} stars after PM criterion'.format(len(jc)))
-    if len(jc) == 0 : return jc
+      print('{:d} stars after PM criterion'.format(len(jc)))
+      if len(jc) == 0 : return jc
    
-    # parallaxes
-    gaia=job.get_results()
-    i1, i2 = match.match(np.core.defchararray.replace(data['APOGEE_ID'][jc],'2M',''),gaia['original_ext_source_id'])
-    par=gaia['parallax']
-    par_error=gaia['parallax_error']
-    gd=np.where(np.isfinite(par[i2]))[0]
-    med_par=np.median(par[i2[gd]])
-    med_par_error=np.median(par_error[i2[gd]])
-    j=np.where(np.isfinite(par[i2]) & (np.abs(par[i2]-med_par) < 3*med_par_error))[0]
-    if plot :
+      # parallaxes
+      gaia=job.get_results()
+      i1, i2 = match.match(np.core.defchararray.replace(data['APOGEE_ID'][jc],'2M',''),gaia['original_ext_source_id'])
+      par=gaia['parallax']
+      par_error=gaia['parallax_error']
+      gd=np.where(np.isfinite(par[i2]))[0]
+      med_par=np.median(par[i2[gd]])
+      med_par_error=np.median(par_error[i2[gd]])
+      j=np.where(np.isfinite(par[i2]) & (np.abs(par[i2]-med_par) < 3*med_par_error))[0]
+      if plot :
         ax.cla() 
         ax.hist(par,color='k',bins=np.arange(par.min(),par.max(),0.01),histtype='step',range=(0,2))
         ax.hist(par[i2],color='r',bins=np.arange(par.min(),par.max(),0.01),histtype='step',range=(0,2))
@@ -384,12 +387,12 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
         else :
             plt.draw()
             pdb.set_trace()
-    if len(j) > 0 :
+      if len(j) > 0 :
         if dist: jc=jc[i1[j]]
-    else :
+      else :
         jc=[]
-    print('{:d} stars after parallax criterion'.format(len(jc)))
-    if len(jc) == 0 : return jc
+      print('{:d} stars after parallax criterion'.format(len(jc)))
+      if len(jc) == 0 : return jc
 
     # parameters criteria
     if raw :

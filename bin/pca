@@ -35,11 +35,12 @@ if __name__ == '__main__' :
     parser.add_argument("--writeraw", help='write uncompressed file?',action="store_true")
     parser.add_argument("--incremental", help='use incremental PCA?',action="store_true")
     parser.add_argument("--pcas",nargs='+',type=int)
+    parser.add_argument("--refz",type=int)
     parser.add_argument("--done")
     parser.add_argument("--host")
     args=parser.parse_args()
 
-    synth.pca(args.planfile,plot=args.plot,pcas=tuple(args.pcas),dir=args.dir,test=args.test,writeraw=args.writeraw,incremental=args.incremental)
+    synth.pca(args.planfile,plot=args.plot,pcas=tuple(args.pcas),dir=args.dir,test=args.test,writeraw=args.writeraw,incremental=args.incremental,refz=args.refz)
 
     if args.done is not None :
         subprocess.call(['setdone',args.done])

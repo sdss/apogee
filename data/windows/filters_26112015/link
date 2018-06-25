@@ -1,0 +1,6 @@
+#!/bin/csh
+foreach file ( $* )
+  set name = `basename $file`
+  set elem = `echo $name | awk -F_ '{print $1}'`
+  ln -s $file $elem.filt
+end

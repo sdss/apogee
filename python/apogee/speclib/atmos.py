@@ -186,7 +186,7 @@ def fill_holes(argv) :
     all = np.zeros(ntot, dtype = {'names':['teff','logg','z','c','a','metric'], 
        'formats':['i4','f4','f4','f4','f4','f4']} )
 
-    print('# [M/H] [C/M] [A/M] Teff logg metric Delta(M) Delta(C) Delta(A) Delta(Teff) Delta(logg) (SPECLIB_VERS: '+subprocess.check_output(['speclib_version']).strip()+')')
+    print('# [M/H] [C/M] [A/M] Teff logg metric Delta(M) Delta(C) Delta(A) Delta(Teff) Delta(logg) (SPECLIB_VERS: '+os.environ['APOGEE_VER']+')')
 
     # loop over grid finding computed models and filling up array of all models
     nmissing = 0

@@ -357,7 +357,7 @@ def get_vmicro(vmicrofit,vmicro) :
     return  float(vmicro)
 
 
-def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whiten=False,plot=False,writeraw=False,test=False, incremental=False) :
+def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whiten=False,plot=False,writeraw=False,test=False, incremental=False, refz=10, chips=True) :
     """ Read in grid of spectra
     """
 
@@ -383,7 +383,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
     # Read reference spectrum to plot and to determine number of pixel wavelengths
     refhead=fits.open(indir+'ap00cp00np00vp20.fits')[1].header
     wave=10.**vector(refhead,1)
-    ref=fits.open(indir+'ap00cp00np00vp20.fits')[1].data[10,5,0,:]
+    ref=fits.open(indir+'ap00cp00np00vp20.fits')[1].data[refz,5,0,:]
     wchip=[(refhead['NAXIS1'],refhead['CRVAL1'],refhead['CDELT1'])]
     cont=[(refhead['ORDER'],refhead['NITER'],refhead['LOWREJ'],refhead['HIGHREJ'])]
     for ichip in range(2,4) :
@@ -391,7 +391,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
         wchip.append((refhead['NAXIS1'],refhead['CRVAL1'],refhead['CDELT1']))
         cont.append((refhead['ORDER'],refhead['NITER'],refhead['LOWREJ'],refhead['HIGHREJ']))
         wave=np.append(wave,10.**vector(refhead,1))
-        ref=np.append(ref,fits.open(indir+'ap00cp00np00vp20.fits')[ichip].data[10,5,0,:])
+        ref=np.append(ref,fits.open(indir+'ap00cp00np00vp20.fits')[ichip].data[refz,5,0,:])
     nwave=ref.shape[0]
 
     # loop over requested combinations of npieces and npca
@@ -792,7 +792,7 @@ def clip(x,lim,eps=None) :
         if np.isclose(x,lim[1]) : tmp-=eps
     return tmp
 
-def sample(gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,logglim=[0.,5.],mhlim=[-2.5,0.75],nmlim=[-1.,1.],cmlim=[-0.75,1.],emlim=[-0.5,1.],vmicrolim=[0.5,8.]) :
+def sample(name='test',gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,logglim=[0.,5.],mhlim=[-2.5,0.75],nmlim=[-1.,1.],cmlim=[-0.75,1.],emlim=[-0.5,1.],vmicrolim=[0.5,8.],amlim=[-0.5,1.]) :
     """ Generate a test sample of parameters and abundances from isochrones
     """
 
@@ -830,13 +830,14 @@ def sample(gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,logglim=[0.,5.]
         print(len(grid))
 
     # output file
-    f=open('test.grid','w')
-    finp=open('test.inp','w')
+    f=open(name+'.grid','w')
+    finp=open(name+'.inp','w')
     f.write("#   Teff   logg  [M/H] vmicro vmacro  [C/M]  [N/M]")
     vmic=[]
     vmac=[]
-    c=[]
-    n=[]
+    allam=[]
+    allcm=[]
+    allnm=[]
     els = ['O','Na','Mg','Al','Si','P','S','K','Ca','Ti','V','Cr','Mn','Co','Ni','Cu','Ge','Rb','Ce','Nd']
     for el in els: f.write('{:>7s}'.format(el))
     f.write('\n')
@@ -868,8 +869,10 @@ def sample(gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,logglim=[0.,5.]
             nm = (int(cm/0.25))*0.25
         cm=clip(cm,cmlim)
         nm=clip(nm,nmlim)
-        el=np.zeros([nel])
-        #el=np.random.normal(0.1,0.2,size=nel)
+        #el=np.zeros([nel])
+        el=np.random.normal(0.1,0.2,size=nel)
+        am = (int(el[0]/0.25))*0.25
+        am=clip(am,amlim)
 
         # clip to adjust slightly off grid edges
         teff=clip(teff,tefflim,eps=eps)
@@ -877,19 +880,22 @@ def sample(gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,logglim=[0.,5.]
         mh=clip(mh,mhlim,eps=eps)
         cm=clip(cm,cmlim,eps=eps)
         nm=clip(nm,nmlim,eps=eps)
+        am=clip(am,amlim,eps=eps)
+        inp = '{:s}{:d} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:8.2f}'.format(
+               name,i+1,np.log10(vmicro),cm,nm,am,mh,logg,teff)
+        finp.write(inp+'\n')
         out = '{:8.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f}'.format(teff,logg,mh,vmicro,vmacro,cm,nm)      
-        inp = 'test{:d} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:8.2f}'.format(i+1,np.log10(vmicro),cm,nm,el[0],mh,logg,teff)
         for e in el :
           # add element abundances
           e=clip(e,emlim,eps=eps)
           out = out + '{:7.2f}'.format(e)      # other elements
         print(out)
         f.write(out+'\n')
-        finp.write(inp+'\n')
         vmic.append(vmicro)
         vmac.append(vmacro)
-        c.append(cm)
-        n.append(nm)
+        allam.append(am)
+        allcm.append(cm)
+        allnm.append(nm)
 
     f.close()
     finp.close()
@@ -898,14 +904,15 @@ def sample(gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,logglim=[0.,5.]
     t=[x[0] for x in grid]
     g=[x[1] for x in grid]
     m=[x[2] for x in grid]
-    fig,ax=plots.multi(1,1)
-    plots.plotc(ax,t+np.random.normal(0.,10.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),m,xr=[8000,2500],yr=[6.,-1],zr=[-2,0.5],zt='[M/H]',colorbar=True)
-    fig,ax=plots.multi(2,2)
-    plots.plotc(ax[0,0],t+np.random.normal(0.,10.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),vmic,xr=[8000,2500],yr=[6.,-1],zr=[0,4],zt='vmicro',colorbar=True)
-    plots.plotc(ax[0,1],t+np.random.normal(0.,10.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),vmac,xr=[8000,2500],yr=[6.,-1],zr=[0,30],zt='vmacro',colorbar=True)
-    plots.plotc(ax[1,0],t+np.random.normal(0.,10.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),c,xr=[8000,2500],yr=[6.,-1],zr=[-1,1.0],zt='[C/M]',colorbar=True)
-    plots.plotc(ax[1,1],t+np.random.normal(0.,10.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),n,xr=[8000,2500],yr=[6.,-1],zr=[-1,1.0],zt='[N/M]',colorbar=True)
+    fig,ax=plots.multi(2,3)
+    plots.plotc(ax[0,0],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),m,xr=[8000,2500],yr=[6.,-1],zr=[-2,0.5],zt='[M/H]',colorbar=True)
+    plots.plotc(ax[0,1],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),allam,xr=[8000,2500],yr=[6.,-1],zr=[-0.3,1.],zt='[alpha/M]',colorbar=True)
+    plots.plotc(ax[1,0],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),vmic,xr=[8000,2500],yr=[6.,-1],zr=[0,4],zt='vmicro',colorbar=True)
+    plots.plotc(ax[1,1],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),vmac,xr=[8000,2500],yr=[6.,-1],zr=[0,30],zt='vmacro',colorbar=True)
+    plots.plotc(ax[2,0],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),allcm,xr=[8000,2500],yr=[6.,-1],zr=[-1.0,0.5],zt='[C/M]',colorbar=True)
+    plots.plotc(ax[2,1],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),allnm,xr=[8000,2500],yr=[6.,-1],zr=[-0.5,1.0],zt='[N/M]',colorbar=True)
     fig.tight_layout()
+    fig.savefig(name+'.png')
 
 def comp(file,true='test.inp',hard=False) :
 

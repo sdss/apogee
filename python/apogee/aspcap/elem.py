@@ -510,7 +510,7 @@ def getabun(data,elems,elemtoh,el,xh=False,terange=[-1,10000],calib=False) :
                     (data['FPARAM'][:,0] >= terange[0]) & (data['FPARAM'][:,0] <= terange[1]) & (abun > -9990.) )[0]
     return abun, ok
 
-def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, maxvisit=100,cal='default',dwarfs=False,inter=False,errpar=False,calib=False,nx=4,ny=2) :
+def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, maxvisit=100,cal='default',dwarfs=False,inter=False,errpar=False,calib=False,nx=4,ny=2,vscatter=[0,0.2],pm=True,dist=True) :
     ''' 
     Determine internal calibration relations for elements
    
@@ -544,8 +544,8 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
         logg=[-1,3.8]
         reject=0.15
         glon=[70,110]
-    gd=apselect.select(allstar,badval='STAR_BAD',raw=True,logg=logg)
-    solar=apselect.select(allstar,badval='STAR_BAD',raw=True,logg=logg,glon=glon,glat=[-5,5],sn=[200,10000])
+    gd=apselect.select(allstar,badval='STAR_BAD',raw=True,logg=logg,vscatter=vscatter)
+    solar=apselect.select(allstar,badval='STAR_BAD',raw=True,logg=logg,glon=glon,glat=[-5,5],sn=[200,10000],vscatter=vscatter)
     print('ngd: ',len(gd))
     print('nsolar: ',len(solar))
     try :
@@ -566,10 +566,11 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
     print('selecting cluster members')
     all=[]
     for cluster in clusts :
-        j=apselect.clustmember(allstar[gd],cluster,raw=True,firstgen=True,firstpos=False,logg=logg)
+        j=apselect.clustmember(allstar[gd],cluster,raw=True,firstgen=True,firstpos=False,logg=logg,
+                               pm=pm,dist=dist)
         print(cluster,len(j))
         if len(j) < 1 :
-            j=apselect.clustmember(allstar[gd],cluster,raw=True,logg=logg)
+            j=apselect.clustmember(allstar[gd],cluster,raw=True,logg=logg,pm=pm,dist=dist)
         all=set(all).union(gd[j].tolist())
     data=allstar[list(all)]
 
@@ -585,9 +586,9 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
         ax.scatter((iclust//8)*0.1+0.25,8-iclust%8,marker=markers[iclust],color=colors[iclust])
         ax.text((iclust//8)*0.1+0.26,8-iclust%8,clusts[iclust]+' ( '+str(clusters[iclust].mh)+')',color=colors[iclust],va='center')
         ax.set_xlim(0.23,0.55)
-        j=apselect.clustmember(data,clusts[iclust],raw=True,firstgen=True,firstpos=False,logg=logg)
+        j=apselect.clustmember(data,clusts[iclust],raw=True,firstgen=True,firstpos=False,logg=logg,pm=pm,dist=dist)
         if len(j) < 1 :
-            j=apselect.clustmember(data,clusts[iclust],raw=True,logg=logg)
+            j=apselect.clustmember(data,clusts[iclust],raw=True,logg=logg, pm=pm, dist=dist)
         # members is a list of lists of cluster members
         members.append(j)
     if hard is not None : fig.savefig(hard+'clust_key.jpg')
@@ -974,9 +975,12 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
         rec[iel]['femin'] = pars['mhmin']
         rec[iel]['femax'] = 99.999
         iel+=1
+    if plot and iplot%2 == 1 : 
+        allax[iplot//2,iplot%2].set_visible(False)
+        ticklabels = allax[iplot//2-1,iplot%2].get_xticklabels()
+        plt.setp(ticklabels, visible=True)
+ 
     if plot and hard is not None and len(doels) > 2: 
-        if iplot%2 == 1 :
-            allax[iplot//2,iplot%2].set_visible(False)
         allfig.savefig(hard+'all.jpg')
         if len(solar) > 0 : allsolarfig.savefig(hard+'allsolar.jpg')
     if errpar and hard is not None :

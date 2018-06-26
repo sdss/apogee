@@ -384,6 +384,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
     refhead=fits.open(indir+'ap00cp00np00vp20.fits')[1].header
     wave=10.**vector(refhead,1)
     ref=fits.open(indir+'ap00cp00np00vp20.fits')[1].data[refz,5,0,:]
+    print(ref.shape,refz)
     wchip=[(refhead['NAXIS1'],refhead['CRVAL1'],refhead['CDELT1'])]
     cont=[(refhead['ORDER'],refhead['NITER'],refhead['LOWREJ'],refhead['HIGHREJ'])]
     for ichip in range(2,4) :
@@ -392,6 +393,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
         cont.append((refhead['ORDER'],refhead['NITER'],refhead['LOWREJ'],refhead['HIGHREJ']))
         wave=np.append(wave,10.**vector(refhead,1))
         ref=np.append(ref,fits.open(indir+'ap00cp00np00vp20.fits')[ichip].data[refz,5,0,:])
+        print(ref.shape)
     nwave=ref.shape[0]
 
     # loop over requested combinations of npieces and npca
@@ -401,7 +403,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
     showtime('start config:')
     # determine number of pixels per piece
     nspec=int(np.ceil(nwave/npiece))
-    print(npiece,npca,nspec)
+    print(npiece,npca,nspec,nwave)
 
     # initialize PCA object, output figure and file
     if incremental :
@@ -460,12 +462,15 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
           fit=pca.inverse_transform(model)
           rat=pcadata/fit
           showtime('start plot:')
+          print(rat.shape)
           #for j in range(0,nmod,1000) :
           #    plots.plotl(ax[0],wave[w1:w2],rat[j,:],xr=[wave[0],wave[-1]],yr=[0.7,1.3])
           ax[0].text(wave[w1]+0.1*(wave[w2-1]-wave[w1]),1.3,'{:.2f}'.format(rat.min()),va='top',ha='left')
           ax[0].text(wave[w2-1]+0.1*(wave[w2-1]-wave[w1]),1.3,'{:.2f}'.format(rat.max()),va='top',ha='right')
           plots.plotl(ax[1],wave[w1:w2],ref[w1:w2],xr=[wave[0],wave[-1]],color=colors[ipiece%6],yr=[0.7,1.3])
-          hist,bins=np.histogram(rat.flatten(),bins=np.arange(0.5,1.51,0.01),density=True)
+          for imod in range(rat.shape[0]) :
+             mhist,bins=np.histogram(rat[imod,:].flatten(),bins=np.arange(0.5,1.51,0.01),density=True)
+             hist = mhist if imod == 0 else hist+mhist
           plots.plotl(ax[2],np.arange(0.5+0.005,1.5,0.01),hist,color=colors[ipiece%6],semilogy=True)
           #plt.draw()
           #plt.show()

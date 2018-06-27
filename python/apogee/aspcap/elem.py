@@ -591,7 +591,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
             j=apselect.clustmember(data,clusts[iclust],raw=True,logg=logg, pm=pm, dist=dist)
         # members is a list of lists of cluster members
         members.append(j)
-    if hard is not None : fig.savefig(hard+'clust_key.jpg')
+    if hard is not None : fig.savefig(hard+'clust_key.pdf')
 
     # setup output structured array
     rec = np.zeros(len(doels),dtype=[

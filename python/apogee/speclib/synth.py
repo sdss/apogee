@@ -138,7 +138,7 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         try: os.mkdir(workdir)
         except: pass
     else :
-        workdir=tempfile.mkdtemp(dir=os.environ['APOGEE_LOCALDIR'],suffix=os.environ['HOST'])
+        workdir=tempfile.mkdtemp(dir=os.environ['APOGEE_LOCALDIR'],suffix=os.environ['HOSTNAME'])
 
     root=workdir+'/'+(prefix+'t{:04d}g{:s}m{:s}a{:s}c{:s}n{:s}v{:s}'+elemgrid).format(teff, atmos.cval(logg), 
                       atmos.cval(mh), atmos.cval(am), atmos.cval(cm), atmos.cval(nm),atmos.cval(vmicro))

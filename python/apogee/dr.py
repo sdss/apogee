@@ -136,9 +136,20 @@ def kurucz_marcs() :
     dr13_marcs=dr13_marcs[gd]
 
     fig,ax=plots.multi(2,1,wspace=0.001)
-    plots.plotc(ax[0],dr13['FPARAM'][:,0],dr13['FPARAM'][:,1],dr13['FPARAM'] [:,3],
+    axim = plots.plotc(ax[0],dr13['FPARAM'][:,0],dr13['FPARAM'][:,1],dr13['FPARAM'] [:,3],
                 xr=[4200,3000],yr=[5,-1],zr=[-2,0.5],xt=r'T$_{\rm eff}$',yt='log g',rasterized=True)
     plots.plotc(ax[1],dr13_marcs['FPARAM'][:,0],dr13_marcs['FPARAM'][:,1],dr13_marcs['FPARAM'] [:,3],
-                xr=[4200,3000],yr=[5,-1],zr=[-2,0.5],xt='Teff',rasterized=True)
+                xr=[4200,3000],yr=[5,-1],zr=[-2,0.5],xt=r'T$_{\rm eff}$',rasterized=True)
+    for iax in range(2) :
+        for item in (ax[iax].get_xticklabels() + ax[iax].get_yticklabels()) : item.set_fontsize(10)
+        ax[iax].xaxis.label.set_size(10)
+        ax[iax].yaxis.label.set_size(10)
+
+    cbaxes = fig.add_axes([0.91, 0.1, 0.01, 0.8])
+    cb = plt.colorbar(axim, cax = cbaxes)
+    cb.set_label('[M/H]')
+    cbaxes.tick_params(axis='both',labelsize=10)
+    cbaxes.yaxis.label.set_size(10)
+
     fig.savefig('kurucz_marcs.pdf')
 

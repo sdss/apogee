@@ -550,13 +550,13 @@ def mkgrid(planfile,clobber=False,resmooth=False,renorm=False,save=False,run=Tru
     vacuum = int(p['vacuum']) if p.get('vacuum') else 0
     kurucz = True if p['atmos'] == 'kurucz' else False
     marcsdir = p['marcsdir'] if p.get('marcsdir') else None
-    solarisotopes = p['solarisotopes'] if p.get('solarisotopes') else 0
+    solarisotopes = int(p['solarisotopes']) if p.get('solarisotopes') else 0
     solarisotopes = True if abs(solarisotopes) == 1 else False
     elem = p['elem'] if p.get('elem') else ''
     maskdir = p['maskdir'] if p.get('maskdir') else None
-    vmicrofit = p['vmicrofit'] if p.get('vmicrofit') else 0
+    vmicrofit = int(p['vmicrofit']) if p.get('vmicrofit') else 0
     vmicro = p['vmicro'] if p.get('vmicro') else 0
-    vmacrofit = p['vmacrofit'] if p.get('vmacrofit') else 0
+    vmacrofit = int(p['vmacrofit']) if p.get('vmacrofit') else 0
     vmacro = p['vmacro'] if p.get('vmacro') else 0
     specdir = os.environ['APOGEE_SPECLIB']+'/synth/'+p['specdir'] if p.get('specdir') else './'
     linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/' 
@@ -600,6 +600,7 @@ def mkgrid(planfile,clobber=False,resmooth=False,renorm=False,save=False,run=Tru
                     solarisotopes=solarisotopes,
                     nskip=nskip,kurucz=kurucz,run=run,save=save,split=split) 
                   nskip = nskip+dskip if isinstance(spec,float) else -1
+                print('nskip: ',nskip)
                 if elem == '' :
                     specdata[0,imh,ilogg,iteff,:]=spec
                 else :

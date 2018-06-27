@@ -127,7 +127,7 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         if logg < 3 : geo = 's'
     atmosdir=atmosroot+'/'+atmosdir+'/'
 
-    if solarisotopes: prefix=atmoscode+'d' 
+    if abs(solarisotopes)==1: prefix=atmoscode+'d' 
     else : prefix=atmoscode+'g'
 
     # output directory and filename
@@ -138,7 +138,7 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         try: os.mkdir(workdir)
         except: pass
     else :
-        workdir=tempfile.mkdtemp(dir=os.environ['APOGEE_LOCALDIR'])
+        workdir=tempfile.mkdtemp(dir=os.environ['APOGEE_LOCALDIR'],suffix=os.environ['HOST'])
 
     root=workdir+'/'+(prefix+'t{:04d}g{:s}m{:s}a{:s}c{:s}n{:s}v{:s}'+elemgrid).format(teff, atmos.cval(logg), 
                       atmos.cval(mh), atmos.cval(am), atmos.cval(cm), atmos.cval(nm),atmos.cval(vmicro))
@@ -444,6 +444,10 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
                 for iteff,teff in enumerate(prange(p['teff0'],p['dteff'],p['nteff'])) :
                   s=np.append(s1[imh,ilogg,iteff,:],s2[imh,ilogg,iteff,:])
                   s=np.append(s,s3[imh,ilogg,iteff,:])
+                  if s[w1:w2].sum() == 0. : 
+                     print('!!ZERO MODEL',am,cm,nm,vm,mh,logg,teff)
+                     s[w1:w2] = 1.
+                     #pdb.set_trace()
                   pcadata[nmod,:] = s[w1:w2]
                   nmod+=1
       del s1, s2, s3, s
@@ -469,9 +473,9 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
           ax[0].text(wave[w2-1]+0.1*(wave[w2-1]-wave[w1]),1.3,'{:.2f}'.format(rat.max()),va='top',ha='right')
           plots.plotl(ax[1],wave[w1:w2],ref[w1:w2],xr=[wave[0],wave[-1]],color=colors[ipiece%6],yr=[0.7,1.3])
           for imod in range(rat.shape[0]) :
-             mhist,bins=np.histogram(rat[imod,:].flatten(),bins=np.arange(0.5,1.51,0.01),density=True)
+             mhist,bins=np.histogram(rat[imod,:].flatten(),bins=np.arange(0.5,1.51,0.01))
              hist = mhist if imod == 0 else hist+mhist
-          plots.plotl(ax[2],np.arange(0.5+0.005,1.5,0.01),hist,color=colors[ipiece%6],semilogy=True)
+          plots.plotl(ax[2],np.arange(0.5+0.005,1.5,0.01),hist/hist.sum(),color=colors[ipiece%6],semilogy=True)
           #plt.draw()
           #plt.show()
 
@@ -546,6 +550,7 @@ def mkgrid(planfile,clobber=False,resmooth=False,renorm=False,save=False,run=Tru
     kurucz = True if p['atmos'] == 'kurucz' else False
     marcsdir = p['marcsdir'] if p.get('marcsdir') else None
     solarisotopes = p['solarisotopes'] if p.get('solarisotopes') else 0
+    solarisotopes = True if abs(solarisotopes) == 1 else False
     elem = p['elem'] if p.get('elem') else ''
     maskdir = p['maskdir'] if p.get('maskdir') else None
     vmicrofit = p['vmicrofit'] if p.get('vmicrofit') else 0
@@ -624,6 +629,7 @@ def mkgrid(planfile,clobber=False,resmooth=False,renorm=False,save=False,run=Tru
           if p['synthcode'] == 'asset'  : hdu.header.add_comment('ASSET generated synthetic spectra')
           if p['synthcode'] == 'turbospec' : hdu.header.add_comment('Turbospec generated synthetic spectra')
           if p['synthcode'] == 'moog ' : hdu.header.add_comment('MOOG generated synthetic spectra')
+          hdu.header.add_comment('APOGEE_VER:'+os.environ['APOGEE_VER'])
           try : os.mkdir(specdir)
           except: pass
           hdu.writeto(specdir+'/'+p['name']+'.fits',overwrite=True)

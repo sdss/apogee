@@ -45,25 +45,26 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,dwarf=False,trange=[3750,5500],mhrange=[
     if dwarf :
         gd=apselect.select(allstar,badval=['STAR_BAD'],badtarg=['EMBEDDED','EXTENDED'],teff=trange,mh=mhrange,logg=[3.8,5.0],raw=True)
     else :
-        if dr13:
-          gd=apselect.select(allstar,badval=['STAR_BAD'],teff=trange,mh=mhrange,logg=[0,3.8],raw=True)
-        else :
-          gd=apselect.select(allstar,badval=['STAR_BAD'],badtarg=['EMBEDDED','EXTENDED'],teff=trange,mh=mhrange,logg=[0,3.8],raw=True)
+        #if dr13:
+        #  gd=apselect.select(allstar,badval=['STAR_BAD'],teff=trange,mh=mhrange,logg=[0,3.8],raw=True)
+        #else :
+        gd=apselect.select(allstar,badval=['STAR_BAD'],badtarg=['EMBEDDED','EXTENDED'],teff=trange,mh=mhrange,logg=[0,3.8],raw=True)
     allstar=allstar[gd]
-    if dr13 :
-      j=np.where((abs(allstar['GLAT'])>glatmin)&(allstar['SFD_EBV']<ebvmax))[0]
-    else :
-      j=np.where((abs(allstar['GLAT'])>glatmin)&(allstar['SFD_EBV']>-0.01)&(allstar['SFD_EBV']<ebvmax)&(abs(allstar['J'])<90)&(abs(allstar['K'])<90))[0]
+    #if dr13 :
+    #  j=np.where((abs(allstar['GLAT'])>glatmin)&(allstar['SFD_EBV']<ebvmax))[0]
+    #else :
+    j=np.where((abs(allstar['GLAT'])>glatmin)&(allstar['SFD_EBV']>-0.01)&(allstar['SFD_EBV']<ebvmax)&(abs(allstar['J'])<90)&(abs(allstar['K'])<90))[0]
+
     if calib : 
         param='PARAM'
     else :
         param='FPARAM'
 
     # remove second gen GC stars
-    if not dr13 :
-      gcstars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/gc_szabolcs.dat')
-      bd=np.where(gcstars['pop'] != 1)[0]
-      j = [x for x in j if allstar[x]['APOGEE_ID'] not in gcstars['id'][bd]]
+    #if not dr13 :
+    gcstars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/gc_szabolcs.dat')
+    bd=np.where(gcstars['pop'] != 1)[0]
+    j = [x for x in j if allstar[x]['APOGEE_ID'] not in gcstars['id'][bd]]
 
     allstar=allstar[j]
 
@@ -76,11 +77,11 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,dwarf=False,trange=[3750,5500],mhrange=[
     bins=np.arange(-2.5,0.75,binsize)
     # diff color-coded by gravity as f([M/H])
     ghb,dtdjk=cte_ghb(allstar['J']-allstar['K'],allstar[param][:,3],dwarf=dwarf)
-    if not dr13 :
-      gd=np.where(abs(allstar[param][:,0]-ghb) < 500)[0]
-      ghb=ghb[gd]
-      dtdjk=dtdjk[gd]
-      allstar=allstar[gd]
+    #if not dr13 :
+    gd=np.where(abs(allstar[param][:,0]-ghb) < 500)[0]
+    ghb=ghb[gd]
+    dtdjk=dtdjk[gd]
+    allstar=allstar[gd]
     print('number of stars: ', len(allstar))
 
     if alpha :
@@ -88,9 +89,9 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,dwarf=False,trange=[3750,5500],mhrange=[
     else :
         plots.plotc(ax,allstar[param][:,3],allstar[param][:,0]-ghb,allstar[param][:,0],zr=zr,xr=xr,yr=yr,xt='[M/H]',yt='ASPCAP-photometric Teff',colorbar=True,zt='$T_{eff}$',rasterized=True)
     mean=bindata(allstar[param][:,3],allstar[param][:,0]-ghb,bins,median=False)
-    plots.plotp(ax,bins+binsize/2.,mean,marker='o',size=40)
+    if not dr13: plots.plotp(ax,bins+binsize/2.,mean,marker='o',size=40)
     mean=bindata(allstar[param][:,3],allstar[param][:,0]-ghb,bins,median=True)
-    plots.plotp(ax,bins+binsize/2.,mean,marker='o',size=40,color='b')
+    if not dr13: plots.plotp(ax,bins+binsize/2.,mean,marker='o',size=40,color='b')
     ax.text(0.1,0.9,'E(B-V)<{:6.2f}'.format(ebvmax),transform=ax.transAxes)
     tefit = fit.fit1d(bins+binsize/2.,mean,degree=2,reject=0)
     # 1D quadratic fit as a function of metallicity
@@ -99,14 +100,14 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,dwarf=False,trange=[3750,5500],mhrange=[
     #errpar = err.errfit(allstar[param][:,0],allstar['SNR'],allstar[param][:,3],allstar[param][:,0]-tefit(allstar[param][:,3])-ghb,title='Teff',out=out+'_phot',zr=[0,250],meanerr=abs(dtdjk)*ejk)
     errpar = err.errfit(allstar[param][:,0],allstar['SNR'],allstar[param][:,3],allstar[param][:,0]-tefit(allstar[param][:,3])-ghb,title='Teff',out=out,zr=[0,150])
 
-    rms = (allstar[param][:,0]-tefit(allstar[param][:,3])-ghb).std()
-    ax.text(0.98,0.9,'rms: {:6.1f}'.format(rms),transform=ax.transAxes,ha='right')
     x=np.linspace(-3,1,200)
-    plots.plotl(ax,x,tefit(x),color='k')
+    rms = (allstar[param][:,0]-tefit(allstar[param][:,3])-ghb).std()
     if dr13: 
-      plots.plotl(ax,x,-36.17+95.97*x-15.09*x**2,color='g')
-      plots.plotl(ax,x,allfit(x),color='b')
+      plots.plotl(ax,x,-36.17+95.97*x-15.09*x**2,color='k')
       print(allfit)
+    else :
+      plots.plotl(ax,x,tefit(x),color='k')
+      ax.text(0.98,0.9,'rms: {:6.1f}'.format(rms),transform=ax.transAxes,ha='right')
     plots._data_x = allstar[param][:,3]
     plots._data_y = allstar[param][:,0]-ghb
     plots._data = allstar

@@ -41,10 +41,14 @@ from tools import match
 colors=['r','g','b','c','m','y']
 
 def showtime(string) :
+    """ Utiltiy routine to print a string and clock time
+    """
     print(string+' {:8.2f}'.format(time.time()))
     sys.stdout.flush()
 
 def vector(header,axis) :
+    """ Routine to return vector of axis values from a FITS header CRVAL, CDELT, NAXIS for specified axis
+    """
     caxis='{:1d}'.format(axis)
     return header['CRVAL'+caxis]+header['CDELT'+caxis]*np.arange(header['NAXIS'+caxis])
 
@@ -106,7 +110,6 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
     els=None,atmod=None,kurucz=True,atmosroot=None,atmosdir=None,nskip=0,endskip=0,
     linelist='20150714',h2o=None,linelistdir=None,
     save=False,run=True,split=200,fluxcol=2) :
-
     """ Runs Turbospectrum for specified input parameters
     """
 
@@ -124,7 +127,7 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         atmoscode = 'm'
         model = 'MARCS'
         if atmosdir is None : atmosdir = '/marcs/MARCS_v3_2016/'
-        if logg < 3 : geo = 's'
+        if logg <= 3.001 : geo = 's'
     atmosdir=atmosroot+'/'+atmosdir+'/'
 
     if abs(solarisotopes)==1: prefix=atmoscode+'d' 
@@ -347,9 +350,13 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         return spec
 
 def prange(start,delta,n) :
+    """ Routine to return vector of values given start, delta, n
+    """
     return float(start)+np.arange(int(n))*float(delta)
 
 def get_vmicro(vmicrofit,vmicro) :
+    """ Placeholder routine to return vmicro given a fit type
+    """ 
     if vmicrofit == 0 :
         return float(vmicro)
     else :
@@ -359,7 +366,7 @@ def get_vmicro(vmicrofit,vmicro) :
 
 
 def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whiten=False,plot=False,writeraw=False,test=False, incremental=False, refz=10, chips=True) :
-    """ Read in grid of spectra
+    """ Read in grid of spectra and do PCA compression
     """
 
     showtime('start:')
@@ -535,7 +542,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
             os.remove(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.raw'.format(npiece,npca,ipiece))
 
 def mkgrid(planfile,clobber=False,resmooth=False,renorm=False,save=False,run=True,split=None,highres=9) :
-    """ Create a grid of synthetic spectra using Turbospectrum
+    """ Create a grid of synthetic spectra using Turbospectrum given input parameter file
     """
 
     # Read planfile
@@ -600,46 +607,47 @@ def mkgrid(planfile,clobber=False,resmooth=False,renorm=False,save=False,run=Tru
                     solarisotopes=solarisotopes,
                     nskip=nskip,kurucz=kurucz,run=run,save=save,split=split) 
                   nskip = nskip+dskip if isinstance(spec,float) else -1
-                print('nskip: ',nskip)
+                if nskip > 0 : print('FAILED Turbospec',nskip)
                 if elem == '' :
                     specdata[0,imh,ilogg,iteff,:]=spec
                 else :
                     specdata[:,imh,ilogg,iteff,:]=spec[:,gd]
 
-          # FITS header and output
-          hdu=fits.PrimaryHDU(np.squeeze(specdata))
-          idim=1
-          if elem == '' :
-              add_dim(hdu.header,rawwave[0],rawwave[1]-rawwave[0],1,'WAVELENGTH',idim)
-          else :
-              hdu.header.append('CDELT1',rawwave[1]-rawwave[0])
-              for iwind in range(nwind) :
-                  hdu.header.append(('WIND0_{:d}'.format(iwind),wvac[iwind,0]))
-                  hdu.header.append(('WIND1_{:d}'.format(iwind),wvac[iwind,1]))
-          if int(p['nteff']) > 1 :
-              idim+=1
-              add_dim(hdu.header,float(p['teff0']),float(p['dteff']),1,'TEFF',idim)
-          if int(p['nlogg']) > 1 :
-              idim+=1
-              add_dim(hdu.header,float(p['logg0']),float(p['dlogg']),1,'LOGG',idim)
-          if int(p['nmh']) > 1 :
-              idim+=1
-              add_dim(hdu.header,float(p['mh0']),float(p['dmh']),1,'M_H',idim)
-          hdu.header['LOGW'] = 0
-          if p.get('width') : hdu.header['width'] = p['width']
-          if p.get('linelist') : hdu.header['linelist'] = p['linelist']
-          if p['synthcode'] == 'asset'  : hdu.header.add_comment('ASSET generated synthetic spectra')
-          if p['synthcode'] == 'turbospec' : hdu.header.add_comment('Turbospec generated synthetic spectra')
-          if p['synthcode'] == 'moog ' : hdu.header.add_comment('MOOG generated synthetic spectra')
-          hdu.header.add_comment('APOGEE_VER:'+os.environ['APOGEE_VER'])
-          try : os.mkdir(specdir)
-          except: pass
-          hdu.writeto(specdir+'/'+p['name']+'.fits',overwrite=True)
+            # FITS header and output after each metallicity subgrid
+            hdu=fits.PrimaryHDU(np.squeeze(specdata))
+            idim=1
+            if elem == '' :
+                add_dim(hdu.header,rawwave[0],rawwave[1]-rawwave[0],1,'WAVELENGTH',idim)
+            else :
+                hdu.header.append('CDELT1',rawwave[1]-rawwave[0])
+                for iwind in range(nwind) :
+                    hdu.header.append(('WIND0_{:d}'.format(iwind),wvac[iwind,0]))
+                    hdu.header.append(('WIND1_{:d}'.format(iwind),wvac[iwind,1]))
+            if int(p['nteff']) > 1 :
+                idim+=1
+                add_dim(hdu.header,float(p['teff0']),float(p['dteff']),1,'TEFF',idim)
+            if int(p['nlogg']) > 1 :
+                idim+=1
+                add_dim(hdu.header,float(p['logg0']),float(p['dlogg']),1,'LOGG',idim)
+            if int(p['nmh']) > 1 :
+                idim+=1
+                add_dim(hdu.header,float(p['mh0']),float(p['dmh']),1,'M_H',idim)
+            hdu.header['LOGW'] = 0
+            if p.get('width') : hdu.header['width'] = p['width']
+            if p.get('linelist') : hdu.header['linelist'] = p['linelist']
+            if p['synthcode'] == 'asset'  : hdu.header.add_comment('ASSET generated synthetic spectra')
+            if p['synthcode'] == 'turbospec' : hdu.header.add_comment('Turbospec generated synthetic spectra')
+            if p['synthcode'] == 'moog ' : hdu.header.add_comment('MOOG generated synthetic spectra')
+            hdu.header.add_comment('APOGEE_VER:'+os.environ['APOGEE_VER'])
+            # following card for partial completion output
+            if imh+1 < int(p['nmh']) : hdu.header['nmh'] = imh+1
+            try : os.mkdir(specdir)
+            except: pass
+            hdu.writeto(specdir+'/'+p['name']+'.fits',overwrite=True)
 
 def add_dim(header,crval,cdelt,crpix,ctype,idim) :
     """ Add a set of CRVAL/CDELT,CRPIX,CTYPE cards to header
     """
-
     header.append(('CRVAL{:d}'.format(idim),crval))
     header.append(('CDELT{:d}'.format(idim),cdelt))
     header.append(('CRPIX{:d}'.format(idim),crpix))
@@ -647,8 +655,8 @@ def add_dim(header,crval,cdelt,crpix,ctype,idim) :
 
 
 def mkgriddirs(configfile) :
-
     """ Script to create output directories and plan and batch queue files for all grids listed in master grid configuration file
+        Calls IDL routine to make the individual subplan files
     """
 
     # Read grid configuration file
@@ -725,7 +733,7 @@ def mkspec(pars) :
     
 
 def mksynth(file,wrange=[15100,17000],threads=8) :
-    """ Make a series of spectra from parameters in an input file
+    """ Make a series of spectra from parameters in an input file, with parallel processing
     """
     pars=np.loadtxt(file)
     out=[]
@@ -748,7 +756,7 @@ def mksynth(file,wrange=[15100,17000],threads=8) :
     hdu.writeto('synth.fits',overwrite=True)
    
 def filter_lines(infile,outfile,wind,nskip=0) :
-    """ Read from infile, output comments and lines falling in windows of [w1,w2] to outfile
+    """ Read from input linelist file, output comments and lines falling in windows of [w1,w2] to outfile
     """
     fin=open(infile,'r')
     fout=open(outfile,'w')
@@ -798,7 +806,8 @@ def mini_linelist(elem,linelist,maskdir) :
     return wind
 
 def clip(x,lim,eps=None) :
-
+    """ Utility routine to clip values within limits, and move slightly off edges if requested
+    """
     tmp=np.max([lim[0],np.min([lim[1],x])])
     if eps is not None :
         if np.isclose(x,lim[0]) : tmp+=eps
@@ -928,7 +937,8 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,log
     fig.savefig(name+'.png')
 
 def comp(file,true='test.inp',hard=False) :
-
+    """ Compare input parameters with output results
+    """
     true=ascii.read(true,names=['id','vmicro','cm','nm','am','mh','logg','teff'])
     ##spec=np.loadtxt('test.dat')
 

@@ -46,7 +46,7 @@ def filename(teff,logg,z,c,a,model='Unknown',vers='x3') :
     """
     if model.upper() == 'MARCS' :
         # MARCS file names
-        if logg <= 3 :
+        if logg <= 3.001 :
             prefix = 's'
             mass = 1.
             t = 2

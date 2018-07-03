@@ -8,14 +8,14 @@ pro mklsf,lsfid,waveid,darkid=darkid,flatid=flatid,psfid=psfid,clobber=clobber,f
   file=apogee_filename('LSF',num=lsfid[0],/nochip)
   file=file_dirname(file)+'/'+file_basename(file,'.fits')
 
+  ;if another process is alreadying make this file, wait!
+  while file_test(file+'.lock') do apwait,file,10
+
   ; does product already exist?
   if file_test(file+'.sav') and not keyword_set(clobber) then begin
     print,' LSF file: ',file+'.sav',' already made'
     return
   endif
-
-  ;if another process is alreadying make this file, wait!
-  while file_test(file+'.lock') do apwait,file,10
 
   ; open .lock file
   openw,lock,/get_lun,file+'.lock'

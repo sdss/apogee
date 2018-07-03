@@ -85,4 +85,6 @@ foreach plan ( $plans )
 
 end
 
+if ( -e log/stop.$host) 'rm' log/stop.$host
+
 wait

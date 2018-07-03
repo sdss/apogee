@@ -523,7 +523,8 @@ for i=0,n_elements(ims)-1 do begin
 
  ; put all of the info and plots on the plate web page
  medsky=fltarr(3)
- for ichip=0,2 do medsky[ichip]=-2.5*alog10(median(obs[fibersky,ichip]))+skyzero
+ for ichip=0,2 do $
+    if median(obs[fibersky,ichip]) gt 0 then medsky[ichip]=-2.5*alog10(median(obs[fibersky,ichip]))+skyzero else medsky[ichip]=99.999
  ;if not keyword_set(starfiber) then begin
    printf,html,'<TR><TD><A HREF=../html/'+file+'.html>',ims[i],'</A>'
    printf,html,'<TD>'+string(nreads)

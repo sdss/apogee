@@ -753,7 +753,7 @@ def mksynth(file,wrange=[15100,17000],threads=8) :
     hdu=fits.HDUList()
     hdu.append(fits.ImageHDU(out))
     hdu.append(fits.ImageHDU(outpar))
-    hdu.writeto('synth.fits',overwrite=True)
+    hdu.writeto(file+'.fits',overwrite=True)
    
 def filter_lines(infile,outfile,wind,nskip=0) :
     """ Read from input linelist file, output comments and lines falling in windows of [w1,w2] to outfile
@@ -852,7 +852,7 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,log
         print(len(grid))
 
     # output file
-    f=open(name+'.grid','w')
+    f=open(name,'w')
     finp=open(name+'.inp','w')
     f.write("#   Teff   logg  [M/H] vmicro vmacro  [C/M]  [N/M]")
     vmic=[]

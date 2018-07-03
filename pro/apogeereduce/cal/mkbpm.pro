@@ -6,8 +6,10 @@ pro mkbpm,bpmid,darkid=darkid,flatid=flatid,badrow=badrow,clobber=clobber
  caldir=dirs.caldir
 
  file=apogee_filename('BPM',num=bpmid,chip='c')
+
  ;if another process is alreadying make this file, wait!
  while file_test(file+'.lock') do apwait,file,10
+
  ; does product already exist?
  if file_test(file) and not keyword_set(clobber) then begin
    print,' BPM file: ', file, ' already made'

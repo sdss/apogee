@@ -35,7 +35,7 @@ from astropy.io import fits
 def cval(x) :
     """ routine to convert value to "Kurucz-style" string
     """
-    if x < 0 :
+    if x < -0.000001 :
       prefix = 'm'
     else :
       prefix = 'p'

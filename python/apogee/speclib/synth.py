@@ -26,6 +26,7 @@ import struct
 from apogee.aspcap import ferre
 from apogee.speclib import atmos
 from apogee.speclib import isochrones
+from apogee.speclib import lsf
 from apogee.utils import atomic
 from apogee.utils import spectra
 #from sdss.utilities import yanny
@@ -162,9 +163,10 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         if nskip > 2 : return 0.
         kurucz2turbo(atmod,workdir+'/'+os.path.basename(atmod),trim=trim )
     else :
-        try :
+        try :        
             marcs2turbo(atmod,workdir+'/'+os.path.basename(atmod),trim=nskip )
         except:
+            print('PROBLEM: ',atmod)
             return 0.
 
     # Turbospectrum setup
@@ -180,6 +182,9 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         eabun=np.array([0.])
     if els is not None :
         nels += len(els)
+        if 'C' in np.array(els)[:,0] : nels-=1
+        if 'N' in np.array(els)[:,0] : nels-=1
+        if 'O' in np.array(els)[:,0] : nels-=1
 
     # welem only computes in windows, but it is easier/faster to compute the whole range with a linelist that only 
     #   has lines in windows!
@@ -217,9 +222,12 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
             fout.write("'R-PROCESS:'  '{:8.3f}'\n".format(0.00))
             fout.write("'S-PROCESS:'  '{:8.3f}'\n".format(0.00))
             fout.write("'INDIVIDUAL ABUNDANCES:'  '{:2d}'\n".format(nels))
-            fout.write("    6  {:8.3f}\n".format(8.39+mh+cm))
-            fout.write("    7  {:8.3f}\n".format(7.78+mh+nm))
-            fout.write("    8  {:8.3f}\n".format(8.66+mh+am))
+            if els is None or not 'C' in np.array(els)[:,0] :
+                fout.write("    6  {:8.3f}\n".format(8.39+mh+cm))
+            if els is None or not 'N' in np.array(els)[:,0] :
+                fout.write("    7  {:8.3f}\n".format(7.78+mh+nm))
+            if els is None or not 'O' in np.array(els)[:,0] :
+                fout.write("    8  {:8.3f}\n".format(8.66+mh+am))
             if els is not None :
                 for el in els :
                   num=atomic.periodic(el[0])[0]
@@ -260,9 +268,12 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         fout.write("'R-PROCESS:'  '{:8.3f}'\n".format(0.00))
         fout.write("'S-PROCESS:'  '{:8.3f}'\n".format(0.00))
         fout.write("'INDIVIDUAL ABUNDANCES:'  '{:2d}'\n".format(nels))
-        fout.write("    6  {:8.3f}\n".format(8.39+mh+cm))
-        fout.write("    7  {:8.3f}\n".format(7.78+mh+nm))
-        fout.write("    8  {:8.3f}\n".format(8.66+mh+am))
+        if els is None or not 'C' in np.array(els)[:,0] :
+            fout.write("    6  {:8.3f}\n".format(8.39+mh+cm))
+        if els is None or not 'N' in np.array(els)[:,0] :
+            fout.write("    7  {:8.3f}\n".format(7.78+mh+nm))
+        if els is None or not 'O' in np.array(els)[:,0] :
+            fout.write("    8  {:8.3f}\n".format(8.66+mh+am))
         if elemgrid != '' : fout.write("{:6d}  {:8.3f}\n".format(elemnum,abun+mh))
         if els is not None :
             for el in els :
@@ -718,41 +729,58 @@ def mkspec(pars) :
     teff=pars[0].astype('int')
     logg=pars[1]
     mh=pars[2]
-    vmicro=pars[3]
-    vrot=pars[4]
-    cm=round(pars[5]/0.25)*0.25
-    nm=round(pars[6]/0.5)*0.5
-    am=round(pars[7]/0.25)*0.25
+    am=round(pars[3]/0.25)*0.25
+    cm=round(pars[4]/0.25)*0.25
+    nm=round(pars[5]/0.5)*0.5
+    vmicro=pars[6]
+    vrot=pars[7]
     elems=[]
-    els = ['C','N','O','Na','Mg','Al','Si','P','S','K','Ca','Ti','V','Cr','Mn','Co','Ni','Cu','Ge','Rb','Ce','Nd']
+    els = ['O','Na','Mg','Al','Si','P','S','K','Ca','Ti','V','Cr','Mn','Co','Ni','Cu','Ge','Rb','Ce','Nd']
     for j,el in enumerate(els) :
-        elems.append([el,pars[5+j]])
+        elems.append([el,pars[8+j]])
     print(teff,logg,mh,vmicro,am,cm,nm)
     spec=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=False)
     return pars,spec
     
 
-def mksynth(file,wrange=[15100,17000],threads=8) :
-    """ Make a series of spectra from parameters in an input file, with parallel processing
+def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,fiber='combo') :
+    """ Make a series of spectra from parameters in an input file, with parallel processing for turbospec
     """
     pars=np.loadtxt(file)
-    out=[]
-    outpar=[]
 
     pool = mp.Pool(threads)
     specs = pool.map_async(mkspec, pars).get()
     pool.close()
     pool.join()
 
+    # convolved and bundle output spectra into output fits file
+    wa=lsf.apStarWavegrid()
+    x=np.arange(-15.,15.,1./highres)
+    l=lsf.eval(x,fiber=fiber,waveid=waveid,lsfid=lsfid)
+    ls=lsf.sparsify(l)
+
+    out=[]
+    conv=[]
+    outpar=[]
+    plt.clf()
     for spec in specs :
         if isinstance(spec[1],np.ndarray) :
+            mh=spec[0][2]
+            vmacro = 10.**(0.470794-0.254*mh)
+            vmacro = vmacro if vmacro<15 else 15.
+            print(mh,vmacro)
+            ws=np.linspace(15100.,17000., len(spec[1]))
+            z=lsf.convolve(ws,spec[1],lsf=ls,xlsf=x,vmacro=vmacro)
             out.append(spec[1])
+            conv.append(np.squeeze(z))
+            plt.plot(wa,np.squeeze(z))
             outpar.append(spec[0])
 
     # write the spectra out
     hdu=fits.HDUList()
-    hdu.append(fits.ImageHDU(out))
     hdu.append(fits.ImageHDU(outpar))
+    hdu.append(fits.ImageHDU(out))
+    hdu.append(fits.ImageHDU(conv))
     hdu.writeto(file+'.fits',overwrite=True)
    
 def filter_lines(infile,outfile,wind,nskip=0) :
@@ -808,13 +836,17 @@ def mini_linelist(elem,linelist,maskdir) :
 def clip(x,lim,eps=None) :
     """ Utility routine to clip values within limits, and move slightly off edges if requested
     """
+    # set negative zero to zero
+    if np.isclose(x,0.) : x=0.
+    # clip to limits
     tmp=np.max([lim[0],np.min([lim[1],x])])
+    # move off limit if requested
     if eps is not None :
         if np.isclose(x,lim[0]) : tmp+=eps
         if np.isclose(x,lim[1]) : tmp-=eps
     return tmp
 
-def sample(name='test',gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,logglim=[0.,5.],mhlim=[-2.5,0.75],nmlim=[-1.,1.],cmlim=[-0.75,1.],emlim=[-0.5,1.],vmicrolim=[0.5,8.],amlim=[-0.5,1.]) :
+def sample(name='test',gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,logglim=[0.,5.],mhlim=[-2.5,0.75],nmlim=[-0.5,2.],cmlim=[-1.5,1.],emlim=[-0.5,1.],vmicrolim=[0.5,8.],amlim=[-0.5,1.]) :
     """ Generate a test sample of parameters and abundances from isochrones
     """
 
@@ -834,15 +866,15 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,log
     # accumulate unique set of these
     files = glob.glob(os.environ['ISOCHRONE_DIR']+'/z*.dat')
     for file in files :
-        a = isochrones.read(file)
+        a = isochrones.read(file,agerange=[7,20])
         print(file)
         for i in range(len(a)) :
             if a['teff'][i] < 4000 : dt=dtlo
             else : dt = 250.
             for j in range(-1,2) :
-              teff = (int(a['teff'][i]/dt)+j)*int(dt)
-              logg = (int(a['logg'][i]/0.5)+j)*0.5
-              mh = (int(a['feh'][i]/0.25)+j)*0.25
+              teff = (int(round(a['teff'][i]/dt))+j)*int(dt)
+              logg = (int(round(a['logg'][i]/0.5))+j)*0.5
+              mh = (int(round(a['feh'][i]/0.25))+j)*0.25
               # clip to stay within requested grid limits
               teff=clip(teff,tefflim)
               logg=clip(logg,logglim)
@@ -854,13 +886,14 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,log
     # output file
     f=open(name,'w')
     finp=open(name+'.inp','w')
-    f.write("#   Teff   logg  [M/H] vmicro vmacro  [C/M]  [N/M]")
+    f.write("#   Teff   logg    [M/H] [alpha/M] [C/M]   [N/M]  vmicro  vmacro")
     vmic=[]
     vmac=[]
     allam=[]
     allcm=[]
     allnm=[]
-    els = ['O','Na','Mg','Al','Si','P','S','K','Ca','Ti','V','Cr','Mn','Co','Ni','Cu','Ge','Rb','Ce','Nd']
+    els = np.array(['O','Na','Mg','Al','Si','P','S','K','Ca','Ti','V','Cr','Mn','Co','Ni','Cu','Ge','Rb','Ce','Nd'])
+    els_alpha = np.where((els == 'O') | (els == 'Mg') | (els == 'Si') | (els == 'S') | (els == 'Ca') | (els == 'Ti'))[0]
     for el in els: f.write('{:>7s}'.format(el))
     f.write('\n')
     nel=len(els)
@@ -868,8 +901,7 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,log
         teff=x[0]
         logg=x[1]
         mh=x[2]
-#       vmicro=10.**(0.226-0.0228*logg+0.0297*logg**2-0.0113*logg**3)+np.radom.normal(0.,0.3)
-        vmicro=2.
+        vmicro=10.**(0.226-0.0228*logg+0.0297*logg**2-0.0113*logg**3)+np.random.normal(0.,0.2)
         vmicro=clip(vmicro,vmicrolim)
         if (logg < 3) & (teff<6000) :
             # for giants, use vmacro relation + small rotation
@@ -878,46 +910,50 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,log
             vmacro=np.max([0.5,vmacro])
             # carbon and nitrogen with significant range
             cm=np.random.normal(0.,0.5)
-            cm = (int(cm/0.25))*0.25
+            cm = (int(round(cm/0.25)))*0.25
             nm=np.random.normal(0.3,1.0)
-            nm = (int(nm/0.5))*0.5
+            nm = (int(round(nm/0.5)))*0.5
         else :
-            # for dwarfs, use significatn rotation
+            # for dwarfs, use significant rotation
             vmacro=abs(np.random.normal(0.,30))
             # carbon and nitrogen with small range
             cm=np.random.normal(0.,0.3)
-            cm = (int(cm/0.25))*0.25
+            cm = (int(round(cm/0.25)))*0.25
             nm=np.random.normal(0.,0.3)
-            nm = (int(cm/0.25))*0.25
+            nm = (int(round(cm/0.25)))*0.25
         cm=clip(cm,cmlim)
         nm=clip(nm,nmlim)
-        #el=np.zeros([nel])
-        el=np.random.normal(0.1,0.2,size=nel)
-        am = (int(el[0]/0.25))*0.25
+        am=np.random.uniform(-0.25,0.5)
+        am = (round(am/0.25))*0.25
         am=clip(am,amlim)
+        vmic.append(vmicro)
+        vmac.append(vmacro)
+        allam.append(am)
+        allcm.append(cm)
+        allnm.append(nm)
 
-        # clip to adjust slightly off grid edges
+        out = '{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}'.format(teff,logg,mh,am,cm,nm,vmicro,vmacro)      
+        # individual elemental abundances
+        el=np.random.normal(0.,0.2,size=nel)
+        for i,e in enumerate(el): el[i]=clip(e,emlim)
+        el[els_alpha] += am
+        for e in el :
+          # add element abundances
+          out = out + '{:7.2f}'.format(e)      # other elements
+        print(out)
+        f.write(out+'\n')
+
+        # clip to adjust slightly off grid edges for FERRE input file
         teff=clip(teff,tefflim,eps=eps)
         logg=clip(logg,logglim,eps=eps)
         mh=clip(mh,mhlim,eps=eps)
         cm=clip(cm,cmlim,eps=eps)
         nm=clip(nm,nmlim,eps=eps)
         am=clip(am,amlim,eps=eps)
+
         inp = '{:s}{:d} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:8.2f}'.format(
                name,i+1,np.log10(vmicro),cm,nm,am,mh,logg,teff)
         finp.write(inp+'\n')
-        out = '{:8.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f}'.format(teff,logg,mh,vmicro,vmacro,cm,nm)      
-        for e in el :
-          # add element abundances
-          e=clip(e,emlim,eps=eps)
-          out = out + '{:7.2f}'.format(e)      # other elements
-        print(out)
-        f.write(out+'\n')
-        vmic.append(vmicro)
-        vmac.append(vmacro)
-        allam.append(am)
-        allcm.append(cm)
-        allnm.append(nm)
 
     f.close()
     finp.close()
@@ -927,12 +963,18 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,log
     g=[x[1] for x in grid]
     m=[x[2] for x in grid]
     fig,ax=plots.multi(2,3)
-    plots.plotc(ax[0,0],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),m,xr=[8000,2500],yr=[6.,-1],zr=[-2,0.5],zt='[M/H]',colorbar=True)
-    plots.plotc(ax[0,1],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),allam,xr=[8000,2500],yr=[6.,-1],zr=[-0.3,1.],zt='[alpha/M]',colorbar=True)
-    plots.plotc(ax[1,0],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),vmic,xr=[8000,2500],yr=[6.,-1],zr=[0,4],zt='vmicro',colorbar=True)
-    plots.plotc(ax[1,1],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),vmac,xr=[8000,2500],yr=[6.,-1],zr=[0,30],zt='vmacro',colorbar=True)
-    plots.plotc(ax[2,0],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),allcm,xr=[8000,2500],yr=[6.,-1],zr=[-1.0,0.5],zt='[C/M]',colorbar=True)
-    plots.plotc(ax[2,1],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),allnm,xr=[8000,2500],yr=[6.,-1],zr=[-0.5,1.0],zt='[N/M]',colorbar=True)
+    plots.plotc(ax[0,0],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),m,
+                xr=[8000,2500],yr=[6.,-1],zr=mhlim,zt='[M/H]',colorbar=True)
+    plots.plotc(ax[0,1],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),allam,
+                xr=[8000,2500],yr=[6.,-1],zr=amlim,zt='[alpha/M]',colorbar=True)
+    plots.plotc(ax[1,0],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),vmic,
+                xr=[8000,2500],yr=[6.,-1],zr=vmicrolim,zt='vmicro',colorbar=True)
+    plots.plotc(ax[1,1],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),vmac,
+                xr=[8000,2500],yr=[6.,-1],zr=[0,30],zt='vmacro',colorbar=True)
+    plots.plotc(ax[2,0],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),allcm,
+                xr=[8000,2500],yr=[6.,-1],zr=cmlim,zt='[C/M]',colorbar=True)
+    plots.plotc(ax[2,1],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),allnm,
+                xr=[8000,2500],yr=[6.,-1],zr=nmlim,zt='[N/M]',colorbar=True)
     fig.tight_layout()
     fig.savefig(name+'.png')
 

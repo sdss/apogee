@@ -153,7 +153,8 @@ rn 1980083 1980084
 #      *57126 (100-read, 15640003, 4/14/15), 
 #       57949 (100-read, 23870002, 7/15/17)
 #       57951 (100-read, 23890001, 7/17/17)
-#         instrument warmed
+#         instrument warmed, but not opened
+#       58304 (100-read, 27420001, 7/5/18)
 #flats:*56037  4750009
 #       56119  5570002  (7/11/12)
 #       56810  12480067
@@ -164,7 +165,8 @@ rn 1980083 1980084
 #       57126 ???
 #       57950  23880002  (7/16/17)
 #       57951  23890031  (7/17/17)
-#         instrument warmed
+#         instrument warmed, but not opened --> LEDs stopped functioning!
+#       58305  27430001 (7/6/18)
 #
 #sparse:  56854, 57126
 #dither test: 56119, monthly runs starting in spring 2014

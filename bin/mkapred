@@ -17,3 +17,4 @@ idl  << endidl
 endidl
 
 echo "Remember to copy apPersistModel files !"
+mkslurm apred "visit/*/*/*/*/a?Plan*.par"

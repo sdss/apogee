@@ -81,12 +81,13 @@ def kurucz2turbo(infile,outfile,trim=0) :
     fp.close()
     fout.close()
 
-def marcs2turbo(infile,outfile,trim=0) :
+def marcs2turbo(infile,outfile,trim=0,fill=True) :
     """ Prepare MARCS input model for Turbospectrum, allowing for trimming of layers
     """
     try:
         fp=open(infile,'r')
     except :
+        if not fill : return -1
         try :
             fp=open(infile+'.filled','r')
         except :
@@ -106,9 +107,10 @@ def marcs2turbo(infile,outfile,trim=0) :
                 if i > trim : fout.write(line)
             except :
                 fout.write(line)
+    return 0
 
 def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
-    els=None,atmod=None,kurucz=True,atmosroot=None,atmosdir=None,nskip=0,endskip=0,
+    els=None,atmod=None,kurucz=True,atmosroot=None,atmosdir=None,nskip=0,endskip=0,fill=True,
     linelist='20150714',h2o=None,linelistdir=None,
     save=False,run=True,split=200,fluxcol=2) :
     """ Runs Turbospectrum for specified input parameters
@@ -164,7 +166,10 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         kurucz2turbo(atmod,workdir+'/'+os.path.basename(atmod),trim=trim )
     else :
         try :        
-            marcs2turbo(atmod,workdir+'/'+os.path.basename(atmod),trim=nskip )
+            ret = marcs2turbo(atmod,workdir+'/'+os.path.basename(atmod),trim=nskip,fill=fill )
+            if not fill and ret<0 :
+                print('HOLE NOT SYNTHESIZED: ', atmod)
+                return 0.
         except:
             print('PROBLEM: ',atmod)
             return 0.
@@ -766,6 +771,7 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,fiber='combo')
     for spec in specs :
         if isinstance(spec[1],np.ndarray) :
             mh=spec[0][2]
+            #vmacro=spec[0][8]
             vmacro = 10.**(0.470794-0.254*mh)
             vmacro = vmacro if vmacro<15 else 15.
             print(mh,vmacro)
@@ -846,19 +852,22 @@ def clip(x,lim,eps=None) :
         if np.isclose(x,lim[1]) : tmp-=eps
     return tmp
 
-def sample(name='test',gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,logglim=[0.,5.],mhlim=[-2.5,0.75],nmlim=[-0.5,2.],cmlim=[-1.5,1.],emlim=[-0.5,1.],vmicrolim=[0.5,8.],amlim=[-0.5,1.]) :
+def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,logglim=[-0.5,5.5],mhlim=[-2.5,0.75],nmlim=[-0.5,2.],cmlim=[-1.5,1.],emlim=[-0.5,1.],vmicrolim=[0.5,8.],amlim=[-0.5,1.],nsamp=1) :
     """ Generate a test sample of parameters and abundances from isochrones
     """
 
     # set output limits
     if gridclass == 'GK' :
         tefflim=[3500,6000]
+        logglim=[0,4.5]
         dtlo=250.
     elif gridclass == 'M' :
-        tefflim=[3300,4000]
+        tefflim=[3000,4000]
+        logglim=[-0.5,3.0]
         dtlo=100.
     elif gridclass == 'F' :
         tefflim=[5500,8000]
+        logglim=[2.0,5.5]
         dtlo=250.
     grid=[]
 
@@ -898,10 +907,11 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,log
     f.write('\n')
     nel=len(els)
     for i,x in enumerate(grid) :
+      for j in range(nsamp) :
         teff=x[0]
         logg=x[1]
         mh=x[2]
-        vmicro=10.**(0.226-0.0228*logg+0.0297*logg**2-0.0113*logg**3)+np.random.normal(0.,0.2)
+        vmicro=10.**(0.226-0.0228*logg+0.0297*logg**2-0.0113*logg**3)+np.random.normal(0.,0.3)
         vmicro=clip(vmicro,vmicrolim)
         if (logg < 3) & (teff<6000) :
             # for giants, use vmacro relation + small rotation
@@ -912,7 +922,8 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,log
             cm=np.random.normal(0.,0.5)
             cm = (int(round(cm/0.25)))*0.25
             nm=np.random.normal(0.3,1.0)
-            nm = (int(round(nm/0.5)))*0.5
+            # no need to pin [N/M] to grid since it is varied in synthesis!
+            #nm = (int(round(nm/0.5)))*0.5
         else :
             # for dwarfs, use significant rotation
             vmacro=abs(np.random.normal(0.,30))
@@ -920,7 +931,6 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,log
             cm=np.random.normal(0.,0.3)
             cm = (int(round(cm/0.25)))*0.25
             nm=np.random.normal(0.,0.3)
-            nm = (int(round(cm/0.25)))*0.25
         cm=clip(cm,cmlim)
         nm=clip(nm,nmlim)
         am=np.random.uniform(-0.25,0.5)
@@ -963,6 +973,7 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3300,8000],dtlo=100.,log
     g=[x[1] for x in grid]
     m=[x[2] for x in grid]
     fig,ax=plots.multi(2,3)
+    pdb.set_trace()
     plots.plotc(ax[0,0],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),m,
                 xr=[8000,2500],yr=[6.,-1],zr=mhlim,zt='[M/H]',colorbar=True)
     plots.plotc(ax[0,1],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),allam,

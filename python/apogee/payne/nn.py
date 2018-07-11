@@ -128,7 +128,7 @@ def train(file,plot=False,pixels=[1000,9000,1000],suffix='') :
   
         weights.append(w)
         biases.append(b)
-    if plot: fig.savefig(file+suffix+'.jpg')
+    if plot: fig.savefig(file+suffix+'_pixels.jpg')
 
 
     # Saving the objects:
@@ -137,8 +137,25 @@ def train(file,plot=False,pixels=[1000,9000,1000],suffix='') :
 
     return pmeans, pstds, means, stds, weights, biases
 
-def report(data) :
-    print("done: ",data[2])
+def merge(file,n=8) :
+
+    pm=[]
+    ps=[]
+    m=[]
+    s=[]
+    w=[]
+    b=[]
+    for i in range(n) :
+      with open(file+'_{:d}.pkl'.format(i+1)) as f: 
+        pmeans, pstds, means, stds, weights, biases = pickle.load(f)
+        # pmeans, pstds same for all pixels
+        m.extend(means)
+        s.extend(stds)
+        w.extend(weights)
+        b.extend(biases)
+
+    with open(file+'.pkl', 'w') as f:  # Python 3: open(..., 'wb')
+        pickle.dump([pmeans, pstds, m, s, w, b], f)
 
 def fit(data) :
     """ Routine to do a single NN model fit given input data=(pars,pix)
@@ -156,7 +173,7 @@ def fit(data) :
     net.compile(optimizer=opt,loss='mse')
     net.summary()
 
-    history=net.fit(pars,pix,epochs=nepochs,batch_size=batch_size,verbose=1)
+    history=net.fit(pars,pix,epochs=nepochs,batch_size=batch_size,verbose=0)
 
     w=(net.get_weights()[0],net.get_weights()[2])
     b=(net.get_weights()[1],net.get_weights()[3])
@@ -224,63 +241,74 @@ def spectrum(x,*pars) :
 
     return spec
 
-def comp(file,threads=8,nfit=8) :
+def comp(file,threads=8,nfit=8,dofit=True,plot=False) :
+    """ Solves for parameters using input spectra and NN model
+    """
     p=fits.open(file+'.fits')[0].data
     s=fits.open(file+'.fits')[2].data
-    p=p[:,0:9]
+    p=p[:,0:7]
     if nfit == 0 : nfit = p.shape[0]
     get(file)
 
-    specs=[]
-    #for i in range(s.shape[0]) :
-    for i in range(nfit) :
-        specs.append(s[i,:]/np.nanmean(s[i,:]))
+    if dofit :
+        specs=[]
+        for i in range(nfit) :
+            specs.append(s[i,:]/np.nanmean(s[i,:]))
+        pool = mp.Pool(threads)
+        output = pool.map_async(solve, specs).get()
+        pool.close()
+        pool.join()
 
-    pool = mp.Pool(threads)
-    output = pool.map_async(solve, specs).get()
-    pool.close()
-    pool.join()
- 
+        # plot output minus input parameters 
+        output=np.array(output)
+        fig,ax=plots.multi(2,4,hspace=0.001)
+        plots.plotc(ax[0,0],p[0:nfit,0],output[:,0]-p[0:nfit,0],p[0:nfit,2],yr=[-250,250],yt='Teff')
+        plots.plotc(ax[1,0],p[0:nfit,0],output[:,1]-p[0:nfit,1],p[0:nfit,2],yr=[-1,1],yt='logg')
+        plots.plotc(ax[2,0],p[0:nfit,0],output[:,2]-p[0:nfit,2],p[0:nfit,2],yr=[-0.5,0.5],yt='[M/H]')
+        plots.plotc(ax[3,0],p[0:nfit,0],output[:,3]-p[0:nfit,3],p[0:nfit,2],yr=[-0.5,0.5],yt='[alpha/M]')
+        plots.plotc(ax[0,1],p[0:nfit,0],output[:,4]-p[0:nfit,4],p[0:nfit,2],yr=[-0.5,0.5],yt='[C/M]')
+        plots.plotc(ax[1,1],p[0:nfit,0],output[:,5]-p[0:nfit,5],p[0:nfit,2],yr=[-0.5,0.5],yt='[N/M]')
+        plots.plotc(ax[2,1],p[0:nfit,0],output[:,6]-p[0:nfit,6],p[0:nfit,2],yr=[-0.5,0.5],yt='vmicro')
+        fig.savefig(file+'_out.png')
+        # write the spectra out
+        hdu=fits.HDUList()
+        hdu.append(fits.ImageHDU(output))
+        hdu.writeto(file+'_out.fits',overwrite=True)
+
+    # plot spectra and save model and fit spectra
     pix = np.arange(0,8575,1)
+    if plot : fig,ax=plots.multi(1,1)
+    model=[]
     for i in range(nfit) :
         print(p[i,:])
-        print(output[i])
         snorm = s[i,:] / np.nanmean(s[i,:])
-        spec=spectrum(pix, *p[i,:])
-        fit=spectrum(pix, *output[i])
-        gd=np.where(np.isfinite(snorm))[0]
-        print(np.sum((spec[gd]-snorm[gd])**2),np.sum((fit[gd]-snorm[gd])**2))
-        plt.clf()
-        plt.plot(snorm)
-        plt.plot(spec)
-        plt.plot(fit)
-        plt.draw()
+        spec=spectrum(pix, *p[i,:])    
+        model.append(spec)
+        if plot :
+            plt.clf()
+            plt.plot(snorm,color='k')
+            plt.plot(spec,color='g')
+            if dofit :
+                print(output[i])
+                fit=spectrum(pix, *output[i])
+                gd=np.where(np.isfinite(snorm))[0]
+                print(np.sum((spec[gd]-snorm[gd])**2),np.sum((fit[gd]-snorm[gd])**2))
+                plt.plot(fit,color='b')
+            plt.draw()
+            pdb.set_trace()
 
-    output=np.array(output)
-    fig,ax=plots.multi(2,4,hspace=0.001)
-    plots.plotc(ax[0,0],p[0:nfit,0],output[:,0]-p[0:nfit,0],p[0:nfit,2],yr=[-250,250],yt='Teff')
-    plots.plotc(ax[1,0],p[0:nfit,0],output[:,1]-p[0:nfit,1],p[0:nfit,2],yr=[-1,1],yt='logg')
-    plots.plotc(ax[2,0],p[0:nfit,0],output[:,2]-p[0:nfit,2],p[0:nfit,2],yr=[-0.5,0.5],yt='[M/H]')
-    plots.plotc(ax[3,0],p[0:nfit,0],output[:,3]-p[0:nfit,3],p[0:nfit,2],yr=[-0.5,0.5],yt='[alpha/M]')
-    plots.plotc(ax[0,1],p[0:nfit,0],output[:,4]-p[0:nfit,4],p[0:nfit,2],yr=[-0.5,0.5],yt='[C/M]')
-    plots.plotc(ax[1,1],p[0:nfit,0],output[:,5]-p[0:nfit,5],p[0:nfit,2],yr=[-0.5,0.5],yt='[N/M]')
-    plots.plotc(ax[2,1],p[0:nfit,0],output[:,6]-p[0:nfit,6],p[0:nfit,2],yr=[-0.5,0.5],yt='vmicro')
-    fig.savefig(file+'_out.png')
-    # write the spectra out
     hdu=fits.HDUList()
-    hdu.append(fits.ImageHDU(output))
-    hdu.writeto(file+'_out.fits',overwrite=True)
-
-    pdb.set_trace()
+    hdu.append(fits.ImageHDU(np.array(model)))
+    hdu.writeto(file+'_model.fits',overwrite=True)
 
 def solve(spec) :
     """ Solve for parameters for a single input spectrum
     """
     pix = np.arange(0,8575,1)
     sig = np.ones(len(pix))
-    init = np.array([4000.,2.5,0.,0.,0.,0.,1.5,0.,0.])
-    bounds = (np.array([3000.,-0.5,-3.,-1.,-1.,-1.,0.5,-0.001,-0.001]),
-              np.array([6000., 5.5, 1., 1., 1., 1.,4.5, 0.001, 0.001]))
+    init = np.array([4000.,2.5,0.,0.,0.,0.,1.5])
+    bounds = (np.array([3000.,-0.5,-3.,-1.,-1.,-1.,0.5]),
+              np.array([6000., 5.5, 1., 1., 1., 1.,4.5]))
     gd = np.where(np.isfinite(spec))[0]
     fpars,fcov = curve_fit(spectrum,pix[gd],spec[gd],sigma=sig[gd],p0=init,bounds=bounds)
     return fpars

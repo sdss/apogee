@@ -8,40 +8,72 @@ from keras import layers
 from keras import optimizers
 from keras import regularizers
 from astropy.io import fits
+from astropy.table import Table, TableColumns, Column
 import pickle
+import copy
+import sys
 import pdb
+from apogee.utils import apload
+from apogee.aspcap import aspcap
+from apogee.aspcap import norm
 from tools import plots
 
-nepochs=25000
+#nepochs=25000
+nepochs=10000
 nodes=20
 reg=0.0005
-threads=24
+threads=32
 batch_size=1000
+verbose=0
 
-def train(file,plot=False,pixels=[1000,9000,1000],suffix='') :
+def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0,
+          teff=[0,10000],logg=[-1,6],mh=[-3,1],am=[-1,1],cm=[-2,2],raw=False,rot=False) :
     """ Train a neural net model on an input training set
     """
+    global nfit, verbose, nepochs
 
     # Get input spectra and parameters
     pixels=np.arange(pixels[0],pixels[1],pixels[2])
     npix=len(pixels)
     print('npix: ', npix)
     pars=fits.open(file+'.fits')[0].data
-    spec=fits.open(file+'.fits')[2].data
+    if raw:
+        spec=fits.open(file+'.fits')[1].data
+    else :
+        spec=fits.open(file+'.fits')[2].data
+    head = {}
+    head['nin'] = pars.shape[0]
+    head['npix'] = npix
 
     # limit parameter range
-    #gd=np.where((pars[:,2]>-1.5)&(abs(pars[:,3]) < 0.35) & (abs(pars[:,4]) < 0.35) & (abs(pars[:,5]) < 0.35) )[0]
-    #spec=spec[gd,:]
-    #pars=pars[gd,:]
-    #print(len(gd))
+    gd=np.where((pars[:,0]>=teff[0]) & (pars[:,0]<=teff[1]) &
+                (pars[:,1]>=logg[0]) & (pars[:,1]<=logg[1]) &
+                (pars[:,2]>=mh[0]) & (pars[:,2]<=mh[1]) &
+                (pars[:,3]>=am[0]) & (pars[:,3]<=am[1]) &
+                (pars[:,4]>=cm[0]) & (pars[:,4]<=cm[1]) 
+               )[0]
+    spec=spec[gd,:]
+    pars=pars[gd,:]
+    head['ntot'] = pars.shape[0]
+    head['teff'] = teff
+    head['logg'] = logg
+    head['mh'] = mh
+    head['am'] = am
+    head['cm'] = cm
 
     # limit parameters?
-    pars=pars[:,0:7]
-    #for ipar in range(2,6) : pars[:,ipar] = 10.**pars[:,ipar]
+    if rot :
+        pars=pars[:,0:8]
+    else :
+        pars=pars[:,0:7]
 
     #normalize spectra
+    print('normalizing...')
+    x=np.arange(0,spec.shape[1])
+    specerr = np.full_like(spec[0,:],1.)
     for i in range(spec.shape[0]) :
-        spec[i,:] /= np.nanmean(spec[i,:])
+        cont = norm.cont(spec[i,:],specerr,poly=True,order=order,chips=True)
+        spec[i,:] /= cont
 
     if plot :
         fig,ax=plots.multi(2,2)
@@ -51,27 +83,29 @@ def train(file,plot=False,pixels=[1000,9000,1000],suffix='') :
     shape=pars.shape
 
     # shuffle them and get fit and validation set
+    print('shuffling...')
     p=np.random.permutation(shape[0])
     spec=spec[p,:]
     pars=pars[p,:]
-    nfit=int(len(p)*7/8.)
+    nfit=int(len(p)*fitfrac)
     shape=pars.shape
 
     # scale parameters to zero mean and unit standard deviation, and save scaling parameters
     pmeans=[]
     pstds=[]
+    normpars = copy.copy(pars)
     for i in range(shape[1]) :
       mn=pars[:,i].mean()
       std=pars[:,i].std()
-      pars[:,i] -= mn
-      if std > 0. : pars[:,i] /= std
+      normpars[:,i] -= mn
+      if std > 0. : normpars[:,i] /= std
       pmeans.append(mn)
       pstds.append(std)
 
     # replot to check
     if plot :
-        plots.plotc(ax[0,1],pars[:,0],spec[:,1000],pars[:,1])
-        plots.plotc(ax[1,1],pars[:,0],spec[:,1000],pars[:,2])
+        plots.plotc(ax[0,1],normpars[:,0],spec[:,1000],normpars[:,1])
+        plots.plotc(ax[1,1],normpars[:,0],spec[:,1000],normpars[:,2])
         plt.show()
 
     # loop over the requested pixels and normalize data to
@@ -81,6 +115,7 @@ def train(file,plot=False,pixels=[1000,9000,1000],suffix='') :
     means=[]
     stds=[]
     data=[]
+    print('preparing to fit...')
     for ipix in pixels :
         pix=spec[:,ipix]
         mn=pix.mean()
@@ -88,41 +123,40 @@ def train(file,plot=False,pixels=[1000,9000,1000],suffix='') :
         if np.isfinite(mn) :
           pix-=mn
           pix /= std
-          data.append((pars,pix,ipix))
+          data.append((normpars,pix,ipix))
         means.append(mn)
         stds.append(std)
 
     # get the model in parallel for different pixels
-    print('len: ',len(data))
+    print('fitting: ',len(data))
     pool = mp.Pool(threads)
     output = pool.map_async(fit, data).get()
     pool.close()
     pool.join()
     print('done pool')
 
-    if plot: fig,ax=plots.multi(npix,3,wspace=0.001,hspace=0.001,figsize=(20,8))
+    if plot: fig,ax=plots.multi(npix,5,wspace=0.001,hspace=0.001,figsize=(20,8))
     ifit=0
     for i,ipix in enumerate(pixels) :
-      print('ipix: ', ipix,plot)
       if np.isfinite(means[i]) :
-        w,b,mod,loss=output[ifit]
+        w,b,mod,loss,vloss=output[ifit]
         ifit+=1
         if plot :
               mod=mod*stds[i]+means[i]
               m=[]
-              for ip in range(pars.shape[0]) : m.append(model(pars[ip,:],means[i],stds[i],w,b)[0])
+              for ip in range(pars.shape[0]) : m.append(model(normpars[ip,:],means[i],stds[i],w,b)[0])
               pix=spec[:,ipix]*stds[i]+means[i]
-              ax[0,i].plot(pars[:,0],pix,'ko')
-              ax[0,i].plot(pars[:,0],mod,'ro')
-              ax[0,i].set_xlim(-2.5,2.5)
-              ax[0,i].set_ylim(0.5,1.5)
+              plots.plotc(ax[0,i],pars[:,0],pix,pars[:,2],xr=[3000,8000],yr=[0.5,1.5],zr=[-2,0.5])
+              plots.plotc(ax[1,i],pars[:,0],pix,pars[:,1],xr=[3000,8000],yr=[0.5,1.5],zr=[0,5])
+              plots.plotc(ax[2,i],pars[:,0],pix,pix-mod[:,0],xr=[3000,8000],yr=[0.5,1.5],zr=[0,0.01])
               n=len(loss)
-              plots.plotl(ax[1,i],range(n),np.log10(loss),xr=[0,nepochs],yr=[-4,0])
-              ax[2,i].hist(pix-mod[:,0],bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='k')
-              ax[2,i].hist(pix[0:nfit]-mod[0:nfit,0],bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='b')
-              ax[2,i].hist(pix[nfit:]-mod[nfit:,0],bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='r')
-              ax[2,i].set_xlim(0,0.01)
-              ax[2,i].set_ylim(0,1.1)
+              plots.plotl(ax[3,i],range(n),np.log10(loss),xr=[0,nepochs],yr=[-4,0],color='b')
+              plots.plotl(ax[3,i],range(n),np.log10(vloss),xr=[0,nepochs],yr=[-4,0],color='r')
+              ax[4,i].hist(pix-mod[:,0],bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='k')
+              ax[4,i].hist(pix[0:nfit]-mod[0:nfit,0],bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='b')
+              ax[4,i].hist(pix[nfit:]-mod[nfit:,0],bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='r')
+              ax[4,i].set_xlim(0,0.01)
+              ax[4,i].set_ylim(0,1.1)
               plt.draw()
               plt.show()
   
@@ -130,32 +164,22 @@ def train(file,plot=False,pixels=[1000,9000,1000],suffix='') :
         biases.append(b)
     if plot: fig.savefig(file+suffix+'_pixels.jpg')
 
-
-    # Saving the objects:
+    # Save the model as a dictionary into a pickle file
+    head['nodes'] = nodes
+    head['reg'] = reg
+    head['batch_size'] = batch_size
+    head['nepochs'] = nepochs
+    head['pmeans'] = pmeans
+    head['pstds'] = pstds
+    head['means'] = means
+    head['stds'] = stds
+    head['weights'] = weights
+    head['biases'] = biases
     with open(file+suffix+'.pkl', 'w') as f:  # Python 3: open(..., 'wb')
-        pickle.dump([pmeans, pstds, means, stds, weights, biases], f)
+        pickle.dump(head, f)
+        #pickle.dump([head, pmeans, pstds, means, stds, weights, biases], f)
 
-    return pmeans, pstds, means, stds, weights, biases
-
-def merge(file,n=8) :
-
-    pm=[]
-    ps=[]
-    m=[]
-    s=[]
-    w=[]
-    b=[]
-    for i in range(n) :
-      with open(file+'_{:d}.pkl'.format(i+1)) as f: 
-        pmeans, pstds, means, stds, weights, biases = pickle.load(f)
-        # pmeans, pstds same for all pixels
-        m.extend(means)
-        s.extend(stds)
-        w.extend(weights)
-        b.extend(biases)
-
-    with open(file+'.pkl', 'w') as f:  # Python 3: open(..., 'wb')
-        pickle.dump([pmeans, pstds, m, s, w, b], f)
+    return head
 
 def fit(data) :
     """ Routine to do a single NN model fit given input data=(pars,pix)
@@ -163,32 +187,97 @@ def fit(data) :
     pars=data[0]
     pix=data[1]
 
+    print('fitting pixel: ', data[2],pars.shape,nfit)
+    sys.stdout.flush()
+
     net=models.Sequential()
     net.add(layers.Dense(nodes, activation='sigmoid', input_shape=(pars.shape[1],),
             kernel_regularizer=regularizers.l2(reg)))
-    #net.add(layers.Dense(1, activation='sigmoid'))
+    #net.add(layers.Dense(nodes, activation='sigmoid',kernel_regularizer=regularizers.l2(reg)))
     net.add(layers.Dense(1, activation='linear'))
     #opt=optimizers.RMSprop(lr=0.01)
     opt=optimizers.Adam(lr=0.001)
     net.compile(optimizer=opt,loss='mse')
-    net.summary()
+    if verbose > 0 : net.summary()
 
-    history=net.fit(pars,pix,epochs=nepochs,batch_size=batch_size,verbose=0)
+    history=net.fit(pars[0:nfit],pix[0:nfit],epochs=nepochs,batch_size=batch_size,verbose=verbose,validation_data=(pars[nfit:],pix[nfit:]))
 
     w=(net.get_weights()[0],net.get_weights()[2])
     b=(net.get_weights()[1],net.get_weights()[3])
     mod=net.predict(pars)
+    return w,b,mod,history.history['loss'],history.history['val_loss']
 
-    return w,b,mod,history.history['loss']
+def merge(file,n=8) :
+    """ Merge pieces of a model (e.g., run on different nodes for pixel subsets) into a single model
+    """
+    pm,ps,m,s,w,b=[],[],[],[],[],[]
+    for i in range(n) :
+      with open(file+'_{:d}.pkl'.format(i+1)) as f: 
+        head = pickle.load(f)
+        # pmeans, pstds same for all pixels
+        m.extend(head['means'])
+        s.extend(head['stds'])
+        w.extend(head['weights'])
+        b.extend(head['biases'])
 
-# define sigmoid function
+    head['means'] = m
+    head['stds'] = s
+    head['weights'] = w
+    head['biases'] = b
+    with open(file+'.pkl', 'w') as f:  
+        pickle.dump(head, f)
+
+
 def sigmoid(z):
+    """ sigmoid function
+    """
     return 1.0/(1.0+np.exp(-z))
  
 def model(pars, mn, std, weights, biases) :
+    """ function to return single pixel model given normalized input parameters and pixel normalization
+    """
     return mn + std * (np.dot( sigmoid((np.dot(weights[0].T,pars)+biases[0])).T, weights[1] ) +biases[1])
 
+def spectrum(x,*pars) :
+    """ Return full spectrum given input list of pixels, parameters
+    """
+    spec=np.full_like(x.astype(float),np.nan)
+    pnorm= (pars-pmeans)/pstds
+    for j,i in enumerate(x) :
+        if  np.isfinite(means[i]) :
+            spec[j]= model(pnorm, means[i], stds[i], weights[ifit[i]], biases[ifit[i]]) 
+
+    return spec
+
+def get(file) :
+    """ Load a model pickle file into global variables
+    """
+    global pmeans, pstds, means, stds, weights, biases, ifit
+
+    # Getting back the objects:
+    with open(file+'.pkl') as f: 
+        head = pickle.load(f)
+        #pmeans, pstds, means, stds, weights, biases = pickle.load(f)
+    pmeans = np.array(head['pmeans'])
+    pstds = np.array(head['pstds'])
+    means = head['means']
+    stds = head['stds']
+    weights = head['weights']
+    biases = head['biases']
+    #pmeans = np.array(pmeans)
+    #pstds = np.array(pstds)
+
+    # get correspondence of pixel number with weight/bias index (since NaNs are not fit)
+    ifit = np.zeros(len(means)).astype(int)
+    j=0
+    for i in range(len(means)) :
+        if np.isfinite(means[i]) : 
+            ifit[i] = j
+            j += 1
+
 def test(pmn, pstd, mn, std, weights, biases,n=100, t0=[3750.,4500.], g0=2., mh0=0.) :
+    """ Plots cross-sections of model for fit pixels
+    """
     fig,ax=plots.multi(2,6,figsize=(8,12))
 
     xt=['Teff','logg','[M/H]','[alpha/M]','[C/M]','[N/M]']
@@ -196,10 +285,10 @@ def test(pmn, pstd, mn, std, weights, biases,n=100, t0=[3750.,4500.], g0=2., mh0
       for ipix in range(len(weights)) :
        for it0 in range(2) :
         pars=np.tile([t0[it0], g0, mh0, 0.0, 0., 0., 2.],(n,1))
-        if ipar == 0 : pars[:,ipar]=np.linspace(3500.,5000.,n)
-        elif ipar == 1 : pars[:,ipar]=np.linspace(0.,5.,n)
+        if ipar == 0 : pars[:,ipar]=np.linspace(3000.,8000.,n)
+        elif ipar == 1 : pars[:,ipar]=np.linspace(-0.5,5.5,n)
         elif ipar == 2 : pars[:,ipar]=np.linspace(-2.5,1.,n)
-        elif ipar == 3 : pars[:,ipar]=np.linspace(-0.5,0.75,n)
+        elif ipar == 3 : pars[:,ipar]=np.linspace(-0.5,1.0,n)
         elif ipar == 4 : pars[:,ipar]=np.linspace(-1.,1.,n)
         elif ipar == 5 : pars[:,ipar]=np.linspace(-0.5,2.,n)
         m=[]
@@ -210,36 +299,6 @@ def test(pmn, pstd, mn, std, weights, biases,n=100, t0=[3750.,4500.], g0=2., mh0
         #plots.plotl(ax[i,it0],pars[:,ipar],m)
         if i == 0 : ax[i,it0].set_title('{:8.0f}{:7.2f}{:7.2f}'.format(t0[it0],g0,mh0))
     fig.tight_layout()
-
-
-def get(file) :
-    global pmeans, pstds, means, stds, weights, biases, ifit
-
-    # Getting back the objects:
-    with open(file+'.pkl') as f: 
-        pmeans, pstds, means, stds, weights, biases = pickle.load(f)
-
-    ifit = np.zeros(len(means)).astype(int)
-    j=0
-    for i in range(len(means)) :
-        if np.isfinite(means[i]) : 
-            ifit[i] = j
-            j += 1
-    pmeans = np.array(pmeans)
-    pstds = np.array(pstds)
-
-    #return np.array(pmeans), np.array(pstds), means, stds, weights, biases 
-
-def spectrum(x,*pars) :
-    """ Return spectrum given input list of pixels, parameters
-    """
-    spec=np.zeros(len(x))
-    pnorm= (pars-pmeans)/pstds
-    for j,i in enumerate(x) :
-        if  np.isfinite(means[i]) :
-            spec[j]= model(pnorm, means[i], stds[i], weights[ifit[i]], biases[ifit[i]]) 
-
-    return spec
 
 def comp(file,threads=8,nfit=8,dofit=True,plot=False) :
     """ Solves for parameters using input spectra and NN model
@@ -274,6 +333,7 @@ def comp(file,threads=8,nfit=8,dofit=True,plot=False) :
         hdu=fits.HDUList()
         hdu.append(fits.ImageHDU(output))
         hdu.writeto(file+'_out.fits',overwrite=True)
+        hdu.close()
 
     # plot spectra and save model and fit spectra
     pix = np.arange(0,8575,1)
@@ -299,17 +359,151 @@ def comp(file,threads=8,nfit=8,dofit=True,plot=False) :
 
     hdu=fits.HDUList()
     hdu.append(fits.ImageHDU(np.array(model)))
-    hdu.writeto(file+'_model.fits',overwrite=True)
+    hdu.writeto(file+'_model.fits',overwrite=True)   
+    hdu.close()
 
 def solve(spec) :
     """ Solve for parameters for a single input spectrum
     """
-    pix = np.arange(0,8575,1)
-    sig = np.ones(len(pix))
+    s=spec[0]
+    serr=spec[1]
+    pix = np.arange(0,len(s),1)
     init = np.array([4000.,2.5,0.,0.,0.,0.,1.5])
     bounds = (np.array([3000.,-0.5,-3.,-1.,-1.,-1.,0.5]),
-              np.array([6000., 5.5, 1., 1., 1., 1.,4.5]))
-    gd = np.where(np.isfinite(spec))[0]
-    fpars,fcov = curve_fit(spectrum,pix[gd],spec[gd],sigma=sig[gd],p0=init,bounds=bounds)
+              np.array([8000., 5.5, 1., 1., 1., 1.,4.5]))
+    gd = np.where(np.isfinite(s))[0]
+    fpars,fcov = curve_fit(spectrum,pix[gd],s[gd],sigma=serr[gd],p0=init,bounds=bounds)
     return fpars
 
+def fitfield(model,field,nfit=0,order=4,threads=8,plot=False) :
+    """ Fit observed spectra in an input field, given a model
+    """
+
+    # get model and list of stars
+    get(model)
+    apload.dr14()
+    apfield=apload.apField(field)[1].data
+    aspcap_param=apload.aspcapField(field)[1].data
+    aspcap_spec=apload.aspcapField(field)[2].data
+    stars=apfield['apogee_id']
+    if nfit == 0 : nfit = len(stars)
+ 
+    # load up normalized spectra and uncertainties 
+    specs=[]
+    if plot : fig,ax=plots.multi(1,2,hspace=0.001,figsize=(15,3))
+    pix = np.arange(0,8575,1)
+    for i in range(nfit) :
+        apstar=apload.apStar(field,stars[i])
+        spec = apstar[1].data[0,:].squeeze()
+        specerr = apstar[2].data[0,:].squeeze()
+        cont = norm.cont(spec,specerr,poly=True,order=order,chips=True)
+        specs.append((spec/cont,specerr/cont))
+        if plot :
+            ax[0].cla()
+            ax[1].cla()
+            ax[0].plot(spec)
+            ax[0].plot(cont)
+            ax[1].plot(spec/cont)
+            j=np.where(aspcap_param['APOGEE_ID'] == stars[i])[0][0]
+            aspec=aspcap.aspcap2apStar(aspcap_spec[j]['spec'])
+            ax[1].plot(aspec,color='r')
+            plt.draw()
+            plt.show()
+            pdb.set_trace()
+
+    # do the fits in parallel
+    pool = mp.Pool(threads)
+    output = pool.map_async(solve, specs).get()
+    pool.close()
+    pool.join()
+    print('done pool')
+
+    # output FITS table
+    output=np.array(output)
+    out=Table()
+    out['APOGEE_ID']=stars[0:nfit]
+    length=len(out)
+    out.add_column(Column(name='FPARAM',data=output))
+    spec=[]
+    err=[]
+    bestfit=[]
+    for i in range(nfit) :
+        spec.append(specs[i][0])
+        err.append(specs[i][1])
+        bestfit.append(spectrum(pix, *output[i]))
+    out.add_column(Column(name='SPEC',data=np.array(spec)))
+    out.add_column(Column(name='ERR',data=np.array(err)))
+    out.add_column(Column(name='SPEC_BESTFIT',data=np.array(bestfit)))
+    out.write('nn-'+field+'.fits',format='fits',overwrite=True)
+
+def aspcap_comp(model,fields,plot=True,save=None) :
+    """ Compare NN results with ASPCAP 
+    """
+
+    get(model)
+    apload.dr14()
+
+    apars_all=[]
+    npars_all=[]
+    if plot :    fig,ax=plots.multi(1,2,hspace=0.001,figsize=(15,3))
+    for field in fields :
+      try :
+        out=fits.open('nn-'+field+'.fits')[1].data
+        nfit = len(out)
+        print(field,nfit)
+        apfield=apload.apField(field)[1].data
+        aspcap_param=apload.aspcapField(field)[1].data
+        aspcap_spec=apload.aspcapField(field)[2].data
+        stars=apfield['apogee_id']
+
+        # look at results for each spectrum
+        pix = np.arange(0,8575,1)
+
+        for i in range(nfit) :
+            print(i,stars[i])
+            j=np.where(aspcap_param['APOGEE_ID'] == stars[i])[0]
+            if len(j) > 0 :
+              j=j[0]
+              fp=aspcap_param[j]['FPARAM'].squeeze()
+              apars=np.array([fp[0],fp[1],fp[3],fp[6],fp[4],fp[5],10.**fp[2]])
+              apars_all.append(apars)
+              npars_all.append(out['FPARAM'][i,:])
+              if plot and np.abs(out['FPARAM'][i,0]-fp[0]) > 1000:
+                pprint(out[i]['FPARAM'])
+                ax[0].cla()
+                ax[0].plot(out[i]['SPEC'],color='k')
+                ax[0].set_ylim(0.5,1.5)
+                ax[1].cla()
+                ax[1].plot(out[i]['SPEC'],color='k')
+                ax[1].plot(out[i]['SPEC_BESTFIT'],color='b')
+                ax[1].set_ylim(0.5,1.5)
+                # using ASPCAP parameters and NN model
+                # plot ASPCAP normalized spectrum
+                aspec=aspcap.aspcap2apStar(aspcap_spec[j]['spec'])
+                ax[0].plot(aspec,color='r')
+                pprint(apars)
+                print(fp[7])
+                print(aspcap_param[j]['FPARAM_CLASS'][0:3],aspcap_param[j]['CHI2_CLASS'][0:3])
+                # NN model with ASPCAP params
+                fit=spectrum(pix, *apars)
+                ax[1].plot(fit,color='g')
+                # ASPCAP model
+                aspec=aspcap.aspcap2apStar(aspcap_spec[j]['spec_bestfit'])
+                ax[1].plot(aspec,color='r')
+                plt.draw()
+                plt.show()
+                pdb.set_trace()
+      except : pass
+
+    apars_all=np.array(apars_all)
+    npars_all=np.array(npars_all)
+    fig,ax=plots.multi(2,7,hspace=0.001,wspace=0.001)
+    yt=['Teff','logg','[M/H]','[alpha/M]','[C/M]','[N/M]','vmicro']
+    for i in range(7) :
+      plots.plotc(ax[i,0],apars_all[:,0],npars_all[:,i]-apars_all[:,i],apars_all[:,2],xr=[8100,2900],zr=[-2,0.5],size=20,yt=yt[i])
+      plots.plotc(ax[i,1],apars_all[:,i],npars_all[:,i]-apars_all[:,i],apars_all[:,0],zr=[2900,8100],size=20)
+    if save is not None :
+        fig.savefig(save)
+
+def pprint(pars) :
+    print('{:8.1f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}'.format(*pars))

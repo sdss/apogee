@@ -383,16 +383,16 @@ def apStar(*args, **kwargs) :
     """
     NAME: apload.apStar
     PURPOSE:  read apStar file (downloading if necessary)
-    USAGE:  ret = apload.apStar(location,object)
+    USAGE:  ret = apload.apStar(field,object)
     RETURNS: if hdu==None : ImageHDUs (all extensions)
              if hdu=N : returns (data, header) for specified HDU
     """
     if len(args) != 2 :
-        print('Usage: apStar(location,object)')
+        print('Usage: apStar(field,object)')
     else :
         try :
             file = allfile(
-               'Star',location=args[0],obj=args[1],
+               'Star',field=args[0],obj=args[1],
                apred=apred,apstar=apstar,aspcap=aspcap,results=results,dr='collab')
             return _readhdu(file,**kwargs)
         except :
@@ -440,16 +440,16 @@ def apField(*args, **kwargs) :
     """
     NAME: apload.apField
     PURPOSE:  read apField file (downloading if necessary)
-    USAGE:  ret = apload.apField(location)
+    USAGE:  ret = apload.apField(field)
     RETURNS: if hdu==None : ImageHDUs (all extensions)
              if hdu=N : returns (data, header) for specified HDU
     """
     if len(args) != 1 :
-        print('Usage: apField(location)')
+        print('Usage: apField(field)')
     else :
         try :
             file = allfile(
-               'Field',location=args[0],
+               'Field',field=args[0],
                apred=apred,apstar=apstar,aspcap=aspcap,results=results,dr='collab')
             return _readhdu(file,**kwargs)
         except :
@@ -459,16 +459,16 @@ def aspcapField(*args, **kwargs) :
     """
     NAME: apload.aspcapField
     PURPOSE:  read aspcapField file (downloading if necessary)
-    USAGE:  ret = apload.aspcapField(location)
+    USAGE:  ret = apload.aspcapField(field)
     RETURNS: if hdu==None : ImageHDUs (all extensions)
              if hdu=N : returns (data, header) for specified HDU
     """
     if len(args) != 1 :
-        print('Usage: aspcapField(location)')
+        print('Usage: aspcapField(field)')
     else :
         try :
             file = allfile(
-               'aspcapField',location=args[0],
+               'aspcapField',field=args[0],
                apred=apred,apstar=apstar,aspcap=aspcap,results=results,dr='collab')
             return _readhdu(file,**kwargs)
         except :
@@ -557,7 +557,8 @@ def allfile(root,dr=None,apred=None,apstar=None,aspcap=None,results=None,locatio
 
     if chips == False :
         # First make sure the file doesn't exist locally
-        filePath = sdss_path.full(sdssroot,apred=apred,apstar=apstar,aspcap=aspcap,results=results,
+        #print(sdssroot,apred,apstar,aspcap,results,location,obj,telescope,field,prefix)
+        filePath = sdss_path.full(sdssroot,apred=apred,apstar=apstar,aspcap=aspcap,results=results,field=field,
                 location=location,obj=obj,plate=plate,mjd=mjd,num=num,telescope=telescope,fiber=fiber,prefix=prefix,instrument=instrument)
         print('filePath',filePath)
         if os.path.exists(filePath) is False: 
@@ -568,13 +569,13 @@ def allfile(root,dr=None,apred=None,apstar=None,aspcap=None,results=None,locatio
         return filePath
     else :
         for chip in ['a','b','c'] :
-            print(chip,root,num,mjd,prefix)
-            filePath = sdss_path.full(sdssroot,apred=apred,apstar=apstar,aspcap=aspcap,results=results,
+            #print(chip,root,num,mjd,prefix)
+            filePath = sdss_path.full(sdssroot,apred=apred,apstar=apstar,aspcap=aspcap,results=results,field=field,
                 location=location,obj=obj,plate=plate,mjd=mjd,num=num,telescope=telescope,fiber=fiber,
                 chip=chip,prefix=prefix,instrument=instrument)
             print('filePath: ', filePath)
             if os.path.exists(filePath) is False: 
-                http_access.get(sdssroot,apred=apred,apstar=apstar,aspcap=aspcap,results=results,
+                http_access.get(sdssroot,apred=apred,apstar=apstar,aspcap=aspcap,results=results,field=field,
                     location=location,obj=obj,plate=plate,mjd=mjd,num=num,telescope=telescope,fiber=fiber,
                     chip=chip,prefix=prefix,instrument=instrument)
         return filePath.replace('-c','')

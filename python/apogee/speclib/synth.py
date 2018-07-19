@@ -744,7 +744,7 @@ def mkspec(pars) :
     for j,el in enumerate(els) :
         elems.append([el,pars[8+j]])
     print(teff,logg,mh,vmicro,am,cm,nm)
-    spec=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=False)
+    spec=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=False,fill=False)
     return pars,spec
     
 
@@ -775,7 +775,14 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,fiber='combo')
             vmacro = 10.**(0.470794-0.254*mh)
             vmacro = vmacro if vmacro<15 else 15.
             print(mh,vmacro)
+
+            # temporary placeholed for rotation: add to vmacro and use gaussian profile`
+            vrot=spec[0][8]
+            vmacro=np.sqrt(vrot**2+vmacro**2)
+
             ws=np.linspace(15100.,17000., len(spec[1]))
+            # synthesis is in air, we want vacuum
+            ws=spectra.airtovac(ws)
             z=lsf.convolve(ws,spec[1],lsf=ls,xlsf=x,vmacro=vmacro)
             out.append(spec[1])
             conv.append(np.squeeze(z))
@@ -896,8 +903,11 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
     f=open(name,'w')
     finp=open(name+'.inp','w')
     f.write("#   Teff   logg    [M/H] [alpha/M] [C/M]   [N/M]  vmicro  vmacro")
-    vmic=[]
-    vmac=[]
+    allteff=[]
+    alllogg=[]
+    allmh=[]
+    allvmic=[]
+    allvmac=[]
     allam=[]
     allcm=[]
     allnm=[]
@@ -936,8 +946,11 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         am=np.random.uniform(-0.25,0.5)
         am = (round(am/0.25))*0.25
         am=clip(am,amlim)
-        vmic.append(vmicro)
-        vmac.append(vmacro)
+        allteff.append(teff)
+        alllogg.append(logg)
+        allmh.append(mh)
+        allvmic.append(vmicro)
+        allvmac.append(vmacro)
         allam.append(am)
         allcm.append(cm)
         allnm.append(nm)
@@ -973,18 +986,17 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
     g=[x[1] for x in grid]
     m=[x[2] for x in grid]
     fig,ax=plots.multi(2,3)
-    pdb.set_trace()
-    plots.plotc(ax[0,0],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),m,
+    plots.plotc(ax[0,0],allteff+np.random.normal(0.,25.,size=len(allteff)),alllogg+np.random.normal(0.,0.05,size=len(alllogg)),allmh,
                 xr=[8000,2500],yr=[6.,-1],zr=mhlim,zt='[M/H]',colorbar=True)
-    plots.plotc(ax[0,1],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),allam,
+    plots.plotc(ax[0,1],allteff+np.random.normal(0.,25.,size=len(allteff)),alllogg+np.random.normal(0.,0.05,size=len(alllogg)),allam,
                 xr=[8000,2500],yr=[6.,-1],zr=amlim,zt='[alpha/M]',colorbar=True)
-    plots.plotc(ax[1,0],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),vmic,
+    plots.plotc(ax[1,0],allteff+np.random.normal(0.,25.,size=len(allteff)),alllogg+np.random.normal(0.,0.05,size=len(alllogg)),allvmic,
                 xr=[8000,2500],yr=[6.,-1],zr=vmicrolim,zt='vmicro',colorbar=True)
-    plots.plotc(ax[1,1],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),vmac,
+    plots.plotc(ax[1,1],allteff+np.random.normal(0.,25.,size=len(allteff)),alllogg+np.random.normal(0.,0.05,size=len(alllogg)),allvmac,
                 xr=[8000,2500],yr=[6.,-1],zr=[0,30],zt='vmacro',colorbar=True)
-    plots.plotc(ax[2,0],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),allcm,
+    plots.plotc(ax[2,0],allteff+np.random.normal(0.,25.,size=len(allteff)),alllogg+np.random.normal(0.,0.05,size=len(alllogg)),allcm,
                 xr=[8000,2500],yr=[6.,-1],zr=cmlim,zt='[C/M]',colorbar=True)
-    plots.plotc(ax[2,1],t+np.random.normal(0.,25.,size=len(t)),g+np.random.normal(0.,0.05,size=len(g)),allnm,
+    plots.plotc(ax[2,1],allteff+np.random.normal(0.,25.,size=len(allteff)),alllogg+np.random.normal(0.,0.05,size=len(alllogg)),allnm,
                 xr=[8000,2500],yr=[6.,-1],zr=nmlim,zt='[N/M]',colorbar=True)
     fig.tight_layout()
     fig.savefig(name+'.png')

@@ -51,6 +51,40 @@ def elems(nelem=0) :
             elemfitnames.append('['+elems[i]+'/M]')
     return elems,elemtoh,tagnames,elemfitnames
 
+logw0=4.179
+dlogw=6.e-6
+nw_apStar=8575
+def apStarWave() :
+    return 10.**(logw0+np.arange(nw_apStar)*dlogw)
+
+logw0_chip=[4.180476,4.200510,4.217064]
+nw_chip=[3028,2495,1991]
+def gridWave() :
+    return [10.**(logw0_chip[0]+np.arange(nw_chip[0])*dlogw),
+            10.**(logw0_chip[1]+np.arange(nw_chip[1])*dlogw),
+            10.**(logw0_chip[2]+np.arange(nw_chip[2])*dlogw)]
+
+def gridPix(apStar=True) :
+    if apStar :
+        w=np.log10(apStarWave())
+        s1 = np.where(np.isclose(w,logw0_chip[0],rtol=0.))[0][0]
+        s2 = np.where(np.isclose(w,logw0_chip[1],rtol=0.))[0][0]
+        s3 = np.where(np.isclose(w,logw0_chip[2],rtol=0.))[0][0]
+        e1 = np.where(np.isclose(w,logw0_chip[0]+nw_chip[0]*dlogw,rtol=0.))[0][0]
+        e2 = np.where(np.isclose(w,logw0_chip[1]+nw_chip[1]*dlogw,rtol=0.))[0][0]
+        e3 = np.where(np.isclose(w,logw0_chip[2]+nw_chip[2]*dlogw,rtol=0.))[0][0]
+        return [[s1,e1],[s2,e2],[s3,e3]]
+    else :
+        return [[0,nw_chip[0]],[nw_chip[0],nw_chip[0]+nw_chip[1]],[nw_chip[0]+nw_chip[1],nw_chip[0]+nw_chip[1]+nw_chip[2]]]
+
+def aspcap2apStar(aspcap):
+    apstar=np.zeros(nw_apStar)
+    pix_out=gridPix()
+    pix_in=gridPix(apStar=False)
+    for pin,pout in zip(pix_in,pix_out) :
+        apstar[pout[0]:pout[1]] = aspcap[pin[0]:pin[1]]
+    return apstar
+
 def readstars(starlist,libpar) :
     '''
     Runs stars in starlist through FERRE using libpar

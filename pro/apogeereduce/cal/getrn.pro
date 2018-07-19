@@ -119,7 +119,7 @@ smcolor
 for ichip=0,2 do begin
   x=indgen(5)+1
   plot,x,rnlog[ichip].rn1[0,1:5],psym=1,xrange=[-1,6],yrange=[0,20],xtitle='Nfowler',$
-    ytitle=textoidl('\sigma_{rn,eff}')+' (DN)',thick=2,charthick=2,xthick=2,ythick=2,xstyle=1
+    ytitle=textoidl('\sigma_{eff RN}')+' (DN)',thick=2,charthick=2,xthick=2,ythick=2,xstyle=1
   xyouts,5.5,17,'chip '+chip[ichip],align=1.,charsize=1.
   xyouts,-1,17,' Effective readout noise (DN)',charsize=1.
   for j=0,3 do begin
@@ -138,9 +138,9 @@ for ichip=0,2 do begin
   endfor
   ; plot with corrected noise, i.e. backed out to single read
   plot,x,rnlog[ichip].rn1corr[0,1:5],psym=1,xrange=[-1,6],yrange=[0,20],xtitle='Nfowler',$
-    ytitle=textoidl('\sigma_{rn}')+' (DN)',thick=2,charthick=2,xthick=2,ythick=2,xstyle=1
+    ytitle=textoidl('\sigma_{read}')+' (DN)',thick=2,charthick=2,xthick=2,ythick=2,xstyle=1
   xyouts,5.5,17,'chip '+chip[ichip],align=1.,charsize=1.
-  xyouts,-1,17,' Equivalent single-read readout noise (DN)',charsize=1.
+  xyouts,-1,17,' Derived single-read readout noise (DN)',charsize=1.
   for j=0,3 do begin
     oplot,x,rnlog[ichip].rn1corr[j,1:5],psym=1,color=j+2,thick=2
     oplot,[0],[rnlog[ichip].rn1corr[j,0]],psym=1,color=j+2,thick=2
@@ -164,6 +164,62 @@ if hard eq 1 then begin
   set_plot,'x'
 endif
 mwrfits,rnlog,caldir+'/detector/'+file+'.tab',/create
+
+; single red chip plot
+if hard eq 1 then begin
+  set_plot,'ps'
+  device,/color,file=caldir+'/detector/'+file+'_0.eps',/encap,xsize=30,ysize=10
+endif
+!p.multi=[0,2,1,0,0]
+!p.charsize=2
+smcolor
+for ichip=0,0 do begin
+  x=indgen(5)+1
+  plot,x,rnlog[ichip].rn1[0,1:5],psym=1,xrange=[-1,6],yrange=[0,20],xtitle='Nfowler',$
+    ytitle=textoidl('\sigma_{eff RN}')+' (DN)',thick=2,charthick=2,xthick=2,ythick=2,xstyle=1
+  xyouts,5.5,17,'chip '+chip[ichip],align=1.,charsize=1.
+  xyouts,-1,17,' Effective readout noise (DN)',charsize=1.
+  ;for j=0,3 do begin
+  ;  oplot,x,rnlog[ichip].rn1[j,1:5],psym=1,color=j+2,thick=2
+  ;  oplot,[0],[rnlog[ichip].rn1[j,0]],psym=1,color=j+2,thick=2
+  ;endfor
+  ;oplot,x,rnlog[ichip].rn2[0,1:5],psym=6,xrange=[-1,6],yrange=[0,20],xtitle='Fowler',$
+  ;  ytitle='Readout noise (DN)',thick=2,charthick=2,xthick=2,ythick=2
+  for j=0,3 do begin
+    oplot,x,rnlog[ichip].rn2[j,1:5],psym=6,color=j+2,thick=2
+    oplot,[0],[rnlog[ichip].rn2[j,0]],psym=6,color=j+2,thick=2
+  endfor
+  ;for j=0,3 do begin
+  ;  oplot,x,rnlog[ichip].rn3[j,1:5],psym=5,color=j+2,thick=2
+  ;  oplot,[0],[rnlog[ichip].rn3[j,0]],psym=5,color=j+2,thick=2
+  ;endfor
+  ; plot with corrected noise, i.e. backed out to single read
+  plot,x,rnlog[ichip].rn1corr[0,1:5],psym=1,xrange=[-1,6],yrange=[0,20],xtitle='Nfowler',$
+    ytitle=textoidl('\sigma_{read}')+' (DN)',thick=2,charthick=2,xthick=2,ythick=2,xstyle=1
+  xyouts,5.5,17,'chip '+chip[ichip],align=1.,charsize=1.
+  xyouts,-1,17,' Derived single-read readout noise (DN)',charsize=1.
+  ;for j=0,3 do begin
+  ;  oplot,x,rnlog[ichip].rn1corr[j,1:5],psym=1,color=j+2,thick=2
+  ;  oplot,[0],[rnlog[ichip].rn1corr[j,0]],psym=1,color=j+2,thick=2
+  ;endfor
+  for j=0,3 do begin
+    oplot,x,rnlog[ichip].rn2corr[j,1:5],psym=6,color=j+2,thick=2
+    oplot,[0],[rnlog[ichip].rn2corr[j,0]],psym=6,color=j+2,thick=2
+  endfor
+  ;oplot,x,rnlog[ichip].rn3[0,1:5],psym=5,xrange=[-1,6],yrange=[0,20],xtitle='Fowler',$
+  ;  ytitle='Readout noise (DN)',thick=2,charthick=2,xthick=2,ythick=2
+  ;for j=0,3 do begin
+  ;  oplot,x,rnlog[ichip].rn3[j,1:5],psym=5,color=j+2,thick=2
+  ;  oplot,[0],[rnlog[ichip].rn3[j,0]],psym=5,color=j+2,thick=2
+  ;endfor
+endfor
+if hard eq 1 then begin
+  device,/close
+  if not file_test(caldir+'/detector/plots',/directory) then file_mkdir,caldir+'/detector/plots'
+  spawn,'convert '+caldir+'/detector/'+file+'_0.eps '+caldir+'/detector/plots/'+file+'_0.jpg'
+  ;file_delete,caldir+'/detector/'+file+'.eps'
+  set_plot,'x'
+endif
 
 rnhtml,caldir
 
@@ -278,10 +334,10 @@ end
 
 apsetver,vers='current',telescope='apo25m'
 ;getrn,[15640004,15640005],indiv=1
-getrn,[15640004,15640005],indiv=3
+;getrn,[15640004,15640005],indiv=3
 ;getrn,[12910009,12910010],indiv=1
 getrn,[12910009,12910010],indiv=3
 apsetver,telescope='lco25m'
 ;getrn,[22620002,22620003],indiv=1
-getrn,[22620002,22620003],indiv=3
+;getrn,[22620002,22620003],indiv=3
 end

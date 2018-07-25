@@ -11,22 +11,21 @@ from scipy import special, interpolate, sparse, ndimage
 import scipy.sparse.linalg
 import pdb
 from apogee.utils import spectra
+from apogee.aspcap import aspcap
 from astropy.io import fits
 import matplotlib.pyplot as plt
 
 from apogee.utils import apload
 
-# Wavegrid parameters used in apStarWavegrid and pix2wv
-_LOG10LAMBDA0= 4.179
-_DLOG10LAMBDA= 6.*10.**-6.
-_NLAMBDA= 8575
-
-def apStarWavegrid():
-    return 10.**numpy.arange(_LOG10LAMBDA0,
-                             _LOG10LAMBDA0+_NLAMBDA*_DLOG10LAMBDA,
-                             _DLOG10LAMBDA)
-
 _SQRTTWO= numpy.sqrt(2.)
+
+def get(lsfid,waveid,fiber,highres=9) :
+    """  Return standard sparsified LSF
+    """
+    x=numpy.arange(-15.,15.,1./highres)
+    x=numpy.arange(-7.,7.,1./highres)
+    l=eval(x,fiber=fiber,waveid=waveid,lsfid=lsfid)
+    return x,sparsify(l)
 
 def convolve(wav,spec,
              lsf=None,xlsf=None,dxlsf=None,fiber='combo',
@@ -61,7 +60,7 @@ def convolve(wav,spec,
     else:
         dx= dxlsf
     hires= int(round(1./dx))
-    l10wav= numpy.log10(apStarWavegrid())
+    l10wav= numpy.log10(aspcap.apStarWave())
     dowav= l10wav[1]-l10wav[0]
     tmpwav= 10.**numpy.arange(l10wav[0],l10wav[-1]+dowav/hires,dowav/hires)
     tmp= numpy.empty(len(l10wav)*hires)   
@@ -129,14 +128,14 @@ def dummy(dx=1./3.,sparse=False):
        sparse= (False) if True, return a sparse representation that can be passed to apogee.spec.lsf.convolve for easy convolution
     OUTPUT:
        LSF(x|pixel center);
-       pixel centers are apStarWavegrid if dx=1, and denser 1/integer versions if dx=1/integer
+       pixel centers are apStarWave if dx=1, and denser 1/integer versions if dx=1/integer
     HISTORY:
        2015-03-23 - Written - Bovy (IAS)
     """
     # Are the x unit pixels or a fraction 1/hires thereof?
     hires= int(round(1./dx))
     # Setup output
-    wav= apStarWavegrid()
+    wav= aspcap.apStarWave()
     l10wav= numpy.log10(wav)
     dowav= l10wav[1]-l10wav[0]
     # Hi-res wavelength for output
@@ -157,7 +156,7 @@ def eval(x,fiber='combo',lsfid=5440020,waveid=2420038,sparse=False):
        sparse= (False) if True, return a sparse representation that can be passed to apogee.spec.lsf.convolve for easy convolution
     OUTPUT:
        LSF(x|pixel center);
-       pixel centers are apStarWavegrid if dx=1, and denser 1/integer versions if dx=1/integer
+       pixel centers are apStarWave if dx=1, and denser 1/integer versions if dx=1/integer
     HISTORY:
        2015-03-12 - Written based on Jon H's code (based on David N's code) - Bovy (IAS)
     """
@@ -171,7 +170,7 @@ def eval(x,fiber='combo',lsfid=5440020,waveid=2420038,sparse=False):
     # Are the x unit pixels or a fraction 1/hires thereof?
     hires= int(round(1./(x[1]-x[0])))
     # Setup output
-    wav= apStarWavegrid()
+    wav= aspcap.apStarWave()
     l10wav= numpy.log10(wav)
     dowav= l10wav[1]-l10wav[0]
     # Hi-res wavelength for output
@@ -505,7 +504,7 @@ def deconvolve(spec,specerr,
             raise RuntimeError("Deconvolution did not converge")
         out[sindx*hires:eindx*hires]= tmp*norm
     if not smooth is None:
-        wav= apStarWavegrid()
+        wav= aspcap.apStarWave()
         l10wav= numpy.log10(wav)
         dowav= l10wav[1]-l10wav[0]
         sigvm= hires/dowav/smooth/numpy.log(10.)\
@@ -522,7 +521,7 @@ def test(highres=9.,plot=False):
     ws=sh['CRVAL1']+numpy.arange(sh['NAXIS1'])*sh['CDELT1']
     ws=spectra.airtovac(ws)
  
-    wa=apStarWavegrid()
+    wa=aspcap.apStarWave()
     x=numpy.arange(-15.,15.,1./highres)
     l=eval(x,fiber='combo',waveid=2420038,lsfid=5440020)
     ls=sparsify(l)

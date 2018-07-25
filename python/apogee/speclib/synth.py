@@ -23,6 +23,7 @@ import multiprocessing as mp
 import numpy as np
 import time
 import struct
+from apogee.aspcap import aspcap
 from apogee.aspcap import ferre
 from apogee.speclib import atmos
 from apogee.speclib import isochrones
@@ -557,7 +558,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
             fraw[ipiece].close()
             os.remove(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.raw'.format(npiece,npca,ipiece))
 
-def mkgrid(planfile,clobber=False,resmooth=False,renorm=False,save=False,run=True,split=None,highres=9) :
+def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
     """ Create a grid of synthetic spectra using Turbospectrum given input parameter file
     """
 
@@ -661,6 +662,62 @@ def mkgrid(planfile,clobber=False,resmooth=False,renorm=False,save=False,run=Tru
             except: pass
             hdu.writeto(specdir+'/'+p['name']+'.fits',overwrite=True)
 
+def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,lsf=None) :
+    """ Create a grid of synthetic spectra using Turbospectrum given input parameter file
+    """
+
+    # Read planfile
+    if not os.path.isfile(planfile): 
+        print('{:s} does not exist'.format(planfile))
+        return
+    p=yanny.yanny(planfile,np=True)
+    # header information
+    specdir = os.environ['APOGEE_SPECLIB']+'/synth/'+p['specdir'] if p.get('specdir') else './'
+    if fiber is None : fiber=np.array(p.get('lsffiber').split()).astype(int).tolist()
+    lsfid=int(p.get('lsfid'))
+    waveid=int(p.get('waveid'))
+
+    # convolved and bundle output spectra into output fits file
+    wa=lsf.apStarWavegrid()
+    nout=wa.shape[0]
+
+    if lsf is None :
+        lsf = lsf.get(lsfid,waveid,fiber,highres=highres)
+
+    specdata = fits.open(specdir+'/'+p['name']+'.fits')[0]
+    nspec = specdata.data.shape[-1]
+    ws=np.linspace(15100.,17000., nspec)
+    # synthesis is in air, we want vacuum
+    ws=spectra.airtovac(ws)
+    smoothdata=np.zeros([int(p['nmh']),int(p['nlogg']),int(p['nteff']),nout],dtype=np.float32)
+    a=fits.open('ap00cp00np00vp20.fits')[1].data
+    b=fits.open('ap00cp00np00vp20.fits')[2].data
+    c=fits.open('ap00cp00np00vp20.fits')[3].data
+    for k in range(specdata.header['NAXIS3']) :
+      for j in range(specdata.header['NAXIS2']) :
+        for i in range(specdata.header['NAXIS1']) :
+            mh=specdata.header['CRVAL3']+k*specdata.header['CDELT3']
+            #vmacro=spec[0][8]
+            vmacro = 10.**(0.470794-0.254*mh)
+            vmacro = vmacro if vmacro<15 else 15.
+            vmacro = 10.**0.6
+
+            # temporary placeholed for rotation: add to vmacro and use gaussian profile`
+            #vrot=spec[0][7]
+            #vmacro=np.sqrt(vrot**2+vmacro**2)
+            #print(mh,vmacro,vrot)
+
+            smoothdata[k,j,i,:]=lsf.convolve(ws,specdata.data[k,j,i,:],lsf=lsf[1],xlsf=lsf[0],vmacro=vmacro)
+            asp=np.append(a[k,j,i,:],b[k,j,i,:])
+            asp=aspcap.aspcap2apStar(np.append(asp,c[k,j,i,:]))
+            plt.clf()
+            plt.plot(smoothdata[k,j,i,:]/600000/asp)
+            plt.plot(asp)
+            plt.draw()
+            pdb.set_trace()
+
+    return smoothdata
+
 def add_dim(header,crval,cdelt,crpix,ctype,idim) :
     """ Add a set of CRVAL/CDELT,CRPIX,CTYPE cards to header
     """
@@ -748,10 +805,15 @@ def mkspec(pars) :
     return pars,spec
     
 
-def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,fiber='combo') :
+def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,fiber='combo',plot=False,lines=None) :
     """ Make a series of spectra from parameters in an input file, with parallel processing for turbospec
     """
     pars=np.loadtxt(file)
+    if lines is not None :
+        pars = pars[lines[0]:lines[1]]
+        suffix = '_{:d}'.format(lines[0])
+    else :
+        suffix = ''
 
     pool = mp.Pool(threads)
     specs = pool.map_async(mkspec, pars).get()
@@ -760,41 +822,39 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,fiber='combo')
 
     # convolved and bundle output spectra into output fits file
     wa=lsf.apStarWavegrid()
-    x=np.arange(-15.,15.,1./highres)
-    l=lsf.eval(x,fiber=fiber,waveid=waveid,lsfid=lsfid)
-    ls=lsf.sparsify(l)
+    x,ls=lsf.get(lsfid,waveid,fiber,highres=highres)
 
     out=[]
     conv=[]
     outpar=[]
-    plt.clf()
+    if plot : plt.clf()
+    ws=np.linspace(15100.,17000., len(specs[0][1]))
+    # synthesis is in air, we want vacuum
+    ws=spectra.airtovac(ws)
     for spec in specs :
         if isinstance(spec[1],np.ndarray) :
             mh=spec[0][2]
             #vmacro=spec[0][8]
             vmacro = 10.**(0.470794-0.254*mh)
             vmacro = vmacro if vmacro<15 else 15.
-            print(mh,vmacro)
 
             # temporary placeholed for rotation: add to vmacro and use gaussian profile`
-            vrot=spec[0][8]
+            vrot=spec[0][7]
             vmacro=np.sqrt(vrot**2+vmacro**2)
+            print(mh,vmacro,vrot)
 
-            ws=np.linspace(15100.,17000., len(spec[1]))
-            # synthesis is in air, we want vacuum
-            ws=spectra.airtovac(ws)
             z=lsf.convolve(ws,spec[1],lsf=ls,xlsf=x,vmacro=vmacro)
             out.append(spec[1])
             conv.append(np.squeeze(z))
-            plt.plot(wa,np.squeeze(z))
             outpar.append(spec[0])
+            if plot : plt.plot(wa,np.squeeze(z))
 
     # write the spectra out
     hdu=fits.HDUList()
     hdu.append(fits.ImageHDU(outpar))
     hdu.append(fits.ImageHDU(out))
     hdu.append(fits.ImageHDU(conv))
-    hdu.writeto(file+'.fits',overwrite=True)
+    hdu.writeto(file+suffix+'.fits',overwrite=True)
    
 def filter_lines(infile,outfile,wind,nskip=0) :
     """ Read from input linelist file, output comments and lines falling in windows of [w1,w2] to outfile

@@ -27,7 +27,7 @@ batch_size=1000
 verbose=0
 
 def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0,
-          teff=[0,10000],logg=[-1,6],mh=[-3,1],am=[-1,1],cm=[-2,2],raw=False,rot=False) :
+          teff=[0,10000],logg=[-1,6],mh=[-3,1],am=[-1,1],cm=[-2,2],raw=False,rot=False,nolog=True) :
     """ Train a neural net model on an input training set
     """
     global nfit, verbose, nepochs
@@ -66,6 +66,8 @@ def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0
         pars=pars[:,0:8]
     else :
         pars=pars[:,0:7]
+
+    if nolog : pars[:,2] = 10.**pars[:,2]
 
     #normalize spectra
     print('normalizing...')
@@ -252,7 +254,7 @@ def spectrum(x,*pars) :
 def get(file) :
     """ Load a model pickle file into global variables
     """
-    global pmeans, pstds, means, stds, weights, biases, ifit
+    global head, pmeans, pstds, means, stds, weights, biases, ifit
 
     # Getting back the objects:
     with open(file+'.pkl') as f: 
@@ -300,7 +302,7 @@ def test(pmn, pstd, mn, std, weights, biases,n=100, t0=[3750.,4500.], g0=2., mh0
         if i == 0 : ax[i,it0].set_title('{:8.0f}{:7.2f}{:7.2f}'.format(t0[it0],g0,mh0))
     fig.tight_layout()
 
-def comp(file,threads=8,nfit=8,dofit=True,plot=False) :
+def comp(file,threads=8,nfit=8,dofit=True,plot=False,order=4) :
     """ Solves for parameters using input spectra and NN model
     """
     p=fits.open(file+'.fits')[0].data
@@ -308,11 +310,14 @@ def comp(file,threads=8,nfit=8,dofit=True,plot=False) :
     p=p[:,0:7]
     if nfit == 0 : nfit = p.shape[0]
     get(file)
+    pdb.set_trace()
 
+    specerr=np.full_like(s[0,:],0.005)
     if dofit :
         specs=[]
         for i in range(nfit) :
-            specs.append(s[i,:]/np.nanmean(s[i,:]))
+            cont = norm.cont(s[i,:],specerr,poly=True,order=order,chips=True)
+            specs.append((s[i,:]/cont, specerr))
         pool = mp.Pool(threads)
         output = pool.map_async(solve, specs).get()
         pool.close()
@@ -375,7 +380,7 @@ def solve(spec) :
     fpars,fcov = curve_fit(spectrum,pix[gd],s[gd],sigma=serr[gd],p0=init,bounds=bounds)
     return fpars
 
-def fitfield(model,field,nfit=0,order=4,threads=8,plot=False) :
+def fitfield(model,field,stars=None,nfit=0,order=4,threads=8,plot=False,write=True) :
     """ Fit observed spectra in an input field, given a model
     """
 
@@ -385,15 +390,16 @@ def fitfield(model,field,nfit=0,order=4,threads=8,plot=False) :
     apfield=apload.apField(field)[1].data
     aspcap_param=apload.aspcapField(field)[1].data
     aspcap_spec=apload.aspcapField(field)[2].data
-    stars=apfield['apogee_id']
-    if nfit == 0 : nfit = len(stars)
+    if stars is None :
+        stars=apfield['apogee_id']
+        if nfit == 0 : stars = stars[0:nfit]
  
     # load up normalized spectra and uncertainties 
     specs=[]
     if plot : fig,ax=plots.multi(1,2,hspace=0.001,figsize=(15,3))
     pix = np.arange(0,8575,1)
-    for i in range(nfit) :
-        apstar=apload.apStar(field,stars[i])
+    for star in stars :
+        apstar=apload.apStar(field,star)
         spec = apstar[1].data[0,:].squeeze()
         specerr = apstar[2].data[0,:].squeeze()
         cont = norm.cont(spec,specerr,poly=True,order=order,chips=True)
@@ -404,7 +410,7 @@ def fitfield(model,field,nfit=0,order=4,threads=8,plot=False) :
             ax[0].plot(spec)
             ax[0].plot(cont)
             ax[1].plot(spec/cont)
-            j=np.where(aspcap_param['APOGEE_ID'] == stars[i])[0][0]
+            j=np.where(aspcap_param['APOGEE_ID'] == star)[0][0]
             aspec=aspcap.aspcap2apStar(aspcap_spec[j]['spec'])
             ax[1].plot(aspec,color='r')
             plt.draw()
@@ -421,22 +427,27 @@ def fitfield(model,field,nfit=0,order=4,threads=8,plot=False) :
     # output FITS table
     output=np.array(output)
     out=Table()
-    out['APOGEE_ID']=stars[0:nfit]
+    out['APOGEE_ID']=stars
     length=len(out)
     out.add_column(Column(name='FPARAM',data=output))
     spec=[]
     err=[]
     bestfit=[]
-    for i in range(nfit) :
+    chi2=[]
+    for i,star in enumerate(stars) :
         spec.append(specs[i][0])
         err.append(specs[i][1])
-        bestfit.append(spectrum(pix, *output[i]))
+        fit=spectrum(pix, *output[i])
+        bestfit.append(fit)
+        chi2.append(np.nansum((specs[i][0]-fit)**2/specs[i][1]**2))
     out.add_column(Column(name='SPEC',data=np.array(spec)))
     out.add_column(Column(name='ERR',data=np.array(err)))
     out.add_column(Column(name='SPEC_BESTFIT',data=np.array(bestfit)))
-    out.write('nn-'+field+'.fits',format='fits',overwrite=True)
+    out.add_column(Column(name='CHI2',data=np.array(chi2)))
+    if write : out.write('nn-'+field+'.fits',format='fits',overwrite=True)
+    return out
 
-def aspcap_comp(model,fields,plot=True,save=None) :
+def aspcap_comp(model,fields,plot=True,save=None,loggmax=99) :
     """ Compare NN results with ASPCAP 
     """
 
@@ -445,7 +456,7 @@ def aspcap_comp(model,fields,plot=True,save=None) :
 
     apars_all=[]
     npars_all=[]
-    if plot :    fig,ax=plots.multi(1,2,hspace=0.001,figsize=(15,3))
+    if plot :    fig,ax=plots.multi(1,3,hspace=0.001,figsize=(15,3),sharex=True)
     for field in fields :
       try :
         out=fits.open('nn-'+field+'.fits')[1].data
@@ -461,7 +472,7 @@ def aspcap_comp(model,fields,plot=True,save=None) :
 
         for i in range(nfit) :
             print(i,stars[i])
-            j=np.where(aspcap_param['APOGEE_ID'] == stars[i])[0]
+            j=np.where((aspcap_param['APOGEE_ID'] == stars[i]) & (aspcap_param['FPARAM'][:,1] < loggmax))[0]
             if len(j) > 0 :
               j=j[0]
               fp=aspcap_param[j]['FPARAM'].squeeze()
@@ -472,21 +483,30 @@ def aspcap_comp(model,fields,plot=True,save=None) :
                 pprint(out[i]['FPARAM'])
                 ax[0].cla()
                 ax[0].plot(out[i]['SPEC'],color='k')
+                ax[0].plot(out[i]['ERR'],color='k',ls='dotted')
                 ax[0].set_ylim(0.5,1.5)
                 ax[1].cla()
                 ax[1].plot(out[i]['SPEC'],color='k')
                 ax[1].plot(out[i]['SPEC_BESTFIT'],color='b')
                 ax[1].set_ylim(0.5,1.5)
+                print('nn chi2: ',np.nansum((out[i]['SPEC']-out[i]['SPEC_BESTFIT'])**2/out[i]['ERR']**2))
+                ax[2].plot((out[i]['SPEC']-out[i]['SPEC_BESTFIT'])**2/out[i]['ERR']**2,color='b')
                 # using ASPCAP parameters and NN model
                 # plot ASPCAP normalized spectrum
                 aspec=aspcap.aspcap2apStar(aspcap_spec[j]['spec'])
+                aerr=aspcap.aspcap2apStar(aspcap_spec[j]['err'])
+                print('nn chi2 with aerr: ',np.nansum((out[i]['SPEC']-out[i]['SPEC_BESTFIT'])**2/aerr**2))
                 ax[0].plot(aspec,color='r')
+                ax[0].plot(aerr,color='r',ls='dotted')
                 pprint(apars)
-                print(fp[7])
+                print('rot: ',fp[7])
                 print(aspcap_param[j]['FPARAM_CLASS'][0:3],aspcap_param[j]['CHI2_CLASS'][0:3])
                 # NN model with ASPCAP params
                 fit=spectrum(pix, *apars)
+                print('nn(ASPCAP) chi2',np.nansum((out[i]['SPEC']-fit)**2/out[i]['ERR']**2))
+                print('nn(ASPCAP) chi2 with aerr',np.nansum((out[i]['SPEC']-fit)**2/aerr**2))
                 ax[1].plot(fit,color='g')
+                ax[2].plot((out[i]['SPEC']-fit)**2/out[i]['ERR']**2,color='g')
                 # ASPCAP model
                 aspec=aspcap.aspcap2apStar(aspcap_spec[j]['spec_bestfit'])
                 ax[1].plot(aspec,color='r')
@@ -497,6 +517,10 @@ def aspcap_comp(model,fields,plot=True,save=None) :
 
     apars_all=np.array(apars_all)
     npars_all=np.array(npars_all)
+    fig,ax=plots.multi(2,1,hspace=0.001,wspace=0.001)
+    plots.plotc(ax[0],npars_all[:,0],npars_all[:,1],npars_all[:,2],xr=[8000,3000],yr=[5,0],zr=[-2,0.5])
+    plots.plotc(ax[1],apars_all[:,0],apars_all[:,1],apars_all[:,2],xr=[8000,3000],yr=[5,0],zr=[-2,0.5])
+
     fig,ax=plots.multi(2,7,hspace=0.001,wspace=0.001)
     yt=['Teff','logg','[M/H]','[alpha/M]','[C/M]','[N/M]','vmicro']
     for i in range(7) :

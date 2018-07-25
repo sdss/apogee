@@ -168,12 +168,12 @@ mwrfits,rnlog,caldir+'/detector/'+file+'.tab',/create
 ; single red chip plot
 if hard eq 1 then begin
   set_plot,'ps'
-  device,/color,file=caldir+'/detector/'+file+'_0.eps',/encap,xsize=30,ysize=10
+  device,/color,file=caldir+'/detector/'+file+'_0.eps',/encap,xsize=30,ysize=20
 endif
-!p.multi=[0,2,1,0,0]
+!p.multi=[0,2,3,0,0]
 !p.charsize=2
 smcolor
-for ichip=0,0 do begin
+for ichip=0,2 do begin
   x=indgen(5)+1
   plot,x,rnlog[ichip].rn1[0,1:5],psym=1,xrange=[-1,6],yrange=[0,20],xtitle='Nfowler',$
     ytitle=textoidl('\sigma_{eff RN}')+' (DN)',thick=2,charthick=2,xthick=2,ythick=2,xstyle=1

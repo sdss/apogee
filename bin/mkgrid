@@ -17,6 +17,8 @@ import argparse
 import os
 import sys
 import subprocess
+import datetime
+
 
 from apogee.speclib import synth
 
@@ -32,7 +34,11 @@ if __name__ == '__main__' :
     parser.add_argument("--host")
     args=parser.parse_args()
 
+    now = datetime.datetime.now()
+    print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     synth.mkgrid(args.planfile,save=args.save)
+    now = datetime.datetime.now()
+    print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
 
     if args.done is not None :
         subprocess.call(['setdone',args.done])

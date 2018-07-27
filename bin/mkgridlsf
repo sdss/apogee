@@ -17,7 +17,9 @@ import argparse
 import os
 import sys
 import subprocess
+import datetime
 import pdb
+from apogee.speclib import synth
 
 if __name__ == '__main__' :
 
@@ -31,9 +33,15 @@ if __name__ == '__main__' :
     parser.add_argument('--clobber', help='Overwrite files?',action="store_true")
     args=parser.parse_args()
 
-    if args.clobber: clobber=',/clobber'
-    else : clobber=''
-    subprocess.call(["idl","-e","speclib_mkgrid,'"+args.planfile+"'"+clobber])
+ 
+    now = datetime.datetime.now()
+    print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
+    #if args.clobber: clobber=',/clobber'
+    #else : clobber=''
+    #subprocess.call(["idl","-e","speclib_mkgrid,'"+args.planfile+"'"+clobber])
+    synth.mkgridlsf(args.planfile)
+    now = datetime.datetime.now()
+    print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
 
     if args.done is not None :
         subprocess.call(['setdone',args.done])

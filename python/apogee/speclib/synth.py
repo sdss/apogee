@@ -662,7 +662,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
             except: pass
             hdu.writeto(specdir+'/'+p['name']+'.fits',overwrite=True)
 
-def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,lsf=None) :
+def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,ls=None,comp=False,apred='r8') :
     """ Create a grid of synthetic spectra using Turbospectrum given input parameter file
     """
 
@@ -674,47 +674,71 @@ def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,lsf=None) :
     # header information
     specdir = os.environ['APOGEE_SPECLIB']+'/synth/'+p['specdir'] if p.get('specdir') else './'
     if fiber is None : fiber=np.array(p.get('lsffiber').split()).astype(int).tolist()
+    if isinstance(fiber,int): fiber= [fiber]
     lsfid=int(p.get('lsfid'))
     waveid=int(p.get('waveid'))
 
     # convolved and bundle output spectra into output fits file
-    wa=lsf.apStarWavegrid()
+    wa=aspcap.apStarWave()
     nout=wa.shape[0]
 
-    if lsf is None :
-        lsf = lsf.get(lsfid,waveid,fiber,highres=highres)
+    if ls is None :
+        lsfile = 'lsf_{:08d}_{:08d}.fits'.format(lsfid,waveid)
+        while os.path.isfile(lsfile+'.lock') : 
+            print('waiting for lock: ',lsfile+'.lock')
+            time.sleep(10)
+
+        if os.path.isfile(lsfile) :
+            x=fits.open(lsfile)[1].data
+            ls=fits.open(lsfile)[2].data
+        else :
+            fp = open(lsfile+'.lock','w')
+            fp.close()
+            x,ls = lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred)
+            hdu=fits.HDUList()
+            hdu.append(fits.PrimaryHDU())
+            hdu[0].header['APRED'] = apred
+            hdu[0].header['LSFID'] = lsfid
+            hdu[0].header['WAVEID'] = waveid
+            for i,f in enumerate(fiber) :
+                hdu[0].header['FIBER{:d}'.format(i)] = f
+            hdu.append(fits.ImageHDU(x))
+            hdu.append(fits.ImageHDU(ls))
+            hdu.writeto(lsfile,overwrite=True)
+            os.remove(lsfile+'.lock') 
 
     specdata = fits.open(specdir+'/'+p['name']+'.fits')[0]
     nspec = specdata.data.shape[-1]
-    ws=np.linspace(15100.,17000., nspec)
+    ws=vector(specdata.header,1)
     # synthesis is in air, we want vacuum
     ws=spectra.airtovac(ws)
     smoothdata=np.zeros([int(p['nmh']),int(p['nlogg']),int(p['nteff']),nout],dtype=np.float32)
-    a=fits.open('ap00cp00np00vp20.fits')[1].data
-    b=fits.open('ap00cp00np00vp20.fits')[2].data
-    c=fits.open('ap00cp00np00vp20.fits')[3].data
-    for k in range(specdata.header['NAXIS3']) :
-      for j in range(specdata.header['NAXIS2']) :
-        for i in range(specdata.header['NAXIS1']) :
-            mh=specdata.header['CRVAL3']+k*specdata.header['CDELT3']
-            #vmacro=spec[0][8]
+    if comp :
+        a=fits.open('ap00cp00np00vp20.fits')[1].data
+        b=fits.open('ap00cp00np00vp20.fits')[2].data
+        c=fits.open('ap00cp00np00vp20.fits')[3].data
+    for k in range(specdata.header['NAXIS4']) :
+      for j in range(specdata.header['NAXIS3']) :
+        for i in range(specdata.header['NAXIS2']) :
+            mh=specdata.header['CRVAL4']+k*specdata.header['CDELT4']
             vmacro = 10.**(0.470794-0.254*mh)
             vmacro = vmacro if vmacro<15 else 15.
-            vmacro = 10.**0.6
+            vrot=10.**.176
+            print(k,j,i,vmacro,vrot)
 
-            # temporary placeholed for rotation: add to vmacro and use gaussian profile`
-            #vrot=spec[0][7]
-            #vmacro=np.sqrt(vrot**2+vmacro**2)
-            #print(mh,vmacro,vrot)
+            smoothdata[k,j,i,:]=lsf.convolve(ws,specdata.data[k,j,i,:],lsf=ls,xlsf=x,vmacro=vmacro,vrot=vrot)
+            if comp :
+                asp=np.append(a[k,j,i,:],b[k,j,i,:])
+                asp=aspcap.aspcap2apStar(np.append(asp,c[k,j,i,:]))
+                plt.clf()
+                plt.plot(smoothdata[k,j,i,:]/600000/asp)
+                plt.plot(asp)
+                plt.draw()
+                pdb.set_trace()
 
-            smoothdata[k,j,i,:]=lsf.convolve(ws,specdata.data[k,j,i,:],lsf=lsf[1],xlsf=lsf[0],vmacro=vmacro)
-            asp=np.append(a[k,j,i,:],b[k,j,i,:])
-            asp=aspcap.aspcap2apStar(np.append(asp,c[k,j,i,:]))
-            plt.clf()
-            plt.plot(smoothdata[k,j,i,:]/600000/asp)
-            plt.plot(asp)
-            plt.draw()
-            pdb.set_trace()
+    hdu=fits.PrimaryHDU(np.squeeze(smoothdata))
+    hdu.header.extend(specdata.header.copy(strip=True))
+    hdu.writeto('new_'+p['name']+'.fits',overwrite=True)
 
     return smoothdata
 
@@ -821,7 +845,7 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,fiber='combo',
     pool.join()
 
     # convolved and bundle output spectra into output fits file
-    wa=lsf.apStarWavegrid()
+    wa=aspcap.apStarWave()
     x,ls=lsf.get(lsfid,waveid,fiber,highres=highres)
 
     out=[]

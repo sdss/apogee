@@ -19,17 +19,18 @@ from apogee.utils import apload
 
 _SQRTTWO= numpy.sqrt(2.)
 
-def get(lsfid,waveid,fiber,highres=9) :
+def get(lsfid,waveid,fiber,highres=9,apred=None) :
     """  Return standard sparsified LSF
     """
-    x=numpy.arange(-15.,15.,1./highres)
-    x=numpy.arange(-7.,7.,1./highres)
+    if apred is not None: apload.apred = apred
+    x=numpy.arange(-15.,15.01,1./highres)
+    x=numpy.arange(-7.,7.01,1./highres)
     l=eval(x,fiber=fiber,waveid=waveid,lsfid=lsfid)
-    return x,sparsify(l)
+    return x,l
 
 def convolve(wav,spec,
              lsf=None,xlsf=None,dxlsf=None,fiber='combo',
-             vmacro=6.):
+             vmacro=6.,vrot=None):
     """
     NAME:
        convolve
@@ -87,9 +88,24 @@ def convolve(wav,spec,
         if isinstance(vmacro,numpy.ndarray):
             vmacro= sparsify(vmacro)
         tmp= vmacro.dot(tmp.T).T
+    # Add rotation
+    if vrot is not None :
+        deltav=dowav/hires*3.e5*numpy.log(10)
+        kernel=rotate(deltav,vrot,epsilon=0.25)
+        kernel=sparsify(numpy.tile(kernel,(len(tmpwav),1)))
+        tmp=kernel.dot(tmp.T).T
     if not isinstance(lsf,sparse.csr_matrix):
         # Use sparse representations to quickly calculate the convolution
         tmp= sparse.csr_matrix(tmp)
+
+    #s=lsf.dot(tmp.T).T.toarray()
+    #test=fits.open('test.fits')[0].data
+    #plt.clf()
+    #plt.plot(test[0,:])
+    #plt.plot(test[1,:])
+    #plt.plot(s[0,:])
+    #plt.draw()
+    #pdb.set_trace()
     return lsf.dot(tmp.T).T.toarray()[:,::hires]
 
 def sparsify(lsf):
@@ -545,3 +561,21 @@ def test(highres=9.,plot=False):
               plt.plot(smw,sm[iz,ig,it,:],color='g')
               plt.draw()
               pdb.set_trace()
+
+def rotate(deltav,vsini,epsilon=0.6) :
+    """ rotation kernel from IDL Users library routine
+    """
+    e1 = 2.0*(1.0 - epsilon)
+    e2 = numpy.pi*epsilon/2.0
+    e3 = numpy.pi*(1.0 - epsilon/3.0)
+
+    npts = numpy.ceil(2*vsini/deltav)
+    if npts%2 == 0 : npts = npts +1
+    nwid = int(npts/2.)
+    x = (numpy.arange(0,npts)- nwid)
+    x = x*deltav/vsini
+    x1 = abs(1.0 - x**2)
+    kernel=(e1*numpy.sqrt(x1) + e2*x1)/e3
+    return kernel/kernel.sum()
+
+

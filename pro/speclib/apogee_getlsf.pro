@@ -6,7 +6,9 @@ function apogee_getlsf,lsfid,waveid,fibers,vers=vers,wave=wave,highres=highres
 if ~keyword_set(vers) then vers='r5'
 nLSFpix=15
 npix=8575
-lsf2d=fltarr(npix,nLSFpix*highres)
+;nLSFhigh=nLSFpix*highres
+nLSFhigh=(nLSFpix-1)*highres+1
+lsf2d=fltarr(npix,nLSFhigh)
 wave=4.179d0+indgen(npix)*6.d-6
 wave=10.^wave
 
@@ -28,9 +30,9 @@ for ichip=0,2 do begin
   pix=wave2pix(wave,lsfwave[*,ifiber[0]])
   dx=slope(pix)
   dx=[dx[0],dx]
-  xlsf=replicate(1.d0,n_elements(pix))#(dindgen(nLSFpix*highres)-nLSFpix*highres/2)
-  xlsf*=dx/highres#replicate(1,nLSFpix*highres)
-  xlsf+=pix#replicate(1.d0,nLSFpix*highres)
+  xlsf=replicate(1.d0,n_elements(pix))#(dindgen(nLSFhigh)-nLSFhigh/2)
+  xlsf*=dx/highres#replicate(1,nLSFhigh)
+  xlsf+=pix#replicate(1.d0,nLSFhigh)
   gd=where(finite(pix) eq 1,complement=bd,ncomp=nbd)
   if jfiber eq 0 then $
     lsf2d[gd,*]=lsf_gh(xlsf[gd,*],pix[gd],lsfpars[ifiber,*]) else $

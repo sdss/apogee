@@ -20,7 +20,7 @@ for iplan=0,n_elements(planfile)-1 do begin
 aploadplan,planfile[iplan],planstr
 
 if ~keyword_set(highres) then highres=apsetpar(planstr,'highres',9)
-if tag_exist(planstr,'apred_vers') then apred_vers=planstr.apred_vers else apred_vers='t9'
+if tag_exist(planstr,'apred_vers') then apred_vers=planstr.apred_vers else apred_vers='r8'
 if tag_exist(planstr,'telescope') then telescope=planstr.telescope else telescope='apo25m'
 apsetver,vers=apred_vers,telescope=telescope
 
@@ -134,7 +134,7 @@ if nrot gt 1 then begin
     kernel=kernel/total(kernel)
     tag='rot'+string(format='(i2.2)',irot)
     if irot eq 0 then begin
-      type=string(n_elements(kernel),format='(i2.2)')+'f'
+      type=string(n_elements(kernel),format='(i3.3)')+'f'
       create_struct,rotstr,'',tag,type
       rotstr.(irot)=kernel
     endif else add_tag,rotstr,tag,kernel,rotstr

@@ -10,7 +10,7 @@ if keyword_set(dark) then begin
   xr=[1,100]
   yr=[1,25]
 endif else begin
-  xr=[100,30000]
+  xr=[100,25000]
   yr=[1,10000]
 endelse
 sz=size(ims,/dim)
@@ -41,7 +41,7 @@ for ichip=0,2 do begin
   first=1
   for indiv=1,1,2 do begin
     ; loop over 3D-2D options, note that these have implications for gain!
-    for nfs=0,1 do begin
+    for nfs=0,0 do begin
 
       icolor=1+nfs*2
 
@@ -128,7 +128,7 @@ for ichip=0,2 do begin
         !x=x1
         !y=y1
       endif
-      if first then plot,x,y,xr=xr,yr=yr,psym=5,color=icolor,xstyle=1,xtitle='Mean counts',ytitle='Variance' else oplot,x,y,psym=5,color=icolor
+      if first then plot,x,y,xr=xr,yr=yr,psym=5,color=icolor,xstyle=1,xtitle='Mean counts',ytitle='Variance' else oplot,x,y,psym=5,color=icolor,xtickformat='(i5)'
       oplot,x,ymed,psym=1,color=icolor
       oplot,x,ydiff^2/2.,psym=6,color=icolor
       ;xyouts,30000.,1000.,'chip '+chips[ichip],align=1
@@ -174,5 +174,5 @@ noise,[[13360054+start,n,0],[13360054+start,n,5],[13360054+start,n,10],[13360054
 ;apogee-s
 apsetver,vers='current',telescope='lco25m'
 n=10
-noise,[[22800309+start,n,3],[22800309+start,n,0],[22810006+start,n,0],[22810037+start,n,0],[22820002+start,n,0],[22660002+start,n,0]],bpmid=22620001,rn=[4,5,3],hard='plots/gain_apogee-s',fidgain=3
+;noise,[[22800309+start,n,3],[22800309+start,n,0],[22810006+start,n,0],[22810037+start,n,0],[22820002+start,n,0],[22660002+start,n,0]],bpmid=22620001,rn=[4,5,3],hard='plots/gain_apogee-s',fidgain=3
 end

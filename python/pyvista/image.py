@@ -1,5 +1,5 @@
 import numpy as np
-from holtz.tools import plots
+from tools import plots
 from astropy.io import fits
 from astropy.io import ascii
 from astropy.modeling import models, fitting

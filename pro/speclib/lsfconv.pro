@@ -5,6 +5,9 @@ pro lsfconv,wave,spec,wlsf,lsf,xout,yout,highres=highres
     sz=size(lsf,/dim)
     npix=sz[0]
     nlsf=sz[1]/highres
+    nhigh=nlsf*highres
+    nlsf=sz[1]/highres+1
+    nhigh=(nlsf-1)*highres+1
   endif else begin
     highres=3
     sz=size(lsf,/dim)
@@ -19,11 +22,12 @@ pro lsfconv,wave,spec,wlsf,lsf,xout,yout,highres=highres
   disp=6.d-6/highres
   dw=alog10(wave[n_elements(wave)-1])-alog10(wave[0])
   xout=alog10(wave[0])+findgen(dw/disp)*disp
+;xout=4.179+lindgen(77168)*disp
   xout*=alog(10.)
   yout=xout*0.
-  nlsf2=(nlsf*highres)/2
+  nlsf2=(nhigh)/2
   tmp=interpol(spec,wave,exp(xout))
-  for ipix=nlsf*highres-nlsf2,n_elements(yout)-(nlsf*highres-nlsf2) do begin
+  for ipix=nhigh-nlsf2,n_elements(yout)-(nhigh-nlsf2) do begin
     junk=min(abs(exp(xout[ipix])-wlsf),imin)
     yout[ipix-nlsf2:ipix+nlsf2]+=tmp[ipix]*highlsf[imin,*] 
   endfor

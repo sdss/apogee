@@ -520,6 +520,8 @@ def aspcap_comp(model,fields,plot=True,save=None,loggmax=99) :
     fig,ax=plots.multi(2,1,hspace=0.001,wspace=0.001)
     plots.plotc(ax[0],npars_all[:,0],npars_all[:,1],npars_all[:,2],xr=[8000,3000],yr=[5,0],zr=[-2,0.5])
     plots.plotc(ax[1],apars_all[:,0],apars_all[:,1],apars_all[:,2],xr=[8000,3000],yr=[5,0],zr=[-2,0.5])
+    if save is not None :
+        fig.savefig(save+'_hr.png')
 
     fig,ax=plots.multi(2,7,hspace=0.001,wspace=0.001)
     yt=['Teff','logg','[M/H]','[alpha/M]','[C/M]','[N/M]','vmicro']
@@ -527,7 +529,7 @@ def aspcap_comp(model,fields,plot=True,save=None,loggmax=99) :
       plots.plotc(ax[i,0],apars_all[:,0],npars_all[:,i]-apars_all[:,i],apars_all[:,2],xr=[8100,2900],zr=[-2,0.5],size=20,yt=yt[i])
       plots.plotc(ax[i,1],apars_all[:,i],npars_all[:,i]-apars_all[:,i],apars_all[:,0],zr=[2900,8100],size=20)
     if save is not None :
-        fig.savefig(save)
+        fig.savefig(save+'.png')
 
 def pprint(pars) :
     print('{:8.1f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}'.format(*pars))

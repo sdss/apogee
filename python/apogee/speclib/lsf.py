@@ -9,6 +9,8 @@ import math
 import numpy
 from scipy import special, interpolate, sparse, ndimage
 import scipy.sparse.linalg
+import time
+import sys
 import pdb
 from apogee.utils import spectra
 from apogee.aspcap import aspcap
@@ -18,6 +20,13 @@ import matplotlib.pyplot as plt
 from apogee.utils import apload
 
 _SQRTTWO= numpy.sqrt(2.)
+
+
+def showtime(string) :
+    """ Utiltiy routine to print a string and clock time
+    """
+    print(string+' {:8.2f}'.format(time.time()))
+    sys.stdout.flush()
 
 def get(lsfid,waveid,fiber,highres=9,apred=None) :
     """  Return standard sparsified LSF
@@ -65,10 +74,7 @@ def convolve(wav,spec,
     dowav= l10wav[1]-l10wav[0]
     tmpwav= 10.**numpy.arange(l10wav[0],l10wav[-1]+dowav/hires,dowav/hires)
     tmp= numpy.empty(len(l10wav)*hires)   
-    # Setup vmacro
-    if not vmacro is None and isinstance(vmacro,float):
-        sigvm= vmacro/3./10.**5./numpy.log(10.)*hires/dowav\
-            /2./numpy.sqrt(2.*numpy.log(2.))
+
     # Interpolate the input spectrum, starting from a polynomial baseline
     if len(spec.shape) == 1: spec= numpy.reshape(spec,(1,len(spec)))
     nspec= spec.shape[0]
@@ -79,33 +85,24 @@ def convolve(wav,spec,
                                                      spec[ii]/baseline(wav),
                                                      k=3)
         tmp[ii]= baseline(tmpwav)*ip(tmpwav)
-    # Add macroturbulence
-    if not vmacro is None and isinstance(vmacro,float):
-        tmp= ndimage.gaussian_filter1d(tmp,sigvm,mode='constant',axis=1)
-    elif not vmacro is None: 
-        # Use sparse representations to quickly calculate the convolution
-        tmp= sparse.csr_matrix(tmp)
-        if isinstance(vmacro,numpy.ndarray):
-            vmacro= sparsify(vmacro)
-        tmp= vmacro.dot(tmp.T).T
+    # Add macroturbulence, allowing for different kernel for each spectrum
+    if not vmacro is None :
+        sigvm= vmacro/3./10.**5./numpy.log(10.)*hires/dowav/2./numpy.sqrt(2.*numpy.log(2.))
+        if isinstance(vmacro,float): sigvm=numpy.tile(sigvm,(nspec,1))
+        for ii in range(nspec) :
+            tmp[ii,:]= ndimage.gaussian_filter1d(tmp[ii,:],sigvm[ii],mode='constant')
     # Add rotation
     if vrot is not None :
         deltav=dowav/hires*3.e5*numpy.log(10)
+        print('rot: ',deltav,vrot)
         kernel=rotate(deltav,vrot,epsilon=0.25)
         kernel=sparsify(numpy.tile(kernel,(len(tmpwav),1)))
+        print(kernel.shape)
         tmp=kernel.dot(tmp.T).T
-    if not isinstance(lsf,sparse.csr_matrix):
+    if not isinstance(tmp,sparse.csr_matrix):
         # Use sparse representations to quickly calculate the convolution
         tmp= sparse.csr_matrix(tmp)
 
-    #s=lsf.dot(tmp.T).T.toarray()
-    #test=fits.open('test.fits')[0].data
-    #plt.clf()
-    #plt.plot(test[0,:])
-    #plt.plot(test[1,:])
-    #plt.plot(s[0,:])
-    #plt.draw()
-    #pdb.set_trace()
     return lsf.dot(tmp.T).T.toarray()[:,::hires]
 
 def sparsify(lsf):
@@ -178,7 +175,7 @@ def eval(x,fiber='combo',lsfid=5440020,waveid=2420038,sparse=False):
     """
     # Parse fiber input
     if (isinstance(fiber,str) or isinstance(fiber,unicode)) and fiber.lower() == 'combo':
-        fiber= [50,100,150,200,250,300]
+        fiber= [50,100,150,200,250]
     elif isinstance(fiber,int):
         fiber= [fiber]
     elif not isinstance(fiber,list) and isinstance(fiber[0],int):
@@ -195,7 +192,7 @@ def eval(x,fiber='combo',lsfid=5440020,waveid=2420038,sparse=False):
     lsfpars=apload.apLSF(lsfid,hdu=0)[0]
     for chip in ['a','b','c']:
         # Get pixel array for this chip, use fiber[0] for consistency if >1 fib
-        pix= wave2pix(hireswav,chip,fiber=fiber[0],waveid=waveid)
+        pix= wave2pix(hireswav,chip,fiber=300-fiber[0],waveid=waveid)
         dx= numpy.roll(pix,-hires,)-pix
         dx[-1]= dx[-1-hires]
         dx[-2]= dx[-2-hires]
@@ -207,14 +204,13 @@ def eval(x,fiber='combo',lsfid=5440020,waveid=2420038,sparse=False):
         #lsfpars= apread.apLSF(chip,ext=0)
         # Loop through the fibers
         for fib in fiber:
-            print('fiber: ', fib)
             out[gd]+= raw(xs[gd],pix[gd],lsfpars[chip][:,300-fib])
     out[out<0.]= 0.
     out/= numpy.tile(numpy.sum(out,axis=1),(len(x),1)).T
     if sparse: out= sparsify(out)
     return out
 
-def raw(x,xcenter,params):
+def raw(x,xcenter,params,nowings=False):
     """
     NAME:
        raw
@@ -243,19 +239,18 @@ def raw(x,xcenter,params):
     ghparams= numpy.empty((params['Horder']+2,len(xcenter)))
     for ii in range(params['Horder']+2):
         if ii == 1:
-            # Fixed, correct for wing
-            ghparams[ii]= 1.-wingparams[0]
+            ghparams[ii]= 1.
         else:
             poly= numpy.polynomial.Polynomial(params['GHcoefs'][ii-(ii > 1)])
             ghparams[ii]= poly(xcenter+params['Xoffset'])
         # normalization
-        if ii > 0: ghparams[ii]/= numpy.sqrt(2.*numpy.pi*math.factorial(ii-1))
+        if ii > 0: 
+            ghparams[ii]/= numpy.sqrt(2.*numpy.pi*math.factorial(ii-1))
+            if not nowings: ghparams[ii] *= (1.-wingparams[0])
     # Calculate the GH part of the LSF
-    print('gausshermitebin')
     out= _gausshermitebin(x,ghparams,params['binsize'])
     # Calculate the Wing part of the LSF
-    print('wingsbin')
-    out+= _wingsbin(x,wingparams,params['binsize'],params['Wproftype'])
+    if not nowings: out+= _wingsbin(x,wingparams,params['binsize'],params['Wproftype'])
     return out
 
 def _gausshermitebin(x,params,binsize):
@@ -263,7 +258,6 @@ def _gausshermitebin(x,params,binsize):
     ncenter= params.shape[1]
     out= numpy.empty((ncenter,x.shape[1]))
     integ= numpy.empty((params.shape[0]-1,x.shape[1]))
-    print('ncenter: ',ncenter)
     for ii in range(ncenter):
         poly= numpy.polynomial.HermiteE(params[1:,ii])
         # Convert to regular polynomial basis for easy integration

@@ -26,7 +26,6 @@ import struct
 from apogee.aspcap import aspcap
 from apogee.aspcap import ferre
 from apogee.speclib import atmos
-from apogee.speclib import isochrones
 from apogee.speclib import lsf
 from apogee.utils import atomic
 from apogee.utils import spectra
@@ -49,6 +48,7 @@ def showtime(string) :
     sys.stdout.flush()
 
 def vector(header,axis) :
+    showtime('end group')
     """ Routine to return vector of axis values from a FITS header CRVAL, CDELT, NAXIS for specified axis
     """
     caxis='{:1d}'.format(axis)
@@ -173,6 +173,7 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
                 return 0.
         except:
             print('PROBLEM: ',atmod)
+            fail('mkturbospec problem: '+atmod)
             return 0.
 
     # Turbospectrum setup
@@ -360,11 +361,20 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
                     spec=np.vstack([spec,out[:,fluxcol]])
             except :
                 print('failed...',file)
+                fail('mkturbospec array problem: {:8d} {:8.2f} {:8.2f} {:8.2f}  {:8.2f} {:8.2f} {:8.2f}'.format(
+                               teff,logg,mh,am,cm,nm,vmicro))
                 return 0.
 
     if run :
         if not save : shutil.rmtree(workdir)
         return spec
+
+def fail(out) :
+    """ Routine to log to FAILURE file
+    """
+    ferr = open('FAILURE','a+')
+    ferr.write(out+'\n')
+    ferr.close()
 
 def prange(start,delta,n) :
     """ Routine to return vector of values given start, delta, n
@@ -382,14 +392,12 @@ def get_vmicro(vmicrofit,vmicro) :
     return  float(vmicro)
 
 
-def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whiten=False,plot=False,writeraw=False,test=False, incremental=False, refz=10, chips=True) :
+def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whiten=False,plot=False,writeraw=False,test=False, incremental=False, refz=10) :
     """ Read in grid of spectra and do PCA compression
     """
 
     showtime('start:')
     # input directory 
-    if dir is None : 
-        dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5'
     indir=os.environ['APOGEE_SPECLIB']+'/synth/turbospec/'+dir+'/'
     print('indir: ', indir)
 
@@ -406,19 +414,23 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
         p['nnm'] = '1'
 
     # Read reference spectrum to plot and to determine number of pixel wavelengths
-    refhead=fits.open(indir+'ap00cp00np00vp20.fits')[1].header
+    refhead=fits.open(indir+'new_ap00cp00np00vp20.fits')[0].header
     wave=10.**vector(refhead,1)
-    ref=fits.open(indir+'ap00cp00np00vp20.fits')[1].data[refz,5,0,:]
+    ref=fits.open(indir+'new_ap00cp00np00vp20.fits')[0].data[refz,5,0,:]
     print(ref.shape,refz)
-    wchip=[(refhead['NAXIS1'],refhead['CRVAL1'],refhead['CDELT1'])]
-    cont=[(refhead['ORDER'],refhead['NITER'],refhead['LOWREJ'],refhead['HIGHREJ'])]
-    for ichip in range(2,4) :
-        refhead=fits.open(indir+'ap00cp00np00vp20.fits')[ichip].header
-        wchip.append((refhead['NAXIS1'],refhead['CRVAL1'],refhead['CDELT1']))
-        cont.append((refhead['ORDER'],refhead['NITER'],refhead['LOWREJ'],refhead['HIGHREJ']))
-        wave=np.append(wave,10.**vector(refhead,1))
-        ref=np.append(ref,fits.open(indir+'ap00cp00np00vp20.fits')[ichip].data[refz,5,0,:])
-        print(ref.shape)
+
+    wave=aspcap.apStar2aspcap(wave)
+    ref=aspcap.apStar2aspcap(ref)
+
+    #wchip=[(refhead['NAXIS1'],refhead['CRVAL1'],refhead['CDELT1'])]
+    #cont=[(refhead['ORDER'],refhead['NITER'],refhead['LOWREJ'],refhead['HIGHREJ'])]
+    #for ichip in range(2,4) :
+    #    refhead=fits.open(indir+'ap00cp00np00vp20.fits')[ichip].header
+    #    wchip.append((refhead['NAXIS1'],refhead['CRVAL1'],refhead['CDELT1']))
+    #    cont.append((refhead['ORDER'],refhead['NITER'],refhead['LOWREJ'],refhead['HIGHREJ']))
+    #    wave=np.append(wave,10.**vector(refhead,1))
+    #    ref=np.append(ref,fits.open(indir+'ap00cp00np00vp20.fits')[ichip].data[refz,5,0,:])
+    #    print(ref.shape)
     nwave=ref.shape[0]
 
     # loop over requested combinations of npieces and npca
@@ -455,27 +467,40 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
       pcadata=np.zeros([int(p['nam'])*int(p['ncm'])*int(p['nnm'])*int(p['nvt'])*int(p['nmh'])*int(p['nlogg'])*int(p['nteff']),npix],dtype=np.float32)
       showtime('start piece:')
       nmod=0
+      pix_apstar=aspcap.gridPix()
+      pix_aspcap=aspcap.gridPix(apStar=False)
+
       for iam,am in enumerate(prange(p['am0'],p['dam'],p['nam'])) :
         for icm,cm in enumerate(prange(p['cm0'],p['dcm'],p['ncm'])) :
           for inm,nm in enumerate(prange(p['nm0'],p['dnm'],p['nnm'])) :
            for ivm,vm in enumerate(prange(p['vt0'],p['dvt'],p['nvt'])) :
-            file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
+            print(am,cm,nm,10.**vm)
+            file=('new_a{:s}c{:s}n{:s}v{:s}.fits').format(
                    atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
-            s1=fits.open(indir+file)[1].data
-            s2=fits.open(indir+file)[2].data
-            s3=fits.open(indir+file)[3].data
+            # read file and pack into ASPCAP grid size
+            sap=fits.open(indir+file)[0].data
+            s=np.zeros([int(p['nmh']),int(p['nlogg']),int(p['nteff']),nwave])
+            for pasp,pap in zip(pix_aspcap,pix_apstar) :
+                s[:,:,:,pasp[0]:pasp[1]]=sap[:,:,:,pap[0]:pap[1]]
+            #s1=fits.open(indir+file)[1].data
+            #s2=fits.open(indir+file)[2].data
+            #s3=fits.open(indir+file)[3].data
             for imh,mh in enumerate(prange(p['mh0'],p['dmh'],p['nmh'])) :
               for ilogg,logg in enumerate(prange(p['logg0'],p['dlogg'],p['nlogg'])) :
                 for iteff,teff in enumerate(prange(p['teff0'],p['dteff'],p['nteff'])) :
-                  s=np.append(s1[imh,ilogg,iteff,:],s2[imh,ilogg,iteff,:])
-                  s=np.append(s,s3[imh,ilogg,iteff,:])
-                  if s[w1:w2].sum() == 0. : 
-                     print('!!ZERO MODEL',am,cm,nm,vm,mh,logg,teff)
-                     s[w1:w2] = 1.
-                     #pdb.set_trace()
-                  pcadata[nmod,:] = s[w1:w2]
+                  #s=np.append(s1[imh,ilogg,iteff,:],s2[imh,ilogg,iteff,:])
+                  #s=np.append(s,s3[imh,ilogg,iteff,:])
+                  #s=sall[imh,ilogg,iteff,:]
+            #      if s[w1:w2].sum() == 0. : 
+            #         print('!!ZERO MODEL',am,cm,nm,vm,mh,logg,teff)
+            #         s[w1:w2] = 1.
+            #         #pdb.set_trace()
+            #      s/=np.nanmean(s)
+            #      if len(np.where(np.isfinite(s) is False)[0]) > 0 : print(imh,ilogg,iteff,np.where(np.isfinite(s) is False) )
+                  pcadata[nmod,:] = s[imh,ilogg,iteff,w1:w2]/np.nanmean(s[imh,ilogg,iteff,:])
                   nmod+=1
-      del s1, s2, s3, s
+      #del s1, s2, s3, s
+      del s
 
       # do the PCA decomposition 
       print(pcadata.shape)
@@ -494,6 +519,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
           print(rat.shape)
           #for j in range(0,nmod,1000) :
           #    plots.plotl(ax[0],wave[w1:w2],rat[j,:],xr=[wave[0],wave[-1]],yr=[0.7,1.3])
+          pdb.set_trace()
           ax[0].text(wave[w1]+0.1*(wave[w2-1]-wave[w1]),1.3,'{:.2f}'.format(rat.min()),va='top',ha='left')
           ax[0].text(wave[w2-1]+0.1*(wave[w2-1]-wave[w1]),1.3,'{:.2f}'.format(rat.max()),va='top',ha='right')
           plots.plotl(ax[1],wave[w1:w2],ref[w1:w2],xr=[wave[0],wave[-1]],color=colors[ipiece%6],yr=[0.7,1.3])
@@ -608,7 +634,27 @@ def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
       for cm in prange(p['cm0'],p['dcm'],p['ncm']) :
         for nm in prange(p['nm0'],p['dnm'],p['nnm']) :
           specdata=np.zeros([nelem,int(p['nmh']),int(p['nlogg']),int(p['nteff']),nspec],dtype=np.float32)
+          # allow for restart after certain number of [M/H] have been completed
+          if clobber :
+              nmh = 0
+          else :
+              try :
+                  # does output file exist?
+                  old=fits.open(specdir+'/'+p['name']+'.fits')[0]
+                  specdata=old.data
+                  if len(old.shape) < 5 : specdata=np.expand_dims(specdata,axis=0)
+                  # is it a partially completed file with nmh card, or a completed file?
+                  try:
+                      nmh =old.header['nmh']
+                  except :
+                      # file is completed
+                      nmh = p['nmh']
+                      print('file already done!')
+                      return
+              except :
+                  nmh = 0
           for imh,mh in enumerate(prange(p['mh0'],p['dmh'],p['nmh'])) :
+           if imh >= nmh :
             for ilogg,logg in enumerate(prange(p['logg0'],p['dlogg'],p['nlogg'])) :
               for iteff,teff in enumerate(prange(p['teff0'],p['dteff'],p['nteff'])) :
 
@@ -624,11 +670,20 @@ def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
                     solarisotopes=solarisotopes,
                     nskip=nskip,kurucz=kurucz,run=run,save=save,split=split) 
                   nskip = nskip+dskip if isinstance(spec,float) else -1
-                if nskip > 0 : print('FAILED Turbospec',nskip)
-                if elem == '' :
-                    specdata[0,imh,ilogg,iteff,:]=spec
-                else :
-                    specdata[:,imh,ilogg,iteff,:]=spec[:,gd]
+                if nskip > 0 : 
+                    print('FAILED Turbospec',nskip)
+                    fail('failed Turbospec convergence: {:8d} {:8.2f} {:8.2f} {:8.2f}  {:8.2f} {:8.2f} {:8.2f} {:d}'.format(
+                               int(teff),logg,mh,am,cm,nm,vout,nskip))
+                try:
+                    if elem == '' :
+                        specdata[0,imh,ilogg,iteff,:]=spec
+                    else :
+                        specdata[:,imh,ilogg,iteff,:]=spec[:,gd]
+                except :
+                    print(specdata.shape)
+                    specdata[:,imh,ilogg,iteff,:]=0.
+                    fail('error loading specdata: {:8d} {:8.2f} {:8.2f} {:8.2f}  {:8.2f} {:8.2f} {:8.2f} {:d}'.format(
+                               int(teff),logg,mh,am,cm,nm,vout,len(spec)))
 
             # FITS header and output after each metallicity subgrid
             hdu=fits.PrimaryHDU(np.squeeze(specdata))
@@ -662,7 +717,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
             except: pass
             hdu.writeto(specdir+'/'+p['name']+'.fits',overwrite=True)
 
-def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,ls=None,comp=False,apred='r8') :
+def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,ls=None,comp=False,apred='r8',threads=32) :
     """ Create a grid of synthetic spectra using Turbospectrum given input parameter file
     """
 
@@ -677,10 +732,6 @@ def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,ls=None,comp=False,apr
     if isinstance(fiber,int): fiber= [fiber]
     lsfid=int(p.get('lsfid'))
     waveid=int(p.get('waveid'))
-
-    # convolved and bundle output spectra into output fits file
-    wa=aspcap.apStarWave()
-    nout=wa.shape[0]
 
     if ls is None :
         lsfile = 'lsf_{:08d}_{:08d}.fits'.format(lsfid,waveid)
@@ -700,6 +751,7 @@ def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,ls=None,comp=False,apr
             hdu[0].header['APRED'] = apred
             hdu[0].header['LSFID'] = lsfid
             hdu[0].header['WAVEID'] = waveid
+            hdu[0].header['HIGHRES'] = highres
             for i,f in enumerate(fiber) :
                 hdu[0].header['FIBER{:d}'.format(i)] = f
             hdu.append(fits.ImageHDU(x))
@@ -708,39 +760,68 @@ def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,ls=None,comp=False,apr
             os.remove(lsfile+'.lock') 
 
     specdata = fits.open(specdir+'/'+p['name']+'.fits')[0]
-    nspec = specdata.data.shape[-1]
-    ws=vector(specdata.header,1)
-    # synthesis is in air, we want vacuum
-    ws=spectra.airtovac(ws)
-    smoothdata=np.zeros([int(p['nmh']),int(p['nlogg']),int(p['nteff']),nout],dtype=np.float32)
-    if comp :
-        a=fits.open('ap00cp00np00vp20.fits')[1].data
-        b=fits.open('ap00cp00np00vp20.fits')[2].data
-        c=fits.open('ap00cp00np00vp20.fits')[3].data
-    for k in range(specdata.header['NAXIS4']) :
-      for j in range(specdata.header['NAXIS3']) :
-        for i in range(specdata.header['NAXIS2']) :
-            mh=specdata.header['CRVAL4']+k*specdata.header['CDELT4']
-            vmacro = 10.**(0.470794-0.254*mh)
-            vmacro = vmacro if vmacro<15 else 15.
-            vrot=10.**.176
-            print(k,j,i,vmacro,vrot)
+    npix = specdata.data.shape[-1]
+    nspec=1
+    for i in range(len(specdata.data.shape)-1) :
+        nspec*=specdata.data.shape[i]
+    print('nspec: ', nspec)
+    specdata.data=np.reshape(specdata.data,(nspec,npix))
 
-            smoothdata[k,j,i,:]=lsf.convolve(ws,specdata.data[k,j,i,:],lsf=ls,xlsf=x,vmacro=vmacro,vrot=vrot)
-            if comp :
-                asp=np.append(a[k,j,i,:],b[k,j,i,:])
-                asp=aspcap.aspcap2apStar(np.append(asp,c[k,j,i,:]))
-                plt.clf()
-                plt.plot(smoothdata[k,j,i,:]/600000/asp)
-                plt.plot(asp)
-                plt.draw()
-                pdb.set_trace()
+    # synthesis is in air, we want vacuum
+    ws=vector(specdata.header,1)
+    ws=spectra.airtovac(ws)
+
+    # output wavelength grid
+    wa=aspcap.apStarWave()
+    nout=wa.shape[0]
+
+    # create vmacro array
+    vmacro=[]
+    dlam=np.log10(wa[1])-np.log10(wa[0])
+    for k,mh in enumerate(prange(p['mh0'],p['dmh'],p['nmh'])) :
+      for j,logg in enumerate(prange(p['logg0'],p['dlogg'],p['nlogg'])) :
+        for i,teff in enumerate(prange(p['teff0'],p['dteff'],p['nteff'])) :
+            vm = 10.**(0.470794-0.254*mh)
+            vm = vm if vm<15 else 15.
+            vmacro.append(vm)
+    vmacro=np.array(vmacro)
+
+    # LSF and rotation convolution all spectra at the same time
+    vrot=10.**.176
+    smoothdata=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=vrot,vmacro=vmacro)
+
+    nmh=int(p['nmh'])
+    nlogg=int(p['nlogg'])
+    nteff=int(p['nteff'])
+    specdata.data=np.reshape(specdata.data,(nmh,nlogg,nteff,npix))
+    smoothdata=np.reshape(smoothdata,(nmh,nlogg,nteff,nout)).astype(np.float32)
 
     hdu=fits.PrimaryHDU(np.squeeze(smoothdata))
     hdu.header.extend(specdata.header.copy(strip=True))
+    hdu.header['CRVAL1'] = aspcap.logw0
+    hdu.header['CDELT1'] = aspcap.dlogw
     hdu.writeto('new_'+p['name']+'.fits',overwrite=True)
 
     return smoothdata
+
+def complsf(name) :
+    new = fits.open('new_'+name+'.fits')[0]
+    a = fits.open(name+'.fits')[1].data
+    b = fits.open(name+'.fits')[2].data
+    c = fits.open(name+'.fits')[3].data
+
+    for k in range(new.header['NAXIS4']) :
+      for j in range(new.header['NAXIS3']) :
+        for i in range(new.header['NAXIS2']) :
+          old = np.append(a[k,j,i,:],b[k,j,i,:])
+          old = np.append(old,c[k,j,i,:])
+
+          plt.clf()
+          plt.plot(aspcap.aspcap2apStar(old))
+          plt.plot(new.data[k,j,i,:]/600000.)
+          plt.plot(aspcap.aspcap2apStar(old)/new.data[k,j,i,:]*600000.)
+          plt.draw()
+          pdb.set_trace()
 
 def add_dim(header,crval,cdelt,crpix,ctype,idim) :
     """ Add a set of CRVAL/CDELT,CRPIX,CTYPE cards to header
@@ -765,8 +846,10 @@ def mkgriddirs(configfile) :
     # loop over each grid
     for i in range(len(p['GRID']['specdir'])) :
 
+      # do both "raw" directory and final directory: former may be repeated!
+      for name in [ p['GRID']['specdir'][i]+'_'+p['GRID']['smooth'][i], p['GRID']['specdir'][i] ] :
         # construct name and create output directory
-        name = p['GRID']['specdir'][i]+'_'+p['GRID']['smooth'][i]
+        #name = p['GRID']['specdir'][i]+'_'+p['GRID']['smooth'][i]
 
         if abs(p['GRID']['solarisotopes'][i]) == 1 :
             iso = 'solarisotopes'
@@ -825,11 +908,11 @@ def mkspec(pars) :
     for j,el in enumerate(els) :
         elems.append([el,pars[8+j]])
     print(teff,logg,mh,vmicro,am,cm,nm)
-    spec=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=False,fill=False)
+    spec=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=False,fill=False,linelist='20180721',wrange=[15100.,17000.])
     return pars,spec
     
 
-def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,fiber='combo',plot=False,lines=None) :
+def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fiber='combo',plot=False,lines=None) :
     """ Make a series of spectra from parameters in an input file, with parallel processing for turbospec
     """
     pars=np.loadtxt(file)
@@ -846,7 +929,7 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,fiber='combo',
 
     # convolved and bundle output spectra into output fits file
     wa=aspcap.apStarWave()
-    x,ls=lsf.get(lsfid,waveid,fiber,highres=highres)
+    x,ls=lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred)
 
     out=[]
     conv=[]
@@ -858,16 +941,11 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,fiber='combo',
     for spec in specs :
         if isinstance(spec[1],np.ndarray) :
             mh=spec[0][2]
-            #vmacro=spec[0][8]
             vmacro = 10.**(0.470794-0.254*mh)
             vmacro = vmacro if vmacro<15 else 15.
-
-            # temporary placeholed for rotation: add to vmacro and use gaussian profile`
             vrot=spec[0][7]
-            vmacro=np.sqrt(vrot**2+vmacro**2)
-            print(mh,vmacro,vrot)
-
-            z=lsf.convolve(ws,spec[1],lsf=ls,xlsf=x,vmacro=vmacro)
+            # convolve one at a time because we have different vrot for each
+            z=lsf.convolve(ws,spec[1],lsf=ls,xlsf=x,vmacro=vmacro,vrot=vrot)
             out.append(spec[1])
             conv.append(np.squeeze(z))
             outpar.append(spec[0])
@@ -929,189 +1007,4 @@ def mini_linelist(elem,linelist,maskdir) :
         fin.close()
         os.remove(outdir+list+'.tmp')
     return wind
-
-def clip(x,lim,eps=None) :
-    """ Utility routine to clip values within limits, and move slightly off edges if requested
-    """
-    # set negative zero to zero
-    if np.isclose(x,0.) : x=0.
-    # clip to limits
-    tmp=np.max([lim[0],np.min([lim[1],x])])
-    # move off limit if requested
-    if eps is not None :
-        if np.isclose(x,lim[0]) : tmp+=eps
-        if np.isclose(x,lim[1]) : tmp-=eps
-    return tmp
-
-def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,logglim=[-0.5,5.5],mhlim=[-2.5,0.75],nmlim=[-0.5,2.],cmlim=[-1.5,1.],emlim=[-0.5,1.],vmicrolim=[0.5,8.],amlim=[-0.5,1.],nsamp=1) :
-    """ Generate a test sample of parameters and abundances from isochrones
-    """
-
-    # set output limits
-    if gridclass == 'GK' :
-        tefflim=[3500,6000]
-        logglim=[0,4.5]
-        dtlo=250.
-    elif gridclass == 'M' :
-        tefflim=[3000,4000]
-        logglim=[-0.5,3.0]
-        dtlo=100.
-    elif gridclass == 'F' :
-        tefflim=[5500,8000]
-        logglim=[2.0,5.5]
-        dtlo=250.
-    grid=[]
-
-    # loop through isochrone data and take grid points nearest and +/- 1
-    # accumulate unique set of these
-    files = glob.glob(os.environ['ISOCHRONE_DIR']+'/z*.dat')
-    for file in files :
-        a = isochrones.read(file,agerange=[7,20])
-        print(file)
-        for i in range(len(a)) :
-            if a['teff'][i] < 4000 : dt=dtlo
-            else : dt = 250.
-            for j in range(-1,2) :
-              teff = (int(round(a['teff'][i]/dt))+j)*int(dt)
-              logg = (int(round(a['logg'][i]/0.5))+j)*0.5
-              mh = (int(round(a['feh'][i]/0.25))+j)*0.25
-              # clip to stay within requested grid limits
-              teff=clip(teff,tefflim)
-              logg=clip(logg,logglim)
-              mh=clip(mh,mhlim)
-              grid.append(tuple([teff,logg,mh]))
-        grid = list(set(grid))
-        print(len(grid))
-
-    # output file
-    f=open(name,'w')
-    finp=open(name+'.inp','w')
-    f.write("#   Teff   logg    [M/H] [alpha/M] [C/M]   [N/M]  vmicro  vmacro")
-    allteff=[]
-    alllogg=[]
-    allmh=[]
-    allvmic=[]
-    allvmac=[]
-    allam=[]
-    allcm=[]
-    allnm=[]
-    els = np.array(['O','Na','Mg','Al','Si','P','S','K','Ca','Ti','V','Cr','Mn','Co','Ni','Cu','Ge','Rb','Ce','Nd'])
-    els_alpha = np.where((els == 'O') | (els == 'Mg') | (els == 'Si') | (els == 'S') | (els == 'Ca') | (els == 'Ti'))[0]
-    for el in els: f.write('{:>7s}'.format(el))
-    f.write('\n')
-    nel=len(els)
-    for i,x in enumerate(grid) :
-      for j in range(nsamp) :
-        teff=x[0]
-        logg=x[1]
-        mh=x[2]
-        vmicro=10.**(0.226-0.0228*logg+0.0297*logg**2-0.0113*logg**3)+np.random.normal(0.,0.3)
-        vmicro=clip(vmicro,vmicrolim)
-        if (logg < 3) & (teff<6000) :
-            # for giants, use vmacro relation + small rotation
-            vmacro=10.**(0.470794-0.254120*mh)
-            vmacro+=np.random.normal(0.,3)
-            vmacro=np.max([0.5,vmacro])
-            # carbon and nitrogen with significant range
-            cm=np.random.normal(0.,0.5)
-            cm = (int(round(cm/0.25)))*0.25
-            nm=np.random.normal(0.3,1.0)
-            # no need to pin [N/M] to grid since it is varied in synthesis!
-            #nm = (int(round(nm/0.5)))*0.5
-        else :
-            # for dwarfs, use significant rotation
-            vmacro=abs(np.random.normal(0.,30))
-            # carbon and nitrogen with small range
-            cm=np.random.normal(0.,0.3)
-            cm = (int(round(cm/0.25)))*0.25
-            nm=np.random.normal(0.,0.3)
-        cm=clip(cm,cmlim)
-        nm=clip(nm,nmlim)
-        am=np.random.uniform(-0.25,0.5)
-        am = (round(am/0.25))*0.25
-        am=clip(am,amlim)
-        allteff.append(teff)
-        alllogg.append(logg)
-        allmh.append(mh)
-        allvmic.append(vmicro)
-        allvmac.append(vmacro)
-        allam.append(am)
-        allcm.append(cm)
-        allnm.append(nm)
-
-        out = '{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}'.format(teff,logg,mh,am,cm,nm,vmicro,vmacro)      
-        # individual elemental abundances
-        el=np.random.normal(0.,0.2,size=nel)
-        for i,e in enumerate(el): el[i]=clip(e,emlim)
-        el[els_alpha] += am
-        for e in el :
-          # add element abundances
-          out = out + '{:7.2f}'.format(e)      # other elements
-        print(out)
-        f.write(out+'\n')
-
-        # clip to adjust slightly off grid edges for FERRE input file
-        teff=clip(teff,tefflim,eps=eps)
-        logg=clip(logg,logglim,eps=eps)
-        mh=clip(mh,mhlim,eps=eps)
-        cm=clip(cm,cmlim,eps=eps)
-        nm=clip(nm,nmlim,eps=eps)
-        am=clip(am,amlim,eps=eps)
-
-        inp = '{:s}{:d} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:8.2f}'.format(
-               name,i+1,np.log10(vmicro),cm,nm,am,mh,logg,teff)
-        finp.write(inp+'\n')
-
-    f.close()
-    finp.close()
-
-    # plots of sample
-    t=[x[0] for x in grid]
-    g=[x[1] for x in grid]
-    m=[x[2] for x in grid]
-    fig,ax=plots.multi(2,3)
-    plots.plotc(ax[0,0],allteff+np.random.normal(0.,25.,size=len(allteff)),alllogg+np.random.normal(0.,0.05,size=len(alllogg)),allmh,
-                xr=[8000,2500],yr=[6.,-1],zr=mhlim,zt='[M/H]',colorbar=True)
-    plots.plotc(ax[0,1],allteff+np.random.normal(0.,25.,size=len(allteff)),alllogg+np.random.normal(0.,0.05,size=len(alllogg)),allam,
-                xr=[8000,2500],yr=[6.,-1],zr=amlim,zt='[alpha/M]',colorbar=True)
-    plots.plotc(ax[1,0],allteff+np.random.normal(0.,25.,size=len(allteff)),alllogg+np.random.normal(0.,0.05,size=len(alllogg)),allvmic,
-                xr=[8000,2500],yr=[6.,-1],zr=vmicrolim,zt='vmicro',colorbar=True)
-    plots.plotc(ax[1,1],allteff+np.random.normal(0.,25.,size=len(allteff)),alllogg+np.random.normal(0.,0.05,size=len(alllogg)),allvmac,
-                xr=[8000,2500],yr=[6.,-1],zr=[0,30],zt='vmacro',colorbar=True)
-    plots.plotc(ax[2,0],allteff+np.random.normal(0.,25.,size=len(allteff)),alllogg+np.random.normal(0.,0.05,size=len(alllogg)),allcm,
-                xr=[8000,2500],yr=[6.,-1],zr=cmlim,zt='[C/M]',colorbar=True)
-    plots.plotc(ax[2,1],allteff+np.random.normal(0.,25.,size=len(allteff)),alllogg+np.random.normal(0.,0.05,size=len(alllogg)),allnm,
-                xr=[8000,2500],yr=[6.,-1],zr=nmlim,zt='[N/M]',colorbar=True)
-    fig.tight_layout()
-    fig.savefig(name+'.png')
-
-def comp(file,true='test.inp',hard=False) :
-    """ Compare input parameters with output results
-    """
-    true=ascii.read(true,names=['id','vmicro','cm','nm','am','mh','logg','teff'])
-    ##spec=np.loadtxt('test.dat')
-
-    obs=ascii.read(file+'.spm',names=['id','vmicro','cm','nm','am','mh','logg','teff','evm','ecm','enm','eam','emh','elogg','eteff','a','b','c'])
-    #mdl=np.loadtxt(file+'.out')
-    i1,i2=match.match(true['id'],obs['id'])
-
-    fig,ax=plots.multi(2,7,hspace=0.001,wspace=0.5)
-    plots.plotc(ax[0,0],obs['teff'][i2],obs['teff'][i2]-true['teff'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$Teff',yr=[-200,200])
-    plots.plotc(ax[1,0],obs['teff'][i2],obs['logg'][i2]-true['logg'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$logg',yr=[-0.5,0.5])
-    plots.plotc(ax[2,0],obs['teff'][i2],obs['mh'][i2]-true['mh'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$[M/H]',yr=[-0.5,0.5])
-    plots.plotc(ax[3,0],obs['teff'][i2],obs['am'][i2]-true['am'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$[a/M]',yr=[-0.5,0.5])
-    plots.plotc(ax[4,0],obs['teff'][i2],obs['cm'][i2]-true['cm'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$[C/M]',yr=[-0.5,0.5])
-    plots.plotc(ax[5,0],obs['teff'][i2],obs['nm'][i2]-true['nm'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$[N/M]',yr=[-0.5,0.5])
-    plots.plotc(ax[6,0],obs['teff'][i2],10.**obs['vmicro'][i2]-10.**true['vmicro'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$vmicro',yr=[-0.5,0.5])
-    ax[0,1].hist(obs['teff'][i2]-true['teff'][i1],bins=np.arange(-200,200,10),histtype='step')
-    ax[1,1].hist(obs['logg'][i2]-true['logg'][i1],bins=np.arange(-0.5,0.5,0.01),histtype='step')
-    ax[2,1].hist(obs['mh'][i2]-true['mh'][i1],bins=np.arange(-0.5,0.5,0.01),histtype='step')
-    ax[3,1].hist(obs['am'][i2]-true['am'][i1],bins=np.arange(-0.5,0.5,0.01),histtype='step')
-    ax[4,1].hist(obs['cm'][i2]-true['cm'][i1],bins=np.arange(-0.5,0.5,0.01),histtype='step')
-    ax[5,1].hist(obs['nm'][i2]-true['nm'][i1],bins=np.arange(-0.5,0.5,0.01),histtype='step')
-    ax[6,1].hist(obs['vmicro'][i2]-true['vmicro'][i1],bins=np.arange(-0.5,0.5,0.01),histtype='step')
-    fig.suptitle(file)
-    plt.show()
-    if hard :
-        fig.savefig(file+'.png')
 

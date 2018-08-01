@@ -1,4 +1,4 @@
-function lsf_gh,x,xcenter,par,dlsfgh,globalderiv=globalderiv,double=dbl,stp=stp,nogauss=nogauss
+function lsf_gh,x,xcenter,par,dlsfgh,globalderiv=globalderiv,double=dbl,stp=stp,nogauss=nogauss,nowings=nowings
 
 ;+
 ;
@@ -184,6 +184,8 @@ if npar gt (3+Horder+1+nGHcoefs) then begin
 
 end ; wing parameters
 
+
+if keyword_set(nowings) then undefine,wparam
 
 ; "Binned" Gauss-Hermite function
 if (binsize gt 0) then begin

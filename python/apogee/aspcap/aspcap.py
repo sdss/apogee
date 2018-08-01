@@ -55,16 +55,22 @@ logw0=4.179
 dlogw=6.e-6
 nw_apStar=8575
 def apStarWave() :
+    """ Returns apStar wavelengths
+    """
     return 10.**(logw0+np.arange(nw_apStar)*dlogw)
 
-logw0_chip=[4.180476,4.200510,4.217064]
-nw_chip=[3028,2495,1991]
+logw0_chip=np.array([4.180476,4.200510,4.217064])
+nw_chip=np.array([3028,2495,1991])
 def gridWave() :
+    """ Returns aspcap grid wavelengths
+    """
     return [10.**(logw0_chip[0]+np.arange(nw_chip[0])*dlogw),
             10.**(logw0_chip[1]+np.arange(nw_chip[1])*dlogw),
             10.**(logw0_chip[2]+np.arange(nw_chip[2])*dlogw)]
 
 def gridPix(apStar=True) :
+    """ Returns chip pixel ranges in apStar or aspcap grid
+    """
     if apStar :
         w=np.log10(apStarWave())
         s1 = np.where(np.isclose(w,logw0_chip[0],rtol=0.))[0][0]
@@ -78,12 +84,24 @@ def gridPix(apStar=True) :
         return [[0,nw_chip[0]],[nw_chip[0],nw_chip[0]+nw_chip[1]],[nw_chip[0]+nw_chip[1],nw_chip[0]+nw_chip[1]+nw_chip[2]]]
 
 def aspcap2apStar(aspcap):
+    """ from input aspcap spectrum on aspcap grid, return spectrum on apStar grid 
+    """
     apstar=np.zeros(nw_apStar)
     pix_out=gridPix()
     pix_in=gridPix(apStar=False)
     for pin,pout in zip(pix_in,pix_out) :
         apstar[pout[0]:pout[1]] = aspcap[pin[0]:pin[1]]
     return apstar
+
+def apStar2aspcap(apstar):
+    """ from input aspcap spectrum on aspcap grid, return spectrum on apStar grid 
+    """
+    aspcap=np.zeros(nw_chip.sum())
+    pix_out=gridPix()
+    pix_in=gridPix(apStar=False)
+    for pin,pout in zip(pix_in,pix_out) :
+        aspcap[pin[0]:pin[1]] = apstar[pout[0]:pout[1]] 
+    return aspcap
 
 def readstars(starlist,libpar) :
     '''

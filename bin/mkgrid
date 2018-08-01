@@ -18,7 +18,7 @@ import os
 import sys
 import subprocess
 import datetime
-
+import time
 
 from apogee.speclib import synth
 
@@ -35,10 +35,12 @@ if __name__ == '__main__' :
     args=parser.parse_args()
 
     now = datetime.datetime.now()
+    start = time.time()
     print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     synth.mkgrid(args.planfile,save=args.save)
     now = datetime.datetime.now()
     print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
+    print("elapsed: ",time.time()-start)
 
     if args.done is not None :
         subprocess.call(['setdone',args.done])

@@ -10,13 +10,22 @@ if ( $cmd == apred ) then
     if ( $?UUFSCELL ) setenv APOGEE_MAXRUN 8
   endif
   if ( ! $?IDL_CPU_TPOOL_NTHREADS ) setenv IDL_CPU_TPOOL_NTHREADS 4
-else
+else if ( $cmd == mkgrid || $cmd == bundle ) then
   if ( ! $?QUERYPORT ) setenv QUERYPORT 1052
   if ( ! $?APOGEE_MAXRUN ) then
     if ( $?TACC_SYSTEM) setenv APOGEE_MAXRUN 40
     if ( $?UUFSCELL ) setenv APOGEE_MAXRUN 32
   endif
   if ( ! $?IDL_CPU_TPOOL_NTHREADS ) setenv IDL_CPU_TPOOL_NTHREADS 1
+else if ( $cmd == mkgridlsf ) then
+  if ( ! $?QUERYPORT ) setenv QUERYPORT 1052
+  if ( ! $?APOGEE_MAXRUN ) then
+    if ( $?TACC_SYSTEM) setenv APOGEE_MAXRUN 12
+    if ( $?UUFSCELL ) setenv APOGEE_MAXRUN 12
+  endif
+  if ( ! $?IDL_CPU_TPOOL_NTHREADS ) setenv IDL_CPU_TPOOL_NTHREADS 1
+else 
+  echo Unrecognized command in mkslurm
 endif
 
 set top = `pwd`

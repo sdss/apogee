@@ -18,6 +18,7 @@ import os
 import sys
 import subprocess
 import datetime
+import time
 import pdb
 from apogee.speclib import synth
 
@@ -35,13 +36,16 @@ if __name__ == '__main__' :
 
  
     now = datetime.datetime.now()
-    print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
+    print("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
+    start=time.time()
+
     #if args.clobber: clobber=',/clobber'
     #else : clobber=''
     #subprocess.call(["idl","-e","speclib_mkgrid,'"+args.planfile+"'"+clobber])
     synth.mkgridlsf(args.planfile)
     now = datetime.datetime.now()
-    print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
+    print("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
+    print("elapsed: ",time.time()-start)
 
     if args.done is not None :
         subprocess.call(['setdone',args.done])

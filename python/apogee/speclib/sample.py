@@ -13,10 +13,13 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import numpy as np
+import os
+import glob
 from tools import plots
+from apogee.speclib import isochrones
 from astropy.io import ascii
 
-def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,logglim=[-0.5,5.5],mhlim=[-2.5,0.75],nmlim=[-0.5,2.],cmlim=[-1.5,1.],emlim=[-0.5,1.],vmicrolim=[0.5,8.],amlim=[-0.5,1.],nsamp=1) :
+def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,logglim=[-0.5,5.5],mhlim=[-2.5,0.75],nmlim=[-0.5,2.],cmlim=[-1.5,1.],emlim=[-0.5,1.],vmicrolim=[0.5,8.],amlim=[-0.5,1.],rot=True,nsamp=1) :
     """ Generate a test sample of parameters and abundances from isochrones
     """
 
@@ -59,12 +62,12 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
     # output file
     f=open(name,'w')
     finp=open(name+'.inp','w')
-    f.write("#   Teff   logg    [M/H] [alpha/M] [C/M]   [N/M]  vmicro  vmacro")
+    f.write("#   Teff   logg    [M/H] [alpha/M] [C/M]   [N/M]  vmicro  vrot")
     allteff=[]
     alllogg=[]
     allmh=[]
     allvmic=[]
-    allvmac=[]
+    allvrot=[]
     allam=[]
     allcm=[]
     allnm=[]
@@ -80,11 +83,10 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         mh=x[2]
         vmicro=10.**(0.226-0.0228*logg+0.0297*logg**2-0.0113*logg**3)+np.random.normal(0.,0.3)
         vmicro=clip(vmicro,vmicrolim)
+        vrot=0.
         if (logg < 3) & (teff<6000) :
             # for giants, use vmacro relation + small rotation
-            vmacro=10.**(0.470794-0.254120*mh)
-            vmacro+=np.random.normal(0.,3)
-            vmacro=np.max([0.5,vmacro])
+            if rot : vrot = np.max([0.,np.random.normal(1.5,0.5)])
             # carbon and nitrogen with significant range
             cm=np.random.normal(0.,0.5)
             cm = (int(round(cm/0.25)))*0.25
@@ -93,7 +95,7 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
             #nm = (int(round(nm/0.5)))*0.5
         else :
             # for dwarfs, use significant rotation
-            vmacro=abs(np.random.normal(0.,30))
+            if rot : vrot=abs(np.random.normal(0.,30))
             # carbon and nitrogen with small range
             cm=np.random.normal(0.,0.3)
             cm = (int(round(cm/0.25)))*0.25
@@ -107,12 +109,12 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         alllogg.append(logg)
         allmh.append(mh)
         allvmic.append(vmicro)
-        allvmac.append(vmacro)
+        allvrot.append(vrot)
         allam.append(am)
         allcm.append(cm)
         allnm.append(nm)
 
-        out = '{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}'.format(teff,logg,mh,am,cm,nm,vmicro,vmacro)      
+        out = '{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}'.format(teff,logg,mh,am,cm,nm,vmicro,vrot)      
         # individual elemental abundances
         el=np.random.normal(0.,0.2,size=nel)
         for i,e in enumerate(el): el[i]=clip(e,emlim)
@@ -149,8 +151,8 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
                 xr=[8000,2500],yr=[6.,-1],zr=amlim,zt='[alpha/M]',colorbar=True)
     plots.plotc(ax[1,0],allteff+np.random.normal(0.,25.,size=len(allteff)),alllogg+np.random.normal(0.,0.05,size=len(alllogg)),allvmic,
                 xr=[8000,2500],yr=[6.,-1],zr=vmicrolim,zt='vmicro',colorbar=True)
-    plots.plotc(ax[1,1],allteff+np.random.normal(0.,25.,size=len(allteff)),alllogg+np.random.normal(0.,0.05,size=len(alllogg)),allvmac,
-                xr=[8000,2500],yr=[6.,-1],zr=[0,30],zt='vmacro',colorbar=True)
+    plots.plotc(ax[1,1],allteff+np.random.normal(0.,25.,size=len(allteff)),alllogg+np.random.normal(0.,0.05,size=len(alllogg)),allvrot,
+                xr=[8000,2500],yr=[6.,-1],zr=[0,30],zt='vrot',colorbar=True)
     plots.plotc(ax[2,0],allteff+np.random.normal(0.,25.,size=len(allteff)),alllogg+np.random.normal(0.,0.05,size=len(alllogg)),allcm,
                 xr=[8000,2500],yr=[6.,-1],zr=cmlim,zt='[C/M]',colorbar=True)
     plots.plotc(ax[2,1],allteff+np.random.normal(0.,25.,size=len(allteff)),alllogg+np.random.normal(0.,0.05,size=len(alllogg)),allnm,

@@ -29,7 +29,7 @@ endif else begin
 endelse
 
 !p.multi=[0,2,3,0,0]
-!p.charsize=2
+!p.charsize=1.8
 for ichip=0,2 do begin
   chip=chips[ichip]
   if n_elements(bpmid) gt 0 then begin
@@ -128,11 +128,11 @@ for ichip=0,2 do begin
         !x=x1
         !y=y1
       endif
-      if first then plot,x,y,xr=xr,yr=yr,psym=5,color=icolor,xstyle=1,xtitle='Mean counts',ytitle='Variance' else oplot,x,y,psym=5,color=icolor,xtickformat='(i5)'
+      if first then plot,x,y,xr=xr,yr=yr,psym=5,color=icolor,xstyle=1,xtitle='Mean counts',ytitle='Variance',xtickformat='(i5)' else oplot,x,y,psym=5,color=icolor,xtickformat='(i5)'
       oplot,x,ymed,psym=1,color=icolor
       oplot,x,ydiff^2/2.,psym=6,color=icolor
       ;xyouts,30000.,1000.,'chip '+chips[ichip],align=1
-      xyouts,30000.,8000.,lab[ichip],align=1
+      xyouts,xr[1],8000.,lab[ichip],align=1
       p1=!p & x1 = !x & y1 = !y
       if ~first then begin
         !p =p2
@@ -143,7 +143,7 @@ for ichip=0,2 do begin
       oplot,x,x/ymed*gfactor,psym=1,color=icolor
       oplot,x,x/(ydiff/sqrt(2.))^2*gfactor,psym=6,color=icolor
       ;xyouts,20000.,1.5,'chip '+chips[ichip],align=1
-      xyouts,20000.,3.5,lab[ichip],align=1
+      xyouts,xr[1],3.5,lab[ichip],align=1
       if keyword_set(rn) then begin
         oplot,x,x/(y-rneff^2)*gfactor,psym=5,color=icolor+1
         oplot,x,x/(ymed-rneff^2)*gfactor,psym=1,color=icolor+1

@@ -1,0 +1,59 @@
+#!/usr/bin/env python
+# encoding: utf-8
+#
+# @Author: Jon Holtzman
+# @Date: March 2018
+# @Filename: mkgrid
+# @License: BSD 3-Clause
+# @Copyright: Jon Holtzman
+
+
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import unicode_literals
+
+import argparse
+import os
+import sys
+import subprocess
+import datetime
+import time
+
+from apogee.speclib import rbf
+
+if __name__ == '__main__' :
+
+    parser = argparse.ArgumentParser(
+        prog=os.path.basename(sys.argv[0]),
+        description='Makes a synthetic spectral grid')
+
+    parser.add_argument('planfile', type=str, help='Plan file')
+    parser.add_argument('--dir', type=str, help='directory')
+    parser.add_argument('--grid', type=str, help='grid', default='GK')
+    parser.add_argument('--out', type=str, help='output prefix', default='rbf_')
+    parser.add_argument('--r0', type=float, help='r0 value', default=1.0)
+    parser.add_argument('--apstar', help='apStar file format?',action="store_true")
+    parser.add_argument('--fakehole', help='add fake holes?',action="store_true")
+    parser.add_argument("--done")
+    parser.add_argument("--host")
+    args=parser.parse_args()
+
+    now = datetime.datetime.now()
+    start = time.time()
+    print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
+
+    rbf.fill(args.planfile,grid=args.grid,out=args.out,dir=args.dir,r0=args.r0,apstar=args.apstar,fakehole=args.fakehole)
+    now = datetime.datetime.now()
+    print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
+    print("elapsed: ",time.time()-start)
+
+    if args.done is not None :
+        subprocess.call(['setdone',args.done])
+        try: 
+            subprocess.call(['setdone',done])
+        except: pass
+        print('host', args.host)
+        if args.host is not None :
+            try: os.remove(args.done+'.'+args.host)
+            except: pass

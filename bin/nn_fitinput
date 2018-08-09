@@ -1,0 +1,49 @@
+#!/usr/bin/env python
+# encoding: utf-8
+#
+# @Author: Jon Holtzman
+# @Date: March 2018
+# @Filename: mkgrid
+# @License: BSD 3-Clause
+# @Copyright: Jon Holtzman
+
+
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import unicode_literals
+
+import argparse
+import os
+import sys
+import subprocess
+import matplotlib
+matplotlib.use('Agg')
+import pdb
+
+from apogee.payne import nn
+
+if __name__ == '__main__' :
+
+    parser = argparse.ArgumentParser(
+        prog=os.path.basename(sys.argv[0]),
+        description='Makes a synthetic spectral grid')
+
+    parser.add_argument("model", type=str, help='Model')
+    parser.add_argument("--nfit", type=int, default=0)
+    parser.add_argument("--order", type=int, default=4)
+    parser.add_argument("--threads", type=int, default=32)
+    parser.add_argument("--done")
+    parser.add_argument("--host")
+    args=parser.parse_args()
+    nn.fitinput(args.model,nfit=args.nfit,order=args.order,threads=args.threads)
+
+    if args.done is not None :
+        subprocess.call(['setdone',args.done])
+        try: 
+            subprocess.call(['setdone',done])
+        except: pass
+        print('host', args.host)
+        if args.host is not None :
+            try: os.remove(args.done+'.'+args.host)
+            except: pass

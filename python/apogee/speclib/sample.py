@@ -15,7 +15,10 @@ from __future__ import unicode_literals
 import numpy as np
 import os
 import glob
+import pdb
+import matplotlib.pyplot as plt
 from tools import plots
+from tools import match
 from apogee.speclib import isochrones
 from astropy.io import ascii
 
@@ -117,7 +120,7 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         out = '{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}'.format(teff,logg,mh,am,cm,nm,vmicro,vrot)      
         # individual elemental abundances
         el=np.random.normal(0.,0.2,size=nel)
-        for i,e in enumerate(el): el[i]=clip(e,emlim)
+        for ie,e in enumerate(el): el[ie]=clip(e,emlim)
         el[els_alpha] += am
         for e in el :
           # add element abundances
@@ -130,11 +133,13 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         logg=clip(logg,logglim,eps=eps)
         mh=clip(mh,mhlim,eps=eps)
         cm=clip(cm,cmlim,eps=eps)
+        nm=(round(nm/0.5))*0.5
         nm=clip(nm,nmlim,eps=eps)
         am=clip(am,amlim,eps=eps)
+        vmicro=round((np.log10(vmicro)+0.30103)/0.30103)*0.30103-0.30103
 
         inp = '{:s}{:d} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:8.2f}'.format(
-               name,i+1,np.log10(vmicro),cm,nm,am,mh,logg,teff)
+               name,i+1,vmicro,cm,nm,am,mh,logg,teff)
         finp.write(inp+'\n')
 
     f.close()
@@ -160,24 +165,24 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
     fig.tight_layout()
     fig.savefig(name+'.png')
 
-def comp(file,true='test.inp',hard=False) :
+def comp(file,true='test.inp',truespec=None,hard=False,z='mh',plot=False) :
     """ Compare input parameters with output results
     """
     true=ascii.read(true,names=['id','vmicro','cm','nm','am','mh','logg','teff'])
     ##spec=np.loadtxt('test.dat')
 
-    obs=ascii.read(file+'.spm',names=['id','vmicro','cm','nm','am','mh','logg','teff','evm','ecm','enm','eam','emh','elogg','eteff','a','b','c'])
+    obs=ascii.read(file+'.spm',names=['id','vmicro','cm','nm','am','mh','logg','teff','evm','ecm','enm','eam','emh','elogg','eteff','a','b','chi2'])
     #mdl=np.loadtxt(file+'.out')
     i1,i2=match.match(true['id'],obs['id'])
 
     fig,ax=plots.multi(2,7,hspace=0.001,wspace=0.5)
-    plots.plotc(ax[0,0],obs['teff'][i2],obs['teff'][i2]-true['teff'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$Teff',yr=[-200,200])
-    plots.plotc(ax[1,0],obs['teff'][i2],obs['logg'][i2]-true['logg'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$logg',yr=[-0.5,0.5])
-    plots.plotc(ax[2,0],obs['teff'][i2],obs['mh'][i2]-true['mh'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$[M/H]',yr=[-0.5,0.5])
-    plots.plotc(ax[3,0],obs['teff'][i2],obs['am'][i2]-true['am'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$[a/M]',yr=[-0.5,0.5])
-    plots.plotc(ax[4,0],obs['teff'][i2],obs['cm'][i2]-true['cm'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$[C/M]',yr=[-0.5,0.5])
-    plots.plotc(ax[5,0],obs['teff'][i2],obs['nm'][i2]-true['nm'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$[N/M]',yr=[-0.5,0.5])
-    plots.plotc(ax[6,0],obs['teff'][i2],10.**obs['vmicro'][i2]-10.**true['vmicro'][i1],true['mh'][i1],xt='Teff',yt=r'$\Delta$vmicro',yr=[-0.5,0.5])
+    plots.plotc(ax[0,0],obs['teff'][i2],obs['teff'][i2]-true['teff'][i1],true[z][i1],xt='Teff',yt=r'$\Delta$Teff',yr=[-200,200])
+    plots.plotc(ax[1,0],obs['teff'][i2],obs['logg'][i2]-true['logg'][i1],true[z][i1],xt='Teff',yt=r'$\Delta$logg',yr=[-0.5,0.5])
+    plots.plotc(ax[2,0],obs['teff'][i2],obs['mh'][i2]-true['mh'][i1],true[z][i1],xt='Teff',yt=r'$\Delta$[M/H]',yr=[-0.5,0.5])
+    plots.plotc(ax[3,0],obs['teff'][i2],obs['am'][i2]-true['am'][i1],true[z][i1],xt='Teff',yt=r'$\Delta$[a/M]',yr=[-0.5,0.5])
+    plots.plotc(ax[4,0],obs['teff'][i2],obs['cm'][i2]-true['cm'][i1],true[z][i1],xt='Teff',yt=r'$\Delta$[C/M]',yr=[-0.5,0.5])
+    plots.plotc(ax[5,0],obs['teff'][i2],obs['nm'][i2]-true['nm'][i1],true[z][i1],xt='Teff',yt=r'$\Delta$[N/M]',yr=[-0.5,0.5])
+    plots.plotc(ax[6,0],obs['teff'][i2],10.**obs['vmicro'][i2]-10.**true['vmicro'][i1],true[z][i1],xt='Teff',yt=r'$\Delta$vmicro',yr=[-0.5,0.5])
     ax[0,1].hist(obs['teff'][i2]-true['teff'][i1],bins=np.arange(-200,200,10),histtype='step')
     ax[1,1].hist(obs['logg'][i2]-true['logg'][i1],bins=np.arange(-0.5,0.5,0.01),histtype='step')
     ax[2,1].hist(obs['mh'][i2]-true['mh'][i1],bins=np.arange(-0.5,0.5,0.01),histtype='step')
@@ -189,6 +194,23 @@ def comp(file,true='test.inp',hard=False) :
     plt.show()
     if hard :
         fig.savefig(file+'.png')
+
+    if plot :
+        pdb.set_trace()
+        obsspec=np.loadtxt(file+'.out')
+        if truespec is None : truespec=file+'.dat'
+        truespec=np.loadtxt(truespec)
+        for i in range(obsspec.shape[0]) :
+            plt.clf()
+            plt.plot(truespec[i,:],color='b')
+            plt.plot(obsspec[i,:],color='r')
+            plt.plot(obsspec[i,:]/truespec[i,:]+0.1,color='g')
+            plt.draw()
+            print('{:8.1f}{:7.2f}{:7.2f}{:7.2f}{:7.2f}{:7.2f}{:7.2f}'.format(
+                  true['teff'][i],true['logg'][i],true['mh'][i],true['am'][i],true['cm'][i],true['nm'][i],true['vmicro'][i]))
+            print('{:8.1f}{:7.2f}{:7.2f}{:7.2f}{:7.2f}{:7.2f}{:7.2f}{:10.2f}'.format(
+                  obs['teff'][i],obs['logg'][i],obs['mh'][i],obs['am'][i],obs['cm'][i],obs['nm'][i],obs['vmicro'][i],obs['chi2'][i]))
+            pdb.set_trace()
 
 def clip(x,lim,eps=None) :
     """ Utility routine to clip values within limits, and move slightly off edges if requested

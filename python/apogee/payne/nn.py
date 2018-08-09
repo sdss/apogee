@@ -27,7 +27,7 @@ batch_size=1000
 verbose=0
 
 def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0,
-          teff=[0,10000],logg=[-1,6],mh=[-3,1],am=[-1,1],cm=[-2,2],raw=False,rot=False,nolog=True) :
+          teff=[0,10000],logg=[-1,6],mh=[-3,1],am=[-1,1],cm=[-2,2],raw=False,rot=False,nolog=True,elem=False) :
     """ Train a neural net model on an input training set
     """
     global nfit, verbose, nepochs
@@ -62,10 +62,11 @@ def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0
     head['cm'] = cm
 
     # limit parameters?
-    if rot :
-        pars=pars[:,0:8]
-    else :
-        pars=pars[:,0:7]
+    if not elem :
+        if rot :
+            pars=pars[:,0:8]
+        else :
+            pars=pars[:,0:7]
 
     if nolog : pars[:,2] = 10.**pars[:,2]
 
@@ -74,6 +75,9 @@ def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0
     x=np.arange(0,spec.shape[1])
     specerr = np.full_like(spec[0,:],1.)
     for i in range(spec.shape[0]) :
+        gd = np.where(np.isfinite(spec[i,:]))[0]
+        if len(gd) == 0 :
+          print(i,pars[i,:])
         cont = norm.cont(spec[i,:],specerr,poly=True,order=order,chips=True)
         spec[i,:] /= cont
 
@@ -302,15 +306,14 @@ def test(pmn, pstd, mn, std, weights, biases,n=100, t0=[3750.,4500.], g0=2., mh0
         if i == 0 : ax[i,it0].set_title('{:8.0f}{:7.2f}{:7.2f}'.format(t0[it0],g0,mh0))
     fig.tight_layout()
 
-def comp(file,threads=8,nfit=8,dofit=True,plot=False,order=4) :
+def fitinput(file,threads=8,nfit=8,dofit=True,order=4) :
     """ Solves for parameters using input spectra and NN model
     """
     p=fits.open(file+'.fits')[0].data
     s=fits.open(file+'.fits')[2].data
-    p=p[:,0:7]
+    p=p[:,0:8]
     if nfit == 0 : nfit = p.shape[0]
     get(file)
-    pdb.set_trace()
 
     specerr=np.full_like(s[0,:],0.005)
     if dofit :
@@ -318,6 +321,7 @@ def comp(file,threads=8,nfit=8,dofit=True,plot=False,order=4) :
         for i in range(nfit) :
             cont = norm.cont(s[i,:],specerr,poly=True,order=order,chips=True)
             specs.append((s[i,:]/cont, specerr))
+
         pool = mp.Pool(threads)
         output = pool.map_async(solve, specs).get()
         pool.close()
@@ -340,32 +344,47 @@ def comp(file,threads=8,nfit=8,dofit=True,plot=False,order=4) :
         hdu.writeto(file+'_out.fits',overwrite=True)
         hdu.close()
 
-    # plot spectra and save model and fit spectra
+    # save model and fit spectra
     pix = np.arange(0,8575,1)
-    if plot : fig,ax=plots.multi(1,1)
     model=[]
     for i in range(nfit) :
-        print(p[i,:])
         snorm = s[i,:] / np.nanmean(s[i,:])
         spec=spectrum(pix, *p[i,:])    
         model.append(spec)
-        if plot :
-            plt.clf()
-            plt.plot(snorm,color='k')
-            plt.plot(spec,color='g')
-            if dofit :
-                print(output[i])
-                fit=spectrum(pix, *output[i])
-                gd=np.where(np.isfinite(snorm))[0]
-                print(np.sum((spec[gd]-snorm[gd])**2),np.sum((fit[gd]-snorm[gd])**2))
-                plt.plot(fit,color='b')
-            plt.draw()
-            pdb.set_trace()
 
     hdu=fits.HDUList()
     hdu.append(fits.ImageHDU(np.array(model)))
     hdu.writeto(file+'_model.fits',overwrite=True)   
     hdu.close()
+
+def comp(file,order=4)  :
+    """ Plot results of testinput vs true parameters
+    """
+    p=fits.open(file+'.fits')[0].data
+    s=fits.open(file+'.fits')[2].data
+    out=fits.open(file+'_out.fits')[0].data
+    fit=fits.open(file+'_model.fits')[0].data
+    specerr=np.full_like(s[0,:],0.005)
+
+    for i in range(s.shape[0]) :
+        cont = norm.cont(s[i,:],specerr,poly=True,order=order,chips=True)
+        print('{:8.1f}{:7.2f}{:7.2f}{:7.2f}{:7.2f}{:7.2f}{:7.2f}{:7.2f}'.format(
+               p[i,0],p[i,1],p[i,2],p[i,3],p[i,4],p[i,5],p[i,6],p[i,7]))
+        print('{:8.1f}{:7.2f}{:7.2f}{:7.2f}{:7.2f}{:7.2f}{:7.2f}{:7.2f}'.format(
+               out[i,0],out[i,1],out[i,2],out[i,3],out[i,4],out[i,5],out[i,6],out[i,7]))
+
+        plt.clf()
+        plt.plot(s[i,:]/cont,color='b')
+        plt.plot(fit[i,:],color='r')
+        plt.plot(fit[i,:]/(s[i,:]/cont)+0.1,color='g')
+        #if dofit :
+        #    print(output[i])
+        #    fit=spectrum(pix, *output[i])
+        #    gd=np.where(np.isfinite(snorm))[0]
+        #    print(np.sum((spec[gd]-snorm[gd])**2),np.sum((fit[gd]-snorm[gd])**2))
+        #    plt.plot(fit,color='b')
+        plt.draw()
+        pdb.set_trace()
 
 def solve(spec) :
     """ Solve for parameters for a single input spectrum
@@ -373,9 +392,9 @@ def solve(spec) :
     s=spec[0]
     serr=spec[1]
     pix = np.arange(0,len(s),1)
-    init = np.array([4000.,2.5,0.,0.,0.,0.,1.5])
-    bounds = (np.array([3000.,-0.5,-3.,-1.,-1.,-1.,0.5]),
-              np.array([8000., 5.5, 1., 1., 1., 1.,4.5]))
+    init = np.array([4000.,2.5,0.,0.,0.,0.,1.5,0.])
+    bounds = (np.array([3000.,-0.5,-3.,-1.,-1.,-1.,0.5,0.]),
+              np.array([8000., 5.5, 1., 1., 1., 1.,4.5,100.]))
     gd = np.where(np.isfinite(s))[0]
     fpars,fcov = curve_fit(spectrum,pix[gd],s[gd],sigma=serr[gd],p0=init,bounds=bounds)
     return fpars

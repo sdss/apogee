@@ -47,13 +47,6 @@ def showtime(string) :
     print(string+' {:8.2f}'.format(time.time()))
     sys.stdout.flush()
 
-def vector(header,axis) :
-    showtime('end group')
-    """ Routine to return vector of axis values from a FITS header CRVAL, CDELT, NAXIS for specified axis
-    """
-    caxis='{:1d}'.format(axis)
-    return header['CRVAL'+caxis]+header['CDELT'+caxis]*np.arange(header['NAXIS'+caxis])
-
 def kurucz2turbo(infile,outfile,trim=0) :
     """ Convert Kurucz model atmosphere for use by Turbospectrum 
         Allow for trimming of layers
@@ -163,18 +156,18 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         if nskip == 0 : trim=0
         if nskip == 1 : trim=7
         if nskip == 2 : trim=15
-        if nskip > 2 : return 0.
+        if nskip > 2 : return 0.,0.
         kurucz2turbo(atmod,workdir+'/'+os.path.basename(atmod),trim=trim )
     else :
         try :        
             ret = marcs2turbo(atmod,workdir+'/'+os.path.basename(atmod),trim=nskip,fill=fill )
             if not fill and ret<0 :
                 print('HOLE NOT SYNTHESIZED: ', atmod)
-                return 0.
+                return 0.,0.
         except:
             print('PROBLEM: ',atmod)
             fail('mkturbospec problem: '+atmod)
-            return 0.
+            return 0.,0.
 
     # Turbospectrum setup
     try: os.symlink(os.environ['APOGEE_DIR']+'/src/turbospec/DATA',workdir+'/DATA')
@@ -356,18 +349,20 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
             try:
                 out=np.loadtxt(file)
                 if ielem == 0 : 
-                    spec=out[:,fluxcol]
+                    spec=out[:,2]
+                    specnorm=out[:,1]
                 else :
-                    spec=np.vstack([spec,out[:,fluxcol]])
+                    spec=np.vstack([spec,out[:,2]])
+                    specnorm=np.vstack([specnorm,out[:,1]])
             except :
                 print('failed...',file)
                 fail('mkturbospec array problem: {:8d} {:8.2f} {:8.2f} {:8.2f}  {:8.2f} {:8.2f} {:8.2f}'.format(
                                teff,logg,mh,am,cm,nm,vmicro))
-                return 0.
+                return 0.,0.
 
     if run :
         if not save : shutil.rmtree(workdir)
-        return spec
+        return spec, specnorm
 
 def fail(out) :
     """ Routine to log to FAILURE file
@@ -415,12 +410,16 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
 
     # Read reference spectrum to plot and to determine number of pixel wavelengths
     refhead=fits.open(indir+'new_ap00cp00np00vp20.fits')[0].header
-    wave=10.**vector(refhead,1)
+    wave=10.**spectra.fits2vector(refhead,1)
     ref=fits.open(indir+'new_ap00cp00np00vp20.fits')[0].data[refz,5,0,:]
     print(ref.shape,refz)
 
     wave=aspcap.apStar2aspcap(wave)
+    wchip=[ [aspcap.nw_chip[0],aspcap.logw0_chip[0],aspcap.dlogw], 
+            [aspcap.nw_chip[1],aspcap.logw0_chip[1],aspcap.dlogw], 
+            [aspcap.nw_chip[2],aspcap.logw0_chip[2],aspcap.dlogw] ]
     ref=aspcap.apStar2aspcap(ref)
+    cont=[(1,1,0.,0.),(1,1,0.,0.),(1,1,0.,0)]
 
     #wchip=[(refhead['NAXIS1'],refhead['CRVAL1'],refhead['CDELT1'])]
     #cont=[(refhead['ORDER'],refhead['NITER'],refhead['LOWREJ'],refhead['HIGHREJ'])]
@@ -428,7 +427,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
     #    refhead=fits.open(indir+'ap00cp00np00vp20.fits')[ichip].header
     #    wchip.append((refhead['NAXIS1'],refhead['CRVAL1'],refhead['CDELT1']))
     #    cont.append((refhead['ORDER'],refhead['NITER'],refhead['LOWREJ'],refhead['HIGHREJ']))
-    #    wave=np.append(wave,10.**vector(refhead,1))
+    #    wave=np.append(wave,10.**spectra.fits2vector(refhead,1))
     #    ref=np.append(ref,fits.open(indir+'ap00cp00np00vp20.fits')[ichip].data[refz,5,0,:])
     #    print(ref.shape)
     nwave=ref.shape[0]
@@ -634,6 +633,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
       for cm in prange(p['cm0'],p['dcm'],p['ncm']) :
         for nm in prange(p['nm0'],p['dnm'],p['nnm']) :
           specdata=np.zeros([nelem,int(p['nmh']),int(p['nlogg']),int(p['nteff']),nspec],dtype=np.float32)
+          specnormdata=np.zeros([nelem,int(p['nmh']),int(p['nlogg']),int(p['nteff']),nspec],dtype=np.int16)
           # allow for restart after certain number of [M/H] have been completed
           if clobber :
               nmh = 0
@@ -664,7 +664,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
                 dskip = 1 if kurucz else 2
                 vout = get_vmicro(vmicrofit,vmicro)
                 while nskip >= 0 and nskip < 10 :
-                  spec=mkturbospec(int(teff),logg,mh,am,cm,nm,
+                  spec,specnorm=mkturbospec(int(teff),logg,mh,am,cm,nm,
                     wrange=wrange,dw=dw,atmosdir=marcsdir,
                     elemgrid=elem,linelistdir=linelistdir+'/'+elem+'/',linelist=linelist,vmicro=vout,
                     solarisotopes=solarisotopes,
@@ -677,11 +677,14 @@ def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
                 try:
                     if elem == '' :
                         specdata[0,imh,ilogg,iteff,:]=spec
+                        specnormdata[0,imh,ilogg,iteff,:]=np.round((specnorm-0.5)*65534.).astype(int)
                     else :
                         specdata[:,imh,ilogg,iteff,:]=spec[:,gd]
+                        specnormdata[:,imh,ilogg,iteff,:]=np.round((specnorm[:,gd]-0.5)*65534).astype(int)
                 except :
                     print(specdata.shape)
                     specdata[:,imh,ilogg,iteff,:]=0.
+                    specnormdata[:,imh,ilogg,iteff,:]=-32767
                     fail('error loading specdata: {:8d} {:8.2f} {:8.2f} {:8.2f}  {:8.2f} {:8.2f} {:8.2f} {:d}'.format(
                                int(teff),logg,mh,am,cm,nm,vout,len(spec)))
 
@@ -715,7 +718,14 @@ def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
             if imh+1 < int(p['nmh']) : hdu.header['nmh'] = imh+1
             try : os.mkdir(specdir)
             except: pass
-            hdu.writeto(specdir+'/'+p['name']+'.fits',overwrite=True)
+            hdunorm=fits.ImageHDU(np.squeeze(specnormdata))
+            hdunorm.header.extend(hdu.header.copy(strip=True))
+            hdunorm.header['BZERO'] = 0.5
+            hdunorm.header['BSCALE'] = 1./65534.
+            hdulist=fits.HDUList()
+            hdulist.append(hdu)
+            hdulist.append(hdunorm)
+            hdulist.writeto(specdir+'/'+p['name']+'.fits',overwrite=True)
 
 def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,ls=None,comp=False,apred='r8',threads=32) :
     """ Create a grid of synthetic spectra using Turbospectrum given input parameter file
@@ -768,7 +778,7 @@ def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,ls=None,comp=False,apr
     specdata.data=np.reshape(specdata.data,(nspec,npix))
 
     # synthesis is in air, we want vacuum
-    ws=vector(specdata.header,1)
+    ws=spectra.fits2vector(specdata.header,1)
     ws=spectra.airtovac(ws)
 
     # output wavelength grid
@@ -908,7 +918,7 @@ def mkspec(pars) :
     for j,el in enumerate(els) :
         elems.append([el,pars[8+j]])
     print(teff,logg,mh,vmicro,am,cm,nm)
-    spec=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=False,fill=False,linelist='20180721',wrange=[15100.,17000.])
+    spec,specnorm=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=False,fill=False,linelist='20180721',wrange=[15100.,17000.],save=True)
     return pars,spec
     
 
@@ -940,10 +950,12 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fi
     ws=spectra.airtovac(ws)
     for spec in specs :
         if isinstance(spec[1],np.ndarray) :
+          if spec[1].sum() > 0.001 :
             mh=spec[0][2]
             vmacro = 10.**(0.470794-0.254*mh)
             vmacro = vmacro if vmacro<15 else 15.
             vrot=spec[0][7]
+            if vrot < 0.5 : vrot=None
             # convolve one at a time because we have different vrot for each
             z=lsf.convolve(ws,spec[1],lsf=ls,xlsf=x,vmacro=vmacro,vrot=vrot)
             out.append(spec[1])

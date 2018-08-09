@@ -38,7 +38,7 @@ if keyword_set(smooth) then printf,lun,'smooth     '+smooth
 if keyword_set(solarisotopes) then printf,lun,'solarisotopes   ',solarisotopes
 printf,lun,'wrange ',wrange
 if dw lt 0 and vmicrofit eq 0 then begin
-  if vmicro lt 4 then printf,lun,'dw 0.05' else printf,lun,'dw 0.1'
+  if vmicro lt 3.99 then printf,lun,'dw 0.05' else printf,lun,'dw 0.1'
 endif else printf,lun,'dw ',dw
 if keyword_set(air) then printf,lun,'vacuum   0'
 if keyword_set(width) then printf,lun,'width ',width

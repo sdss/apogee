@@ -29,7 +29,7 @@ def writespec(name,data) :
 
 
 def writenml(outfile,file,libhead,ncpus=2,nruns=1,interord=3,direct=1,pca=1,errbar=1,indi=None,indv=None,filterfile=None,f_format=1,f_access=0,
-               init=None,indini=None,renorm=None) :
+               init=None,indini=None,renorm=None,obscont=0,algor=1) :
     """ Writes FERRE control file
     """
 
@@ -50,16 +50,17 @@ def writenml(outfile,file,libhead,ncpus=2,nruns=1,interord=3,direct=1,pca=1,errb
     f.write(" ERFILE = '"+file+".err'\n")
     f.write(" OPFILE = '"+file+".spm'\n")
     f.write(" OFFILE = '"+file+".mdl'\n")
-    f.write(' ERRBAR = {:d}\n'.format(errbar))
     if renorm is not None :
+        f.write(" FFILE = '"+file+".obs'\n")
         f.write(' CONT = 1\n')
         f.write(' NCONT = {:d}\n'.format(renorm))
-        f.write(' OBSCONT = 0\n')
-        f.write(" FFILE = '"+file+".obs'\n")
+        f.write(' OBSCONT = {:d}\n'.format(obscont))
         f.write(" SFFILE = '"+file+".frd'\n")
     else :
         f.write(" FFILE = '"+file+".frd'\n")
+    f.write(' ERRBAR = {:d}\n'.format(errbar))
     if init is not None: f.write(' INIT = {:d}\n'.format(init))
+    f.write(' ALGOR = {:2d}\n'.format(algor))
     if indini is not None :
         f.write(' INDINI = '+np.array2string(np.array(indini)).strip('[]')+'\n')
         nruns = 1
@@ -204,7 +205,7 @@ def rdsinglehead(f) :
     dict={}
     for line in f:  
       # read until we hit a '/' in first character
-      if line[1] != '/' : 
+      if line[1] != '/' and line[0] != '/' : 
         words=line.split()
         nwords=len(words)
         card=words[0].upper()
@@ -348,7 +349,7 @@ def wrhead(planstr,file,npca=None,npix=None,wchip=None,cont=None) :
             fp.write(" VACUUM = {:d}\n".format(1))
             fp.write(" RESOLUTION = {:d}\n".format(22500))
             fp.write(" CONTINUUM = {:6d}{:6d}{:7.2f}{:7.2f}\n".format(int(round(c[0])),int(round(c[1])),c[2],c[3]))
-            fp.write("/\n")
+            fp.write(" /\n")
     fp.close()
 
 

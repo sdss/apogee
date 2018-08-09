@@ -4,6 +4,7 @@ import math
 import numpy as np
 from astropy.io import fits
 from numpy import isclose
+from apogee.tools import spectra
 
 def cval(x) :
     ''' routine to convert value to "Kurucz-style" string'''
@@ -15,10 +16,6 @@ def cval(x) :
 
 def filename(a,c,n,v) :
     return 'a'+cval(a)+'c'+cval(c)+'n'+cval(n)+'v'+cval(v)
-
-def vector(header,axis) :
-    caxis='{:1d}'.format(axis)
-    return header['CRVAL'+caxis]+header['CDELT'+caxis]*np.arange(header['NAXIS'+caxis])
 
 rootdir=os.environ['APOGEE_SPECLIB']+'/synth/turbospec/kurucz/giantisotopes/tgGK_150714_lsfcombo5_l31c/'
 
@@ -50,7 +47,7 @@ for afe in np.arange(-0.5,1.00,0.25)  :
         try: os.mkdir(file)    
         except: pass
         synth=fits.open(rootdir+file+'.fits')[0]
-        wsynth=vector(synth.header,1)/math.log(10)
+        wsynth=spectra.fits2vector(synth.header,1)/math.log(10)
         col_apogee_id=[]
         col_telescope=[]
         col_field=[]
@@ -62,10 +59,10 @@ for afe in np.arange(-0.5,1.00,0.25)  :
         col_logg=[]
         col_mh=[]
         n=0
-        for it,teff in enumerate(vector(synth.header,2)) :
-            for ig,logg in enumerate(vector(synth.header,3)) :
+        for it,teff in enumerate(spectra.fits2vector(synth.header,2)) :
+            for ig,logg in enumerate(spectra.fits2vector(synth.header,3)) :
               if abs((teff-3500)*4/2000. - logg)  < 2 or (isclose(cfe,0.) and isclose(nfe,0.) and isclose(afe,0.) and isclose(vmicro,2.)) :
-                for im,mh in enumerate(vector(synth.header,4)) :
+                for im,mh in enumerate(spectra.fits2vector(synth.header,4)) :
                   if np.random.random() < random or (isclose(cfe,0.) and isclose(nfe,0.) and isclose(afe,0.) and isclose(vmicro,2.)) :
                     #print(teff,logg,mh)
                     out=np.interp(w,wsynth,synth.data[im,ig,it,:])

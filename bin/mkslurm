@@ -1,29 +1,29 @@
-#!/bin/csh 
+#!/bin/csh -f
 
 set cmd = $1
 
 if ( ! $?QUERYHOST ) setenv QUERYHOST `hostname`
+
 if ( $cmd == apred ) then
-  if ( ! $?QUERYPORT ) setenv QUERYPORT 1050
-  if ( ! $?APOGEE_MAXRUN ) then
-    if ( $?TACC_SYSTEM) setenv APOGEE_MAXRUN 10
-    if ( $?UUFSCELL ) setenv APOGEE_MAXRUN 8
-  endif
-  if ( ! $?IDL_CPU_TPOOL_NTHREADS ) setenv IDL_CPU_TPOOL_NTHREADS 4
+  setenv QUERYPORT 1050
+else if ( $cmd == aspcap ) then
+  setenv QUERYPORT 1051
+else
+  setenv QUERYPORT 1052
+endif
+
+setenv IDL_CPU_TPOOL_NTHREADS 1
+if ( $cmd == apred ) then
+  setenv MAXRUN 8
+  if ( $?TACC_SYSTEM) setenv APOGEE_MAXRUN 10
+  setenv IDL_CPU_TPOOL_NTHREADS 4
+else if ( $cmd == mkrbf ) then
+  setenv MAXRUN 1
 else if ( $cmd == mkgrid || $cmd == bundle ) then
-  if ( ! $?QUERYPORT ) setenv QUERYPORT 1052
-  if ( ! $?APOGEE_MAXRUN ) then
-    if ( $?TACC_SYSTEM) setenv APOGEE_MAXRUN 40
-    if ( $?UUFSCELL ) setenv APOGEE_MAXRUN 32
-  endif
-  if ( ! $?IDL_CPU_TPOOL_NTHREADS ) setenv IDL_CPU_TPOOL_NTHREADS 1
+  setenv MAXRUN 32
+  if ( $?TACC_SYSTEM) setenv APOGEE_MAXRUN 40
 else if ( $cmd == mkgridlsf ) then
-  if ( ! $?QUERYPORT ) setenv QUERYPORT 1052
-  if ( ! $?APOGEE_MAXRUN ) then
-    if ( $?TACC_SYSTEM) setenv APOGEE_MAXRUN 12
-    if ( $?UUFSCELL ) setenv APOGEE_MAXRUN 12
-  endif
-  if ( ! $?IDL_CPU_TPOOL_NTHREADS ) setenv IDL_CPU_TPOOL_NTHREADS 1
+  setenv MAXRUN 12
 else 
   echo Unrecognized command in mkslurm
 endif

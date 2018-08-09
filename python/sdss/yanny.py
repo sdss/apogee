@@ -19,6 +19,7 @@ multidimensional arrays, sorry.
 # Modules
 #
 from __future__ import print_function
+import collections
 import re
 import os
 import os.path
@@ -34,7 +35,7 @@ if six.PY3:
 #
 # Classes
 #
-class yanny(dict):
+class yanny(collections.OrderedDict) :
     """An object interface to a yanny file.
 
     Create a yanny object using a yanny file, `filename`.  If the file exists,
@@ -297,6 +298,7 @@ class yanny(dict):
         @np Convert numeric data into NumPy arrays?
         @debug Turn on simple debugging?
         """
+        super(yanny, self).__init__()
         #
         # The symbol hash is inherited from the old read_yanny
         #
@@ -435,7 +437,7 @@ class yanny(dict):
         try:
             cache = self._struct_type_caches[structure]
         except KeyError:
-            self._struct_type_caches[structure] = dict()
+            self._struct_type_caches[structure] = collections.OrderedDict()
             cache = self._struct_type_caches[structure] # cache for one struct type
         #
         # Lookup (or create) the value for this variable
@@ -507,7 +509,7 @@ class yanny(dict):
         try:
             cache = self._struct_isarray_caches[structure]
         except KeyError:
-            self._struct_isarray_caches[structure] = dict()
+            self._struct_isarray_caches[structure] = collections.OrderedDict()
             cache = self._struct_isarray_caches[structure]
         try:
             result = cache[variable]
@@ -541,7 +543,7 @@ class yanny(dict):
             ``True`` if the variable is enum type.
         """
         if self._enum_cache is None:
-            self._enum_cache = dict()
+            self._enum_cache = collections.OrderedDict()
             if 'enum' in self['symbols']:
                 for e in self['symbols']['enum']:
                     m = re.search(r'typedef\s+enum\s*\{([^}]+)\}\s*(\w+)\s*;',e).groups()
@@ -813,7 +815,7 @@ class yanny(dict):
             A list containing the rows of `table` converted to ``dict``.
         """
         return_list = list()
-        d = dict()
+        d = collections.OrderedDict()
         struct_fields = self.columns(table) # I'm assuming these are in order...
         for i in range(self.size(table)):
             one_row = self.row(table, i) # one row as a list
@@ -821,7 +823,7 @@ class yanny(dict):
             for key in struct_fields:
                 d[key] = one_row[j]
                 j = j + 1
-            return_list.append(dict(d)) # append a new dict (copy of d)
+            return_list.append(collections.OrderedDict(d)) # append a new dict (copy of d)
         return return_list
     #
     #
@@ -850,7 +852,7 @@ class yanny(dict):
 
         added: Demitri Muna, NYU 2009-04-28
         """
-        new_dictionary = dict()
+        new_dictionary = collections.OrderedDict()
         for key in self.pairs():
             new_dictionary[key] = self[key]
         return new_dictionary
@@ -1072,7 +1074,7 @@ class yanny(dict):
         for typedef in self['symbols']['struct']:
             typedefm = typedefre.search(typedef)
             (definition,name) = typedefm.groups()
-            self[name.upper()] = dict()
+            self[name.upper()] = collections.OrderedDict()
             self['symbols'][name.upper()] = list()
             definitions = re.findall(r'\S+\s+\S+;',definition)
             for d in definitions:

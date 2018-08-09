@@ -14,6 +14,17 @@ from __future__ import unicode_literals
 import numpy as np
 import copy
 
+def fits2vector(header,axis) :
+    """ Routine to return vector of axis values from a FITS header CRVAL, CDELT, NAXIS for specified axis
+    """
+    caxis='{:1d}'.format(axis)
+    return header['CRVAL'+caxis]+header['CDELT'+caxis]*np.arange(header['NAXIS'+caxis])
+
+def vector(start,delta,n) :
+    """ Routine to return vector of values given start, delta, n
+    """
+    return float(start)+np.arange(int(n))*float(delta)
+
 def vactoair(wave_vac) :
     """ Convert vacuum wavelengths to air wavelengths
 

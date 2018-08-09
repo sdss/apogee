@@ -16,7 +16,7 @@ import argparse
 import os
 import sys
 
-from apogee.speclib import synth
+from apogee.plan import mkplan
 
 if __name__ == '__main__' :
 
@@ -24,7 +24,7 @@ if __name__ == '__main__' :
         prog=os.path.basename(sys.argv[0]),
         description='Makes a set of grid directories')
 
-    parser.add_argument('grid', type=str, help='Master grid file')
+    parser.add_argument('grid', type=str, help='Master grid configuration file')
     args=parser.parse_args()
 
-    synth.mkgriddirs(args.grid)
+    mkplan.mkgriddirs(args.grid)

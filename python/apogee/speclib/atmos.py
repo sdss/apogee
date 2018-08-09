@@ -222,7 +222,12 @@ def fill_holes(argv) :
                 os.mkdir(os.path.dirname(dir+file))
             except OSError :
                 pass
-            shutil.copyfile(dir+fillfile,dir+file)
+            #shutil.copyfile(dir+fillfile,dir+file)
+            try :
+                os.remove(dir+file)
+            except OSError :
+                pass
+            os.symlink('../'+dir+fillfile,dir+file)
 
             # fix up headers of filled models for new abundances
             if model.upper() == 'KURUCZ' :
@@ -257,20 +262,20 @@ def fill_holes(argv) :
     if args.fits is not None :
         hd=fits.PrimaryHDU(out)
         hd.header['CTYPE1']='TEFF'
-        hd.header['CRVAL1']=args.teff[1]
-        hd.header['CDELT1']=args.teff[2]
+        hd.header['CRVAL1']=float(args.teff[1])
+        hd.header['CDELT1']=float(args.teff[2])
         hd.header['CTYPE2']='LOGG'
-        hd.header['CRVAL2']=args.logg[1]
-        hd.header['CDELT2']=args.logg[2]
+        hd.header['CRVAL2']=float(args.logg[1])
+        hd.header['CDELT2']=float(args.logg[2])
         hd.header['CTYPE3']='METALS'
-        hd.header['CRVAL3']=args.z[1]
-        hd.header['CDELT3']=args.z[2]
+        hd.header['CRVAL3']=float(args.z[1])
+        hd.header['CDELT3']=float(args.z[2])
         hd.header['CTYPE4']='O Mg Si S Ca Ti'
-        hd.header['CRVAL4']=args.alpha[1]
-        hd.header['CDELT4']=args.alpha[2]
+        hd.header['CRVAL4']=float(args.alpha[1])
+        hd.header['CDELT4']=float(args.alpha[2])
         hd.header['CTYPE5']='C'
-        hd.header['CRVAL5']=args.carbon[1]
-        hd.header['CDELT5']=args.carbon[2]
+        hd.header['CRVAL5']=float(args.carbon[1])
+        hd.header['CDELT5']=float(args.carbon[2])
         hd.writeto(args.fits,overwrite=True)
 
 

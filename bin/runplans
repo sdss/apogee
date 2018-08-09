@@ -61,7 +61,7 @@ foreach plan ( $plans )
    @ nrun = $nrun - 1
    echo notdone: $nrun $maxrun $nobj $maxobj
    while ( $nrun >= $maxrun || $nobj >= $maxobj )
-     sleep 6
+     sleep 10
      set nrun = `'ls' log/*.$host | wc | awk '{print $1}'`
      @ nrun = $nrun - 1
      echo nrun: $nrun maxrun: $maxrun  nobj: $nobj maxobj: $maxobj 
@@ -75,7 +75,7 @@ foreach plan ( $plans )
      $cmd $plan --host $host --done log/$base >& log/$base.$host.log &
 
      @ nobj = $nobj + 1
-     sleep 2
+     sleep 10
    endif
  else
    echo done: $base

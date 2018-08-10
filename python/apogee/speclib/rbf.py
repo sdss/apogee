@@ -128,7 +128,7 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
                      holes.data[hcm,ham,hmh+nmh/2,hlogg+nlogg/2,hteff+nteff/2] += 100.
 
                  # set up input for RBF:  (name, data, holes)
-                 name = out+'c{:s}n{:s}v{:s}_{:02d}'.format(atmos.cval(cm),atmos.cval(nm),atmos.cval(10.**vt),npars)
+                 name = out+'c{:s}n{:s}v{:s}_{:02d}'.format(atmos.cval(cm),atmos.cval(nm),atmos.cval(vt),npars)
                  print('C, N, vt: ', cm, nm, vt, nholes)
                  pars.append((name,r0,data[am1:am2,mh1:mh2,logg1:logg2,teff1:teff2,:],
                               np.squeeze(holes.data[hcm,ham1:ham2,hmh1:hmh2,hlogg1:hlogg2,hteff1:hteff2])))
@@ -167,9 +167,9 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
                  nholes=len(np.where(holes.data[hcm,ham:ham+nam,hmh:hmh+nmh,hlogg:hlogg+nlogg,hteff:hteff+nteff]>0)[0])
                  # replace data and holes with filled data
                  data[sam:sam+nam,smh:smh+nmh,slogg:slogg+nlogg,steff:steff+nteff,:] = \
-                      specs[0][ii][sam-am1:sam-am1+nam,smh-mh1:smh-mh1+nmh,slogg-logg1:slogg-logg1+nlogg,steff-teff1:steff-teff1+nteff,:]
-                 holes[hcm,ham:ham+nam,hmh:hmh+nmh,hlogg:hlogg+nlogg,hteff:hteff+nteff,:] = \
-                      specs[1][ii][ham-ham1:ham-ham1+nam,hmh-hmh1:hmh-hh1+nmh,hlogg-hlogg1:hlogg-hlogg1+nlogg,hteff-hteff1:hteff-hteff1+nteff,:]
+                      specs[ii][0][sam-am1:sam-am1+nam,smh-mh1:smh-mh1+nmh,slogg-logg1:slogg-logg1+nlogg,steff-teff1:steff-teff1+nteff,:]
+                 holes.data[hcm,ham:ham+nam,hmh:hmh+nmh,hlogg:hlogg+nlogg,hteff:hteff+nteff] = \
+                      specs[ii][1][ham-ham1:ham-ham1+nam,hmh-hmh1:hmh-hmh1+nmh,hlogg-hlogg1:hlogg-hlogg1+nlogg,hteff-hteff1:hteff-hteff1+nteff]
                  ii+=1
                  steff+=nteff
                slogg+=nlogg
@@ -187,7 +187,7 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
            else :
                    grid.data = data[iam,:,:,:,:]
            grid.writeto(indir+out+file,overwrite=True)
-         if fakehole : holes.writeto(holefile,overwrite=True)
+         holes.writeto(out+holefile,overwrite=True)
 
 def dorbf(pars) :
     """ Routine that actually does one RBF interpolation
@@ -241,7 +241,7 @@ def dorbf(pars) :
     fhole.close()
 
     # if no holes, return original data
-    if nhole+nsynhole == 0 : return data
+    if nhole+nsynhole == 0 : return data, holes
 
     nd=len(ndim)-1
     cmd=['rbf',name+'_good.dat',name+'_hole.dat',str(r0),str(ngood),str(ngood),str(nd),'1000','1.e-5',str(ndim[-1]+nd),str(nhole+nsynhole),'3']
@@ -261,8 +261,8 @@ def dorbf(pars) :
             if spec.sum() == 0 or dist > 0 :
               try :
                   data[iam,imh,ilogg,iteff,:]=np.atleast_2d(filled)[ii,:]
-                  if dist > 0 : holes[iam,imh,ilogg,iteff,:]=-1.*dist
-                  else : holes[iam,imh,ilogg,iteff,:]=-100.
+                  if dist > 0 : holes[iam,imh,ilogg,iteff]=-1.*dist
+                  else : holes[iam,imh,ilogg,iteff]=-100.
               except :
                   print("failed to fill holes")
                   data[iam,imh,ilogg,iteff,:]=0.

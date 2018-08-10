@@ -841,67 +841,6 @@ def add_dim(header,crval,cdelt,crpix,ctype,idim) :
     header.append(('CRPIX{:d}'.format(idim),crpix))
     header.append(('CTYPE{:d}'.format(idim),ctype))
 
-
-def mkgriddirs(configfile) :
-    """ Script to create output directories and plan and batch queue files for all grids listed in master grid configuration file
-        Calls IDL routine to make the individual subplan files
-    """
-
-    # Read grid configuration file
-    if not os.path.isfile(configfile): 
-        print('{:s} does not exist'.format(configfile))
-        return
-    p=yanny.yanny(configfile,np=True)
-
-    # loop over each grid
-    for i in range(len(p['GRID']['specdir'])) :
-
-      # do both "raw" directory and final directory: former may be repeated!
-      for name in [ p['GRID']['specdir'][i]+'_'+p['GRID']['smooth'][i], p['GRID']['specdir'][i] ] :
-        # construct name and create output directory
-        #name = p['GRID']['specdir'][i]+'_'+p['GRID']['smooth'][i]
-
-        if abs(p['GRID']['solarisotopes'][i]) == 1 :
-            iso = 'solarisotopes'
-        else :
-            iso = 'giantisotopes'
-        if p['GRID']['solarisotopes'][i] < 0 :
-            iso = 'tests/'+iso
-        dir = os.getenv('APOGEE_SPECLIB')+'/synth/'+p['synthcode'].strip("'")+'/'+p['GRID']['atmos'][i]+'/'+iso+'/'+name+'/plan/'
-        print(dir)
-        try: os.makedirs(dir)
-        except: pass
-
-        # remove any old plan files
-        os.chdir(dir)
-        for filePath in glob.glob("*.par"):
-            if os.path.isfile(filePath): os.remove(filePath)
-
-        # write the master planfile and one for each minigrid
-        elems=['']
-        elems.extend(p['GRID']['elem'][i])
-        f = open(dir+name+'.par','w')
-        f.write('{:20s}{:20s}\n'.format('name', name))
-        for key in p.keys() :
-            if ( key != 'GRID' ) & (key != 'symbols') :
-                f.write('{:30s}{:30s}\n'.format(key, p[key]))
-        for key in p['GRID'].dtype.names :
-            out='{:30s}'.format(str(p['GRID'][key][i])).strip("'").strip('[]')
-            out='{:30s}{:30s}\n'.format(key,out.replace(']',''))
-            f.write(out.strip('[]'))
-        f.close()
-
-        # make all of the individual planfiles from the master planfile
-        subprocess.call(['idl','-e',"speclib_allplan,'"+name+".par'"])
-
-        # make pbs scripts
-        os.chdir('..')
-        specdir = p['synthcode'].strip("'")+'/'+p['GRID']['atmos'][i]+'/'+iso+'/'+name
-        os.environ['NO_NODES'] = 'yes'
-        subprocess.call(['mkslurm','mkgrid','"plan/'+name+'_a[mp]*vp20.par"','"plan/'+name+'_a[mp]*vp??.par"'])
-        subprocess.call(['mkslurm','mkgridlsf','"plan/'+name+'_a[mp]*vp??.par"'])
-        subprocess.call(['mkslurm','bundle','"plan/'+name+'_??.par"'])
-
 def mkspec(pars) :
     """ Makes a single spectrum given input pars
     """

@@ -19,6 +19,8 @@ import sys
 import subprocess
 import datetime
 import time
+import matplotlib
+matplotlib.use('Agg')
 
 from apogee.speclib import sample
 from apogee.speclib import synth

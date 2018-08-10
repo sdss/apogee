@@ -42,7 +42,7 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,lsf=lsf,bpm=bpm,$
   dirs=getdir(apo_dir,cal_dir,spectro_dir,apo_vers,lib_dir)
 
   ; get default file name if file not specified
-  if keyword_set(file) then file=cal_dir+'/'+file $
+  if keyword_set(file) and strpos(file,'/') lt 0 then file=cal_dir+'/'+file $
   else file=dirs.calfile
   calfile=dirs.calfile
  

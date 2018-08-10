@@ -27,15 +27,15 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
     """
 
     # set output limits
-    if gridclass == 'GK' :
+    if gridclass == 'GKg' :
         tefflim=[3500,6000]
         logglim=[0,4.5]
         dtlo=250.
-    elif gridclass == 'M' :
+    elif gridclass == 'Mg' :
         tefflim=[3000,4000]
         logglim=[-0.5,3.0]
         dtlo=100.
-    elif gridclass == 'F' :
+    elif gridclass == 'Fd' :
         tefflim=[5500,8000]
         logglim=[2.0,5.5]
         dtlo=250.
@@ -221,7 +221,7 @@ def clip(x,lim,eps=None) :
     tmp=np.max([lim[0],np.min([lim[1],x])])
     # move off limit if requested
     if eps is not None :
-        if np.isclose(x,lim[0]) : tmp+=eps
-        if np.isclose(x,lim[1]) : tmp-=eps
+        if np.isclose(tmp,lim[0]) : tmp+=eps
+        if np.isclose(tmp,lim[1]) : tmp-=eps
     return tmp
 

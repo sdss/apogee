@@ -79,7 +79,7 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
       for inm,nm in enumerate(nmrange) :
        for ivt,vt in enumerate(vtrange) :
          # load into grids of [alpha,mh,logg,teff,wave]
-         data=np.zeros([int(p['nam']),int(p['nmh']),int(p['nlogg']),int(p['nteff']),nfreq])
+         data=np.zeros([int(p['nam']),int(p['nmh']),int(p['nlogg']),int(p['nteff']),nfreq],dtype=np.float32)
          for iam,am in enumerate(spectra.vector(p['am0'],p['dam'],p['nam'])) :
            file=(prefix+'a{:s}c{:s}n{:s}v{:s}.fits').format(
                  atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(vt))
@@ -168,6 +168,11 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
                  # replace data and holes with filled data
                  data[sam:sam+nam,smh:smh+nmh,slogg:slogg+nlogg,steff:steff+nteff,:] = \
                       specs[ii][0][sam-am1:sam-am1+nam,smh-mh1:smh-mh1+nmh,slogg-logg1:slogg-logg1+nlogg,steff-teff1:steff-teff1+nteff,:]
+                 print(ii,ham,nam,hmh,nmh,hlogg,nlogg,hteff,nteff)
+                 print(ham1,hmh1,hlogg1,hteff1)
+                 print(holes.data.shape,specs[ii][1].shape)
+                 print(holes.data[hcm,ham:ham+nam,hmh:hmh+nmh,hlogg:hlogg+nlogg,hteff:hteff+nteff].shape)
+                 print(specs[ii][1][ham-ham1:ham-ham1+nam,hmh-hmh1:hmh-hmh1+nmh,hlogg-hlogg1:hlogg-hlogg1+nlogg,hteff-hteff1:hteff-hteff1+nteff].shape)
                  holes.data[hcm,ham:ham+nam,hmh:hmh+nmh,hlogg:hlogg+nlogg,hteff:hteff+nteff] = \
                       specs[ii][1][ham-ham1:ham-ham1+nam,hmh-hmh1:hmh-hmh1+nmh,hlogg-hlogg1:hlogg-hlogg1+nlogg,hteff-hteff1:hteff-hteff1+nteff]
                  ii+=1
@@ -367,8 +372,11 @@ def extend(start,end,vector,holevector) :
     """
     s=np.max([0,start-1])
     e=np.min([len(vector),end+1])
-    hs=np.where(np.isclose(holevector,vector[s]))[0][0]
-    he=np.where(np.isclose(holevector,vector[e-1]))[0][0]+1
+    hs=np.max([0,np.where(np.isclose(holevector,vector[s]))[0][0]])
+    he=np.min([len(holevector),np.where(np.isclose(holevector,vector[e-1]))[0][0]+1])
+    if e-s != he-hs :
+        print('ERROR: inconsistent size of data and hole grids')
+        pdb.set_trace()
 
     return s,e,hs,he
 

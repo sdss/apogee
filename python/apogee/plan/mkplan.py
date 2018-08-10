@@ -66,7 +66,7 @@ def mkgriddirs(configfile) :
         os.chdir('..')
         specdir = p['synthcode'].strip("'")+'/'+p['GRID']['atmos'][i]+'/'+iso+'/'+name
         os.environ['NO_NODES'] = 'yes'
-        subprocess.call(['mkslurm','mkgrid','"plan/'+name+'_a[mp]*vp20.par"','"plan/'+name+'_a[mp]*vp??.par"'],shell=False)
+        subprocess.call(['mkslurm','mkgrid','"plan/'+name+'_a[mp]*vp20.par"','"plan/'+name+'_a[mp]*vp48.par"','"plan/'+name+'_a[mp]*vp??.par"'],shell=False)
         subprocess.call(['mkslurm','mkrbf','"plan/'+name+'_c[mp]*vp??.par"'],shell=False)
         subprocess.call(['mkslurm','mkgridlsf','"plan/'+name+'_a[mp]*vp??.par"'],shell=False)
         subprocess.call(['mkslurm','bundle','"plan/'+name+'_??.par"'],shell=False)

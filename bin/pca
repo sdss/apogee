@@ -14,33 +14,41 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import argparse
+import datetime
+import time
 import os
 import sys
 import subprocess
 import matplotlib
 matplotlib.use('Agg')
 
-from apogee.speclib import synth
+from apogee.speclib import pca
 
 if __name__ == '__main__' :
 
     parser = argparse.ArgumentParser(
         prog=os.path.basename(sys.argv[0]),
-        description='Makes a synthetic spectral grid')
+        description='Does pca compression of a synthetic spectral grid')
 
     parser.add_argument("planfile", type=str, help='Plan file')
     parser.add_argument("--dir")
-    parser.add_argument("--plot", help='Make plots?',action="store_true")
     parser.add_argument("--test", help='reduce dims?',action="store_true")
     parser.add_argument("--writeraw", help='write uncompressed file?',action="store_true")
     parser.add_argument("--incremental", help='use incremental PCA?',action="store_true")
     parser.add_argument("--pcas",nargs='+',type=int)
-    parser.add_argument("--refz",type=int,default=10)
+    parser.add_argument("--threads",type=int,default=4)
     parser.add_argument("--done")
     parser.add_argument("--host")
     args=parser.parse_args()
 
-    synth.pca(args.planfile,plot=args.plot,pcas=tuple(args.pcas),dir=args.dir,test=args.test,writeraw=args.writeraw,incremental=args.incremental,refz=args.refz)
+
+    now = datetime.datetime.now()
+    start = time.time()
+    print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
+    pca.pca(args.planfile,pcas=tuple(args.pcas),dir=args.dir,test=args.test,writeraw=args.writeraw,incremental=args.incremental,threads=args.threads)
+    now = datetime.datetime.now()
+    print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
+    print("elapsed: ",time.time()-start)
 
     if args.done is not None :
         subprocess.call(['setdone',args.done])

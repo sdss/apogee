@@ -1132,6 +1132,7 @@ if nbdfibers gt 0 then begin
 
     linestr1 = REPLICATE(dumstr,nlinestr0)
     STRUCT_ASSIGN,linestr0,linestr1
+    linestr1.fiber = iline
     linestr1.gfit_pars = linestr0.gpar
     linestr1.gfit_perror = linestr0.gerror
     linestr1.gfit_height = linestr0.gpar[0]

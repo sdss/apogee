@@ -49,6 +49,20 @@ pro apwavecal,lampid,lsfid,coefstr,psfid=psfid,verbose=verbose,pl=pl,refitlines=
               save=save,stp=stp,shortname=shortname,medfilt=medfilt
 
 
+; Error Handling
+;------------------
+; Establish error handler. When errors occur, the index of the  
+; error is returned in the variable Error_status:  
+CATCH, Error_status 
+
+;This statement begins the error handler:  
+if (Error_status ne 0) then begin 
+   error = !ERROR_STATE.MSG  
+   if not keyword_set(silent) then print,error
+   CATCH, /CANCEL 
+   return
+endif
+
 ;setdisp,/silent
 
 ; Get APOGEE directories
@@ -151,6 +165,68 @@ endif else begin
   tracestr = {tstr1:tstr1, tstr2:tstr2, tstr3:tstr3}
 
 endelse
+
+;; Fix PSF structure if some fibers are missing
+if n_elements(tstr1) lt 300 then begin
+  print,'Less than 300 fibers in PSF file.  Temporary Kludge!'
+  ;; Use a PSF file that has 300 fibers/traces
+  psffiles_fid = file_dirname(psffiles[0])+'/apPSF-'+['a','b','c']+'-02830055.fits'
+  print,'Using fiducial file apPSF-[abc]-02830055.fits'
+  ;; CHIP A
+  tstr1_fid = MRDFITS(psffiles_fid[0],1,/silent)
+  ;; Assume the first few are okay
+  mnoff0 = median(tstr1_fid[0:4].gaussy-tstr1[0:4].gaussy)  ; get offset
+  ;; Now match them up
+  srcor,tstr1_fid.gaussy,tstr1_fid.gaussy*0,tstr1.gaussy+mnoff0,tstr2.gaussy*0,2.0,ind1,ind2,opt=1,/silent,count=nmatch
+  if nmatch lt n_elements(tstr1) then print,'Not enough matches'
+  ;; Create new trace structure using fiducial as template
+  mnoff = median(tstr1_fid[ind1].gaussy-tstr1[ind2].gaussy)
+  mnoff_coef0 = median(tstr1_fid[ind1].coef[0]-tstr1[ind2].coef[0])
+  tstr1_orig = tstr1   ; the original
+  tstr1 = tstr1_fid    ; initialize the new array
+  tstr1.peaky -= round(mnoff)   ; offset the quantities from the fiducial
+  tstr1.gaussy -= mnoff
+  tstr1.gcoef[1] -= mnoff
+  tstr1.coef[0] -= mnoff_coef0
+  tstr1.modelcoef[0] -= mnoff_coef0
+  for i=0,n_tags(tstr1)-1 do tstr1[ind1].(i)=tstr1_orig[ind2].(i)  ; copy over original
+  ;; -- CHIP B --
+  tstr2_fid = MRDFITS(psffiles_fid[1],1,/silent)
+  ;; Assume the first few are okay
+  mnoff0 = median(tstr2_fid[0:4].gaussy-tstr2[0:4].gaussy)
+  srcor,tstr2_fid.gaussy,tstr2_fid.gaussy*0,tstr2.gaussy+mnoff0,tstr2.gaussy*0,2.0,ind1,ind2,opt=1,/silent,count=nmatch
+  if nmatch lt n_elements(tstr2) then print,'Not enough matches'
+  ;; Create new trace structure using fiducial as template
+  mnoff = median(tstr2_fid[ind1].gaussy-tstr2[ind2].gaussy)
+  mnoff_coef0 = median(tstr2_fid[ind1].coef[0]-tstr2[ind2].coef[0])
+  tstr2_orig = tstr2   ; the original
+  tstr2 = tstr2_fid    ; initialize the new array
+  tstr2.peaky -= round(mnoff)   ; offset the quantities from the fiducial
+  tstr2.gaussy -= mnoff
+  tstr2.gcoef[1] -= mnoff
+  tstr2.coef[0] -= mnoff_coef0
+  tstr2.modelcoef[0] -= mnoff_coef0
+  for i=0,n_tags(tstr2)-1 do tstr2[ind1].(i)=tstr2_orig[ind2].(i)  ; copy over original
+  ;; -- CHIP C --
+  tstr3_fid = MRDFITS(psffiles_fid[2],1,/silent)
+  ;; Assume the first few are okay
+  mnoff0 = median(tstr3_fid[0:4].gaussy-tstr3[0:4].gaussy)
+  srcor,tstr3_fid.gaussy,tstr3_fid.gaussy*0,tstr3.gaussy+mnoff0,tstr2.gaussy*0,2.0,ind1,ind2,opt=1,/silent,count=nmatch
+  if nmatch lt n_elements(tstr3) then print,'Not enough matches'
+  ;; Create new trace structure using fiducial as template
+  mnoff = median(tstr3_fid[ind1].gaussy-tstr3[ind2].gaussy)
+  mnoff_coef0 = median(tstr3_fid[ind1].coef[0]-tstr3[ind2].coef[0])
+  tstr3_orig = tstr3   ; the original
+  tstr3 = tstr3_fid    ; initialize the new array
+  tstr3.peaky -= round(mnoff)   ; offset the quantities from the fiducial
+  tstr3.gaussy -= mnoff
+  tstr3.gcoef[1] -= mnoff
+  tstr3.coef[0] -= mnoff_coef0
+  tstr3.modelcoef[0] -= mnoff_coef0
+  for i=0,n_tags(tstr3)-1 do tstr3[ind1].(i)=tstr3_orig[ind2].(i)  ; copy over original
+  ;; Concatenate the structures into TRACESTR
+  tracestr = {tstr1:tstr1, tstr2:tstr2, tstr3:tstr3}
+endif
 
 ; Check if the savefile exists
 savefile = wave_dir+dirs.prefix+'Wave-'+outname+'.dat'
@@ -439,42 +515,52 @@ CASE fitmethod of
   parstr = replicate({i:0,pars:fltarr(npoly+2),perror:fltarr(npoly+2),ypos:0.0,sig:0.0},nfibers)
   for i=0,nfibers-1 do begin
     ind = where(mlinestr.fiber eq i,nind)
-    xx = mlinestr[ind].x
-    yy = mlinestr[ind].model_wave
-    ;err = yy*0.0+1.0
-    err = mlinestr[ind].gfit_perror[1] > 0.1 
-    chipnum = mlinestr[ind].chipnum
-    initpars = [140.0d, 150.,fltarr(npoly)]
-    fa = {chipnum:chipnum}
-    pars1 = MPFITFUN('func_chipgap_poly',xx,yy,err,initpars,status=status,dof=dof,$
-                       functargs=fa,bestnorm=chisq,perror=perror,yfit=yfit,/quiet)  
-    yfit1 = func_chipgap_poly(xx,pars1,chipnum=chipnum,xb=xb)
+    if nind gt 0 then begin
+      xx = mlinestr[ind].x
+      yy = mlinestr[ind].model_wave
+      ;err = yy*0.0+1.0
+      err = mlinestr[ind].gfit_perror[1] > 0.1 
+      chipnum = mlinestr[ind].chipnum
+      initpars = [140.0d, 150.,fltarr(npoly)]
+      fa = {chipnum:chipnum}
+      pars1 = MPFITFUN('func_chipgap_poly',xx,yy,err,initpars,status=status,dof=dof,$
+                         functargs=fa,bestnorm=chisq,perror=perror,yfit=yfit,/quiet)  
+      yfit1 = func_chipgap_poly(xx,pars1,chipnum=chipnum,xb=xb)
   
-    ; Remove outliers and refit
-    diff = yy-yfit1
-    sig = mad(diff)
-    gd = where(abs(diff) lt 2.5*sig,nbd)
+      ; Remove outliers and refit
+      diff = yy-yfit1
+      sig = mad(diff)
+      gd = where(abs(diff) lt 2.5*sig,nbd)
   
-    fa2 = {chipnum:chipnum[gd]}
-    pars2 = MPFITFUN('func_chipgap_poly',xx[gd],yy[gd],err[gd],pars1,status=status2,dof=dof2,$
-                     functargs=fa2,bestnorm=chisq2,perror=perror2,yfit=yfit2,/quiet)      
-    yfit2 = func_chipgap_poly(xx,pars2,chipnum=chipnum)
-    rchisq2 = chisq2/dof2
-    diff2 = mlinestr[ind].model_wave-yfit2
-    sig2 = mad(diff2)
+      fa2 = {chipnum:chipnum[gd]}
+      pars2 = MPFITFUN('func_chipgap_poly',xx[gd],yy[gd],err[gd],pars1,status=status2,dof=dof2,$
+                       functargs=fa2,bestnorm=chisq2,perror=perror2,yfit=yfit2,/quiet)      
+      yfit2 = func_chipgap_poly(xx,pars2,chipnum=chipnum)
+      rchisq2 = chisq2/dof2
+      diff2 = mlinestr[ind].model_wave-yfit2
+      sig2 = mad(diff2)
   
-    resid[ind] = yy-yfit2
-    parstr[i].i = i
-    parstr[i].pars = pars2
-    parstr[i].perror = perror2
-    parstr[i].ypos = median(mlinestr[ind].ypos)
-    parstr[i].sig = mad(yy-yfit2)
+      resid[ind] = yy-yfit2
+      parstr[i].i = i
+      parstr[i].pars = pars2
+      parstr[i].perror = perror2
+      parstr[i].ypos = median(mlinestr[ind].ypos)
+      parstr[i].sig = mad(yy-yfit2)
+    endif else begin
+    ;; no lines for this fiber
+      parstr[i].i = i
+      parstr[i].pars = 999999.
+      parstr[i].perror = 999999.
+      ;parstr[i].ypos = median(mlinestr[ind].ypos)
+      parstr[i].sig = 999999.
+    endelse
   endfor
   
   ; fit chipgaps with YPOS
-  chipgap1_coef = ap_robust_poly_fit(parstr.ypos,parstr.pars[0],1)
+  gdfib = where(parstr.sig lt 1000,ngdfib)
+  chipgap1_coef = ap_robust_poly_fit(parstr[gdfib].ypos,parstr[gdfib].pars[0],1)
   chipgap1 = poly(parstr.ypos,chipgap1_coef)
-  chipgap2_coef = ap_robust_poly_fit(parstr.ypos,parstr.pars[1],1)
+  chipgap2_coef = ap_robust_poly_fit(parstr[gdfib].ypos,parstr[gdfib].pars[1],1)
   chipgap2 = poly(parstr.ypos,chipgap2_coef)
   
   ;plot,parstr.ypos,parstr.pars[0],ps=8,/ysty
@@ -504,47 +590,59 @@ CASE fitmethod of
   flinestr = mlinestr
   for i=0,nfibers-1 do begin
     ind = where(mlinestr.fiber eq i,nind)
-    xx = mlinestr[ind].x
-    yy = mlinestr[ind].model_wave
-    ;err = yy*0.0+1.0
-    err = mlinestr[ind].gfit_perror[1] > 0.1 
-    chipnum = mlinestr[ind].chipnum
-    initpars = [chipgap1[i],chipgap2[i],parstr[i].pars[2:*]]
-    fa = {chipnum:chipnum}
-    parinfo = replicate({fixed:0},n_elements(initpars))
-    parinfo[0:1].fixed = 1
-    pars1 = MPFITFUN('func_chipgap_poly',xx,yy,err,initpars,status=status,dof=dof,$
-                     functargs=fa,bestnorm=chisq,parinfo=parinfo,perror=perror,yfit=yfit,/quiet)  
-    yfit1 = func_chipgap_poly(xx,pars1,chipnum=chipnum,xb=xb)
+    if nind gt 0 then begin
+      xx = mlinestr[ind].x
+      yy = mlinestr[ind].model_wave
+      ;err = yy*0.0+1.0
+      err = mlinestr[ind].gfit_perror[1] > 0.1 
+      chipnum = mlinestr[ind].chipnum
+      initpars = [chipgap1[i],chipgap2[i],parstr[i].pars[2:*]]
+      fa = {chipnum:chipnum}
+      parinfo = replicate({fixed:0},n_elements(initpars))
+      parinfo[0:1].fixed = 1
+      pars1 = MPFITFUN('func_chipgap_poly',xx,yy,err,initpars,status=status,dof=dof,$
+                       functargs=fa,bestnorm=chisq,parinfo=parinfo,perror=perror,yfit=yfit,/quiet)  
+      yfit1 = func_chipgap_poly(xx,pars1,chipnum=chipnum,xb=xb)
   
-    ; Remove outliers and refit
-    diff = yy-yfit1
-    sig = mad(diff)
-    gd = where(abs(diff) lt 2.5*sig,nbd)
+      ; Remove outliers and refit
+      diff = yy-yfit1
+      sig = mad(diff)
+      gd = where(abs(diff) lt 2.5*sig,nbd)
   
-    fa2 = {chipnum:chipnum[gd]}
-    pars2 = MPFITFUN('func_chipgap_poly',xx[gd],yy[gd],err[gd],pars1,status=status2,dof=dof2,$
-                     functargs=fa2,bestnorm=chisq2,parinfo=parinfo,perror=perror2,yfit=yfit2,/quiet)      
-    yfit2 = func_chipgap_poly(xx,pars2,chipnum=chipnum)
-    rchisq2 = chisq2/dof2
-    diff2 = mlinestr[ind].model_wave-yfit2
-    sig2 = mad(diff2)
+      fa2 = {chipnum:chipnum[gd]}
+      pars2 = MPFITFUN('func_chipgap_poly',xx[gd],yy[gd],err[gd],pars1,status=status2,dof=dof2,$
+                       functargs=fa2,bestnorm=chisq2,parinfo=parinfo,perror=perror2,yfit=yfit2,/quiet)      
+      yfit2 = func_chipgap_poly(xx,pars2,chipnum=chipnum)
+      rchisq2 = chisq2/dof2
+      diff2 = mlinestr[ind].model_wave-yfit2
+      sig2 = mad(diff2)
   
-    ;plot,xb,diff2,ps=8,xs=1,ys=1,tit='Fiber = '+strtrim(i,2)
+      ;plot,xb,diff2,ps=8,xs=1,ys=1,tit='Fiber = '+strtrim(i,2)
   
-    flinestr[ind].wave_fit = yfit2
+      flinestr[ind].wave_fit = yfit2
   
-    resid[ind] = yy-yfit2
-    coefstr[i].i = i
-    coefstr[i].chipgap1 = chipgap1[i]
-    coefstr[i].chipgap2 = chipgap2[i]
-    coefstr[i].coef = pars2[2:*]
-    coefstr[i].perror = perror2[2:*]
-    coefstr[i].ypos = median(mlinestr[ind].ypos)
-    coefstr[i].sig = sig2
-    coefstr[i].rms = stddev(diff2)
-    ;stop
-  
+      resid[ind] = yy-yfit2
+      coefstr[i].i = i
+      coefstr[i].chipgap1 = chipgap1[i]
+      coefstr[i].chipgap2 = chipgap2[i]
+      coefstr[i].coef = pars2[2:*]
+      coefstr[i].perror = perror2[2:*]
+      coefstr[i].ypos = median(mlinestr[ind].ypos)
+      coefstr[i].sig = sig2
+      coefstr[i].rms = stddev(diff2)
+      ;stop
+   endif else begin
+   ;; No lines for this fiber
+      coefstr[i].i = i
+      coefstr[i].chipgap1 = chipgap1[i]
+      coefstr[i].chipgap2 = chipgap2[i]
+      coefstr[i].coef = 999999.
+      coefstr[i].perror = 999999.
+      ;coefstr[i].ypos = median(mlinestr[ind].ypos)
+      coefstr[i].sig = 999999.
+      coefstr[i].rms = 999999.
+   endelse  
+
   endfor
   
   print,'Poly fits to each fiber. Sig = ',stringize(mad(resid),ndec=4),' A'
@@ -690,7 +788,7 @@ CASE fitmethod of
   ; Save the structures
   savefile = wave_dir+dirs.prefix+'Wave-'+outname+'.dat'
   print,'Saving fitting information to ',savefile
-  SAVE,linestr,mlinestr,flinestr,dispstr,coefstr,wavestr,fil=savefile
+  SAVE,linestr,mlinestr,flinestr,dispstr,parstr,coefstr,wavestr,fil=savefile
   
   medrms = median(coefstr.rms)
   print,'Median RMS = ',strtrim(medrms,2)

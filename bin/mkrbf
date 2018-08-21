@@ -32,6 +32,7 @@ if __name__ == '__main__' :
     parser.add_argument('--dir', type=str, help='directory')
     parser.add_argument('--grid', type=str, help='grid', default='GK')
     parser.add_argument('--out', type=str, help='output prefix', default='rbf_')
+    parser.add_argument('--threads', type=int, help='number of threads', default=30)
     parser.add_argument('--r0', type=float, help='r0 value', default=1.0)
     parser.add_argument('--apstar', help='apStar file format?',action="store_true")
     parser.add_argument('--fakehole', help='add fake holes?',action="store_true")
@@ -43,7 +44,7 @@ if __name__ == '__main__' :
     start = time.time()
     print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
 
-    rbf.fill(args.planfile,grid=args.grid,out=args.out,dir=args.dir,r0=args.r0,apstar=args.apstar,fakehole=args.fakehole)
+    rbf.fill(args.planfile,grid=args.grid,out=args.out,dir=args.dir,r0=args.r0,apstar=args.apstar,fakehole=args.fakehole,threads=args.threads)
     now = datetime.datetime.now()
     print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     print("elapsed: ",time.time()-start)

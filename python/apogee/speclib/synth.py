@@ -386,203 +386,6 @@ def get_vmicro(vmicrofit,vmicro) :
         pdb.set_trace()
     return  float(vmicro)
 
-
-def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whiten=False,plot=False,writeraw=False,test=False, incremental=False, refz=10) :
-    """ Read in grid of spectra and do PCA compression
-    """
-
-    showtime('start:')
-    # input directory 
-    indir=os.environ['APOGEE_SPECLIB']+'/synth/turbospec/'+dir+'/'
-    print('indir: ', indir)
-
-    # Read planfile and set output file name
-    if not os.path.isfile(indir+'/plan/'+planfile): 
-        print('{:s} does not exist'.format(indir+'/plan/'+planfile))
-        return
-    p=yanny.yanny(indir+'/plan/'+planfile,np=True)
-    outfile=os.path.basename(p['name'])
-    if test :
-        p['nvt'] = '1'
-        p['nam'] = '1'
-        p['ncm'] = '1'
-        p['nnm'] = '1'
-
-    # Read reference spectrum to plot and to determine number of pixel wavelengths
-    refhead=fits.open(indir+'new_ap00cp00np00vp20.fits')[0].header
-    wave=10.**spectra.fits2vector(refhead,1)
-    ref=fits.open(indir+'new_ap00cp00np00vp20.fits')[0].data[refz,5,0,:]
-    print(ref.shape,refz)
-
-    wave=aspcap.apStar2aspcap(wave)
-    wchip=[ [aspcap.nw_chip[0],aspcap.logw0_chip[0],aspcap.dlogw], 
-            [aspcap.nw_chip[1],aspcap.logw0_chip[1],aspcap.dlogw], 
-            [aspcap.nw_chip[2],aspcap.logw0_chip[2],aspcap.dlogw] ]
-    ref=aspcap.apStar2aspcap(ref)
-    cont=[(1,1,0.,0.),(1,1,0.,0.),(1,1,0.,0)]
-
-    #wchip=[(refhead['NAXIS1'],refhead['CRVAL1'],refhead['CDELT1'])]
-    #cont=[(refhead['ORDER'],refhead['NITER'],refhead['LOWREJ'],refhead['HIGHREJ'])]
-    #for ichip in range(2,4) :
-    #    refhead=fits.open(indir+'ap00cp00np00vp20.fits')[ichip].header
-    #    wchip.append((refhead['NAXIS1'],refhead['CRVAL1'],refhead['CDELT1']))
-    #    cont.append((refhead['ORDER'],refhead['NITER'],refhead['LOWREJ'],refhead['HIGHREJ']))
-    #    wave=np.append(wave,10.**spectra.fits2vector(refhead,1))
-    #    ref=np.append(ref,fits.open(indir+'ap00cp00np00vp20.fits')[ichip].data[refz,5,0,:])
-    #    print(ref.shape)
-    nwave=ref.shape[0]
-
-    # loop over requested combinations of npieces and npca
-    if pcas is None : pcas = (int(p['npart']),int(p['npca']))
-    npiece,npca = pcas
-
-    showtime('start config:')
-    # determine number of pixels per piece
-    nspec=int(np.ceil(nwave/npiece))
-    print(npiece,npca,nspec,nwave)
-
-    # initialize PCA object, output figure and file
-    if incremental :
-        print('using incremental PCA')
-        pca = IncrementalPCA(n_components=npca,whiten=whiten,batch_size=1000)
-    else :
-        pca = PCA(n_components=npca,whiten=whiten)
-    if plot : fig,ax=plots.multi(1,3,hspace=0.001,wspace=0.001,figsize=(12,4))
-
-    # initialize eigenvector array
-    eigen = np.zeros([npca,nwave])
-    mean = np.zeros([nwave])
-
-    # loop over pieces
-    npixels = []
-    for ipiece in range(npiece) :
-      w1=ipiece*nspec
-      w2=(ipiece+1)*nspec if ipiece < npiece -1 else nwave
-      npix=w2-w1
-      npixels.append(npix)
-      print(ipiece,w1,w2)
-
-      # load data for this piece
-      pcadata=np.zeros([int(p['nam'])*int(p['ncm'])*int(p['nnm'])*int(p['nvt'])*int(p['nmh'])*int(p['nlogg'])*int(p['nteff']),npix],dtype=np.float32)
-      showtime('start piece:')
-      nmod=0
-      pix_apstar=aspcap.gridPix()
-      pix_aspcap=aspcap.gridPix(apStar=False)
-
-      for iam,am in enumerate(prange(p['am0'],p['dam'],p['nam'])) :
-        for icm,cm in enumerate(prange(p['cm0'],p['dcm'],p['ncm'])) :
-          for inm,nm in enumerate(prange(p['nm0'],p['dnm'],p['nnm'])) :
-           for ivm,vm in enumerate(prange(p['vt0'],p['dvt'],p['nvt'])) :
-            print(am,cm,nm,10.**vm)
-            file=('new_a{:s}c{:s}n{:s}v{:s}.fits').format(
-                   atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
-            # read file and pack into ASPCAP grid size
-            sap=fits.open(indir+file)[0].data
-            s=np.zeros([int(p['nmh']),int(p['nlogg']),int(p['nteff']),nwave])
-            for pasp,pap in zip(pix_aspcap,pix_apstar) :
-                s[:,:,:,pasp[0]:pasp[1]]=sap[:,:,:,pap[0]:pap[1]]
-            #s1=fits.open(indir+file)[1].data
-            #s2=fits.open(indir+file)[2].data
-            #s3=fits.open(indir+file)[3].data
-            for imh,mh in enumerate(prange(p['mh0'],p['dmh'],p['nmh'])) :
-              for ilogg,logg in enumerate(prange(p['logg0'],p['dlogg'],p['nlogg'])) :
-                for iteff,teff in enumerate(prange(p['teff0'],p['dteff'],p['nteff'])) :
-                  #s=np.append(s1[imh,ilogg,iteff,:],s2[imh,ilogg,iteff,:])
-                  #s=np.append(s,s3[imh,ilogg,iteff,:])
-                  #s=sall[imh,ilogg,iteff,:]
-            #      if s[w1:w2].sum() == 0. : 
-            #         print('!!ZERO MODEL',am,cm,nm,vm,mh,logg,teff)
-            #         s[w1:w2] = 1.
-            #         #pdb.set_trace()
-            #      s/=np.nanmean(s)
-            #      if len(np.where(np.isfinite(s) is False)[0]) > 0 : print(imh,ilogg,iteff,np.where(np.isfinite(s) is False) )
-                  pcadata[nmod,:] = s[imh,ilogg,iteff,w1:w2]/np.nanmean(s[imh,ilogg,iteff,:])
-                  nmod+=1
-      #del s1, s2, s3, s
-      del s
-
-      # do the PCA decomposition 
-      print(pcadata.shape)
-      showtime('start pca:')
-      model=pca.fit_transform(pcadata)
-      print(pca.explained_variance_ratio_)
-      eigen[:,w1:w2] = pca.components_
-      mean[w1:w2] = pca.mean_
-      # plot results
-      if plot :
-          # do the PCA reconstruction
-          showtime('start inverse:')
-          fit=pca.inverse_transform(model)
-          rat=pcadata/fit
-          showtime('start plot:')
-          print(rat.shape)
-          #for j in range(0,nmod,1000) :
-          #    plots.plotl(ax[0],wave[w1:w2],rat[j,:],xr=[wave[0],wave[-1]],yr=[0.7,1.3])
-          pdb.set_trace()
-          ax[0].text(wave[w1]+0.1*(wave[w2-1]-wave[w1]),1.3,'{:.2f}'.format(rat.min()),va='top',ha='left')
-          ax[0].text(wave[w2-1]+0.1*(wave[w2-1]-wave[w1]),1.3,'{:.2f}'.format(rat.max()),va='top',ha='right')
-          plots.plotl(ax[1],wave[w1:w2],ref[w1:w2],xr=[wave[0],wave[-1]],color=colors[ipiece%6],yr=[0.7,1.3])
-          for imod in range(rat.shape[0]) :
-             mhist,bins=np.histogram(rat[imod,:].flatten(),bins=np.arange(0.5,1.51,0.01))
-             hist = mhist if imod == 0 else hist+mhist
-          plots.plotl(ax[2],np.arange(0.5+0.005,1.5,0.01),hist/hist.sum(),color=colors[ipiece%6],semilogy=True)
-          #plt.draw()
-          #plt.show()
-
-      # write out uncompressed and compressed in binary to local file
-      showtime('start write:')
-      if writeraw: fraw=open(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.raw'.format(npiece,npca,ipiece),'wb')
-      fpca=open(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.pca'.format(npiece,npca,ipiece),'wb')
-      for i in range(nmod) :
-          if writeraw: fraw.write(struct.pack('f'*npix,*pcadata[i,:]))
-          fpca.write(struct.pack('f'*npca,*model[i,:]))
-      if writeraw: fraw.close()
-      fpca.close()
-      showtime('done piece:')
-
-    # save plot and close CPU time file
-    if plot :
-        fig.savefig(outfile+'_{:03d}_{:03d}.png'.format(npiece,npca))
-        plt.close()
-    del pca
-
-    # header file for PCA
-    ferre.wrhead(p,'p_aps'+outfile+'_{:03d}_{:03d}.hdr'.format(npiece,npca),npca=npixels,npix=npiece*npca,wchip=wchip,cont=cont)
-    # output eigenvectors
-    fp = open('p_aps'+outfile+'_{:03d}_{:03d}.hdr'.format(npiece,npca),'a')
-    out=np.append(mean.reshape((1,nwave)),mean.reshape((1,nwave))*0.,axis=0)
-    out=np.append(out,eigen,axis=0)
-    np.savetxt(fp,out)
-    
-    # bundle the files into a single file
-    allpca=open('p_aps'+outfile+'_{:03d}_{:03d}.unf'.format(npiece,npca),'wb')
-    fpca=[]
-    if writeraw: 
-        ferre.wrhead(p,'f_aps'+outfile+'.hdr',npix=nwave)
-        allraw=open('f_aps'+outfile+'.unf','wb')
-        fraw=[]
-    for ipiece in range(npiece) :
-        if writeraw: fraw.append(open(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.raw'.format(npiece,npca,ipiece),'rb'))
-        fpca.append(open(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.pca'.format(npiece,npca,ipiece),'rb'))
-    for i in range(nmod) :
-        for ipiece in range(npiece) :
-            w1=ipiece*nspec
-            w2=(ipiece+1)*nspec if ipiece < npiece -1 else nwave
-            npix=w2-w1
-            pca=fpca[ipiece].read(npca*4)
-            allpca.write(pca)
-            if writeraw: 
-                raw=fraw[ipiece].read(npix*4)
-                allraw.write(raw)
-    allpca.close()
-    if writeraw: allraw.close()
-    for ipiece in range(npiece) :
-        fpca[ipiece].close()
-        os.remove(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.pca'.format(npiece,npca,ipiece))
-        if writeraw: 
-            fraw[ipiece].close()
-            os.remove(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.raw'.format(npiece,npca,ipiece))
-
 def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
     """ Create a grid of synthetic spectra using Turbospectrum given input parameter file
     """
@@ -692,7 +495,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
             hdu=fits.PrimaryHDU(np.squeeze(specdata))
             idim=1
             if elem == '' :
-                add_dim(hdu.header,rawwave[0],rawwave[1]-rawwave[0],1,'WAVELENGTH',idim)
+                spectra.add_dim(hdu.header,rawwave[0],rawwave[1]-rawwave[0],1,'WAVELENGTH',idim)
             else :
                 hdu.header.append('CDELT1',rawwave[1]-rawwave[0])
                 for iwind in range(nwind) :
@@ -700,13 +503,13 @@ def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
                     hdu.header.append(('WIND1_{:d}'.format(iwind),wvac[iwind,1]))
             if int(p['nteff']) > 1 :
                 idim+=1
-                add_dim(hdu.header,float(p['teff0']),float(p['dteff']),1,'TEFF',idim)
+                spectra.add_dim(hdu.header,float(p['teff0']),float(p['dteff']),1,'TEFF',idim)
             if int(p['nlogg']) > 1 :
                 idim+=1
-                add_dim(hdu.header,float(p['logg0']),float(p['dlogg']),1,'LOGG',idim)
+                spectra.add_dim(hdu.header,float(p['logg0']),float(p['dlogg']),1,'LOGG',idim)
             if int(p['nmh']) > 1 :
                 idim+=1
-                add_dim(hdu.header,float(p['mh0']),float(p['dmh']),1,'M_H',idim)
+                spectra.add_dim(hdu.header,float(p['mh0']),float(p['dmh']),1,'M_H',idim)
             hdu.header['LOGW'] = 0
             if p.get('width') : hdu.header['width'] = p['width']
             if p.get('linelist') : hdu.header['linelist'] = p['linelist']
@@ -727,7 +530,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
             hdulist.append(hdunorm)
             hdulist.writeto(specdir+'/'+p['name']+'.fits',overwrite=True)
 
-def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,ls=None,comp=False,apred='r8',threads=32) :
+def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,ls=None,comp=False,apred='r8',threads=32,rbf=False) :
     """ Create a grid of synthetic spectra using Turbospectrum given input parameter file
     """
 
@@ -769,7 +572,9 @@ def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,ls=None,comp=False,apr
             hdu.writeto(lsfile,overwrite=True)
             os.remove(lsfile+'.lock') 
 
-    specdata = fits.open(specdir+'/'+p['name']+'.fits')[0]
+    if rbf : prefix = 'rbf_'
+    else : prefix = ''
+    specdata = fits.open(specdir+'/'+prefix+p['name']+'.fits')[0]
     npix = specdata.data.shape[-1]
     nspec=1
     for i in range(len(specdata.data.shape)-1) :
@@ -810,15 +615,16 @@ def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,ls=None,comp=False,apr
     hdu.header.extend(specdata.header.copy(strip=True))
     hdu.header['CRVAL1'] = aspcap.logw0
     hdu.header['CDELT1'] = aspcap.dlogw
-    hdu.writeto('new_'+p['name']+'.fits',overwrite=True)
+    hdu.header['CTYPE1'] = 'LOG(WAVELENGTH)'
+    hdu.writeto(p['name']+'.fits',overwrite=True)
 
     return smoothdata
 
 def complsf(name) :
-    new = fits.open('new_'+name+'.fits')[0]
-    a = fits.open(name+'.fits')[1].data
-    b = fits.open(name+'.fits')[2].data
-    c = fits.open(name+'.fits')[3].data
+    new = fits.open(name+'.fits')[0]
+    a = fits.open('old_'+name+'.fits')[1].data
+    b = fits.open('old_'+name+'.fits')[2].data
+    c = fits.open('old_'+name+'.fits')[3].data
 
     for k in range(new.header['NAXIS4']) :
       for j in range(new.header['NAXIS3']) :
@@ -832,14 +638,6 @@ def complsf(name) :
           plt.plot(aspcap.aspcap2apStar(old)/new.data[k,j,i,:]*600000.)
           plt.draw()
           pdb.set_trace()
-
-def add_dim(header,crval,cdelt,crpix,ctype,idim) :
-    """ Add a set of CRVAL/CDELT,CRPIX,CTYPE cards to header
-    """
-    header.append(('CRVAL{:d}'.format(idim),crval))
-    header.append(('CDELT{:d}'.format(idim),cdelt))
-    header.append(('CRPIX{:d}'.format(idim),crpix))
-    header.append(('CTYPE{:d}'.format(idim),ctype))
 
 def mkspec(pars) :
     """ Makes a single spectrum given input pars

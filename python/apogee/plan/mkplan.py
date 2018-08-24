@@ -65,11 +65,17 @@ def mkgriddirs(configfile) :
         # make pbs scripts
         os.chdir('..')
         specdir = p['synthcode'].strip("'")+'/'+p['GRID']['atmos'][i]+'/'+iso+'/'+name
-        os.environ['NO_NODES'] = 'yes'
-        subprocess.call(['mkslurm','mkgrid','"plan/'+name+'_a[mp]*vp20.par"','"plan/'+name+'_a[mp]*vp48.par"','"plan/'+name+'_a[mp]*vp??.par"'],shell=False)
-        subprocess.call(['mkslurm','mkrbf','"plan/'+name+'_c[mp]*vp??.par"'],shell=False)
-        subprocess.call(['mkslurm','mkgridlsf','"plan/'+name+'_a[mp]*vp??.par"'],shell=False)
-        subprocess.call(['mkslurm','bundle','"plan/'+name+'_??.par"'],shell=False)
+        #os.environ['NO_NODES'] = 'yes'
+        #subprocess.call(['mkslurm.csh','mkgrid','"plan/'+name+'_a[mp]*vp20.par"','"plan/'+name+'_a[mp]*vp48.par"','"plan/'+name+'_a[mp]*vp??.par"'],shell=False)
+        #subprocess.call(['mkslurm.csh','mkrbf','"plan/'+name+'_c[mp]*vp??.par"'],shell=False)
+        #subprocess.call(['mkslurm.csh','mkgridlsf','"plan/'+name+'_a[mp]*vp??.par"'],shell=False)
+        #subprocess.call(['mkslurm.csh','bundle','"plan/'+name+'_??.par"'],shell=False)
+
+        subprocess.call(('mkslurm mkgrid plan/'+name+'_a[mp]*vp20.par plan/'+name+'_a[mp]vp48.par plan/'+name+'_a[mp]*vp??.par').split(),shell=False)
+        subprocess.call(('mkslurm mkrbf plan/'+name+'_c[mp]*vp??.par').split(),shell=False)
+        subprocess.call(('mkslurm mkgridlsf plan/'+name+'_a[mp]*vp??.par').split(),shell=False)
+        subprocess.call(('mkslurm bundle plan/'+name+'_??.par').split(),shell=False)
+        subprocess.call(('mkslurm pca plan/'+name+'.par --pcas 12 75 --incremental --threads 2 --writeraw').split(),shell=False)
 
 
 def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,vtsplit=True,el=None) :

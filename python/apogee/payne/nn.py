@@ -357,7 +357,13 @@ def fitinput(file,threads=8,nfit=8,dofit=True,order=4) :
     hdu.writeto(file+'_model.fits',overwrite=True)   
     hdu.close()
 
-def comp(file,order=4)  :
+
+def dclip(d,lim=[-0.5,0.5]) :
+    d[np.where(d < lim[0])[0]]=lim[0]
+    d[np.where(d > lim[1])[0]]=lim[1]
+    return d
+
+def comp(file,order=4,z=2)  :
     """ Plot results of testinput vs true parameters
     """
     p=fits.open(file+'.fits')[0].data
@@ -365,6 +371,24 @@ def comp(file,order=4)  :
     out=fits.open(file+'_out.fits')[0].data
     fit=fits.open(file+'_model.fits')[0].data
     specerr=np.full_like(s[0,:],0.005)
+
+    fig,ax=plots.multi(2,7,hspace=0.001,wspace=0.5)
+    plots.plotc(ax[0,0],p[:,0],out[:,0]-p[:,0],p[:,z],xt='Teff',yt=r'$\Delta$Teff') #,yr=[-200,200])
+    plots.plotc(ax[1,0],p[:,0],out[:,1]-p[:,1],p[:,z],xt='Teff',yt=r'$\Delta$logg') #,yr=[-0.5,0.5])
+    plots.plotc(ax[2,0],p[:,0],out[:,2]-p[:,2],p[:,z],xt='Teff',yt=r'$\Delta$[M/H]') #,yr=[-0.5,0.5])
+    plots.plotc(ax[3,0],p[:,0],out[:,3]-p[:,3],p[:,z],xt='Teff',yt=r'$\Delta$[a/M]') #,yr=[-0.5,0.5])
+    plots.plotc(ax[4,0],p[:,0],out[:,4]-p[:,4],p[:,z],xt='Teff',yt=r'$\Delta$[C/M]') #,yr=[-0.5,0.5])
+    plots.plotc(ax[5,0],p[:,0],out[:,5]-p[:,5],p[:,z],xt='Teff',yt=r'$\Delta$[N/M]') #,yr=[-0.5,0.5])
+    plots.plotc(ax[6,0],p[:,0],out[:,6]-p[:,6],p[:,z],xt='Teff',yt=r'$\Delta$vmicro') #,yr=[-0.5,0.5])
+    ax[0,1].hist(dclip(out[:,0]-p[:,0],lim=[-200,200]),bins=np.arange(-200,201,10),histtype='step')
+    ax[1,1].hist(dclip(out[:,1]-p[:,1]),bins=np.arange(-0.5,0.51,0.01),histtype='step')
+    ax[2,1].hist(dclip(out[:,2]-p[:,2]),bins=np.arange(-0.5,0.51,0.01),histtype='step')
+    ax[3,1].hist(dclip(out[:,3]-p[:,3]),bins=np.arange(-0.5,0.51,0.01),histtype='step')
+    ax[4,1].hist(dclip(out[:,4]-p[:,4]),bins=np.arange(-0.5,0.51,0.01),histtype='step')
+    ax[5,1].hist(dclip(out[:,5]-p[:,5]),bins=np.arange(-0.5,0.51,0.01),histtype='step')
+    ax[6,1].hist(dclip(out[:,6]-p[:,6]),bins=np.arange(-0.5,0.51,0.01),histtype='step')
+    fig.suptitle(file)
+    pdb.set_trace()
 
     for i in range(s.shape[0]) :
         cont = norm.cont(s[i,:],specerr,poly=True,order=order,chips=True)

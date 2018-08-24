@@ -29,7 +29,7 @@ def writespec(name,data) :
 
 
 def writenml(outfile,file,libhead,ncpus=2,nruns=1,interord=3,direct=1,pca=1,errbar=1,indi=None,indv=None,filterfile=None,f_format=1,f_access=0,
-               init=None,indini=None,renorm=None,obscont=0,algor=1) :
+               init=None,indini=None,renorm=None,obscont=0,algor=1,nov=None,stopcr=None) :
     """ Writes FERRE control file
     """
 
@@ -38,34 +38,39 @@ def writenml(outfile,file,libhead,ncpus=2,nruns=1,interord=3,direct=1,pca=1,errb
     ndim=libhead['N_OF_DIM']
     f.write(' NDIM = {:d}\n'.format(ndim))
     if indi is not None : f.write((' INDI = '+'{:2d}'*ndim+'\n').format(indi))
-    if indv is not None : 
-        f.write((' NOV = {:2d}\n').format(len(indv)))
-        if len(indv) > 0 : f.write(' INDV = '+np.array2string(np.array(indv)).strip('[]')+'\n')
-    else :
-        f.write((' NOV = {:2d}\n').format(ndim))
+    if nov is None : nov=ndim
+    if indv is None : 
+        f.write((' NOV = {:2d}\n').format(nov))
         f.write(' INDV = '+np.array2string(np.arange(1,ndim+1)).strip('[]')+'\n')
+    else :
+        nov = len(indv)
+        f.write((' NOV = {:2d}\n').format(nov))
+        f.write(' INDV = '+np.array2string(np.array(indv)).strip('[]')+'\n')
     f.write(" SYNTHFILE(1) = '"+libhead['FILE']+"'\n")
     if filterfile is not None : f.write(' FILTERFILE = '+filterfile+'\n')
     f.write(" PFILE = '"+file+".ipf'\n")
-    f.write(" ERFILE = '"+file+".err'\n")
-    f.write(" OPFILE = '"+file+".spm'\n")
     f.write(" OFFILE = '"+file+".mdl'\n")
+    if nov > 0 :
+        f.write(" ERFILE = '"+file+".err'\n")
+        f.write(" OPFILE = '"+file+".spm'\n")
     if renorm is not None :
         f.write(" FFILE = '"+file+".obs'\n")
         f.write(' CONT = 1\n')
         f.write(' NCONT = {:d}\n'.format(renorm))
         f.write(' OBSCONT = {:d}\n'.format(obscont))
         f.write(" SFFILE = '"+file+".frd'\n")
-    else :
+    elif nov > 0 :
         f.write(" FFILE = '"+file+".frd'\n")
-    f.write(' ERRBAR = {:d}\n'.format(errbar))
-    if init is not None: f.write(' INIT = {:d}\n'.format(init))
-    f.write(' ALGOR = {:2d}\n'.format(algor))
-    if indini is not None :
-        f.write(' INDINI = '+np.array2string(np.array(indini)).strip('[]')+'\n')
-        nruns = 1
-        for term in indini : nruns = nruns * term
-    f.write(' NRUNS = {:2d}\n'.format(nruns))
+    if nov > 0 :
+        f.write(' ERRBAR = {:d}\n'.format(errbar))
+        if init is not None: f.write(' INIT = {:d}\n'.format(init))
+        f.write(' ALGOR = {:2d}\n'.format(algor))
+        if indini is not None :
+            f.write(' INDINI = '+np.array2string(np.array(indini)).strip('[]')+'\n')
+            nruns = 1
+            for term in indini : nruns = nruns * term
+        f.write(' NRUNS = {:2d}\n'.format(nruns))
+    if stopcr is not None : f.write(' STOPCR = {:f}\n'.format(stopcr))
     f.write(' NTHREADS = {:2d}\n'.format(ncpus))
     f.write(' PCAPROJECT = 0\n')
     f.write(' PCACHI = 0\n')

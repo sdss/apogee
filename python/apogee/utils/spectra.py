@@ -2,7 +2,7 @@
 #
 # @Author: Jon Holtzman
 # @Date: March 2018
-# @Filename: synth.py
+# @Filename: spectra.py
 # @License: BSD 3-Clause
 # @Copyright: Jon Holtzman
 
@@ -14,6 +14,8 @@ from __future__ import unicode_literals
 import numpy as np
 import copy
 
+# utility routines for working with spectra
+
 def fits2vector(header,axis) :
     """ Routine to return vector of axis values from a FITS header CRVAL, CDELT, NAXIS for specified axis
     """
@@ -24,6 +26,14 @@ def vector(start,delta,n) :
     """ Routine to return vector of values given start, delta, n
     """
     return float(start)+np.arange(int(n))*float(delta)
+
+def add_dim(header,crval,cdelt,crpix,ctype,idim) :
+    """ Add a set of CRVAL/CDELT,CRPIX,CTYPE cards to header
+    """
+    header.append(('CRVAL{:d}'.format(idim),crval))
+    header.append(('CDELT{:d}'.format(idim),cdelt))
+    header.append(('CRPIX{:d}'.format(idim),crpix))
+    header.append(('CTYPE{:d}'.format(idim),ctype))
 
 def vactoair(wave_vac) :
     """ Convert vacuum wavelengths to air wavelengths

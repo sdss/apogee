@@ -23,6 +23,7 @@ import matplotlib
 matplotlib.use('Agg')
 
 from apogee.speclib import pca
+from apogee.aspcap import ferre
 
 if __name__ == '__main__' :
 
@@ -41,7 +42,6 @@ if __name__ == '__main__' :
     parser.add_argument("--host")
     args=parser.parse_args()
 
-
     now = datetime.datetime.now()
     start = time.time()
     print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
@@ -49,6 +49,9 @@ if __name__ == '__main__' :
     now = datetime.datetime.now()
     print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     print("elapsed: ",time.time()-start)
+
+    # test setup
+    #pca.test(args.planfile)
 
     if args.done is not None :
         subprocess.call(['setdone',args.done])

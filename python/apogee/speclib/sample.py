@@ -187,7 +187,7 @@ def dclip(d,lim=[-0.5,0.5]) :
     d[np.where(d > lim[1])]=lim[1]
     return d
 
-def comp(file,true=None,truespec=None,hard=False,plot=False) :
+def comp(file,true=None,truespec=None,hard=False,plot=False,minchi2=10) :
     """ Compare input parameters with output results
     """
     if true is None: true=file+'.ipf'
@@ -219,10 +219,11 @@ def comp(file,true=None,truespec=None,hard=False,plot=False) :
     fig.tight_layout()
     if hard :
         fig.savefig(file+'.png')
+        plt.close()
 
-    fig,ax=plots.multi(5,7,hspace=0.001,wspace=0.001,figsize=(16,8),xtickrot=60)
+    fig,ax=plots.multi(6,7,hspace=0.001,wspace=0.001,figsize=(16,8),xtickrot=60)
     #for ix,z in enumerate(['mh','logg','cm']) :
-    for ix in range(5) :
+    for ix in range(6) :
       yt=''
       if ix == 0 : 
         z=true['logg'][i1]
@@ -239,6 +240,9 @@ def comp(file,true=None,truespec=None,hard=False,plot=False) :
       elif ix == 4 : 
         z=true['mh'][i1]+true['nm'][i1]
         tit='color: [N/H]'
+      elif ix == 5 : 
+        z=obs['chi2'][i2]
+        tit='color: chi2'
       ax[0,ix].set_title(tit)
       if ix == 0 :
         plots.plotc(ax[0,ix],obs['teff'][i2],obs['teff'][i2]-true['teff'][i1],z,xt='Teff',yt=r'$\Delta$Teff') #,yr=[-200,200])
@@ -260,6 +264,7 @@ def comp(file,true=None,truespec=None,hard=False,plot=False) :
     plt.show()
     if hard :
         fig.savefig(file+'_2.png')
+        plt.close()
     plt.show()
 
     if plot :
@@ -268,10 +273,11 @@ def comp(file,true=None,truespec=None,hard=False,plot=False) :
         if truespec is None : truespec=file+'.frd'
         truespec=np.loadtxt(truespec)
         for i in range(len(i1)) :
+          if 10.**obs['chi2'][i2[i]] > minchi2 :
             plt.clf()
             plt.plot(truespec[i1[i],:],color='b')
-            plt.plot(obsspec[i1[i],:],color='r')
-            plt.plot(obsspec[i1[i],:]/truespec[i1[i],:]+0.1,color='g')
+            plt.plot(obsspec[i2[i],:],color='r')
+            plt.plot(obsspec[i2[i],:]/truespec[i1[i],:]+0.1,color='g')
             plt.draw()
             print(true['id'][i1[i]])
             print('{:8.1f}{:7.2f}{:7.2f}{:7.2f}{:7.2f}{:7.2f}{:7.2f}'.format(

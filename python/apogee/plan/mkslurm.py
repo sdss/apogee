@@ -11,7 +11,7 @@ def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None
     except:
         pass
 
-    name=cmd.split()[0]
+    name=cmd.split()[0].strip('"')
     file = outdir+name
     f=open(file,'w')
 
@@ -21,15 +21,15 @@ def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None
     f.write('#SBATCH --time='+time+'\n')
     f.write('#SBATCH --ntasks=16\n')
     f.write('#SBATCH --nodes=1\n')
-    f.write('#SBATCH -o '+file+'.out\n' )
-    f.write('#SBATCH -e '+file+'.out\n' )
+    f.write('#SBATCH -o '+os.path.basename(file)+'.out\n' )
+    f.write('#SBATCH -e '+os.path.basename(file)+'.out\n' )
     if queryhost is not None :
         f.write('setenv QUERYHOST '+queryhost+'\n' )
         f.write('setenv QUERYPORT '+str(queryport)+'\n')
         f.write('setenv APOGEE_MAXRUN '+str(maxrun)+'\n' )
     f.write('setenv IDL_CPU_TPOOL_NTHREADS '+str(idlthreads)+'\n' )
 
-    if cmd is None : cwd=os.getcwd()
+    if cwd is None : cwd=os.getcwd()
     f.write('cd '+cwd+'\n' )
     f.write(runplans + cmd+'\n' )
     f.write('wait\n' )
@@ -41,7 +41,7 @@ def main(args) :
 
     parser = argparse.ArgumentParser(
         prog=os.path.basename(args[0]),
-        description='Makes a synthetic spectral grid')
+        description='Makes a SLURM batch file')
     parser.add_argument('cmd', type=str, help='cmd')
     parser.add_argument('--outdir', type=str, help='directory',default='slurm/')
     parser.add_argument('--runplans', type=str, help='directory',default='runplans ')

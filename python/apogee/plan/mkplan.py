@@ -6,6 +6,7 @@ import subprocess
 from sdss import yanny
 from apogee.speclib import atmos
 from apogee.utils import spectra
+from apogee.plan import mkslurm
 
 
 def mkgriddirs(configfile) :
@@ -71,11 +72,13 @@ def mkgriddirs(configfile) :
         #subprocess.call(['mkslurm.csh','mkgridlsf','"plan/'+name+'_a[mp]*vp??.par"'],shell=False)
         #subprocess.call(['mkslurm.csh','bundle','"plan/'+name+'_??.par"'],shell=False)
 
-        subprocess.call(('mkslurm mkgrid plan/'+name+'_a[mp]*vp20.par plan/'+name+'_a[mp]vp48.par plan/'+name+'_a[mp]*vp??.par').split(),shell=False)
-        subprocess.call(('mkslurm mkrbf plan/'+name+'_c[mp]*vp??.par').split(),shell=False)
-        subprocess.call(('mkslurm mkgridlsf plan/'+name+'_a[mp]*vp??.par').split(),shell=False)
-        subprocess.call(('mkslurm bundle plan/'+name+'_??.par').split(),shell=False)
-        subprocess.call(('mkslurm pca plan/'+name+'.par --pcas 12 75 --incremental --threads 2 --writeraw').split(),shell=False)
+        pdb.set_trace()
+        mkslurm.write('mkgrid plan/'+name+'_a[mp]*vp20.par plan/'+name+'_a[mp]vp48.par plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052)
+        mkslurm.write('mkgrid plan/'+name+'_a[mp]*vp20.par plan/'+name+'_a[mp]vp48.par plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052)
+        mkslurm.write('mkrbf plan/'+name+'_c[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052)
+        mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052)
+        mkslurm.write('bundle plan/'+name+'_??.par',queryhost=os.uname()[1],queryport=1052)
+        mkslurm.write('pca --pcas 12 75 --incremental --threads 2 --writeraw plan/'+name+'.par',queryhost=os.uname()[1],queryport=1052,runplans='')
 
 
 def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,vtsplit=True,el=None) :

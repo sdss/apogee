@@ -195,7 +195,7 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
            # append the modified holes file for this subgrid
            hout=fits.ImageHDU(np.squeeze(holes.data[hcm,ham,:,:,:]))
            for idim in range(1,4) :
-               spectra.add_dim(hout.header,holes.header['CRVAL'+str(idim)],holes.header['CDELT'+str(idim)],holes.header['CRPIX'+str(idim)],holes.header['CTYPE'+str(idim)],idim) :
+               spectra.add_dim(hout.header,holes.header['CRVAL'+str(idim)],holes.header['CDELT'+str(idim)],holes.header['CRPIX'+str(idim)],holes.header['CTYPE'+str(idim)],idim) 
            grid.append(hout)
            grid.writeto(indir+out+file,overwrite=True)
          #holes.writeto(out+holefile,overwrite=True)
@@ -366,6 +366,7 @@ def comp(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',grid='
                          if ii % (nx*ny) == 0: 
                              fig.savefig(out+'{:02d}'.format(ii/(nx*ny))+'.png')
                              figs.append([out+'{:02d}'.format(ii/(nx*ny))+'.png'])
+                             plt.close()
                      else :
                          plt.clf()
                          plt.plot(raw[imh,ilogg,iteff,:]/np.nanmean(raw[imh,ilogg,iteff,:])-0.2,color='b')
@@ -390,3 +391,43 @@ def extend(start,end,vector,holevector) :
 
     return s,e,hs,he
 
+def mergeholes(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',grid='GK',fakehole=False,
+         cmrange=None, nmrange=None, vtrange=None, apstar=False, hard=None,out='rbf_') :
+
+    # Read planfile and set output file name
+    if not os.path.isfile(planfile):
+        print('{:s} does not exist'.format(planfile))
+        return
+    p=yanny.yanny(planfile,np=True)
+
+    if dir is None :
+        indir = os.environ['APOGEE_SPECLIB']+'/synth/'+p['specdir']+'/' if p.get('specdir') else './'
+    else :
+        indir=os.environ['APOGEE_SPECLIB']+'/synth/turbospec/'+dir+'/'
+
+    if cmrange is None : cmrange=spectra.vector(p['cm0'],p['dcm'],p['ncm'])
+    if nmrange is None : nmrange=spectra.vector(p['nm0'],p['dnm'],p['nnm'])
+    if vtrange is None : 
+        try:
+            vtrange=10.**spectra.vector(p['vt0'],p['dvt'],p['nvt'])
+        except :
+            vtrange = [float(p['vmicro'])]
+
+    holefile='MARCS_'+grid+'_holefile.fits'
+    holes=fits.open(os.environ['APOGEE_SPECLIB']+'/atmos/marcs/MARCS_v3_2016/'+holefile)
+
+    for icm,cm in enumerate(cmrange) :
+      for inm,nm in enumerate(nmrange) :
+       for ivt,vt in enumerate(vtrange) :
+         for iam,am in enumerate(spectra.vector(p['am0'],p['dam'],p['nam'])) :
+           print(am,cm,nm,vt)
+           file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
+                 atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(vt))
+           filled=fits.open(out+file)[1].data
+           hcm=int(round((cm - holes[0].header['CRVAL5'] ) / holes[0].header['CDELT5'])   )
+           if hcm< 0 :
+               #print('off carbon grid edge!',hcm)
+               hcm=0
+           ham=int(round((am - holes[0].header['CRVAL4'] ) / holes[0].header['CDELT4']))
+           holes[0].data[hcm,ham,:,:,:] = filled
+    holes.writeto(out+holefile,overwrite=True)

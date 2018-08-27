@@ -27,6 +27,7 @@ from apogee.aspcap import aspcap
 from apogee.aspcap import ferre
 from apogee.speclib import atmos
 from apogee.speclib import lsf
+from apogee.speclib import sample
 from apogee.utils import atomic
 from apogee.utils import spectra
 from apogee.plan import mkslurm
@@ -39,6 +40,7 @@ from sklearn.decomposition import IncrementalPCA
 import matplotlib.pyplot as plt
 from tools import plots
 from tools import match
+from tools import html
 
 colors=['r','g','b','c','m','y']
 
@@ -105,7 +107,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
     if threads == 0 :
         outputs=[]
         for par in pars :
-            wrange=pars[2]
+            wrange=par[2]
             outputs.append(dopca(par))
     else :
         # do the PCA in parallel for the subgrids
@@ -218,9 +220,9 @@ def dopca(pars) :
                   #s=np.append(s1[imh,ilogg,iteff,:],s2[imh,ilogg,iteff,:])
                   #s=np.append(s,s3[imh,ilogg,iteff,:])
                   #s=sall[imh,ilogg,iteff,:]
-            #      if s[w1:w2].sum() == 0. : 
-            #         print('!!ZERO MODEL',am,cm,nm,vm,mh,logg,teff)
-            #         s[w1:w2] = 1.
+                  if s[imh,ilogg,iteff,w1:w2].sum() == 0. : 
+                     print('!!ZERO MODEL',am,cm,nm,vm,mh,logg,teff,w1,w2)
+                     s[w1:w2] = 1.
             #         #pdb.set_trace()
             #      s/=np.nanmean(s)
             #      if len(np.where(np.isfinite(s) is False)[0]) > 0 : print(imh,ilogg,iteff,np.where(np.isfinite(s) is False) )
@@ -263,6 +265,7 @@ def showtime(string) :
 def liblink(lib,outdir) :
     try : os.mkdir(outdir)
     except : pass
+    if outdir[-1] != '/' : outdir=outdir+'/'
     nsub = len(outdir.split('/'))-1
     prefix=''
     for i in range(nsub) :
@@ -309,48 +312,80 @@ def test(planfile,npiece=12,npca=75,run=True,fit=True) :
     #    an=np.reshape(an,(dim[0],dim[1]))
     #    ferre.writespec('testsn{:d}.dat'.format(sn),an)
     #    ferre.writespec('testsn{:d}.err'.format(sn),an*0.+1./sn)
-  
+ 
+    # list of all the different tests and their input.nml files 
+    fdirs = ['pca_12_75/','pca_12_75/algor3/','pca_12_75/algor1/','pca_12_75/algor1_12/','pca_12_75/algor3_12/',
+             'pca_12_75/algor3_001/','pca_12_75/algor3_01/','pca_12_75/algor3_1',
+             'pca_12_75/algor3_indi1234567/','pca_12_75/algor3_indi3142567/',
+             'pca_12_75/algor3_4d' ] 
+    fdirs = ['pca_12_75/algor3_4d' ] 
+
     # general setup for all FERRE directories using PCA library
     l=ferre.rdlibhead('p_aps'+outfile+('_{:03d}_{:03d}.hdr').format(npiece,npca))[0]
-    for fdir in ['pca_12_75/','pca_12_75/algor3/','pca_12_75/algor1/','pca_12_75/algor1_12','pca_12_75/algor3_12','pca_12_75/algor3_001' ] :
+    print("set up...")
+    for fdir in fdirs :
         # create library links and return relative directory
+        print(fdir)
         prefix=liblink(plib,fdir)
-        # create input ipf, obs, and err links
+        # create input ipf
         try: os.remove(fdir+'/test.ipf')
         except: pass
-        os.symlink(prefix+'test.ipf',fdir+'/test.ipf')
+        #os.symlink(prefix+'test.ipf',fdir+'/test.ipf')
+        fp=open('test.ipf','r') 
+        fout=open(fdir+'/test.ipf','w') 
+        for line in fp : fout.write(line.split()[0]+' 0.  0.   0.  0.  0.  2.5  4500.\n')
+        fout.close()
+        # create obs file with true spectra
         try: os.remove(fdir+'/test.obs')
         except: pass
         os.symlink(prefix+'raw/test.mdl',fdir+'/test.obs')
+        # create dummy uncertainty file
         try: os.remove(fdir+'/test.err')
         except: pass
         os.symlink(prefix+'raw/test.err',fdir+'/test.err')
         # create the command file to run FERRE
         mkslurm.write('ferre.x',outdir=fdir+'/',runplans='',cwd=os.getcwd()+'/'+fdir,time='48:00:00')
 
-    # produce PCA version of test spectra
     ferre.writenml('pca_12_75/input.nml','test',l,nov=0,ncpus=1)
+    ferre.writenml('pca_12_75/algor3/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32)
+    ferre.writenml('pca_12_75/algor1_12/input.nml','test',l,algor=1,renorm=4,obscont=1,ncpus=32,indini=[1,1,1,1,2,2,3])
+    ferre.writenml('pca_12_75/algor1/input.nml','test',l,algor=1,renorm=4,obscont=1,ncpus=32)
+    ferre.writenml('pca_12_75/algor3_12/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,indini=[1,1,1,1,2,2,3])
+    ferre.writenml('pca_12_75/algor3_001/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.001)
+    ferre.writenml('pca_12_75/algor3_01/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.01)
+    ferre.writenml('pca_12_75/algor3_1/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.1)
+    ferre.writenml('pca_12_75/algor3_indi1234567/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,indi=[1,2,3,4,5,6,7])
+    ferre.writenml('pca_12_75/algor3_indi3142567/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,indi=[3,1,4,2,5,6,7])
+    ferre.writenml('pca_12_75/algor3_4d/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,indv=[4,5,6,7])
+
+    # produce PCA version of test spectra
     if run : 
         print('running ferre in 12_75 to create spectra')
         subprocess.call(['pca_12_75/ferre.x'],shell=False)
     pca=np.loadtxt('pca_12_75/test.mdl')
     # histogram of ratio of pca to true
-    mhist,bins=np.histogram((pca/true).flatten(),bins=np.arange(0.5,1.51,0.01))
-    plots.plotl(ax,np.arange(0.5+0.005,1.5,0.01),hist/hist.sum(),semilogy=True)
+    print("making pca/raw comparison histogram ...")
+    fig,ax=plots.multi(1,1)
+    hist,bins=np.histogram((pca/true).flatten(),bins=np.linspace(0.8,1.2,4001))
+    plots.plotl(ax,np.linspace(0.8005,1.2,4000),hist/hist.sum(),semilogy=True)
+    fig.savefig(outfile+'_pca.png')
+    plt.close()
 
     # use the PCA libraries to fit raw spectra
-    ferre.writenml('pca_12_75/algor3/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32)
-    if fit : subprocess.call(['sbatch','pca_12_75/algor3/ferre.x'],shell=False)
+    print("running/making plots...")
+    tab=[]
+    yt=[]
+    for fdir in fdirs :
+        print(fdir)
+        if fit : subprocess.call(['sbatch',fdir+'/ferre.x'],shell=False,cwd=fdir)
+        try : 
+            sample.comp(fdir+'/test',hard=True,true='raw/test.ipf')
+            tab.append([fdir+'/test.png',fdir+'/test_2.png'])
+            dt=subprocess.check_output("grep ellapsed "+fdir+"/ferre.x.out | tail -1 | awk '{print $3}'",shell=True)
+            yt.append(fdir+'<br>'+dt)
+        except : pass
 
-    ferre.writenml('pca_12_75/algor1/input.nml','test',l,algor=1,renorm=4,obscont=1,ncpus=32)
-    if fit : subprocess.call(['sbatch','pca_12_75/algor1/ferre.x'],shell=False)
+    header = '<h3>'+outfile+'</h3>\n'
+    header = header + '<img src='+outfile+'_pca.png>\n'
 
-    ferre.writenml('pca_12_75/algor1_12/input.nml','test',l,algor=1,renorm=4,obscont=1,ncpus=32,indini=[1,1,1,1,2,2,3])
-    if fit : subprocess.call(['sbatch','pca_12_75/algor3_12/ferre.x'],shell=False)
-
-    ferre.writenml('pca_12_75/algor3_12/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,indini=[1,1,1,1,2,2,3])
-    if fit : subprocess.call(['sbatch','pca_12_75/algor1_12/ferre.x'],shell=False)
-
-    ferre.writenml('pca_12_75/algor3_001/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.001)
-    if fit : subprocess.call(['sbatch','pca_12_75/algor3_001/ferre.x'],shell=False)
-
+    html.htmltab(tab,file='test.html',header=header,ytitle=yt)

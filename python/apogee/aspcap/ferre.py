@@ -37,7 +37,7 @@ def writenml(outfile,file,libhead,ncpus=2,nruns=1,interord=3,direct=1,pca=1,errb
     f.write(' &LISTA\n')
     ndim=libhead['N_OF_DIM']
     f.write(' NDIM = {:d}\n'.format(ndim))
-    if indi is not None : f.write((' INDI = '+'{:2d}'*ndim+'\n').format(indi))
+    if indi is not None : f.write(' INDI = '+np.array2string(np.array(indi)).strip('[]')+'\n')
     if nov is None : nov=ndim
     if indv is None : 
         f.write((' NOV = {:2d}\n').format(nov))

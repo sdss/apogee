@@ -318,7 +318,6 @@ def test(planfile,npiece=12,npca=75,run=True,fit=True) :
              'pca_12_75/algor3_001/','pca_12_75/algor3_01/','pca_12_75/algor3_1',
              'pca_12_75/algor3_indi1234567/','pca_12_75/algor3_indi3142567/',
              'pca_12_75/algor3_4d' ] 
-    fdirs = ['pca_12_75/algor3_4d' ] 
 
     # general setup for all FERRE directories using PCA library
     l=ferre.rdlibhead('p_aps'+outfile+('_{:03d}_{:03d}.hdr').format(npiece,npca))[0]

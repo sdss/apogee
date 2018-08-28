@@ -55,9 +55,11 @@ if __name__ == '__main__' :
 
     rbf.fill(args.planfile,grid=args.grid,out=args.out,dir=args.dir,r0=args.r0,apstar=args.apstar,fakehole=args.fakehole,threads=args.threads,
              cmrange=args.cmrange,nmrange=args.nmrange,vtrange=args.vtrange)
+    rbf.mergeholes(args.planfile,grid=args.grid,out=args.out,dir=args.dir,r0=args.r0,apstar=args.apstar,
+             cmrange=args.cmrange,nmrange=args.nmrange,vtrange=args.vtrange)
     # if we're doing fake holes, generate plots for results
     if args.fakehole :
-        rbf.comp(args.planfile,out=args.out,fakehole=True,hard=True,
+        rbf.comp(args.planfile,out=args.out,grid=args.grid,fakehole=True,hard=True,
                  cmrange=args.cmrange,nmrange=args.nmrange,vtrange=args.vtrange)
 
     # end time

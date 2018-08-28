@@ -72,12 +72,10 @@ def mkgriddirs(configfile) :
         #subprocess.call(['mkslurm.csh','mkgridlsf','"plan/'+name+'_a[mp]*vp??.par"'],shell=False)
         #subprocess.call(['mkslurm.csh','bundle','"plan/'+name+'_??.par"'],shell=False)
 
-        pdb.set_trace()
-        mkslurm.write('mkgrid plan/'+name+'_a[mp]*vp20.par plan/'+name+'_a[mp]vp48.par plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052)
-        mkslurm.write('mkgrid plan/'+name+'_a[mp]*vp20.par plan/'+name+'_a[mp]vp48.par plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052)
-        mkslurm.write('mkrbf plan/'+name+'_c[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052)
-        mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052)
-        mkslurm.write('bundle plan/'+name+'_??.par',queryhost=os.uname()[1],queryport=1052)
+        mkslurm.write('mkgrid plan/'+name+'_a[mp]*vp20.par plan/'+name+'_a[mp]vp48.par plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=32)
+        mkslurm.write('mkrbf plan/'+name+'_c[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=1)
+        mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=12)
+        mkslurm.write('bundle plan/'+name+'_??.par',queryhost=os.uname()[1],queryport=1052,maxrun=32)
         mkslurm.write('pca --pcas 12 75 --incremental --threads 2 --writeraw plan/'+name+'.par',queryhost=os.uname()[1],queryport=1052,runplans='')
 
 

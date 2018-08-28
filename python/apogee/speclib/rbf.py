@@ -195,7 +195,7 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
            # append the modified holes file for this subgrid
            hout=fits.ImageHDU(np.squeeze(holes.data[hcm,ham,:,:,:]))
            for idim in range(1,4) :
-               spectra.add_dim(hout.header,holes.header['CRVAL'+str(idim)],holes.header['CDELT'+str(idim)],holes.header['CRPIX'+str(idim)],holes.header['CTYPE'+str(idim)],idim) 
+               spectra.add_dim(hout.header,holes.header['CRVAL'+str(idim)],holes.header['CDELT'+str(idim)],1,holes.header['CTYPE'+str(idim)],idim) 
            grid.append(hout)
            grid.writeto(indir+out+file,overwrite=True)
          #holes.writeto(out+holefile,overwrite=True)
@@ -360,8 +360,10 @@ def comp(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',grid='
                          ax[iy,ix].plot(filled[imh,ilogg,iteff,:],color='g')
                          ax[iy,ix].plot(raw[imh,ilogg,iteff,:]/np.nanmean(raw[imh,ilogg,iteff,:])/filled[imh,ilogg,iteff,:]+0.2)
                          ax[iy,ix].set_ylim([0.7,1.35])
-                         ax[iy,ix].text(0.01,0.97,lab,transform=ax[iy,ix].transAxes,va='top',fontsize='x-small')
-                         ax[iy,ix].text(0.01,0.9,lab1,transform=ax[iy,ix].transAxes,va='top',fontsize='x-small')
+                         if not np.isclose(holes.data[hcm,ham,hmh,hlogg,hteff],0.) and not np.isclose(holes.data[hcm,ham,hmh,hlogg,hteff],-100.) : color = 'r'
+                         else : color='k'
+                         ax[iy,ix].text(0.01,0.97,lab,transform=ax[iy,ix].transAxes,va='top',fontsize='x-small',color=color)
+                         ax[iy,ix].text(0.01,0.9,lab1,transform=ax[iy,ix].transAxes,va='top',fontsize='x-small',color=color)
                          ii+=1
                          if ii % (nx*ny) == 0: 
                              fig.savefig(out+'{:02d}'.format(ii/(nx*ny))+'.png')

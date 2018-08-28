@@ -187,7 +187,7 @@ def dclip(d,lim=[-0.5,0.5]) :
     d[np.where(d > lim[1])]=lim[1]
     return d
 
-def comp(file,true=None,truespec=None,hard=False,plot=False,minchi2=10) :
+def comp(file,true=None,truespec=None,hard=False,plot=False,minchi2=0.,testid=None) :
     """ Compare input parameters with output results
     """
     if true is None: true=file+'.ipf'
@@ -215,8 +215,8 @@ def comp(file,true=None,truespec=None,hard=False,plot=False,minchi2=10) :
     ax[2,1].set_xlabel('$\Delta$vmicro')
     ax[3,1].hist(dclip(10.**obs['chi2'],lim=[0,50]),bins=np.arange(0,51,0.1))  
     ax[3,1].set_xlabel('chi2')
-    fig.suptitle(file)
     fig.tight_layout()
+    fig.suptitle(file)
     if hard :
         fig.savefig(file+'.png')
         plt.close()
@@ -272,7 +272,9 @@ def comp(file,true=None,truespec=None,hard=False,plot=False,minchi2=10) :
         obsspec=np.loadtxt(file+'.mdl')
         if truespec is None : truespec=file+'.frd'
         truespec=np.loadtxt(truespec)
-        for i in range(len(i1)) :
+        if testid is None : testid = range(len(i1)) 
+        for tid in testid :
+          i=np.where(np.core.defchararray.find(obs['id'][i2],'test'+str(tid))>=0)[0][0]
           if 10.**obs['chi2'][i2[i]] > minchi2 :
             plt.clf()
             plt.plot(truespec[i1[i],:],color='b')

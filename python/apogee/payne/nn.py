@@ -22,11 +22,10 @@ from tools import plots
 nepochs=10000
 nodes=20
 reg=0.0005
-threads=32
 batch_size=1000
 verbose=0
 
-def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0,
+def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0, threads=32,
           teff=[0,10000],logg=[-1,6],mh=[-3,1],am=[-1,1],cm=[-2,2],raw=False,rot=False,nolog=True,elem=False) :
     """ Train a neural net model on an input training set
     """
@@ -197,11 +196,19 @@ def fit(data) :
     sys.stdout.flush()
 
     net=models.Sequential()
-    net.add(layers.Dense(nodes, activation='sigmoid', input_shape=(pars.shape[1],),
+    net.add(layers.Dense(32, activation='sigmoid', input_shape=(pars.shape[1],),
             kernel_regularizer=regularizers.l2(reg)))
-    #net.add(layers.Dense(nodes, activation='sigmoid',kernel_regularizer=regularizers.l2(reg)))
+    net.add(layers.Dense(64, activation='sigmoid',
+            kernel_regularizer=regularizers.l2(reg)))
+    net.add(layers.Dense(128, activation='sigmoid',
+            kernel_regularizer=regularizers.l2(reg)))
+    net.add(layers.Dense(256, activation='sigmoid',
+            kernel_regularizer=regularizers.l2(reg)))
+    #net.add(layers.Dense(nodes, activation='sigmoid', input_shape=(pars.shape[1],),
+    #        kernel_regularizer=regularizers.l2(reg)))
+    ##net.add(layers.Dense(nodes, activation='sigmoid',kernel_regularizer=regularizers.l2(reg)))
     net.add(layers.Dense(1, activation='linear'))
-    #opt=optimizers.RMSprop(lr=0.01)
+    ##opt=optimizers.RMSprop(lr=0.01)
     opt=optimizers.Adam(lr=0.001)
     net.compile(optimizer=opt,loss='mse')
     if verbose > 0 : net.summary()

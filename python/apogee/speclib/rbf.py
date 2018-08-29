@@ -26,10 +26,13 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
         return
     p=yanny.yanny(planfile,np=True)
 
+    # input directory 
     if dir is None :
         indir = os.environ['APOGEE_SPECLIB']+'/synth/'+p['specdir']+'/' if p.get('specdir') else './'
     else :
         indir=os.environ['APOGEE_SPECLIB']+'/synth/turbospec/'+dir+'/'
+    print('indir: ', indir)
+
 
     if cmrange is None : cmrange=spectra.vector(p['cm0'],p['dcm'],p['ncm'])
     if nmrange is None : nmrange=spectra.vector(p['nm0'],p['dnm'],p['nnm'])
@@ -39,26 +42,35 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
         except :
             vtrange = [float(p['vmicro'])]
 
+    # get configuration for grid
+    # sizes of subgrids for RBF interpolation in [alpha/M], [M/H], logg, and Teff
+    if int(p['nteff']) == 11 : teffsize = [4,3,4]
+    else :  
+        print('unknown nteff config')
+        pdb.set_trace()
+    if int(p['nam']) == 8 : amsize = [4,4]
+    else :  
+        print('unknown nam config')
+        pdb.set_trace()
+    if int(p['nmh']) == 15 : mhsize = [3,3,3,3,3]
+    else :  
+        print('unknown nmh config')
+        pdb.set_trace()
+    if int(p['nlogg']) == 10 : loggsize = [4,3,3]
+    elif int(p['nlogg']) == 8 : loggsize = [4,4]
+    elif int(p['nlogg']) == 7 : loggsize = [4,3]
+    else :  
+        print('unknown nlogg config')
+        pdb.set_trace()
+
+    if grid is None :
+        if p['specdir'].find('GK_') >= 0 : grid = 'GK'
+        elif p['specdir'].find('M_') >= 0 : grid = 'M'
+        elif p['specdir'].find('F_') >= 0 : grid = 'F'
+
     # read holes file
     holefile='MARCS_'+grid+'_holefile.fits'
     holes=fits.open(os.environ['APOGEE_SPECLIB']+'/atmos/marcs/MARCS_v3_2016/'+holefile)[0]
-
-    # sizes of subgrids for RBF interpolation in [alpha/M], [M/H], logg, and Teff
-    #GK=[8,15,10,11]
-    #M=[8,15,8,11]
-    amsize=[4,4]
-    mhsize=[5,5,5]
-    loggsize=[5,5]
-    teffsize=[5,6]
-
-    amsize=[4,4]
-    mhsize=[3,3,3,3,3]
-    if grid == 'GK' :
-        loggsize=[4,3,3]
-    else :
-        loggsize=[4,4]
-    teffsize=[4,3,4]
-
 
     # total number of frequencies, and pixels to use
     if apstar :
@@ -296,10 +308,16 @@ def comp(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',grid='
         return
     p=yanny.yanny(planfile,np=True)
 
+    # input directory 
     if dir is None :
         indir = os.environ['APOGEE_SPECLIB']+'/synth/'+p['specdir']+'/' if p.get('specdir') else './'
     else :
         indir=os.environ['APOGEE_SPECLIB']+'/synth/turbospec/'+dir+'/'
+
+    if grid is None :
+        if p['name'].find('GK_') : grid = 'GK'
+        elif p['name'].find('M_') : grid = 'M'
+        elif p['name'].find('F_') : grid = 'F'
 
     if cmrange is None : cmrange=spectra.vector(p['cm0'],p['dcm'],p['ncm'])
     if nmrange is None : nmrange=spectra.vector(p['nm0'],p['dnm'],p['nnm'])
@@ -308,6 +326,11 @@ def comp(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',grid='
             vtrange=10.**spectra.vector(p['vt0'],p['dvt'],p['nvt'])
         except :
             vtrange = [float(p['vmicro'])]
+
+    if grid is None :
+        if p['specdir'].find('GK_') >= 0 : grid = 'GK'
+        elif p['specdir'].find('M_') >= 0 : grid = 'M'
+        elif p['specdir'].find('F_') >= 0 : grid = 'F'
 
     holefile='MARCS_'+grid+'_holefile.fits'
     if fakehole : holes=fits.open(out+holefile)[0]
@@ -414,6 +437,11 @@ def mergeholes(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
             vtrange=10.**spectra.vector(p['vt0'],p['dvt'],p['nvt'])
         except :
             vtrange = [float(p['vmicro'])]
+
+    if grid is None :
+        if p['specdir'].find('GK_') >= 0 : grid = 'GK'
+        elif p['specdir'].find('M_') >= 0 : grid = 'M'
+        elif p['specdir'].find('F_') >= 0 : grid = 'F'
 
     holefile='MARCS_'+grid+'_holefile.fits'
     holes=fits.open(os.environ['APOGEE_SPECLIB']+'/atmos/marcs/MARCS_v3_2016/'+holefile)

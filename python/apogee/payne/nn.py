@@ -1,4 +1,5 @@
 import numpy as np
+
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 from scipy.ndimage.filters import gaussian_filter
@@ -13,20 +14,22 @@ import pickle
 import copy
 import sys
 import pdb
+import time
 from apogee.utils import apload
 from apogee.aspcap import aspcap
 from apogee.aspcap import norm
 from tools import plots
 
-#nepochs=25000
 nepochs=10000
 nodes=20
 reg=0.0005
 batch_size=1000
 verbose=0
+reg=0.
+nepochs=25000
 
 def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0, threads=32,
-          teff=[0,10000],logg=[-1,6],mh=[-3,1],am=[-1,1],cm=[-2,2],raw=False,rot=False,nolog=True,elem=False) :
+          teff=[0,10000],logg=[-1,6],mh=[-3,1],am=[-1,1],cm=[-2,2],nm=[-2,2],raw=False,rot=False,nolog=True,elem=False) :
     """ Train a neural net model on an input training set
     """
     global nfit, verbose, nepochs
@@ -49,7 +52,8 @@ def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0
                 (pars[:,1]>=logg[0]) & (pars[:,1]<=logg[1]) &
                 (pars[:,2]>=mh[0]) & (pars[:,2]<=mh[1]) &
                 (pars[:,3]>=am[0]) & (pars[:,3]<=am[1]) &
-                (pars[:,4]>=cm[0]) & (pars[:,4]<=cm[1]) 
+                (pars[:,4]>=cm[0]) & (pars[:,4]<=cm[1])  &
+                (pars[:,5]>=nm[0]) & (pars[:,5]<=nm[1]) 
                )[0]
     spec=spec[gd,:]
     pars=pars[gd,:]
@@ -140,7 +144,7 @@ def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0
     pool.join()
     print('done pool')
 
-    if plot: fig,ax=plots.multi(npix,5,wspace=0.001,hspace=0.001,figsize=(20,8))
+    if plot: fig,ax=plots.multi(npix,9,wspace=0.001,hspace=0.001,figsize=(20,10))
     ifit=0
     for i,ipix in enumerate(pixels) :
       if np.isfinite(means[i]) :
@@ -151,17 +155,21 @@ def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0
               m=[]
               for ip in range(pars.shape[0]) : m.append(model(normpars[ip,:],means[i],stds[i],w,b)[0])
               pix=spec[:,ipix]*stds[i]+means[i]
-              plots.plotc(ax[0,i],pars[:,0],pix,pars[:,2],xr=[3000,8000],yr=[0.5,1.5],zr=[-2,0.5])
-              plots.plotc(ax[1,i],pars[:,0],pix,pars[:,1],xr=[3000,8000],yr=[0.5,1.5],zr=[0,5])
-              plots.plotc(ax[2,i],pars[:,0],pix,pix-mod[:,0],xr=[3000,8000],yr=[0.5,1.5],zr=[0,0.01])
+              plots.plotc(ax[0,i],pars[0:nfit,0],pix[0:nfit]-mod[0:nfit,0],pars[0:nfit,1],xr=[3000,8000],zr=[0,5])
+              plots.plotc(ax[1,i],pars[0:nfit,0],pix[0:nfit]-mod[0:nfit,0],pars[0:nfit,2],xr=[3000,8000],zr=[-2.0,0.75])
+              plots.plotc(ax[2,i],pars[0:nfit,0],pix[0:nfit]-mod[0:nfit,0],pars[0:nfit,3],xr=[3000,8000],zr=[-1,1.])
+              plots.plotc(ax[3,i],pars[0:nfit,0],pix[0:nfit]-mod[0:nfit,0],pars[0:nfit,4],xr=[3000,8000],zr=[-1,1.])
+              plots.plotc(ax[4,i],pars[0:nfit,0],pix[0:nfit]-mod[0:nfit,0],pars[0:nfit,5],xr=[3000,8000],zr=[-1,1.])
+              plots.plotc(ax[5,i],pars[0:nfit,0],pix[0:nfit]-mod[0:nfit,0],pars[0:nfit,6],xr=[3000,8000],zr=[0.5,3.])
+              plots.plotc(ax[6,i],pars[0:nfit,0],pix[0:nfit]-mod[0:nfit,0],pars[0:nfit,7],xr=[3000,8000],zr=[0,50.])
               n=len(loss)
-              plots.plotl(ax[3,i],range(n),np.log10(loss),xr=[0,nepochs],yr=[-4,0],color='b')
-              plots.plotl(ax[3,i],range(n),np.log10(vloss),xr=[0,nepochs],yr=[-4,0],color='r')
-              ax[4,i].hist(pix-mod[:,0],bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='k')
-              ax[4,i].hist(pix[0:nfit]-mod[0:nfit,0],bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='b')
-              ax[4,i].hist(pix[nfit:]-mod[nfit:,0],bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='r')
-              ax[4,i].set_xlim(0,0.01)
-              ax[4,i].set_ylim(0,1.1)
+              plots.plotl(ax[7,i],range(n),np.log10(loss),xr=[0,nepochs],yr=[-4,0],color='b')
+              plots.plotl(ax[7,i],range(n),np.log10(vloss),xr=[0,nepochs],yr=[-4,0],color='r')
+              ax[8,i].hist(pix-mod[:,0],bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='k')
+              ax[8,i].hist(pix[0:nfit]-mod[0:nfit,0],bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='b')
+              ax[8,i].hist(pix[nfit:]-mod[nfit:,0],bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='r')
+              ax[8,i].set_xlim(0,0.01)
+              ax[8,i].set_ylim(0,1.1)
               plt.draw()
               plt.show()
   
@@ -192,21 +200,20 @@ def fit(data) :
     pars=data[0]
     pix=data[1]
 
-    print('fitting pixel: ', data[2],pars.shape,nfit)
-    sys.stdout.flush()
+    showtime('fitting pixel: '+str(data[2]))
 
     net=models.Sequential()
-    net.add(layers.Dense(32, activation='sigmoid', input_shape=(pars.shape[1],),
-            kernel_regularizer=regularizers.l2(reg)))
-    net.add(layers.Dense(64, activation='sigmoid',
-            kernel_regularizer=regularizers.l2(reg)))
-    net.add(layers.Dense(128, activation='sigmoid',
-            kernel_regularizer=regularizers.l2(reg)))
-    net.add(layers.Dense(256, activation='sigmoid',
-            kernel_regularizer=regularizers.l2(reg)))
-    #net.add(layers.Dense(nodes, activation='sigmoid', input_shape=(pars.shape[1],),
+    #net.add(layers.Dense(32, activation='sigmoid', input_shape=(pars.shape[1],),
     #        kernel_regularizer=regularizers.l2(reg)))
-    ##net.add(layers.Dense(nodes, activation='sigmoid',kernel_regularizer=regularizers.l2(reg)))
+    #net.add(layers.Dense(64, activation='sigmoid',
+    #        kernel_regularizer=regularizers.l2(reg)))
+    #net.add(layers.Dense(128, activation='sigmoid',
+    #        kernel_regularizer=regularizers.l2(reg)))
+    #net.add(layers.Dense(256, activation='sigmoid',
+    #        kernel_regularizer=regularizers.l2(reg)))
+    net.add(layers.Dense(nodes, activation='sigmoid', input_shape=(pars.shape[1],),
+            kernel_regularizer=regularizers.l2(reg)))
+    #net.add(layers.Dense(nodes, activation='sigmoid',kernel_regularizer=regularizers.l2(reg)))
     net.add(layers.Dense(1, activation='linear'))
     ##opt=optimizers.RMSprop(lr=0.01)
     opt=optimizers.Adam(lr=0.001)
@@ -218,6 +225,9 @@ def fit(data) :
     w=(net.get_weights()[0],net.get_weights()[2])
     b=(net.get_weights()[1],net.get_weights()[3])
     mod=net.predict(pars)
+
+    showtime('done fitting pixel: '+str(data[2]))
+
     return w,b,mod,history.history['loss'],history.history['val_loss']
 
 def merge(file,n=8) :
@@ -583,3 +593,11 @@ def aspcap_comp(model,fields,plot=True,save=None,loggmax=99) :
 
 def pprint(pars) :
     print('{:8.1f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}'.format(*pars))
+
+
+def showtime(string) :
+    """ Utiltiy routine to print a string and clock time
+    """
+    print(string+' {:8.2f}'.format(time.time()))
+    sys.stdout.flush()
+

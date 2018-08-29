@@ -35,12 +35,13 @@ if __name__ == '__main__' :
         description='Makes a synthetic spectral grid')
     parser.add_argument('planfile', type=str, help='Plan file')
     parser.add_argument('--dir', type=str, help='directory')
-    parser.add_argument('--grid', type=str, help='grid', default='GK')
+    parser.add_argument('--grid', type=str, help='grid')
     parser.add_argument('--out', type=str, help='output prefix', default='rbf_')
     parser.add_argument('--threads', type=int, help='number of threads', default=30)
     parser.add_argument('--r0', type=float, help='r0 value', default=1.0)
     parser.add_argument('--apstar', help='apStar file format?',action="store_true")
     parser.add_argument('--fakehole', help='add fake holes?',action="store_true")
+    parser.add_argument('--nofill', help='add fake holes?',action="store_true")
     parser.add_argument('--cmrange', type=float, nargs='+', help='list of [C/M]')
     parser.add_argument('--nmrange', type=float, nargs='+', help='list of [N/M]')
     parser.add_argument('--vtrange', type=float, nargs='+', help='list of vmicro')
@@ -53,13 +54,14 @@ if __name__ == '__main__' :
     start = time.time()
     print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
 
-    rbf.fill(args.planfile,grid=args.grid,out=args.out,dir=args.dir,r0=args.r0,apstar=args.apstar,fakehole=args.fakehole,threads=args.threads,
+    if not args.nofill :
+        rbf.fill(args.planfile,grid=args.grid,out=args.out,dir=args.dir,r0=args.r0,apstar=args.apstar,fakehole=args.fakehole,threads=args.threads,
              cmrange=args.cmrange,nmrange=args.nmrange,vtrange=args.vtrange)
-    rbf.mergeholes(args.planfile,grid=args.grid,out=args.out,dir=args.dir,r0=args.r0,apstar=args.apstar,
+        rbf.mergeholes(args.planfile,grid=args.grid,out=args.out,dir=args.dir,apstar=args.apstar,
              cmrange=args.cmrange,nmrange=args.nmrange,vtrange=args.vtrange)
     # if we're doing fake holes, generate plots for results
     if args.fakehole :
-        rbf.comp(args.planfile,out=args.out,grid=args.grid,fakehole=True,hard=True,
+        rbf.comp(args.planfile,out=args.out,grid=args.grid,dir=args.dir,fakehole=True,hard=True,
                  cmrange=args.cmrange,nmrange=args.nmrange,vtrange=args.vtrange)
 
     # end time

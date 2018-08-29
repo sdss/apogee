@@ -34,6 +34,12 @@ if __name__ == '__main__' :
     parser.add_argument("--order",type=int,default=4)
     parser.add_argument("--fitfrac",type=float,default=1.)
     parser.add_argument("--pixels",nargs='+',type=int)
+    parser.add_argument("--teff",nargs='+',type=float,default=[0,10000])
+    parser.add_argument("--logg",nargs='+',type=float,default=[-1,6])
+    parser.add_argument("--mh",nargs='+',type=float,default=[-3,3])
+    parser.add_argument("--am",nargs='+',type=float,default=[-2,2])
+    parser.add_argument("--cm",nargs='+',type=float,default=[-2,2])
+    parser.add_argument("--nm",nargs='+',type=float,default=[-2,2])
     parser.add_argument("--threads",type=int,default=32)
     parser.add_argument("--suffix",type=str,default='')
     parser.add_argument("--rot", help='Use rotation parameter?',action="store_true")
@@ -42,7 +48,7 @@ if __name__ == '__main__' :
     parser.add_argument("--done")
     parser.add_argument("--host")
     args=parser.parse_args()
-    nn.train(args.file,plot=args.plot,pixels=tuple(args.pixels),suffix=args.suffix,order=args.order,fitfrac=args.fitfrac,rot=args.rot,nolog=args.nolog,elem=args.elem,threads=args.threads)
+    nn.train(args.file,plot=args.plot,pixels=tuple(args.pixels),suffix=args.suffix,order=args.order,fitfrac=args.fitfrac,rot=args.rot,nolog=args.nolog,elem=args.elem,threads=args.threads,teff=args.teff,logg=args.logg,mh=args.mh,am=args.am,cm=args.cm,nm=args.nm)
 
     if args.done is not None :
         subprocess.call(['setdone',args.done])

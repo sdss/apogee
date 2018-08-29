@@ -44,7 +44,7 @@ from tools import html
 
 colors=['r','g','b','c','m','y']
 
-def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whiten=False,writeraw=False,test=False, incremental=False, threads=4) :
+def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whiten=False,writeraw=False,test=False, incremental=False, threads=4, rawsynth=False) :
     """ Read in grid of spectra and do PCA compression
     """
 
@@ -83,13 +83,18 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
     indata['indir'] = indir
     indata['outfile'] = outfile
     indata['writeraw'] = writeraw
+    indata['rawsynth'] = rawsynth
     if incremental : indata['incremental'] = True
     else : indata['incremental'] = False
     for key in ['am0','dam','nam','cm0','dcm','ncm','nm0','dnm','nnm','vt0','dvt','nvt','mh0','dmh','nmh','logg0','dlogg','nlogg','teff0','dteff','nteff'] :
         indata[key] = p[key]
 
     # determine number of pixels per piece
-    nwave=aspcap.nw_chip.sum()
+    if rawsynth :
+        wave=np.arange(15100.,17000.01,0.05)
+        nwave=len(wave)
+    else :
+        nwave=aspcap.nw_chip.sum()
     nspec=int(np.ceil(nwave/npiece))
     print(npiece,npca,nspec,nwave)
 
@@ -186,6 +191,7 @@ def dopca(pars) :
     indir=p['indir']
     outfile=p['outfile']
     writeraw=p['writeraw']
+    rawsynth=p['rawsynth']
 
     if p['incremental'] :
         print('using incremental PCA')
@@ -198,7 +204,11 @@ def dopca(pars) :
     nmod=0
     pix_apstar=aspcap.gridPix()
     pix_aspcap=aspcap.gridPix(apStar=False)
-    nwave=aspcap.nw_chip.sum()
+    if rawsynth:
+        wave=np.arange(15100.,17000.01,0.05)
+        nwave=len(wave)
+    else :
+        nwave=aspcap.nw_chip.sum()
 
     for ivm,vm in enumerate(spectra.vector(p['vt0'],p['dvt'],p['nvt'])) :
       for icm,cm in enumerate(spectra.vector(p['cm0'],p['dcm'],p['ncm'])) :

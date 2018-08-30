@@ -497,7 +497,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
             if elem == '' :
                 spectra.add_dim(hdu.header,rawwave[0],rawwave[1]-rawwave[0],1,'WAVELENGTH',idim)
             else :
-                hdu.header.append('CDELT1',rawwave[1]-rawwave[0])
+                hdu.header.append(('CDELT1',rawwave[1]-rawwave[0]))
                 for iwind in range(nwind) :
                     hdu.header.append(('WIND0_{:d}'.format(iwind),wvac[iwind,0]))
                     hdu.header.append(('WIND1_{:d}'.format(iwind),wvac[iwind,1]))

@@ -60,7 +60,6 @@ def mkgriddirs(configfile) :
 
         # make all of the individual planfiles from the master planfile
         speclib_split(dir+name)
-        speclib_split(dir+name,amsplit=False)
         #subprocess.call(['idl','-e',"speclib_allplan,'"+name+".par'"])
 
         # make pbs scripts
@@ -72,12 +71,15 @@ def mkgriddirs(configfile) :
         #subprocess.call(['mkslurm.csh','mkgridlsf','"plan/'+name+'_a[mp]*vp??.par"'],shell=False)
         #subprocess.call(['mkslurm.csh','bundle','"plan/'+name+'_??.par"'],shell=False)
 
-        mkslurm.write('mkgrid plan/'+name+'_a[mp]*vp20.par plan/'+name+'_a[mp]vp48.par plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=32)
-        mkslurm.write('mkrbf plan/'+name+'_c[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=1)
-        mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=12)
-        mkslurm.write('bundle plan/'+name+'_??.par',queryhost=os.uname()[1],queryport=1052,maxrun=32)
-        mkslurm.write('pca --pcas 12 75 --incremental --threads 2 --writeraw plan/'+name+'.par',queryhost=os.uname()[1],queryport=1052,runplans='')
-
+        if name == p['GRID']['specdir'][i] :
+            speclib_split(dir+name,amsplit=False)
+            mkslurm.write('mkgrid plan/'+name+'_a[mp]*vp20.par plan/'+name+'_a[mp]vp48.par plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=32)
+            mkslurm.write('mkrbf plan/'+name+'_c[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=1,time='72:00:00')
+            mkslurm.write('mkrbf --nofill plan/'+name+'.par',name='mkrbfholes',runplans=False,time='72:00:00')
+        else :
+            mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=12,time='24:00:00')
+            #mkslurm.write('bundle plan/'+name+'_??.par',queryhost=os.uname()[1],queryport=1052,maxrun=32)
+            mkslurm.write('pca --pcas 12 75 --incremental --threads 2 --writeraw plan/'+name+'.par',runplans=False,time='72:00:00')
 
 def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,vtsplit=True,el=None) :
     """ Make a bunch of individual plan files from master, splitting [alpha/M],[C/M],[N/M],vt

@@ -530,6 +530,60 @@ def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
             hdulist.append(hdunorm)
             hdulist.writeto(specdir+'/'+p['name']+'.fits',overwrite=True)
 
+def mkgridlink(planfile) :
+
+    # Read planfile
+    if not os.path.isfile(planfile): 
+        print('{:s} does not exist'.format(planfile))
+        return
+    p=yanny.yanny(planfile,np=True)
+
+    linelist=p['linelist'][2:]
+
+    for ivm,vm in enumerate(spectra.vector(p['vt0'],p['dvt'],p['nvt'])) :
+      for icm,cm in enumerate(spectra.vector(p['cm0'],p['dcm'],p['ncm'])) :
+        for inm,nm in enumerate(spectra.vector(p['nm0'],p['dnm'],p['nnm'])) :
+          for iam,am in enumerate(spectra.vector(p['am0'],p['dam'],p['nam'])) :
+            file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
+                   atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
+            s=np.zeros([int(p['nmh']),int(p['nlogg']),int(p['nteff']),nwave],dtype=np.float32)
+
+            GKg= fits.open('../giantisotopes/tgGK_'+linelist+'_lsfcombo5_l33/'+file)[0]
+            Mg= fits.open('../giantisotopes/tgM_'+linelist+'_lsfcombo5_l33/'+file)[0]
+            Fd= fits.open('../solarisotopes/tdF_'+linelist+'_lsfcombo5_l33/'+file)[0]
+            GKd= fits.open('../solarisotopes/tdGK_'+linelist+'_lsfcombo5_l33/'+file)[0]
+            Md= fits.open('../solarisotopes/tdM_'+linelist+'_lsfcombo5_l33/'+file)[0]
+            grids = [GKg, Mg, Fd, GKd, Md]
+            for imh,mh in enumerate(spectra.vector(p['mh0'],p['dmh'],p['nmh'])) :
+              for ilogg,logg in enumerate(spectra.vector(p['logg0'],p['dlogg'],p['nlogg'])) :
+                for iteff,teff in enumerate(spectra.vector(p['teff0'],p['dteff'],p['nteff'])) :
+                    igrid=0
+                    i,j,k=getindex(GKg.header,(2,3,4),(teff,logg,mh))
+                    if i<0 or j<0 or k<0 :
+                        igrid=1
+                        i,j,k=getindex(Mg.header,(2,3,4),(teff,logg,mh))
+                    if i<0 or j<0 or k<0 :
+                        igrid=2
+                        i,j,k=getindex(Fd.header,(2,3,4),(teff,logg,mh))
+                    if i<0 or j<0 or k<0 :
+                        igrid=3
+                        i,j,k=getindex(GKd.header,(2,3,4),(teff,logg,mh))
+                    if i<0 or j<0 or k<0 :
+                        igrid=4
+                        i,j,k=getindex(Md.header,(2,3,4),(teff,logg,mh))
+                    if i<0 or j<0 or k<0 :
+                        print("can't find model to fill!",mh,logg,teff)
+                    else :
+                        s[imh,ilogg,iteff,:]:grids[igrid].data[k,j,i,:]
+
+def getindex(header,axes,vals) :
+
+    out=[]
+    for ax,val in zip(axes,vals) :
+        i = (val-header['CRVAL'+str(ax)])/header['CDELT'+str(ax)]
+        out.append(i)
+    return out
+
 def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,ls=None,comp=False,apred='r8',threads=32,rbf=False) :
     """ Create a grid of synthetic spectra using Turbospectrum given input parameter file
     """

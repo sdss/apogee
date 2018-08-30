@@ -4,14 +4,14 @@ import os
 import argparse
 
 
-def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None,idlthreads=1,runplans='runplans ',time='240:00:00') :
+def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None,idlthreads=1,runplans=True,time='240:00:00',name=None) :
 
     try :
         os.mkdir(outdir)
     except:
         pass
 
-    name=cmd.split()[0].strip('"')
+    if name is None : name=cmd.split()[0].strip('"')
     file = outdir+name
     f=open(file,'w')
 
@@ -23,7 +23,7 @@ def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None
     f.write('#SBATCH --nodes=1\n')
     f.write('#SBATCH -o '+os.path.basename(file)+'.out\n' )
     f.write('#SBATCH -e '+os.path.basename(file)+'.out\n' )
-    if queryhost is not None :
+    if runplans :
         f.write('setenv QUERYHOST '+queryhost+'\n' )
         f.write('setenv QUERYPORT '+str(queryport)+'\n')
         f.write('setenv APOGEE_MAXRUN '+str(maxrun)+'\n' )
@@ -31,7 +31,8 @@ def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None
 
     if cwd is None : cwd=os.getcwd()
     f.write('cd '+cwd+'\n' )
-    f.write(runplans + cmd+'\n' )
+    if runplans : f.write('runplans ' + cmd+'\n' )
+    else : f.write(cmd+'\n' )
     f.write('wait\n' )
     f.write('echo DONE\n' )
     f.close()

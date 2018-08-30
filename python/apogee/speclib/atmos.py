@@ -250,7 +250,7 @@ def fill_holes(argv) :
                '  {:+.2f} {:+.2f} {:+.2f} {:4d} {:+.1f}'.format(all['z'][i]-all['z'][fill],all['c'][i]-all['c'][fill],all['a'][i]-all['a'][fill],all['teff'][i]-all['teff'][fill],all['logg'][i]-all['logg'][fill]) )
 
     # FITS file output
-    out=np.zeros([len(all_c),len(all_a),len(all_z),len(all_logg),len(all_teff)])
+    out=np.zeros([len(all_c),len(all_a),len(all_z),len(all_logg),len(all_teff)],dtype=np.float32)
     i=0
     for teff in range(len(all_teff)) :
        for z in range(len(all_z)) :

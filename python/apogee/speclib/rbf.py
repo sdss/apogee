@@ -203,6 +203,9 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
                    grid[0].data[:,:,:,pap[0]:pap[1]]=data[iam,:,:,:,pasp[0]:pasp[1]]
            else :
                    grid[0].data = data[iam,:,:,:,:]
+           grid[0].header.add_comment('holes filled using RBF interpolation')
+           grid[0].header.add_comment('APOGEE_VER:'+os.environ['APOGEE_VER'])
+           grid[0].header.append(('R0',r0,'value of r0 used for RBF interpolation'))
            ham=int( round( (am-holes.header['CRVAL4']) / holes.header['CDELT4']) )
            # append the modified holes file for this subgrid
            hout=fits.ImageHDU(np.squeeze(holes.data[hcm,ham,:,:,:]))

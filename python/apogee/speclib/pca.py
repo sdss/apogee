@@ -326,6 +326,7 @@ def test(planfile,npiece=12,npca=75,run=True,fit=True) :
     # list of all the different tests and their input.nml files 
     fdirs = ['pca_12_75/','pca_12_75/algor3/','pca_12_75/algor1/','pca_12_75/algor1_12/','pca_12_75/algor3_12/',
              'pca_12_75/algor3_001/','pca_12_75/algor3_01/','pca_12_75/algor3_1',
+             'pca_12_75/algor3_12_01/','pca_12_75/algor3_12_1',
              'pca_12_75/algor3_indi1234567/','pca_12_75/algor3_indi3142567/',
              'pca_12_75/algor3_4d' ] 
 
@@ -355,6 +356,7 @@ def test(planfile,npiece=12,npca=75,run=True,fit=True) :
         # create the command file to run FERRE
         mkslurm.write('ferre.x',outdir=fdir+'/',runplans='',cwd=os.getcwd()+'/'+fdir,time='48:00:00')
 
+    # test-specific input.nml files
     ferre.writenml('pca_12_75/input.nml','test',l,nov=0,ncpus=1)
     ferre.writenml('pca_12_75/algor3/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32)
     ferre.writenml('pca_12_75/algor1_12/input.nml','test',l,algor=1,renorm=4,obscont=1,ncpus=32,indini=[1,1,1,1,2,2,3])
@@ -362,7 +364,9 @@ def test(planfile,npiece=12,npca=75,run=True,fit=True) :
     ferre.writenml('pca_12_75/algor3_12/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,indini=[1,1,1,1,2,2,3])
     ferre.writenml('pca_12_75/algor3_001/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.001)
     ferre.writenml('pca_12_75/algor3_01/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.01)
+    ferre.writenml('pca_12_75/algor3_12_01/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.01,indini=[1,1,1,1,2,2,3])
     ferre.writenml('pca_12_75/algor3_1/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.1)
+    ferre.writenml('pca_12_75/algor3_12_1/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.1,indini=[1,1,1,1,2,2,3])
     ferre.writenml('pca_12_75/algor3_indi1234567/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,indi=[1,2,3,4,5,6,7])
     ferre.writenml('pca_12_75/algor3_indi3142567/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,indi=[3,1,4,2,5,6,7])
     ferre.writenml('pca_12_75/algor3_4d/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,indv=[4,5,6,7])
@@ -391,10 +395,11 @@ def test(planfile,npiece=12,npca=75,run=True,fit=True) :
             sample.comp(fdir+'/test',hard=True,true='raw/test.ipf')
             tab.append([fdir+'/test.png',fdir+'/test_2.png'])
             dt=subprocess.check_output("grep ellapsed "+fdir+"/ferre.x.out | tail -1 | awk '{print $3}'",shell=True)
-            yt.append(fdir+'<br>'+dt)
+            yt.append(fdir+'<br>FERRE time: '+dt+' s')
         except : pass
 
     header = '<h3>'+outfile+'</h3>\n'
+    header = header + '<br> Histogram of pixel ratios between raw and PCA for test sample:<br>'
     header = header + '<img src='+outfile+'_pca.png>\n'
 
     html.htmltab(tab,file='test.html',header=header,ytitle=yt)

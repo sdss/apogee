@@ -33,7 +33,12 @@ import pdb
 from astropy.io import fits
 
 def cval(x) :
-    """ routine to convert value to "Kurucz-style" string
+    """ routine to convert value to "Kurucz-style" string, i.e. mXX or pXX
+
+    Args:
+        x (float) : value to put into output format
+    Returns :
+        (str) : string with output
     """
     if x < -0.000001 :
       prefix = 'm'
@@ -43,6 +48,14 @@ def cval(x) :
 
 def filename(teff,logg,z,c,a,model='Unknown',vers='x3') :
     """Function to return atmosphere file name for either MARCS-style or KURUCZ-style 
+
+    Args:
+        teff (int) : effective temperature
+        logg (float) : surface gravity
+        z (float) : [M/H]
+        c (float) : [C/M]
+        model (str) : atmosphere type (default='Unknown' --> kurucz)
+        vers (str) : for MARCS, "version number" for filename (default='x3')
     """
     if model.upper() == 'MARCS' :
         # MARCS file names
@@ -64,8 +77,18 @@ def filename(teff,logg,z,c,a,model='Unknown',vers='x3') :
     return file
 
 def find_filler(all,i,model='Unknown') :
-    """ Find "closest" existing model for an atmosphere hole using scheme suggested largely by Matt Shetrone 
+    """ Find "closest" existing model for an atmosphere hole using "distance" scheme suggested largely by Matt Shetrone 
+
+    Args :
+        all (recarray) : input list of atmospheres
+        i (int) : index of hole
+        model (str) : type of atmopshere (default='Unknown' --> kurucz)
+    Returns :
+        fill : index of "closest" atmosphere
+        dist : "distance" to closest atmosphere
     """
+
+    # calculate distance of all models from the hole
     dist = 0.7*abs(all['z'][i]-all['z'])/1.00 + 0.4*abs(all['a'][i]-all['a'])/1.00 + 0.17*abs(all['c'][i]-all['c'])/1.00 + 0.62*abs(all['teff'][i]-all['teff'])/100. + 1.5*abs(all['logg'][i]-all['logg'])
     # penalize models where [c/m]-[alpha/m] have opposite sign
     if all['c'][i] - all['a'][i] <= 0. :
@@ -73,6 +96,7 @@ def find_filler(all,i,model='Unknown') :
     else :
         bd = np.where((all['metric'] == 0.) & ((all['c']-all['a']) <= 0.))
     dist[bd] +=  4*0.4*abs(all['a'][i]-all['a'][bd])/1.00 + 4*0.17*abs(all['c'][i]-all['c'][bd])/1.00
+
     # search only through computed models and only where alpha and m go in opposite directions
     #gd = np.where((all['metric'] == 0.) & ((all['z'][i]-all['z'])*(all['a'][i]-all['a']) <= 0.))
     # search only through computed models 
@@ -81,12 +105,24 @@ def find_filler(all,i,model='Unknown') :
     return fill, dist[fill]
 
 def writetmp(tmp,file) :
+    """ Auxiliary routine to open file, write string, and close file
+
+    Args:
+        temp (str) : string to write
+        file (str) : file to write to
+    """
+
     fp = open(file,'w')
     fp.write(tmp)
     fp.close()
 
 def update_header_metallicity(file,z) :
-    ''' update metallicity in Kurucz atmosphere file '''
+    """ update metallicity in Kurucz atmosphere file 
+
+    Args :
+        file (str) : name of file to update
+        z (float) : new metallicity
+    """
     out=subprocess.check_output(['grep','TITLE',file])
     old_m_h = out.split()[1].strip('[]')
     subprocess.check_output(['sed','-i',
@@ -148,8 +184,9 @@ def update_header_h_he(file) :
     tmp = subprocess.check_output(['gawk','/ABUNDANCE SCALE/{gsub ($9,"'+he_new+'")};{print}',file])
     writetmp(tmp,file)
 
-# routine to parse command-line triples
 def pars(s) :
+    """ routine to parse command-line triples
+    """
     try :
         x, y, z = s.split(',')
         return x, y, z
@@ -157,7 +194,9 @@ def pars(s) :
         raise argparse.ArgumentTypeError("range must be specified as number,start,delta")
 
 def fill_holes(argv) :
-    """ Main routine to create "holefile" for grid as specified on command line
+    """ Main routine to create "holefile" for grid as specified on command line.
+    Creates links for the missing atmospheres, and outputs FITS and ASCII file
+    giving the grid and hole filling information.
     """
 
     # set up arguments, all required!

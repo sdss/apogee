@@ -6,6 +6,8 @@
 # @License: BSD 3-Clause
 # @Copyright: Jon Holtzman
 
+# routines related to creation of synthetic spectra
+
 from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
@@ -42,14 +44,22 @@ from tools import match
 colors=['r','g','b','c','m','y']
 
 def showtime(string) :
-    """ Utiltiy routine to print a string and clock time
+    """ Utility routine to print a string and clock time, with flush to stdout
+
+    Args:
+        string(str) : string to print
     """
     print(string+' {:8.2f}'.format(time.time()))
     sys.stdout.flush()
 
 def kurucz2turbo(infile,outfile,trim=0) :
     """ Convert Kurucz model atmosphere for use by Turbospectrum 
-        Allow for trimming of layers
+        Allows for trimming of layers
+
+    Args:
+        infile (str)  : name of input Kurucz atmosphere file
+        outfile (str) : name of output file
+        trim  (int)   : number of layers to remove (default=0)
     """
     try :
         fp=open(infile,'r')
@@ -77,6 +87,14 @@ def kurucz2turbo(infile,outfile,trim=0) :
 
 def marcs2turbo(infile,outfile,trim=0,fill=True) :
     """ Prepare MARCS input model for Turbospectrum, allowing for trimming of layers
+
+    Args :
+        infile (str)  : name of input MARCS file
+        outfile (str) : name of output MARCS fie
+        trim (int)    : number of layers to trim (default=0)
+
+    Returns :
+        0 if successful, -1 if not
     """
     try:
         fp=open(infile,'r')
@@ -86,7 +104,7 @@ def marcs2turbo(infile,outfile,trim=0,fill=True) :
             fp=open(infile+'.filled','r')
         except :
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filename)
-            return
+            return -1
 
     fout=open(outfile,'w')
     layer = 0
@@ -104,10 +122,39 @@ def marcs2turbo(infile,outfile,trim=0,fill=True) :
     return 0
 
 def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
-    els=None,atmod=None,kurucz=True,atmosroot=None,atmosdir=None,nskip=0,endskip=0,fill=True,
+    els=None,atmod=None,kurucz=True,atmosroot=None,atmosdir=None,nskip=0,fill=True,
     linelist='20150714',h2o=None,linelistdir=None,
-    save=False,run=True,split=200,fluxcol=2) :
+    save=False,run=True) :
     """ Runs Turbospectrum for specified input parameters
+
+    Args:
+        teff (int) : Effective temperature
+        logg (float) : log(surface gravity)
+        mh (float ) : [M/H]
+        am (float ) : [alpha/M]
+        cm (float ) : [C/M]
+        nm (float ) : [N/M]
+        wrange (list) : wavelength range (default [15100,17000.])
+        dw (float)  : wavelength spacing (default 0.05 A)
+        vmicro (float ) : microturbulent velocity (default 2.0 km/s)
+        solarisotopes (bool) : use solar isotope ratios, else "giant" isotope ratios ( default False )
+        elemgrid (str) :  name of element for minigrid calculation
+        welem (str) :  NOT IMPLEMENTED set of wavelength ranges
+        els (list of pairs) : list of [element name, abundance] pairs
+        atmod (str) : name of atmosphere model (default=None, model is determined from input parameters)
+        atmosroot (str) : root atmosphere directory (default=None --> $APOGEE_SPECLIB/atmos)
+        atmosdir (str) :  atmosphere directory under atmosroot (default=None --> kurucz or marcs/MARCS_v3_2016, depending on kurucz boolean)
+        nskip (int)  : number of layers to strip (for kurucz, nskip*7), default=0
+        fill (bool)  : use filled atmosphere hole if model requests it ( default = True), else skip synthesis
+        linelist (str) : name of linelist (default='20150714')
+        linelistdir (str) : directory for linelist (default=None --> $APOGEE_SPECLIB/linelists)
+        h2o (int or None) : H2O linelist to use: 0=none, 1=8.5V, 2=9.5V, None-->chooses by Teff and [alpha/H]
+        save (bool ) : save temporary directory and files for synthesis (default=False)
+        run (bool) :  actually do the synthesis (default=True)
+
+    Returns:
+        spec (np.array) : synthetic spectrum
+        specnorm (np.array) : synthetic spectrum, normalized
     """
 
     # directory setup
@@ -364,20 +411,41 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         if not save : shutil.rmtree(workdir)
         return spec, specnorm
 
-def fail(out) :
+def fail(out,file='FAILURE') :
     """ Routine to log to FAILURE file
+
+    Args:
+        out (str) : string to write to file
+        file (str) : name of failure file (default='FAILURE')
     """
-    ferr = open('FAILURE','a+')
+    ferr = open(file,'a+')
     ferr.write(out+'\n')
     ferr.close()
 
 def prange(start,delta,n) :
-    """ Routine to return vector of values given start, delta, n
+    """ Routine to return vector of values given start, delta, n as strings
+
+    Args :
+        start (str) : starting vlue
+        delta (str) : delta
+        n (str) : number of values
+
+    Returns :
+        np.array : array of n values, from start incremented by delta
     """
     return float(start)+np.arange(int(n))*float(delta)
 
 def get_vmicro(vmicrofit,vmicro) :
-    """ Placeholder routine to return vmicro given a fit type
+    """ NOT YET IMPLEMENTED: placeholder routine to return vmicro given a fit type
+        CURRENTLY returns vmicro
+   
+    Args :
+        vmicrofit (int) : input vmicro code to set fitting function
+        vmicro (float)  : input vmicro fitting function coefficients
+
+    Returns:
+        vmicro (float) : microturbulent velocity
+
     """ 
     if vmicrofit == 0 :
         return float(vmicro)
@@ -386,8 +454,15 @@ def get_vmicro(vmicrofit,vmicro) :
         pdb.set_trace()
     return  float(vmicro)
 
-def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
-    """ Create a grid of synthetic spectra using Turbospectrum given input parameter file
+def mkgrid(planfile,clobber=False,save=False,run=True) :
+    """ Create a grid of synthetic spectra using Turbospectrum given specifications in  input parameter file
+        Outputs results in FITS file
+
+    Args :
+        planfile (str) : name of input Yanny planfile with grid specifications
+        clobber ( bool ) : skip trying to use previously saved syntheses (by [M/H]) (default = False)
+        save (bool) :  save all temporary files for syntheses (default = False)
+        run (bool)  : actually run syntheses (default = True)
     """
 
     # Read planfile
@@ -396,7 +471,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
         return
     p=yanny.yanny(planfile,np=True)
 
-    # header information
+    # grid specifications from input planfile
     wrange=[float(x) for x in p['wrange'].split()]
     dw=float(p['dw'])
     vacuum = int(p['vacuum']) if p.get('vacuum') else 0
@@ -423,6 +498,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
         nelem=1
         gd=range(nspec)
     else :
+        # number of minigrid abundances
         nelem=8
         wvac = mini_linelist(elem,linelist,maskdir)
         nwind=wvac.shape[0]
@@ -471,7 +547,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
                     wrange=wrange,dw=dw,atmosdir=marcsdir,
                     elemgrid=elem,linelistdir=linelistdir+'/'+elem+'/',linelist=linelist,vmicro=vout,
                     solarisotopes=solarisotopes,
-                    nskip=nskip,kurucz=kurucz,run=run,save=save,split=split) 
+                    nskip=nskip,kurucz=kurucz,run=run,save=save) 
                   nskip = nskip+dskip if isinstance(spec,float) else -1
                 if nskip > 0 : 
                     print('FAILED Turbospec',nskip)
@@ -531,6 +607,8 @@ def mkgrid(planfile,clobber=False,save=False,run=True,split=None,highres=9) :
             hdulist.writeto(specdir+'/'+p['name']+'.fits',overwrite=True)
 
 def mkgridlink(planfile) :
+    """  DEVELOPMENT : create coarse grid by merging syntheses from multiple grids
+    """
 
     # Read planfile
     if not os.path.isfile(planfile): 
@@ -577,15 +655,25 @@ def mkgridlink(planfile) :
                         s[imh,ilogg,iteff,:]:grids[igrid].data[k,j,i,:]
 
 def getindex(header,axes,vals) :
+    """ DEVELOPMENT : get index of requested model from input grid header
 
+    """
     out=[]
     for ax,val in zip(axes,vals) :
         i = (val-header['CRVAL'+str(ax)])/header['CDELT'+str(ax)]
         out.append(i)
     return out
 
-def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,ls=None,comp=False,apred='r8',threads=32,rbf=False) :
-    """ Create a grid of synthetic spectra using Turbospectrum given input parameter file
+def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred='r8',prefix='') :
+    """ Create a grid of LSF-convolved spectra given specifications in input parameter file and existing raw syntheses
+
+    Args :
+        planfile (str) : name of Yanny parameter file with specifications
+        highres (int ) : number of subpixels to use for convolution (default=9)
+        fiber (int or None ) : fiber number for LSF, if None use parameter file (default=None)
+        ls () : lsf convolution kernel (?), if precomputed (default=None)
+        apred (str) : name of reduction version to get LSF and WAVE from (default='r8')
+        prefix (str) : string to prepend for input syntheses file, e.g. 'rbf_' to use rbf-filled grids (default='')
     """
 
     # Read planfile
@@ -626,8 +714,6 @@ def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,ls=None,comp=False,apr
             hdu.writeto(lsfile,overwrite=True)
             os.remove(lsfile+'.lock') 
 
-    if rbf : prefix = 'rbf_'
-    else : prefix = ''
     specdata = fits.open(specdir+'/'+prefix+p['name']+'.fits')[0]
     npix = specdata.data.shape[-1]
     nspec=1
@@ -675,6 +761,8 @@ def mkgridlsf(planfile,clobber=False,highres=9,fiber=None,ls=None,comp=False,apr
     return smoothdata
 
 def complsf(name) :
+    """ TEST : routine to compare calculated LSFs between Python and IDL
+    """
     new = fits.open(name+'.fits')[0]
     a = fits.open('old_'+name+'.fits')[1].data
     b = fits.open('old_'+name+'.fits')[2].data
@@ -695,6 +783,14 @@ def complsf(name) :
 
 def mkspec(pars) :
     """ Makes a single spectrum given input pars
+        Used by mksynth for multi-processor calculations
+
+    Args :
+        pars (list ) : list of spectrum parameters: [Teff, logg, [M/H], [alpha/M], [C/M], [N/M], vmicro, vrot, 20 abundances]
+
+    Returns :
+        pars : input parameters
+        spec : synthetic spectrum
     """
     teff=pars[0].astype('int')
     logg=pars[1]
@@ -715,6 +811,18 @@ def mkspec(pars) :
 
 def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fiber='combo',plot=False,lines=None) :
     """ Make a series of spectra from parameters in an input file, with parallel processing for turbospec
+        Outputs to FITS file {file}.fits
+
+    Args:
+        file (str) : name of input file with parameters of spectra to calculate
+        threads (int) : number of parallel processes
+        highres (int) : number of subpixels for LSF convolution (default=9)
+        waveid (int) : ID for wavelength calibration file (default=2420038)
+        lsfid (int) : ID for LSF calibration file (default=5440020)
+        apred (str) : reduction version for waveid,lsfid (default='r10')
+        fiber (int or str) : fiber for LSF (default='combo')
+        plot (bool) : plot each spectrum (default=False)
+        lines (list) : specify limited range of input lines to calculate (default=None, i.e. all lines)
     """
     pars=np.loadtxt(file)
     if lines is not None :
@@ -763,6 +871,15 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fi
    
 def filter_lines(infile,outfile,wind,nskip=0) :
     """ Read from input linelist file, output comments and lines falling in windows of [w1,w2] to outfile
+
+    Args :
+        infile (str) : name of input file
+        outfile (str) : name of output file
+        wind (list of [w1,w2] pairs) : list of window ranges
+        nskip (int) : number of header lines to skip (default=0)
+
+    Returns :
+        nout (int) : number of windows
     """
     fin=open(infile,'r')
     fout=open(outfile,'w')
@@ -782,7 +899,7 @@ def filter_lines(infile,outfile,wind,nskip=0) :
     return nout
  
 def mini_linelist(elem,linelist,maskdir) :
-    """ Produce an abbreviated line list for minigrid construction given mask file and lineist file IN AIR
+    """ Produce an abbreviated line list for minigrid construction given mask file and linelist file IN AIR
         Return array of vacuum wavelength ranges
     """
 

@@ -5,7 +5,7 @@ import astropy.table as table
 
 def read(infile,columns=None,agerange=[0,20.]) :
     """
-    Routine to read a Padova isochrone file using low-level I/O and return
+    Routine to read a Padova isochrone file and return
     a numpy structured array with the contents
 
     Args: 

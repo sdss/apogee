@@ -23,13 +23,27 @@ _SQRTTWO= numpy.sqrt(2.)
 
 
 def showtime(string) :
-    """ Utiltiy routine to print a string and clock time
+    """ Utiltiy routine to print a string and clock time, with flush to stdout
+
+    Args:
+        string (str) : string to print with clock time
     """
     print(string+' {:8.2f}'.format(time.time()))
     sys.stdout.flush()
 
 def get(lsfid,waveid,fiber,highres=9,apred=None) :
     """  Return standard sparsified LSF
+
+    Args:
+        lsfid (int) : ID of apLSF file
+        waveid (int) : ID of apWave file
+        fiber (int) : fiber(s) of LSF
+        highres (int) : number of subpixels for LSF calculation (default=9)
+        apred (str) : apred version to get apLSF and apWave fromn (default=None --> uses default from apload)
+    Returns :
+        x (np.array) : array of relative pixel locations for LSF
+        l () : output LSF
+
     """
     if apred is not None: apload.apred = apred
     x=numpy.arange(-15.,15.01,1./highres)
@@ -40,12 +54,8 @@ def get(lsfid,waveid,fiber,highres=9,apred=None) :
 def convolve(wav,spec,
              lsf=None,xlsf=None,dxlsf=None,fiber='combo',
              vmacro=6.,vrot=None):
-    """
-    NAME:
-       convolve
-    PURPOSE:
-       convolve with the APOGEE LSF and resample to APOGEE's apStar wavelength grid
-    INPUT:
+    """ convolve an input spectrum with APOGEE LSF and resample to APOGEE's apStar wavelength grid
+    Args:
        wav - wavelength array (linear in wavelength in \AA)
        spec - spectrum on wav wavelength grid [nspec,nwave]
        lsf= (None) pre-calculated LSF array from apogee.spec.lsf.eval
@@ -54,7 +64,7 @@ def convolve(wav,spec,
           dxlsf= (None) spacing of pixel offsets
        fiber= if lsf is None, the LSF is calculated for this fiber
        vmacro= (6.) Gaussian macroturbulence smoothing to apply as well (FWHM or a [sparse] matrix like lsf on the same x grid; can be computed with apogee.modelspec.vmacro)
-    OUTPUT:
+    Returns :
        spectrum on apStar wavelength grid
     HISTORY:
        2015-03-14 - Written - Bovy (IAS)
@@ -106,14 +116,10 @@ def convolve(wav,spec,
     return lsf.dot(tmp.T).T.toarray()[:,::hires]
 
 def sparsify(lsf):
-    """
-    NAME:
-       sparsify
-    PURPOSE:
-       convert an LSF matrix calculated with eval [ncen,npixoff] to a sparse [ncen,ncen] matrix with the LSF on the diagonals (for quick convolution with the LSF)
-    INPUT:
+    """convert an LSF matrix calculated with eval [ncen,npixoff] to a sparse [ncen,ncen] matrix with the LSF on the diagonals (for quick convolution with the LSF)
+    Args:
        lsf - lsf matrix [ncen,npixoff] calculated by eval
-    OUTPUT:
+    Returns :
        sparse matrix with the lsf on the diagonals
     HISTORY:
        2015-03-14 - Written - Bovy (IAS)
@@ -131,15 +137,11 @@ def sparsify(lsf):
     return sparse.diags(diagonals,offsets)
 
 def dummy(dx=1./3.,sparse=False):
-    """
-    NAME:
-       dummy
-    PURPOSE:
-       return a 'dummy' LSF that is a delta function
-    INPUT:
+    """ return a 'dummy' LSF that is a delta function
+    Args:
        dx= (1/3) spacing between LSF centers in the apStar grid
        sparse= (False) if True, return a sparse representation that can be passed to apogee.spec.lsf.convolve for easy convolution
-    OUTPUT:
+    Returns:
        LSF(x|pixel center);
        pixel centers are apStarWave if dx=1, and denser 1/integer versions if dx=1/integer
     HISTORY:
@@ -158,16 +160,12 @@ def dummy(dx=1./3.,sparse=False):
     return out
 
 def eval(x,fiber='combo',lsfid=5440020,waveid=2420038,sparse=False):
-    """
-    NAME:
-       eval
-    PURPOSE:
-       evaluate the LSF for a given fiber
-    INPUT:
+    """ evaluate the LSF for a given fiber
+    Args :
        x - Array of X values for which to compute the LSF, in pixel offset relative to pixel centers; the LSF is calculated at the x offsets for each pixel center; x need to be 1/integer equally-spaced pixel offsets
        fiber= ('combo') fiber number or 'combo' for an average LSF (uses the same one-based indexing as the APOGEE fibers [i.e., fibers range from 1 to 300])
        sparse= (False) if True, return a sparse representation that can be passed to apogee.spec.lsf.convolve for easy convolution
-    OUTPUT:
+    Returns :
        LSF(x|pixel center);
        pixel centers are apStarWave if dx=1, and denser 1/integer versions if dx=1/integer
     HISTORY:
@@ -211,16 +209,12 @@ def eval(x,fiber='combo',lsfid=5440020,waveid=2420038,sparse=False):
     return out
 
 def raw(x,xcenter,params,nowings=False):
-    """
-    NAME:
-       raw
-    PURPOSE:
-       Evaluate the raw APOGEE LSF (on the native pixel scale)
-    INPUT:
+    """ Evaluate the raw APOGEE LSF (on the native pixel scale)
+    Args :
        x - Array of X values for which to compute the LSF (in pixel offset relative to xcenter; the LSF is calculated at the x offsets for each xcenter if x is 1D, otherwise x has to be [nxcenter,nx]))
        xcenter - Position of the LSF center (in pixel units)
        lsfarr - the parameter array (from the LSF HDUs in the APOGEE data products)
-    OUTPUT:
+    Returns :
        LSF(x|xcenter))
     HISTORY:
        2015-02-26 - Written based on Nidever's code in apogeereduce - Bovy (IAS)
@@ -237,6 +231,9 @@ def raw(x,xcenter,params,nowings=False):
         wingparams[ii]= poly(xcenter+params['Xoffset'])
     # Get the GH parameters at each x
     ghparams= numpy.empty((params['Horder']+2,len(xcenter)))
+
+    # note that this is modified/corrected a bit from Bovy's routines based on comparison
+    # with LSF from IDL routines, noticeable when wings are non-negligible
     for ii in range(params['Horder']+2):
         if ii == 1:
             ghparams[ii]= 1.
@@ -254,7 +251,8 @@ def raw(x,xcenter,params,nowings=False):
     return out
 
 def _gausshermitebin(x,params,binsize):
-    """Evaluate the integrated Gauss-Hermite function"""
+    """ Evaluate the integrated Gauss-Hermite function
+    """
     ncenter= params.shape[1]
     out= numpy.empty((ncenter,x.shape[1]))
     integ= numpy.empty((params.shape[0]-1,x.shape[1]))
@@ -280,7 +278,8 @@ def _gausshermitebin(x,params,binsize):
     return out
 
 def _wingsbin(x,params,binsize,Wproftype):
-    """Evaluate the wings of the LSF"""
+    """Evaluate the wings of the LSF
+    """
     ncenter= params.shape[1]
     out= numpy.empty((ncenter,x.shape[1]))
     for ii in range(ncenter):
@@ -292,14 +291,10 @@ def _wingsbin(x,params,binsize,Wproftype):
     return out
 
 def unpack_lsf_params(lsfarr):
-    """
-    NAME:
-       unpack_lsf_params
-    PURPOSE:
-       Unpack the LSF parameter array into its constituents
-    INPUT:
+    """ Unpack the LSF parameter array into its constituents
+    Args :
        lsfarr - the parameter array
-    OUTPUT:
+    Returns :
        dictionary with unpacked parameters and parameter values:
           binsize: The width of a pixel in X-units
           Xoffset: An additive x-offset; used for GH parameters that vary globally
@@ -351,7 +346,8 @@ def unpack_lsf_params(lsfarr):
     return out
 
 def scalarDecorator(func):
-    """Decorator to return scalar outputs for wave2pix and pix2wave"""
+    """Decorator to return scalar outputs for wave2pix and pix2wave
+    """
     @wraps(func)
     def scalar_wrapper(*args,**kwargs):
         if numpy.array(args[0]).shape == ():
@@ -371,16 +367,12 @@ def scalarDecorator(func):
 
 @scalarDecorator
 def wave2pix(wave,chip,fiber=300,waveid=2420038):
-    """
-    NAME:
-       wave2pix
-    PURPOSE:
-       convert wavelength to pixel
-    INPUT:
+    """ convert wavelength to pixel
+    Args :
        wavelength - wavelength (\AA)
        chip - chip to use ('a', 'b', or 'c')
        fiber= (300) fiber to use the wavelength solution of
-    OUTPUT:
+    Returns :
        pixel in the chip
     HISTORY:
         2015-02-27 - Written - Bovy (IAS)
@@ -404,16 +396,12 @@ def wave2pix(wave,chip,fiber=300,waveid=2420038):
 
 @scalarDecorator
 def pix2wave(pix,chip,fiber=300,waveid=2420038):
-    """
-    NAME:
-       pix2wave
-    PURPOSE:
-       convert pixel to wavelength
-    INPUT:
+    """ convert pixel to wavelength
+    Args :
        pix - pixel
        chip - chip to use ('a', 'b', or 'c')
        fiber= (300) fiber to use the wavelength solution of
-    OUTPUT:
+    Returns :
        wavelength in \AA
     HISTORY:
         2015-02-27 - Written - Bovy (IAS)
@@ -434,7 +422,8 @@ def pix2wave(pix,chip,fiber=300,waveid=2420038):
     return out
 
 def _load_precomp(dr=None,fiber='combo',sparse=True):
-    """Load a precomputed LSF"""
+    """Load a precomputed LSF
+    """
     if dr is None: dr= appath._default_dr()
     if dr is 'current':
         warnings.warn("Preloaded LSFs for current DR not yet available, falling back on DR12 files")
@@ -455,18 +444,14 @@ def _load_precomp(dr=None,fiber='combo',sparse=True):
 
 def deconvolve(spec,specerr,
                lsf=None,eps=2500.,smooth=None):
-    """
-    NAME:
-       deconvolve
-    PURPOSE:
-       deconvolve the LSF
-    INPUT:
+    """ deconvolve the LSF
+    Args :
        spec - spectrum (nwave)
        specerr - spectrum uncertainty array (nwave)
        lsf= (None) LSF to deconvolve, needs to be specified in non-sparse format
        eps= (2500.) smoothness parameter
        smooth= (None) if set to a resolution, smooth with a FWHM resolution of 'smooth' and return the spectrum on the apStar wavelength grid
-    OUTPUT:
+    Returns :
        high-resolution deconvolved spectrum or smoothed deconvolved spectrum on apStar wavelength grid is smooth= is set
     HISTORY:
        2015-04-24 - Written - Bovy (IAS)
@@ -558,6 +543,14 @@ def test(highres=9.,plot=False):
 
 def rotate(deltav,vsini,epsilon=0.6) :
     """ rotation kernel from IDL Users library routine
+    
+    Args :
+        deltav (float) : velocity spacing of pixels
+        vsini (float ) : v sin i for profile
+        epsilon (float ) : parameter for rotation kernel (default=0.6)
+
+    Returns :
+        normalized rotation profile
     """
     e1 = 2.0*(1.0 - epsilon)
     e2 = numpy.pi*epsilon/2.0

@@ -6,6 +6,10 @@
 # @License: BSD 3-Clause
 # @Copyright: Jon Holtzman
 
+# routines for PCA compression of synthetic spectral grids, and
+# output into FERRE style library files. Also test routine
+# for calculating and comparing results from PCA library
+
 from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
@@ -46,6 +50,19 @@ colors=['r','g','b','c','m','y']
 
 def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whiten=False,writeraw=False,test=False, incremental=False, threads=4, rawsynth=False) :
     """ Read in grid of spectra and do PCA compression
+
+    Args :
+        planfile (str) : input file name with grid parameteris
+        dir (str) :  input directory relative to #$APOGEE_SPECLIB/synth/turbospec (default='kurucz/giantisotopes/tgGK_150714_lsfcombo5')
+        pcas (2-tuple) : input number of PCA components and number of pieces (default=None --> get from input planfile)
+        whiten (bool) : pre-whiten data? (default=False)
+        writeraw (bool ) : output uncompressed grid in FERRE format ? (default=False)
+        test (bool) : used abreviated grid for testing (speed) (default=False)
+        incremental (bool) : use incremental PCA routline (default=False)
+        threads (int) : number of threads to use for parallel calculation (default=4)
+        rawsynth (bool) : work on raw highres synthesis output (default=False), UNTESTED??
+
+    Output: compressed grid in FERRE format
     """
 
     # Read planfile and set output file name
@@ -176,6 +193,9 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
 
 def dopca(pars) :
     """ do a single PCA decomposition for a limited number of pixels
+
+    Args:
+        pars : input tuple giving required input
     """
     ipiece = pars[0]
     showtime('start piece: '+str(ipiece))
@@ -273,6 +293,14 @@ def showtime(string) :
     sys.stdout.flush()
 
 def liblink(lib,outdir) :
+    """ Utility routine to create links in output directory to FERRE library files
+       
+    Args:
+        lib (str) : root name of library
+        outdir (str) : name of output directory to create links in
+    Returns :
+        prefix (str) : prefix giving relative directory of library files 
+    """
     try : os.mkdir(outdir)
     except : pass
     if outdir[-1] != '/' : outdir=outdir+'/'
@@ -287,7 +315,20 @@ def liblink(lib,outdir) :
     return prefix
 
 def test(planfile,npiece=12,npca=75,run=True,fit=True) :
+    """ Routine to set up and run a series of tests for a PCA library
+        Includes comparison of raw and PCA spectra for a sample suite,
+        and several FERRE runs to recover parameters for the sample suite
 
+        Requires existing test.ipf file with sample suite parameters
+
+    Args :
+        planfile (str) : name of input plan file that includes filename
+        npiece (int) : number of PCA pieces (for directory/file names)
+        npca (int) : number of PCA pieces (for directory/file names)
+        run (bool) : do the raw-PCA FERRE runs and comparison (default=True)
+        fit (bool) : submit the FERRE test runs to queue (default=True)
+
+    """
     # Read planfile and set output file name
     if not os.path.isfile(planfile):
         print('{:s} does not exist'.format(planfile))

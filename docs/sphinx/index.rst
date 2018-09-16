@@ -23,7 +23,18 @@ Reference
 .. toctree::
    :maxdepth: 1
 
+   intro
    api
+   apogeeql
+   apogeereduce
+   apred
+   aspcap
+   cannon
+   payne
+   plan
+   speclib
+   utils
+ 
 
 
 Indices and tables

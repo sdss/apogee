@@ -58,6 +58,8 @@ module load idlspec2d/apogee-v5_6_5
 module load platelist
 module load cfitsio
 module load apogeereduceplan
+module load actorcore
+module load sdss_python_module
 
 #
 # ENVIRONMENT SECTION

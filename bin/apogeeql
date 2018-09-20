@@ -1,0 +1,179 @@
+#!/bin/bash
+
+# Use the Xvfb display
+export DISPLAY=:1
+
+PRODNAME=apogeeql
+QLPRODNAME=apql_wrapper
+QRPRODNAME=apqr_wrapper
+
+PRODNAME_UC=$(echo $PRODNAME | tr a-z A-Z)
+PROD_DIR=$(eval echo \$${PRODNAME_UC}_DIR)
+
+if test -z "$PROD_DIR"; then
+    echo "Product $PRODNAME is not setup"
+    exit 1
+fi
+export LOG_DIR=$HOME/logs/$PRODNAME
+
+echo
+echo ====================== Using $PRODNAME from $PROD_DIR
+echo
+
+usage() {
+    echo "usage: $0 start|stop|restart|status" >&2
+    exit 1
+}
+
+if test $# != 1; then
+    usage
+fi
+cmd=$1
+
+cd $PROD_DIR
+
+now() {
+    NOW=$(TZ=GMT date +"%Y-%m-%dT%H:%M:%S")
+
+    echo $NOW
+}
+
+# Return the program's pid, or the empty string.
+#
+get_pid() {
+    if test "$1"; then
+        THISPROG=$1
+    else
+        THISPROG=$PRODNAME
+    fi
+    PID=""
+    pid=$(/bin/ps -e -ww -o pid,user,command | egrep -v 'awk|grep' | grep "${THISPROG}" | awk '{print $1}')
+    PID=$pid
+
+    if test "$pid"; then
+        echo "$THISPROG is running as process $pid"
+    else
+        echo "$THISPROG is not running"
+    fi
+}
+
+# Start a new ICC. Complains if the ICC is already running,
+# and does not start a new one.
+#
+do_start() {
+    get_pid apogeeql_main
+
+    if test "$PID"; then
+        echo "NOT starting new $PRODNAME. Use restart if you want a new one."
+        return
+    fi
+
+    echo "Starting new $PRODNAME...\c"
+
+    now=`now`.log
+    (cd $LOG_DIR; rm -f current.log; ln -s $now current.log)
+    cd $PROD_DIR/python/$PRODNAME
+    python ${PRODNAME}_main.py >$LOG_DIR/$now 2>&1 &
+
+    # Check that it really started...
+    #
+    sleep 1
+    get_pid
+
+    if test "$PID"; then
+        echo " done."
+    else
+        echo " FAILED!"
+    fi
+}
+
+# Stop any running ICC.
+#
+do_stop() {
+    # we need to stop the idl routines first
+    PROGNAME=apqr_wrapper
+    get_pid $PROGNAME
+    if test "$PID"; then
+        echo "Stopping $PROGNAME."
+        kill -TERM $PID
+    fi
+
+    PROGNAME=apql_wrapper
+    get_pid $PROGNAME
+    if test "$PID"; then
+        echo "Stopping $PROGNAME."
+        kill -TERM $PID
+    fi
+
+    get_pid apogeeql_main
+    if test "$PID"; then
+        echo "Stopping $PRODNAME."
+        kill -TERM $PID
+    fi
+}
+
+# Stop any running ICC fairly violently.
+#
+do_stopdead() {
+    PROGNAME=apqr_wrapper
+    get_pid $PROGNAME
+    if test "$PID"; then
+        echo "Stopping $PROGNAME gently."
+        kill -TERM $PID
+        sleep 2
+        echo "Stopping $PROGNAME meanly."
+        kill -KILL $PID
+    fi
+    PROGNAME=apql_wrapper
+    get_pid $PROGNAME
+    if test "$PID"; then
+        echo "Stopping $PROGNAME gently."
+        kill -TERM $PID
+        sleep 2
+        echo "Stopping $PROGNAME meanly."
+        kill -KILL $PID
+    fi
+    get_pid apogeeql_main
+    if test "$PID"; then
+        echo "Stopping $PRODNAME gently."
+        kill -TERM $PID
+        sleep 2
+        echo "Stopping $PRODNAME meanly."
+        kill -KILL $PID
+    fi
+}
+
+# Query a running ICC for simple status.
+#
+do_status() {
+    get_pid
+}
+
+case $cmd in
+    start)
+        do_start
+        ;;
+    stop)
+        do_stop
+        ;;
+    stopdead)
+        do_stopdead
+        ;;
+    status)
+        # Check whether the ICC is running
+        get_pid
+
+        # Query it for essential liveness
+        ;;
+    restart)
+        do_stop
+        sleep 4
+        do_start
+        ;;
+    *)
+        usage
+        ;;
+esac
+
+exit 0
+

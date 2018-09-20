@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Use the Xvfb display
+export DISPLAY=:1
+
+PRODNAME=apogeeql
+
+PRODNAME_UC=$(echo $PRODNAME | tr a-z A-Z)
+PROD_DIR=$(eval echo \$${PRODNAME_UC}_DIR)
+
+if test -z "$PROD_DIR"; then
+    echo "Product $PRODNAME is not setup"
+    exit 1
+fi
+export LOG_DIR=$HOME/logs/$PRODNAME
+
+echo
+echo ====================== Using $PRODNAME from $PROD_DIR
+echo
+
+now=`now`1midl.log
+(cd $LOG_DIR; rm -f current1midl.log; ln -s $now current1midl.log)
+idl -e apcheck,/do1m,/today,/nomd5,loop=100 >$LOG_DIR/$now 2>&1 &
+jobidl=$!
+
+now=`now`1m.log
+(cd $LOG_DIR; rm -f current1m.log; ln -s $now current1m.log)
+cd $PROD_DIR/python/$PRODNAME/1m
+python apogee1m.py >$LOG_DIR/$now 2>&1 
+
+kill $jobidl

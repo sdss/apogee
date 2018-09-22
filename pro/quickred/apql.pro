@@ -29,14 +29,14 @@
 ;
 ; By D.Nidever  Aug 2010
 ;-
-pro apql,filename,str,allstr,prevstr,predict_str=predict_str, snr_goals=snr_goals, $
+pro apql,filename,str,allstr,prevstr,obs=obs,predict_str=predict_str, snr_goals=snr_goals, $
    fitskw_err=fitskw_err, required_fitskw=required_fitskw, error=error, silent=silent,$
    stp=stp
 
    ; print,'Inside APQL'
 
 ; setup	SDSS database parameters
-SDSS_DB_PARAMS
+SDSS_DB_PARAMS,obs=obs
 
    t0 = systime(1)
 

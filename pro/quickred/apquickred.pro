@@ -41,12 +41,14 @@
 ;
 ;-
 ;
-pro apquickred,frameid,plugmap=plugmap,rawdir=rawdir,bundledir=bundledir,quickreddir=quickreddir,$
+pro apquickred,frameid,plugmap=plugmap,obs=obs,rawdir=rawdir,bundledir=bundledir,quickreddir=quickreddir,$
                bpmid=bpmid,psfid=psfid,no_compress=no_compress,snr_goals=snr_goals,stp=stp,$
                no_dbinsert=no_dbinsert,dbstr=dbstr,exp_pk=exp_pk,plugfile=plugfile,$
                mjd5=mjd5,outfile=outfile
 
 print,'in APQUICKRED'
+if obs eq 'APO' then apsetver,vers='quickred',telescope='apo25m'
+if obs eq 'LCO' then apsetver,vers='quickred',telescope='lco25m'
 
 t0 = systime(1)
 
@@ -67,7 +69,7 @@ t0 = systime(1)
 apgundef,dbstr
 
 ; setup SDSS database parameters
-SDSS_DB_PARAMS
+SDSS_DB_PARAMS,obs=obs
 
 ; Processing steps:
 ; 1) Bundle
@@ -380,10 +382,6 @@ if n_elements(output1d) gt 0 and exptype eq 'OBJECT' and (n_elements(plugmap) gt
    APQUICKRED_SNRMAG,dbstr,plugmap=plugmap
 
 print,'SNR: ',dbstr.snr_standard
-openu,1,'snr.dat'
-printf,1,dbstr.snr_standard
-close,1
-
 
 endif
 

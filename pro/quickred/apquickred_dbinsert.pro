@@ -55,6 +55,7 @@ pro apquickred_dbinsert, instruct=dbstr, savefile=savefile, exp_pk=exp_pk
 
    ; get the latest quicklook pk to put in the table
    ; get the pk for the newly created row for this eposure
+   print,'exp_pk: ', exp_pk
    get_sql_col,'select pk from apogeeqldb.quicklook where exposure_pk='+strtrim(string(exp_pk,format="(i0)"))+$
        'order by pk DESC limit 1',quicklook_pk,/long
    if n_elements(quicklook_pk) eq 0 then begin

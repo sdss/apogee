@@ -50,9 +50,15 @@ end
 
 ;===========================================================================================
 ;
-pro apqr_wrapper, apqrhost, apqrport, data_dir=data_dir, spectro_dir=spectro_dir
+;pro apqr_wrapper, apqrhost, apqrport, data_dir=data_dir, spectro_dir=spectro_dir
+pro apqr_wrapper, apqrhost, apqrport, obs
 
+; apqr_wrapper get host, port, and observatory from apogeeql actor
 
+   args=COMMAND_LINE_ARGS()
+   apqrhost=args[0]
+   apqrport=args[1]
+   obs=args[2]
    RESOLVE_ROUTINE,'apwavecal_chip'
 
    MAX_NUM_BRIDGES = 5
@@ -61,7 +67,11 @@ pro apqr_wrapper, apqrhost, apqrport, data_dir=data_dir, spectro_dir=spectro_dir
 
    ; define the IDL environment variables used by idlsql to point to the desired database
    ; this used to be called APQL_DEFSYS
-   SDSS_DB_PARAMS
+   print,'in apqr_wrapper, args: '
+   print,apqrhost
+   print,apqrport
+   print,obs
+   SDSS_DB_PARAMS,obs=obs
 
    ; to run the IDL_BRIDGE on a machine with no display attached, we need to
    ; fake a display with Xvfb
@@ -69,10 +79,10 @@ pro apqr_wrapper, apqrhost, apqrport, data_dir=data_dir, spectro_dir=spectro_dir
    setenv,'DISPLAY=:1'
 
    ; Get APOGEE directories if the environment variables exists
-   data_dir = APGETDIR('APQLDATA_DIR',/exists,error=direrr)
-   spectro_dir = APGETDIR('APQLSPECTRO_DIR',/exists,error=direrr)
-   archive_dir = APGETDIR('APQLARCHIVE_DIR',/exists,error=direrr)
-   quickred_dir = APGETDIR('APQLQUICKRED_DIR',/exists,error=direrr)
+   ;data_dir = APGETDIR('APQLDATA_DIR',/exists,error=direrr)
+   ;spectro_dir = APGETDIR('APQLSPECTRO_DIR',/exists,error=direrr)
+   ;archive_dir = APGETDIR('APQLARCHIVE_DIR',/exists,error=direrr)
+   ;quickred_dir = APGETDIR('APQLQUICKRED_DIR',/exists,error=direrr)
 
    ; look for command line arguments first
    args=command_line_args(count=count)
@@ -80,59 +90,60 @@ pro apqr_wrapper, apqrhost, apqrport, data_dir=data_dir, spectro_dir=spectro_dir
    if count gt 1 then apqrport=fix(args[1])
    ; overwrite the environment variables if they were provided on the command line
    ; we can't guarantee the order in which the parameters were provided
-   if count gt 2 then begin
-      if strpos(args[2],'data_dir') ge 0 then begin
-         data_dir = strmid(args[2],9)
-
-      endif else if strpos(args[2],'spectro_dir') ge 0 then begin
-         spectro_dir = strmid(args[2],12)
-      endif else if strpos(args[2],'archive_dir') ge 0 then begin
-         spectro_dir = strmid(args[2],12)
-      endif
-   endif
-   if count gt 3 then begin
-      if strpos(args[3],'data_dir') ge 0 then begin
-         data_dir = strmid(args[3],9)
-      endif else if strpos(args[3],'spectro_dir') ge 0 then begin
-         spectro_dir = strmid(args[3],12)
-      endif else if strpos(args[3],'archive_dir') ge 0 then begin
-         spectro_dir = strmid(args[3],12)
-      endif
-   endif
-   if count gt 4 then begin
-      if strpos(args[4],'data_dir') ge 0 then begin
-         data_dir = strmid(args[4],9)
-      endif else if strpos(args[4],'spectro_dir') ge 0 then begin
-         spectro_dir = strmid(args[4],12)
-      endif else if strpos(args[4],'archive_dir') ge 0 then begin
-         spectro_dir = strmid(args[4],12)
-      endif
-   endif
+   ;if count gt 2 then begin
+   ;   if strpos(args[2],'data_dir') ge 0 then begin
+   ;      data_dir = strmid(args[2],9)
+;
+;      endif else if strpos(args[2],'spectro_dir') ge 0 then begin
+;         spectro_dir = strmid(args[2],12)
+;      endif else if strpos(args[2],'archive_dir') ge 0 then begin
+;         spectro_dir = strmid(args[2],12)
+;      endif
+;   endif
+;   if count gt 3 then begin
+;      if strpos(args[3],'data_dir') ge 0 then begin
+;         data_dir = strmid(args[3],9)
+;      endif else if strpos(args[3],'spectro_dir') ge 0 then begin
+;         spectro_dir = strmid(args[3],12)
+;      endif else if strpos(args[3],'archive_dir') ge 0 then begin
+;         spectro_dir = strmid(args[3],12)
+;      endif
+;   endif
+;   if count gt 4 then begin
+;      if strpos(args[4],'data_dir') ge 0 then begin
+;         data_dir = strmid(args[4],9)
+;      endif else if strpos(args[4],'spectro_dir') ge 0 then begin
+;         spectro_dir = strmid(args[4],12)
+;      endif else if strpos(args[4],'archive_dir') ge 0 then begin
+;         spectro_dir = strmid(args[4],12)
+;      endif
+;   endif
 
    ; if no arguments provided, use the default hosts and ports
    if n_elements(apqrhost) eq 0 then apqrhost='127.0.0.1' ; hubhost='10.25.1.1'
    if n_elements(apqrport) eq 0 then apqrport=10039
+   if n_elements(obs) eq 0 then obs='APO'
 
    ; we need data_dir and spectro_dir
-   if strlen(data_dir) eq 0 then begin
-      msg = 'Missing data_dir -> aborted'
-      print,msg
-      return
-   endif
-   if strlen(spectro_dir) eq 0 then begin
-      msg = 'Missing spectro_dir -> aborted'
-      print,msg
-      return
-   endif
-   if strlen(archive_dir) eq 0 then begin
-      msg = 'Missing archive_dir -> aborted'
-      print,msg
-      return
-   endif
+;   if strlen(data_dir) eq 0 then begin
+;      msg = 'Missing data_dir -> aborted'
+;      print,msg
+;      return
+;   endif
+;   if strlen(spectro_dir) eq 0 then begin
+;      msg = 'Missing spectro_dir -> aborted'
+;      print,msg
+;      return
+;   endif
+;   if strlen(archive_dir) eq 0 then begin
+;      msg = 'Missing archive_dir -> aborted'
+;      print,msg
+;      return
+;   endif
 
    ;datadir = data_dir+'/raw/'
-   psfdir = spectro_dir+'/cal/psf/'
-   bpmdir = spectro_dir+'/cal/bpm/'
+;   psfdir = spectro_dir+'/cal/psf/'
+;   bpmdir = spectro_dir+'/cal/bpm/'
 
    ; Initialize the message log file
    jd = systime(/julian)
@@ -143,36 +154,36 @@ pro apqr_wrapper, apqrhost, apqrport, data_dir=data_dir, spectro_dir=spectro_dir
 
 
    ; Get Psf file
-   chiptag = ['a','b','c']
-   tinfo = APFILEINFO(FILE_SEARCH(psfdir+'apPSF-a-*.fits'),/silent)
-   gdpsf = where(tinfo.exists eq 1 and tinfo.allchips eq 1 and tinfo.suffix ne '',ngdpsf)
-   if ngdpsf eq 0 then begin
-      msg='No good psf file found in '+psfdir
-      print,msg
-      return
-   endif else begin
-      ; sort through the files and use the latest one
-      tinfogd = tinfo[gdpsf]       ; the good ones
-      si = reverse(sort(tinfogd.mtime))
-      ;psffiles = psfdir+'apPSF-'+chiptag+'-'+tinfogd[si[0]].suffix+'.fits'
-      psfid = psfdir+tinfogd[si[0]].suffix
-   endelse
-
+;   chiptag = ['a','b','c']
+;   tinfo = APFILEINFO(FILE_SEARCH(psfdir+'apPSF-a-*.fits'),/silent)
+;   gdpsf = where(tinfo.exists eq 1 and tinfo.allchips eq 1 and tinfo.suffix ne '',ngdpsf)
+;   if ngdpsf eq 0 then begin
+;      msg='No good psf file found in '+psfdir
+;      print,msg
+;      return
+;   endif else begin
+;      ; sort through the files and use the latest one
+;      tinfogd = tinfo[gdpsf]       ; the good ones
+;      si = reverse(sort(tinfogd.mtime))
+;      ;psffiles = psfdir+'apPSF-'+chiptag+'-'+tinfogd[si[0]].suffix+'.fits'
+;      psfid = psfdir+tinfogd[si[0]].suffix
+;   endelse
+;
    ; Get BPM file
-   binfo = APFILEINFO(FILE_SEARCH(bpmdir+'apBPM-a-*.fits'),/silent)
-   gdbpm = where(binfo.exists eq 1 and binfo.allchips eq 1 and binfo.suffix ne '',ngdbpm)
-   if ngdbpm eq 0 then begin
-      msg='No good BPM file found in '+bpmdir
-      print,msg
-      ;return
-   endif else begin
-      ; sort through the files and use the latest one
-      binfogd = binfo[gdbpm]       ; the good ones
-      si = reverse(sort(binfogd.mtime))
-      bpmfiles = bpmdir+'apBPM-'+chiptag+'-'+binfogd[si[0]].suffix+'.fits'
-      bpmid = bpmdir+binfogd[si[0]].suffix
-   endelse
-
+;   binfo = APFILEINFO(FILE_SEARCH(bpmdir+'apBPM-a-*.fits'),/silent)
+;   gdbpm = where(binfo.exists eq 1 and binfo.allchips eq 1 and binfo.suffix ne '',ngdbpm)
+;   if ngdbpm eq 0 then begin
+;      msg='No good BPM file found in '+bpmdir
+;      print,msg
+;      ;return
+;   endif else begin
+;      ; sort through the files and use the latest one
+;      binfogd = binfo[gdbpm]       ; the good ones
+;      si = reverse(sort(binfogd.mtime))
+;      bpmfiles = bpmdir+'apBPM-'+chiptag+'-'+binfogd[si[0]].suffix+'.fits'
+;      bpmid = bpmdir+binfogd[si[0]].suffix
+;   endelse
+;
    ; connect to the apogeeql socket
    ;---------------------------
    print,'Connecting from apqr_wrapper to apogeeql through: ',apqrhost,apqrport
@@ -276,10 +287,10 @@ pro apqr_wrapper, apqrhost, apqrport, data_dir=data_dir, spectro_dir=spectro_dir
               frameid=res[1]
               mjd5   = res[2]
               exp_pk = long(res[3])
-              rawdir = data_dir+strtrim(mjd5,2)+'/'
-              ;outdir = archive_dir+strtrim(mjd5,2)+'/'
-              bundledir = archive_dir+strtrim(mjd5,2)+'/'
-              quickreddir = quickred_dir+strtrim(mjd5,2)+'/'
+              ;rawdir = data_dir+strtrim(mjd5,2)+'/'
+              ;;outdir = archive_dir+strtrim(mjd5,2)+'/'
+              ;bundledir = archive_dir+strtrim(mjd5,2)+'/'
+              ;quickreddir = quickred_dir+strtrim(mjd5,2)+'/'
 
               ; You can run another execute command even after there was
               ; an error.  You can do the same after there was an abort as well.
@@ -373,22 +384,24 @@ pro apqr_wrapper, apqrhost, apqrport, data_dir=data_dir, spectro_dir=spectro_dir
                      myobj = obj_new('IDL_IDLBridge', OUTPUT='', CALLBACK='qrBridge_cb', USERDATA=apqractor_lun)
                      ; execute the startup file if we had one
                      myobj->EXECUTE, '@' + PREF_GET('IDL_STARTUP')
-                     qrBridge[pos] = myobj
+                     qrBridge[pos] = myob
                  endif
                  if qrBridge[pos]->Status() eq 3 then qrBridge[pos]->Execute,'retall'
+                 qrBridge[pos]->SetVar, 'obs', obs
                  qrBridge[pos]->SetVar, 'frameid', frameid
-                 qrBridge[pos]->SetVar, 'rawdir', rawdir
-                 qrBridge[pos]->SetVar, 'bundledir', bundledir
-                 qrBridge[pos]->SetVar, 'quickreddir', quickreddir
+                 ;qrBridge[pos]->SetVar, 'rawdir', rawdir
+                 ;qrBridge[pos]->SetVar, 'bundledir', bundledir
+                 ;qrBridge[pos]->SetVar, 'quickreddir', quickreddir
+                 print,'in apqr_wrapper, exp_pk: ', exp_pk
                  qrBridge[pos]->SetVar, 'exp_pk', exp_pk
-                 qrBridge[pos]->SetVar, 'bpmid', bpmid
-                 qrBridge[pos]->SetVar, 'psfid', psfid
+                 ;qrBridge[pos]->SetVar, 'bpmid', bpmid
+                 ;qrBridge[pos]->SetVar, 'psfid', psfid
                  qrBridge[pos]->SetVar, 'mjd5', mjd5
                  ; pass the whole structure
                  if n_elements(plugfile) gt 0 then $
                    qrBridge[pos]->SetVar, 'plugfile', plugfile
                  qrBridge[pos]->Execute, $
-                    'apquickred,frameid,plugfile=plugfile,rawdir=rawdir,bundledir=bundledir,'+$
+                    'apquickred,frameid,plugfile=plugfile,obs=obs,rawdir=rawdir,bundledir=bundledir,'+$
                     'quickreddir=quickreddir,bpmid=bpmid,psfid=psfid,exp_pk=exp_pk,mjd5=mjd5',/NOWAIT
                  break
               endif

@@ -7,16 +7,6 @@
 ; INPUTS:
 ;  frameid       The frame number
 ;  =plugmap      The plugmag structure for this plate.
-;  =rawdir       The base directory for the raw file.  The default is
-;                  APODATA_DIR+'raw/'
-;  =bundledir    The final output directory for the compressed bundled
-;                  files.  The default is APQLARCHIVE_DIR+MJD5
-;  =quickreddir  The final output directory for the quick reduced
-;                  ap2D and ap1D files.  The default is APQLQUICKRED_DIR+MJD5
-;  =bpmid        The directory+ID8 concatenated for the bad pixel mask
-;                  to use for these exposures.
-;  =psfid        The directory+ID8 concatenated for the PSF
-;                  calibration file to use for these exposures
 ;  /no_compress  Whether to compress the output data.  The default is
 ;                  to compress, so to not compress use /no_compress
 ;  /no_dbinsert  Do not update the database.  The default is to update
@@ -41,34 +31,19 @@
 ;
 ;-
 ;
-pro apquickred,frameid,plugmap=plugmap,obs=obs,rawdir=rawdir,bundledir=bundledir,quickreddir=quickreddir,$
-               bpmid=bpmid,psfid=psfid,no_compress=no_compress,snr_goals=snr_goals,stp=stp,$
+pro apquickred,frameid,plugmap=plugmap,obs=obs,$
+               no_compress=no_compress,snr_goals=snr_goals,stp=stp,$
                no_dbinsert=no_dbinsert,dbstr=dbstr,exp_pk=exp_pk,plugfile=plugfile,$
                mjd5=mjd5,outfile=outfile
 
-print,'in APQUICKRED'
+; set apogee version and telescope depending on location
 if obs eq 'APO' then apsetver,vers='quickred',telescope='apo25m'
 if obs eq 'LCO' then apsetver,vers='quickred',telescope='lco25m'
 
 t0 = systime(1)
-
-; Error Handling
-;------------------
-; Establish error handler. When errors occur, the index of the
-; error is returned in the variable Error_status:  
-;CATCH, Error_status 
-;
-;This statement begins the error handler:  
-;if (Error_status ne 0) then begin 
-;   error = !ERROR_STATE.MSG  
-;   if not keyword_set(silent) then print,error
-;   CATCH, /CANCEL 
-;   return
-;endif
-
 apgundef,dbstr
 
-; setup SDSS database parameters
+; setup SDSS database parameters appropriate for location
 SDSS_DB_PARAMS,obs=obs
 
 ; Processing steps:
@@ -83,8 +58,8 @@ SDSS_DB_PARAMS,obs=obs
 ; Not enough inputs
 nframeid = n_elements(frameid)
 if nframeid ne 1 then begin
-  print,'Syntax - apquickred,frameid,plugmap=plugmap,rawdir=rawdir,bundledir=bundledir,quickreddir=quickreddir,'
-  print,'               bpmid=bpmid,psfid=psfid,no_compress=no_compress,snr_goals=snr_goals,stp=stp,'
+  print,'Syntax - apquickred,frameid,plugmap=plugmap,'
+  print,'               no_compress=no_compress,snr_goals=snr_goals,stp=stp,'
   print,'               no_dbinsert=no_dbinsert,exp_pk=exp_pk,dbstr=dbstr,plugfile=plugfile'
   return
 endif
@@ -106,42 +81,9 @@ print,'Running APOGEE QUICK REDUCTION'
 print,'==============================='
 print,systime(0)
 
-
-; Get APOGEE directories
-;data_dir = APGETDIR('APQLDATA_DIR',/exists,error=direrr)
-;if n_elements(direrr) gt 0 then return
-;spectro_dir = APGETDIR('APQLSPECTRO_DIR',/exists,error=direrr)
-;if n_elements(direrr) gt 0 then return
-;archive_dir = APGETDIR('APQLARCHIVE_DIR',/exists,error=direrr)
-;if n_elements(direrr) gt 0 then return
-;quickred_dir = APGETDIR('APQLQUICKRED_DIR',/exists,error=direrr)
-;if n_elements(direrr) gt 0 then return
-;
-;raw_dir = data_dir
-;bundle_dir = archive_dir
-;bpmdir = spectro_dir+'cal/bpm/'
-;psfdir = spectro_dir+'cal/psf/'
-;quickred_dir=quickred_dir+'/'+string(mjd5,format='(I0)')+'/'
-
-; Using input directories
-;if n_elements(rawdir) gt 0 then raw_dir=addslash(rawdir)
-;if n_elements(bundledir) gt 0 then bundle_dir=addslash(bundledir)
-;if n_elements(quickreddir) gt 0 then quickred_dir=addslash(quickreddir)
-
-; Creating quickred_dir directory
-;if file_test(quickred_dir,/directory) eq 0 then begin
-;  print,'Directory ',quickred_dir,' does NOT exist.  Creating it.'
-;  FILE_MKDIR,quickred_dir
-;endif
-
-
 chiptag = ['a','b','c']
 npix = 2048L
 nchips = 3
-
-; Frameid
-;frameid = strtrim(string(long(frameid),format='(I04)'),2)
-;framenumber=strmid(frameid,0,4)
 
 ; Get all of the files for this frame
 raw_dir=apogee_filename('Raw',num=frameid,read=1,/dir)
@@ -155,81 +97,38 @@ base = file_basename(rawfiles,'.fits')
 num = strmid(base,15,3)
 nreads = nrawfiles
 
-
 ;-----------------------
 ; Get BPM file to use
 ;-----------------------
 
-; Input BPM file
-if n_elements(bpmid) gt 0 then begin
-  ;bpmfiles = file_dirname(bpmid)+'/apBPM-'+chiptag+'-'+file_basename(bpmid)+'.fits'
-  bpmfiles = apogee_filename('BPM',num=bpmid,chip=chiptag)
-  bpm_test = file_test(bpmfiles)
-  bd_bpmtest = where(bpm_test eq 0,nbd_bpmtest)
-  if nbd_bpmtest gt 0 then begin
-    print,bpmfiles[bd_bpmtest],' NOT FOUND'
-    apgundef,bpmfiles,bpmcorr
-  endif else begin
-    print,'Using BPM = ',bpmid
-    bpmcorr = file_dirname(bpmid)+'/apBPM-'+chiptag+'-'+file_basename(bpmid)+'.fits'
-  endelse
-endif
-
-; Find BPM file to use
-if n_elements(bpmcorr) eq 0 then begin
-
-  bpmdir = apogee_filename('BPM',num=0,chip=chiptag,/dir)
-  bpmfiles = file_search(bpmdir+'*BPM-a-*.fits',count=nbpmfiles)
-  if nbpmfiles gt 0 then begin
-    bpminfo = file_info(bpmfiles)
-    info = file_info(rawfiles[0])
-    bestbpm = first_el(minloc( abs(bpminfo.mtime-info.mtime) ))
-    bpmframeids = strmid(file_basename(bpmfiles,'.fits'),8)
-    ;bpmframeids = strmid(file_basename(bpmfiles,'.fits'),8,8)
-    ;bpmframenums = long(bpmframeids)
-    ;bestbpm = first_el(minloc( abs(bpmframenums-long(iframeid)) ))
-    bpmcorr = bpmdir+'/apBPM-'+chiptag+'-'+bpmframeids[bestbpm]+'.fits'
-    print,'Using previously created BPM files ',bpmdir+bpmframeids[bestbpm]
-  endif else begin
-    print,'NO BPM calibration file found.'
-  endelse
-
-endif
+bpmdir = apogee_filename('BPM',num=0,chip=chiptag,/dir)
+bpmfiles = file_search(bpmdir+'*BPM-a-*.fits',count=nbpmfiles)
+if nbpmfiles gt 0 then begin
+  bpminfo = file_info(bpmfiles)
+  info = file_info(rawfiles[0])
+  bestbpm = first_el(minloc( abs(bpminfo.mtime-info.mtime) ))
+  bpmframeids = strmid(file_basename(bpmfiles,'.fits'),8)
+  bpmcorr = bpmdir+'/apBPM-'+chiptag+'-'+bpmframeids[bestbpm]+'.fits'
+  print,'Using previously created BPM files ',bpmdir+bpmframeids[bestbpm]
+endif else begin
+  print,'NO BPM calibration file found.'
+endelse
 
 ;-----------------------
 ; Get PSF file to use
 ;-----------------------
 
-; Input PSF file
-if n_elements(psfid) gt 0 then begin
-  psffiles = file_dirname(psfid)+'/apPSF-'+chiptag+'-'+string(long(file_basename(psfid)),format='(I08)')+'.fits'
-  psf_test = file_test(psffiles)
-  bd_psftest = where(psf_test eq 0,nbd_psftest)
-  if nbd_psftest gt 0 then begin
-    print,psffiles[bd_psftest],' NOT FOUND'
-    apgundef,psffiles,psfcorr
-  endif else begin
-    print,'Using PSF = ',psfid
-    psfcorr = psfid
-  endelse
-endif
-
-; Find PSF file to use
-if n_elements(psfcorr) eq 0 then begin
-
-  psfdir = apogee_filename('PSF',num=0,chip='a',/dir)
-  psffiles = file_search(psfdir+'apPSF-a-*.fits',count=npsffiles)
-  if npsffiles gt 0 then begin
-    psfframeids = strmid(file_basename(psffiles,'.fits'),8,8)
-    psfframenums = long(psfframeids)
-    bestpsf = first_el(minloc( abs(psfframenums-long(frameid)) ))
-    psfcorr = psfdir+psfframeids[bestpsf]
-    print,'Using previously created PSF files ',psfcorr
-  endif else begin
-    print,'NO PSF calibration file found. CANNOT extract the spectra.'
-  endelse
-
-endif
+psfdir = apogee_filename('PSF',num=0,chip='a',/dir)
+psffiles = file_search(psfdir+'apPSF-a-*.fits',count=npsffiles)
+if npsffiles gt 0 then begin
+  psfframeids = strmid(file_basename(psffiles,'.fits'),8,8)
+  psfframenums = long(psfframeids)
+  bestpsf = first_el(minloc( abs(psfframenums-long(frameid)) ))
+  psfcorr = psfdir+psfframeids[bestpsf]
+  print,'Using previously created PSF files ',psfcorr
+endif else begin
+  print,'NO PSF calibration file found. CANNOT extract the spectra.'
+endelse
 
 print,''
 print,'-----------------------------------------------------------'
@@ -246,8 +145,6 @@ if file_test(bundle_dir,/directory) eq 0 then begin
   FILE_MKDIR,bundle_dir
 endif
 
-;stop
-
 ;----------------
 ; Step 1 - Bundle
 ;-----------------
@@ -261,8 +158,6 @@ if n_elements(bundle_error) gt 0 then begin
   return
 endif
 
-;stop
-
 ;-----------------------------
 ; Step 2 - Collapse datacube
 ;-----------------------------
@@ -270,8 +165,6 @@ print,''
 print,'Step 2 - Collapsing the datacube'
 print,'--------------------------------'
 print,''
-;cubefiles = bundle_dir+'apR-'+chiptag+'-'+frameid+'.fits'
-;imfiles = quickred_dir+'ap2D-'+chiptag+'-'+frameid+'.fits'
 cubefiles=apogee_filename('R',num=frameid,chip=chiptag)
 ; datamodel uses .apz, but here we want .fits, since compressing is done later
 cubefiles=file_dirname(cubefiles)+'/'+file_basename(cubefiles,'.apz')+'.fits'
@@ -300,8 +193,6 @@ for i=0,2 do begin
 
 endfor  ; chip loop
 
-;stop
-
 ;---------------------------
 ; Step 3 - Extract Spectra
 ;---------------------------
@@ -312,10 +203,7 @@ print,'-------------------------------'
 ; Does it make sense to extract this exposure type
 head = headfits(cubefiles[0])
 exptype = strtrim(strupcase(sxpar(head,'EXPTYPE')),2)
-;exptype = 'OBJECT'
 doextract = 0
-;if exptype eq 'OBJECT' or exptype eq 'FLAT' or exptype eq 'SKY' or exptype eq 'CALIB' or $
-;   exptype eq 'LOCALFLAT' or exptype eq 'SUPERFLAT' then doextract=1
 if exptype eq 'OBJECT' or exptype eq 'FLAT' or exptype eq 'SKY' or exptype eq 'CALIB' or $
    exptype eq 'SUPERFLAT' or exptype eq 'QUARTZFLAT' or $
    exptype eq 'ARCLAMP' or exptype eq 'DOMEFLAT' or exptype eq 'BLACKBODY' then doextract=1
@@ -329,10 +217,8 @@ if n_elements(psfcorr) gt 0 and keyword_set(doextract) then begin
   AP2DPROC,quickred_dir+string(format='(i8.8)',frameid),psfcorr,extract_type,outdir=quickred_dir,fixbadpix=0,/clobber,/outlong,$
            output=output1d
   ; output1d is a structure
-  ;specfiles = quickred_dir+'ap1D-'+chiptag+'-'+frameid+'.fits'
-
-; Don't extract
 endif else begin
+  ; Don't extract
   if n_elements(psfcorr) eq 0 then print,'NO PSF FILE. CANNOT extract the spectra'
   if not keyword_set(doextract) then print,'Cannot do extraction for EXPTYPE='+exptype
 endelse
@@ -390,21 +276,16 @@ endif
 ; Step 5 - Update the database
 ;-------------------------------
 
-  print,''
-  print,'Step 5 - Database prep and insert'
-  print,'--------------------------'
-  print,''
+print,''
+print,'Step 5 - Database prep and insert'
+print,'--------------------------'
+print,''
 
 ; Add the binned images and spectra
 APQUICKRED_DBPREP,output2d,dbstr
 
 ; Update the quickred tables in the apogeeql schema
 if not keyword_set(no_dbinsert) then begin
-    ;savefile = filepath('apqr_db_'+dbstr.frameid+'.sav',/TMP)
-    ;print,'apqr_dbinsert savefile  -----------------> ',savefile
-    ;save, dbstr, file=savefile 
-    ;print,' *************  n_elements(dbstr)=',n_elements(dbstr)
-    ;help,dbstr,/st
     APQUICKRED_DBINSERT,instruct=dbstr, exp_pk=exp_pk
 endif 
 
@@ -413,8 +294,6 @@ if keyword_set(outfile) then begin
     print,'Writing quickred data to ',outfile
     APQUICKRED_WRITEOUTPUTFILE, outfile, dbstr, exp_pk=exp_pk
 endif
-
-
 
 ;--------------------
 ; Step 6 - Compress
@@ -454,11 +333,9 @@ if NOT keyword_set(no_compress) then begin
 
 endif
 
-
+; show total time
 dt = systime(1)-t0
 print,'dt = ',strtrim(dt,2),' sec'
-
-;stop
 
 if keyword_set(stp) then stop
 

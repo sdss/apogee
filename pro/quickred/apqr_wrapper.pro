@@ -298,8 +298,7 @@ pro apqr_wrapper
                  if n_elements(plugfile) gt 0 then $
                    qrBridge[pos]->SetVar, 'plugfile', plugfile
                  qrBridge[pos]->Execute, $
-                    'apquickred,frameid,plugfile=plugfile,obs=obs,rawdir=rawdir,bundledir=bundledir,'+$
-                    'quickreddir=quickreddir,bpmid=bpmid,psfid=psfid,exp_pk=exp_pk,mjd5=mjd5',/NOWAIT
+                    'apquickred,frameid,plugfile=plugfile,obs=obs,exp_pk=exp_pkd,mjd5=mjd5',/NOWAIT
                  break
               endif
            endif

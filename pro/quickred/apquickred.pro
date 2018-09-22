@@ -34,10 +34,11 @@
 pro apquickred,frameid,plugmap=plugmap,obs=obs,$
                no_compress=no_compress,snr_goals=snr_goals,stp=stp,$
                no_dbinsert=no_dbinsert,dbstr=dbstr,exp_pk=exp_pk,plugfile=plugfile,$
-               mjd5=mjd5,outfile=outfile,apred=apred
+               outfile=outfile,apred=apred,useapz=useapz
 
 ; set apogee version and telescope depending on location
 if n_elements(apred) eq 0 then apred='quickred'
+if n_elements(obs) eq 0 then obs='APO'
 if obs eq 'APO' then apsetver,vers=apred,telescope='apo25m'
 if obs eq 'LCO' then apsetver,vers=apred,telescope='lco25m'
 
@@ -166,15 +167,25 @@ endif
 ;----------------
 ; Step 1 - Bundle
 ;-----------------
-print,''
-print,'Step 1 - Bundling'
-print,'-----------------'
-print,''
-APQBUNDLE,frameid,indir=raw_dir,outdir=bundle_dir,error=bundle_error,/clobber
-if n_elements(bundle_error) gt 0 then begin
-  print,'APQBUNDLE Error'
-  return
-endif
+if ~keyword_set(useapz) then begin
+  print,''
+  print,'Step 1 - Bundling'
+  print,'-----------------'
+  print,''
+  APQBUNDLE,frameid,indir=raw_dir,outdir=bundle_dir,error=bundle_error,/clobber
+  if n_elements(bundle_error) gt 0 then begin
+    print,'APQBUNDLE Error'
+    return
+  endif
+endif else begin
+  dirs=getdir()
+  tmpdir=dirs.expdir
+  files=apogee_filename('R',num=frameid,chip=['a','b','c'])
+  for ichip=0,2 do begin
+    APUNZIP,files[ichip],fitsdir=tmpdir,/no_checksum
+  endfor
+  no_compress=1
+endelse
 
 ;-----------------------------
 ; Step 2 - Collapse datacube
@@ -186,6 +197,7 @@ print,''
 cubefiles=apogee_filename('R',num=frameid,chip=chiptag)
 ; datamodel uses .apz, but here we want .fits, since compressing is done later
 cubefiles=file_dirname(cubefiles)+'/'+file_basename(cubefiles,'.apz')+'.fits'
+if keyword_set(useapz) then cubefiles=tmpdir+'/'+file_basename(cubefiles)
 imfiles=apogee_filename('2D',num=frameid,chip=chiptag)
 apgundef,output2d
 ; Loop through the chips

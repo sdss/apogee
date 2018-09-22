@@ -147,7 +147,7 @@ if n_elements(detfile) gt 0 then begin
   FITS_READ,detcorr,lindata,linhead,message=message3,/no_abort,exten=3
   if not keyword_set(silent) then print,'Using Detector file = ',detfile
 endif else begin
-  print,'No detector file found: ',detfile
+  print,'No detector file specified'
   dirs=getdir()
   if dirs.instrument eq 'apogee-n' then begin
     gain=1.9

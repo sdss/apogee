@@ -12,7 +12,7 @@
 ;
 ; This program is normally started by the APOGEE quicklook actor as:
 ; 
-; idl -quiet -e apql_wrapper -args localhost 10038 data_dir=/data/apogee spectro_dir=/data/apogee/spectro 
+; idl -quiet -e apql_wrapper -args localhost 10038 
 ;
 ; INPUTS:
 ;  apqlhost: name of the host to which the APOGE QuickLook ACTOR socket is connected
@@ -26,22 +26,24 @@
 ;
 ;-
 ;
-;pro apql_wrapper, apqlhost, apqlport, data_dir=data_dir, spectro_dir=spectro_dir, no_dbinsert=no_dbinsert
 pro apql_wrapper, apqlhost, apqlport, obs
 
-   args=COMMAND_LINE_ARGS()
-   apqrhost=args[0]
-   apqrport=args[1]
-   obs=args[2]
+   args=command_line_args(count=count)
+   if count gt 0 then apqlhost=args[0]
+   if count gt 1 then apqlport=fix(args[1])
+   if count gt 2 then obs=args[2]
+
+   ; if no arguments provided, use the default hosts and ports
+   if n_elements(apqlhost) eq 0 then apqlhost='127.0.0.1' ; hubhost='10.25.1.1'
+   if n_elements(apqlport) eq 0 then apqlport=10038
 
    if obs eq 'APO' then apsetver,vers='quicklook',telescope='apo25m'
    if obs eq 'LCO' then apsetver,vers='quicklook',telescope='lco25m'
-
-   RESOLVE_ROUTINE,'apwavecal_chip'
-
    ; define the IDL environment variables used by idlsql to point to the desired database
    ; this used to be called APQL_DEFSYS
    SDSS_DB_PARAMS,obs=obs
+
+   RESOLVE_ROUTINE,'apwavecal_chip'
 
    npix = 2048L
    nchips = 3L
@@ -53,67 +55,6 @@ pro apql_wrapper, apqlhost, apqlport, obs
    ; SPAWN,'Xvfb :1 -screen 0 1600x1200x24 &'
    setenv,'DISPLAY=:1'
 
-   ; Get APOGEE directories if the environment variables exists
-   ;data_dir = APGETDIR('APQLDATA_DIR',/exists,error=direrr)
-   ;spectro_dir = APGETDIR('APQLSPECTRO_DIR',/exists,error=direrr)
-   ;archive_dir = APGETDIR('APQLARCHIVE_DIR',/exists,error=direrr)
-
-   ; look for command line arguments first
-   ;args=command_line_args(count=count)
-   ;if count gt 0 then apqlhost=args[0]
-   ;if count gt 1 then apqlport=fix(args[1])
-   ;; overwrite the environment variables if they were provided on the command line
-   ;; we can't guarantee the order in which the parameters were provided
-   ;if count gt 2 then begin
-   ;   if strpos(args[2],'data_dir') ge 0 then begin
-   ;      data_dir = strmid(args[2],9)
-;
-;      endif else if strpos(args[2],'spectro_dir') ge 0 then begin
-;         spectro_dir = strmid(args[2],12)
-;      endif else if strpos(args[2],'archive_dir') ge 0 then begin
-;         spectro_dir = strmid(args[2],12)
-;      endif
-;   endif
-;   if count gt 3 then begin
-;      if strpos(args[3],'data_dir') ge 0 then begin
-;         data_dir = strmid(args[3],9)
-;      endif else if strpos(args[3],'spectro_dir') ge 0 then begin
-;         spectro_dir = strmid(args[3],12)
-;      endif else if strpos(args[3],'archive_dir') ge 0 then begin
-;         spectro_dir = strmid(args[3],12)
-;      endif
-;   endif
-;   if count gt 4 then begin
-;      if strpos(args[4],'data_dir') ge 0 then begin
-;         data_dir = strmid(args[4],9)
-;      endif else if strpos(args[4],'spectro_dir') ge 0 then begin
-;         spectro_dir = strmid(args[4],12)
-;      endif else if strpos(args[4],'archive_dir') ge 0 then begin
-;         spectro_dir = strmid(args[4],12)
-;      endif
-;   endif
-;
-   ; if no arguments provided, use the default hosts and ports
-   if n_elements(apqlhost) eq 0 then apqlhost='127.0.0.1' ; hubhost='10.25.1.1'
-   if n_elements(apqlport) eq 0 then apqlport=10038
-
-   ; we need data_dir and spectro_dir
-;   if strlen(data_dir) eq 0 then begin
-;      msg = 'Missing data_dir -> aborted'
-;      print,msg
-;      return
-;   endif
-;   if strlen(spectro_dir) eq 0 then begin
-;      msg = 'Missing spectro_dir -> aborted'
-;      print,msg
-;      return
-;   endif
-;   if strlen(archive_dir) eq 0 then begin
-;      msg = 'Missing archive_dir -> aborted'
-;      print,msg
-;      return
-;   endif
-
    ; Initialize the message log file
    jd = systime(/julian)
    caldat,jd,month,day,year,hour,minute,second
@@ -122,10 +63,6 @@ pro apql_wrapper, apqlhost, apqlport, obs
        string(year,fo=fm4)+string(hour,fo=fm2)+string(minute,fo=fm2)+string(second,fo=fm2)+'.log'
 
    chiptag = ['a','b','c']
-   ;linelist_dir = spectro_dir+'/lib/linelists/'
-   ;datadir = data_dir+'/raw/'
-   ;psfdir = spectro_dir+'/cal/psf/'
-   ;bpmdir = spectro_dir+'/cal/bpm/'
    dirs=getdir()
    linelist_dir = dirs.libdir+'/skylines/'
    datadir = apogee_filename('Raw',num=0,read=1,/dir)
@@ -160,8 +97,6 @@ pro apql_wrapper, apqlhost, apqlport, obs
       bpmfiles = bpmdir+'apBPM-'+chiptag+'-'+binfogd[si[0]].suffix+'.fits'
       bpmid = bpmdir+binfogd[si[0]].suffix
    endelse
-
-
 
    ; Initialize some arrays/structures
    ; Making sure the heap memory is released before deleting the variables
@@ -547,8 +482,6 @@ pro apql_wrapper, apqlhost, apqlport, obs
                   if exptype eq 'ASDAF' then print,'This is an ASDAF exposure'
                 endif
               endif
-
-              ; print,'EXPTYPE=',exptype
 
               ; Load the first read if necessary
               ;----------------------------------

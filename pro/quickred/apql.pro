@@ -33,26 +33,10 @@ pro apql,filename,str,allstr,prevstr,obs=obs,predict_str=predict_str, snr_goals=
    fitskw_err=fitskw_err, required_fitskw=required_fitskw, error=error, silent=silent,$
    stp=stp
 
-   ; print,'Inside APQL'
-
-; setup	SDSS database parameters
-SDSS_DB_PARAMS,obs=obs
+   ; setup	SDSS database parameters
+   SDSS_DB_PARAMS,obs=obs
 
    t0 = systime(1)
-
-   ; Error Handling
-   ;------------------
-   ; Establish error handler. When errors occur, the index of the
-   ; error is returned in the variable Error_status:  
-   ;CATCH, Error_status 
-
-   ;This statement begins the error handler:  
-   ;if (Error_status ne 0) then begin 
-   ;  error = !ERROR_STATE.MSG  
-   ;   if not keyword_set(silent) then print,error
-   ;   CATCH, /CANCEL 
-   ;   return
-   ;endif
 
    ; Not enough inputs
    if n_elements(filename) eq 0 then begin
@@ -166,8 +150,6 @@ SDSS_DB_PARAMS,obs=obs
 
    ; Don't extract if it's a dark
    doextract = 0
-   ;if exptype eq 'OBJECT' or exptype eq 'FLAT' or exptype eq 'SKY' or exptype eq 'CALIB' or $
-   ;   exptype eq 'LOCALFLAT' or exptype eq 'SUPERFLAT' then doextract=1
    if exptype eq 'OBJECT' or exptype eq 'QUARTZFLAT' or exptype eq 'DOMEFLAT' or $
       exptype eq 'ARCLAMP' or exptype eq 'ASDAF' then doextract=1
 
@@ -199,7 +181,6 @@ SDSS_DB_PARAMS,obs=obs
    ; Do double-correlated sampling
    ;-------------------------------
    str.cds_image = PTR_NEW( long( im1 - (*!apql.firstread.data) ) )
-
 
    ; Extract the spectra
    ;---------------------
@@ -384,7 +365,5 @@ SDSS_DB_PARAMS,obs=obs
    ; change this!!1
 
    if keyword_set(stp) then stop
-
-  ;stop
 
 end

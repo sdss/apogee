@@ -6,7 +6,7 @@ import numpy as np
 import multiprocessing as mp
 import subprocess
 from astropy.io import fits
-from sdss import yanny
+from apogee.utils import yanny
 from apogee.speclib import atmos
 from apogee.aspcap import aspcap
 from apogee.utils import spectra

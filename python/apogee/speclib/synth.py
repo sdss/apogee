@@ -31,8 +31,7 @@ from apogee.speclib import atmos
 from apogee.speclib import lsf
 from apogee.utils import atomic
 from apogee.utils import spectra
-#from sdss.utilities import yanny
-from sdss import yanny
+from apogee.utils import yanny
 from astropy.io import ascii
 from astropy.io import fits
 from sklearn.decomposition import PCA

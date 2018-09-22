@@ -3,7 +3,7 @@ import os
 import glob
 import pdb
 import subprocess
-from sdss import yanny
+from apogee.utils import yanny
 from apogee.speclib import atmos
 from apogee.utils import spectra
 from apogee.plan import mkslurm

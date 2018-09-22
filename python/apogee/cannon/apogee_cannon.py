@@ -46,7 +46,7 @@ from sdss_access.path import path
 
 import argparse
 import pdb
-from sdss import yanny
+from apogee.utils import yanny
 
 PICKLE_PROTOCOL = -1
 

@@ -37,8 +37,8 @@ pro apql_wrapper, apqlhost, apqlport, obs
    if n_elements(apqlhost) eq 0 then apqlhost='127.0.0.1' ; hubhost='10.25.1.1'
    if n_elements(apqlport) eq 0 then apqlport=10038
 
-   if obs eq 'APO' then apsetver,vers='quicklook',telescope='apo25m'
-   if obs eq 'LCO' then apsetver,vers='quicklook',telescope='lco25m'
+   if obs eq 'APO' then apsetver,vers='quickred',telescope='apo25m'
+   if obs eq 'LCO' then apsetver,vers='quickred',telescope='lco25m'
    ; define the IDL environment variables used by idlsql to point to the desired database
    ; this used to be called APQL_DEFSYS
    SDSS_DB_PARAMS,obs=obs

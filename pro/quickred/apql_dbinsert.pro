@@ -16,8 +16,8 @@
 pro apql_dbinsert, instruct=str, savefile=savefile, exp_pk=exp_pk, $
    fitskw_version=fitskw_version,obs=obs
 
-; setup SDSS database parameters
-SDSS_DB_PARAMS,obs=obs
+   ; setup SDSS database parameters
+   SDSS_DB_PARAMS,obs=obs
 
    if n_elements(str) eq 0 and n_elements(savefile) eq 0 then begin
       print,'Usage:  apql_dbinsert, instruct=str, savefile=savestr, /UTR'

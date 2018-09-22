@@ -13,7 +13,7 @@
 ; 
 ;-
 ;
-pro apquickred_dbinsert, instruct=dbstr, savefile=savefile, exp_pk=exp_pk
+
 
    t0 = systime(1)  
 
@@ -72,12 +72,22 @@ pro apquickred_dbinsert, instruct=dbstr, savefile=savefile, exp_pk=exp_pk
    ; first all the scalars
    p=where(strpos(tnames,'SNR_STANDARD') ge 0,count)
    if count gt 0 then snr_standard=dbstr.snr_standard else snr_standard=0.0
-   FORMAT='("INSERT INTO apogeeqldb.quickred (exposure_pk, last_quicklook_pk, bzero, bscale, '+ $
+
+   ; check to see if we already have an entry with this exposure_pk, if so, just update the snr_standard
+   ; otherwise, add a row
+   get_sql_col,'select pk from apogeeqldb.quickred where exposure_pk='+strtrim(string(exp_pk,format="(i0)"))+$
+       'order by pk DESC limit 1',quickred_pk,/long,/debug
+   if n_elements(quickred_pk) gt 0 then begin
+      exec_string ='UPDATE apogeeqldb.quickred SET snr_standard = '+string(format='(F0.8)',snr_standard)+' WHERE exposure_pk='+$
+         strtrim(string(exp_pk,format='(i0)'))
+   endif else begin
+      FORMAT='("INSERT INTO apogeeqldb.quickred (exposure_pk, last_quicklook_pk, bzero, bscale, '+ $
           'zscale1, zscale2, dither_pixpos, snr_standard) VALUES (",2(I0,","),5(F0.8,","),F0.8,")")'
 
-   exec_string = string(exp_pk, quicklook_pk, dbstr.arraydisplay.bzero, dbstr.arraydisplay.bscale, $
-      dbstr.arraydisplay.zscale[0], dbstr.arraydisplay.zscale[1], dbstr.dithpix, snr_standard,$
-      FORMAT=format)
+      exec_string = string(exp_pk, quicklook_pk, dbstr.arraydisplay.bzero, dbstr.arraydisplay.bscale, $
+         dbstr.arraydisplay.zscale[0], dbstr.arraydisplay.zscale[1], dbstr.dithpix, snr_standard,$
+         FORMAT=format)
+   endelse
 
    exec_string = REPSTR(exec_string,"NaN","'NaN'")  ; put any NaNs in correct format
    exec_sql, exec_string
@@ -102,8 +112,9 @@ pro apquickred_dbinsert, instruct=dbstr, savefile=savefile, exp_pk=exp_pk
 
 
    ; load the QUICKRED_IMBINZOOM
-   print,'Inserting Quickred IMBINZOOM'
-   for zpos=0, n_elements(dbstr.arraydisplay_sub)-1 do begin
+   if keyword_set(insert_imbinzoom) then begin
+    print,'Inserting Quickred IMBINZOOM'
+    for zpos=0, n_elements(dbstr.arraydisplay_sub)-1 do begin
       FORMAT='("INSERT INTO apogeeqldb.quickred_imbinzoom (quickred_pk, ylo, yhi, bzero, bscale, ' + $
           'zscale1, zscale2) VALUES (",3(I0,","),3(F0.8,","),F0.8,")")'
       exec_string = string(quickred_pk, dbstr.arraydisplay_sub[zpos].yrange[0], dbstr.arraydisplay_sub[zpos].yrange[1], $
@@ -121,7 +132,8 @@ pro apquickred_dbinsert, instruct=dbstr, savefile=savefile, exp_pk=exp_pk
       qrzpk=string(quickred_imbinzoom_pk,format='(i0)')
       set_sql_colarray,'UPDATE apogeeqldb.quickred_imbinzoom SET data=? WHERE pk='+qrzpk, dbstr.arraydisplay_sub[zpos].data
 
-   endfor
+    endfor
+   endif else print,'not inserting Quickred IMBINZOOM'
 
    ; load the QUICKRED_SPECTRUM
    p=where(strpos(tnames,'QR_SPECTRUM') ge 0,count)
@@ -143,7 +155,8 @@ pro apquickred_dbinsert, instruct=dbstr, savefile=savefile, exp_pk=exp_pk
               return
           endif
           qrspk=string(quickred_spectrum_pk,format='(i0)')
-          set_sql_colarray,'UPDATE apogeeqldb.quickred_spectrum SET spectrum=? WHERE pk='+qrspk, dbstr.qr_spectrum[fid].spectrum
+          if keyword_set(insert_spectra) then $ 
+            set_sql_colarray,'UPDATE apogeeqldb.quickred_spectrum SET spectrum=? WHERE pk='+qrspk, dbstr.qr_spectrum[fid].spectrum
        endfor
    endif
 
@@ -261,7 +274,6 @@ pro apquickred_dbinsert, instruct=dbstr, savefile=savefile, exp_pk=exp_pk
          exec_sql, exec_string
        endif
      end
-
    endif ; header exists
 
    print,'apquickred_dbinsert completed'

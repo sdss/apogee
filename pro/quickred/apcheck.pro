@@ -42,7 +42,12 @@
 ;
 ;-
 
-pro apcheck,mjd=mjd,today=today,clobber=clobber,nomd5=nomd5,all=all,copyplug=copyplug,nolog=nolog,do1m=do1m,loop=loop,force=force,file=file
+pro apcheck,mjd=mjd,today=today,clobber=clobber,nomd5=nomd5,all=all,copyplug=copyplug,nolog=nolog,do1m=do1m,loop=loop,force=force,file=file,obs=obs,apred=apred
+
+if n_elements(apred) eq 0 then apred='quickred'
+if n_elements(obs) eq 0 then obs='apo'
+if obs eq 'apo' then apsetver,vers=apred,telescope='apo25m'
+if obs eq 'lco' then apsetver,vers=apred,telescope='lco25m'
 
 ; use today's date with /today, or specified date with mjd=
 if keyword_set(today) then begin
@@ -59,13 +64,15 @@ icsdir='/data-ics/'+string(format='(i4.4)',mjd-55562)+'/'
 if not file_test(icsdir,/dir) and not keyword_set(force) then return
 
 ; input directory for annotated frames
-if keyword_set(do1m) then rawdir='/data-ql/data/'+cmjd+'/1m/' else $
-rawdir='/data-ql/data/'+cmjd+'/'
+rawdir=apogee_filename('Raw',num=(mjd-55562)*10000,read=0,/dir)
+;if keyword_set(do1m) then rawdir='/data-ql/data/'+cmjd+'/1m/' else $
+;rawdir='/data-ql/data/'+cmjd+'/'
 if not file_test(rawdir,/dir) then file_mkdir,rawdir
 
 ; output directory to go to archive
-if keyword_set(do1m) then outdir='/data/apogee/archive1m/'+cmjd+'/' else $
-outdir='/data/apogee/archive/'+cmjd+'/'
+outdir=apogee_filename('R',num=(mjd-55562)*10000,chip='a',/dir)
+;if keyword_set(do1m) then outdir='/data/apogee/archive1m/'+cmjd+'/' else $
+;outdir='/data/apogee/archive/'+cmjd+'/'
 if not file_test(outdir,/dir) then file_mkdir,outdir
 
 condition=1
@@ -73,6 +80,7 @@ while (condition) do begin
 if not keyword_set(loop) then condition=0
 
 ; check for complete list of annotated frames
+print,'icsdir: ', icsdir
 files=file_search(icsdir+'*.fits') 
 if files[0] eq '' and not keyword_set(force) then return
 openw,1,rawdir+'/missingannotated'
@@ -89,10 +97,11 @@ close,2
 
 ; find all files with the first read if /all is specified
 ; find only files older than 30 minutes otherwise
+print,'rawdir: ', rawdir
 if keyword_set(all) then $
   files=file_search(rawdir+'*-001.fits') $
 else if keyword_set(file) then $
-  files=file_search(rawdir+'apRaw-'+file+'-001.fits') $
+  files=file_search(rawdir+'*Raw-'+file+'-001.fits') $
 else $
   spawn,'find '+rawdir+' -name \*-001.fits -mmin +30',files
 
@@ -107,22 +116,24 @@ for i=0,n_elements(files)-1 do begin
   filenumber=words[1]
   ; if .apz file exists, assume all is already done OK (unless /clobber specified)
   ; otherwise, run quickred
-  if file_test(outdir+'apR-a-'+filenumber+'.apz') eq 0 or $
-    file_test(outdir+'apR-b-'+filenumber+'.apz') eq 0 or $
-    file_test(outdir+'apR-c-'+filenumber+'.apz') eq 0 or $
-    keyword_set(clobber) then begin
+  outfiles=apogee_filename('R',num=filenumber,chip=['a','b','c'])
+  if file_test(outfiles[0]) eq 0 or $
+     file_test(outfiles[1]) eq 0 or $
+     file_test(outfiles[2]) eq 0 or $
+     keyword_set(clobber) then begin
     printf,1,file_basename(files[i])
     printf,2,file_basename(files[i])
     if not file_test(outdir,/dir) then file_mkdir,outdir
     APQBUNDLE,filenumber,indir=rawdir,outdir=outdir,error=bundle_error,/clobber
-    cubefiles = outdir+'apR-'+['a','b','c']+'-'+filenumber+'.fits'
+    ;cubefiles = outdir+'apR-'+['a','b','c']+'-'+filenumber+'.fits'
+    cubefiles = outdir+file_basename(outfiles,'.apz')+'.fits'
     apzip,cubefiles
     FILE_DELETE,cubefiles,/verbose,/allow
-  endif else print,' done ',outdir+'apR-'+filenumber+'.apz'
+  endif else print,' done ',outfiles
 
   ; get header for PLATE id of this file
-  if file_test(outdir+'apR-c-'+filenumber+'.apz') then begin
-  head=headfits(outdir+'apR-c-'+filenumber+'.apz',exten=1)
+  if file_test(outfiles[2]) then begin
+  head=headfits(outfiles[2],exten=1)
   ;platelist[i]=sxpar(head,'PLATEID')
   platenames[i]=sxpar(head,'NAME')
   endif
@@ -165,7 +176,7 @@ if keyword_set(all) then spawn,'mv '+outdir+'/ap?D*.fits* '+reddir
 
 ; make HTML log using apglist
 if not keyword_set(nolog) then begin
-  files=file_search(outdir+'apR-a*.apz')
+  files=file_search(outdir+'*R-a*.apz')
   if file_test('/home/apogee/apcomments/'+cmjd+'.comments') then $
   apglist,files,['DATE-OBS','NREAD','EXPTYPE','LAMPQRTZ','LAMPTHAR','LAMPUNE','PLATEID','SECZ','SEEING','OBSCMNT','COMMENT','COLLPIST','COLPITCH','DITHPIX','TCAMMID','TLSDETB'],outname=outdir+cmjd+'.log',mjd=mjd,comfile='/home/apogee/apcomments/'+cmjd+'.comments' $
   else $

@@ -31,7 +31,7 @@ FUNCTION apql_get_prevexp, plateid, snrgoal=snrgoal, count=count, silent=silent
    get_sql_col,"SELECT plt.pk FROM ((platedb.plate AS plt "+$
      "INNER JOIN platedb.plate_to_survey AS p2s ON (plt.pk=p2s.plate_pk)) "+$
      "INNER JOIN platedb.survey AS sv ON (p2s.survey_pk=sv.pk)) "+$
-     "WHERE sv.label LIKE 'APOGEE-2' AND plt.plate_id="+strtrim(string(plateid),2), valid,/long
+     "WHERE sv.label LIKE 'APOGEE-2%' AND plt.plate_id="+strtrim(string(plateid),2), valid,/long
    if valid eq 0 then begin
        message,'not a valid APOGEE-2 plate',/cont
        return, tempstr

@@ -34,11 +34,12 @@
 pro apquickred,frameid,plugmap=plugmap,obs=obs,$
                no_compress=no_compress,snr_goals=snr_goals,stp=stp,$
                no_dbinsert=no_dbinsert,dbstr=dbstr,exp_pk=exp_pk,plugfile=plugfile,$
-               mjd5=mjd5,outfile=outfile
+               mjd5=mjd5,outfile=outfile,apred=apred
 
 ; set apogee version and telescope depending on location
-if obs eq 'APO' then apsetver,vers='quickred',telescope='apo25m'
-if obs eq 'LCO' then apsetver,vers='quickred',telescope='lco25m'
+if n_elements(apred) eq 0 then apred='quickred'
+if obs eq 'APO' then apsetver,vers=apred,telescope='apo25m'
+if obs eq 'LCO' then apsetver,vers=apred,telescope='lco25m'
 
 t0 = systime(1)
 apgundef,dbstr
@@ -119,7 +120,7 @@ endelse
 ;-----------------------
 
 psfdir = apogee_filename('PSF',num=0,chip='a',/dir)
-psffiles = file_search(psfdir+'apPSF-a-*.fits',count=npsffiles)
+psffiles = file_search(psfdir+'*PSF-a-*.fits',count=npsffiles)
 if npsffiles gt 0 then begin
   psfframeids = strmid(file_basename(psffiles,'.fits'),8,8)
   psfframenums = long(psfframeids)
@@ -128,6 +129,23 @@ if npsffiles gt 0 then begin
   print,'Using previously created PSF files ',psfcorr
 endif else begin
   print,'NO PSF calibration file found. CANNOT extract the spectra.'
+endelse
+
+print,''
+;-----------------------
+; Get Detector file to use
+;-----------------------
+
+detdir = apogee_filename('Detector',num=getcmjd(frameid),chip='a',/dir)
+detfiles = file_search(detdir+'*Detector-*.fits',count=ndetfiles)
+if ndetfiles gt 0 then begin
+  detframeids = strmid(file_basename(detfiles,'.fits'),8,8)
+  detframenums = long(detframeids)
+  bestdet = first_el(minloc( abs(detframenums-long(frameid)) ))
+  detcorr = detdir+detframeids[bestdet]
+  print,'Using previously created Detecctor files ',detcorr
+endif else begin
+  print,'NO Detector file found. Noise cannot be calculated.'
 endelse
 
 print,''
@@ -173,13 +191,14 @@ apgundef,output2d
 ; Loop through the chips
 for i=0,2 do begin
 
-  apgundef,ibpmcorr,idarkcorr,ap3d_error,output2d_chip
+  apgundef,ap3d_error,output2d_chip,ibpmcorr,idetcorr
 
   ; Bundled file exists
   if file_test(cubefiles[i]) eq 1 then begin
 
-    if n_elements(bpmcorr) gt 0 then ibpmcorr=bpmcorr[i]
-    AP3DQUICK,cubefiles[i],imfiles[i],nfowler=10,bpmfile=ibpmcorr,error=ap3d_error,/clobber,/outlong,$
+    if nbpmfiles gt 0 then ibpmcorr=bpmcorr[i]
+    if ndetfiles gt 0 then idetcorr=detcorr[i]
+    AP3DQUICK,cubefiles[i],imfiles[i],nfowler=10,detfile=idetcorr,bpmfile=ibpmcorr,error=ap3d_error,/clobber,/outlong,$
                  output=output2d_chip
 
     ; Add to output2d

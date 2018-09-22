@@ -175,12 +175,16 @@ for i=0,nfiles-1 do begin
       value=comp[1]
     endif
 
+    ; get airmass from SECZ, or ARMASS if SECZ doesn't exist
     if fields[j] eq 'SECZ' then begin
       value=sxpar(head1,'ALT',count=count)
       sz=size(value)
       if count gt 0 and (sz[1] eq 4 or sz[1] eq 5) then $
         value=1./cos((90-value)*3.14159/180.) $
-      else value=''
+      else begin
+        value=sxpar(head1,'ARMASS',count=count)
+        if count eq 0 then value=''
+      endelse
     endif
 
     if fields[j] eq 'OBSCMNT' then begin
@@ -210,6 +214,7 @@ for i=0,nfiles-1 do begin
             value+=comment[kcom[kk]]
       endif
     endif
+    if strpos(fields[j],'LAMP') ge 0 then value=fix(value)
     svalue=strtrim(string(value),2)
     line += string(svalue,format=fmtarr[j])
     printf,htmlunit,'<TD>'+svalue

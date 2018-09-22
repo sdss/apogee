@@ -87,9 +87,9 @@ if n_elements(outdir) eq 0 then begin
   ;outdir=indir
 endif
 
-
 ; Find the files
-files = file_search(indir+'/apRaw-'+frameid+'-???.fits',count=nfiles)
+dirs=getdir()
+files = file_search(indir+'/'+dirs.prefix+'Raw-'+frameid+'-???.fits',count=nfiles)
 if nfiles eq 0 then begin
   print,'No files for ',frameid
 stop
@@ -108,7 +108,8 @@ firstfile = files[minind[0]]
 FITS_READ,firstfile,im,head,exten=0,/no_abort,message=message
 
 chiptag = ['a','b','c']
-outfiles = addslash(outdir)+'apR-'+chiptag+'-'+frameid+'.fits'
+outfiles = addslash(outdir)+file_basename(apogee_filename('R',num=frameid,chip=chiptag,/base),'.apz')+'.fits'
+
 sz = size(im)
 
 ; Final Xsize
@@ -133,7 +134,7 @@ if max(test) eq 1 and not keyword_set(clobber) then begin
   return
 endif
 
-print,'Writing bundled file to ',addslash(outdir)+'apR-[abc]-'+frameid+'.fits'
+print,'Writing bundled file to ',addslash(outdir)+file_basename(apogee_filename('R',num=frameid,chip=chiptag,/base),'.apz')+'.fits'
 
 
 ; Initialize the three bundled files
@@ -275,7 +276,7 @@ End ; read loop
 ;----------
 if keyword_set(compress) then begin
 
-  print,'Compressing ',addslash(outdir)+'apR-[abc]-'+frameid+'.fits'
+  print,'Compressing ',addslash(outdir)+file_basename(apogee_filename('R',num=frameid,chip=chiptag),'.apz')+'.fits'
   APZIP,outfiles
 
   ; Return compressed filenames

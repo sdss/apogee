@@ -123,7 +123,13 @@ pro apquickred_snrmag,dbstr,plugmap=plugmap,silent=silent,error=error
         scale=sqrt(10^(0.4*(hmax-12.2)))
      endif
      achievedsn=median(obj_snr[snstars],dimension=1)*scale
-     dbstr.snr_standard = achievedsn
+     ;dbstr.snr_standard = achievedsn
+     ; alternative S/N as computed from median of all stars with H<12.2, scaled
+     snstars=where(obj_hmag lt 12.2)
+     scale=sqrt(10^(0.4*(obj_hmag[snstars]-12.2)))
+     altsn=median(obj_snr[snstars]*scale,dimension=1)
+     print,'achieved and alt SN: ',achievedsn,altsn
+     dbstr.snr_standard = altsn
 
 ;     No longer used
 ;     dbstr.logsnr_hmag_coef = reform(icoef)   

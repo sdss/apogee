@@ -1,5 +1,5 @@
 pro ap3dquick,filename,outfile,output=output,clobber=clobber,nfowler=nfowler,uptheramp=uptheramp,$
-                 saturation=saturation0,bpmfile=bpmfile,satfix=satfix,error=error,silent=silent,$
+                 saturation=saturation0,detfile=detfile,bpmfile=bpmfile,satfix=satfix,error=error,silent=silent,$
                  outlong=outlong,stp=stp
 
 ;+
@@ -19,6 +19,7 @@ pro ap3dquick,filename,outfile,output=output,clobber=clobber,nfowler=nfowler,upt
 ;                 This will increase the runtime by ~30%.
 ;                 The default is satfix=0.
 ;  =bpmfile     Bad pixel mask file.
+;  =detfile     Detector file with gain and readout noise
 ;  =saturation  The saturation level.  The default is 65000.
 ;  /outlong     The output files should use LONG type intead of FLOAT.
 ;                 This actually takes up the same amount of space, but
@@ -45,7 +46,7 @@ t0 = systime(1)
 nfilename = n_elements(filename)
 if nfilename eq 0 then begin
   print,'Syntax - ap3dquick,filename,outfile,output=output,clobber=clobber,nfowler=nfowler,'
-  print,'                      uptheramp=uptheramp,saturation=saturation,bpmfile=bpmfile,'
+  print,'                      uptheramp=uptheramp,saturation=saturation,bpmfile=bpmfile,detfile=detfile,'
   print,'                      outlong=outlong,satfix=satfix,error=error,silent=silent,stp=stp'
   error = 'Not enough inputs'
   return
@@ -136,9 +137,32 @@ if n_elements(bpmfile) gt 0 then begin
   if not keyword_set(silent) then print,'Using BPM file = ',bpmfile
 endif
 
+; Load the detector file
+if n_elements(detfile) gt 0 then begin
+  dethead = headfits(detfile)
+  FITS_READ,detcorr,rdnoiseim,noisehead,message=message2,/no_abort,exten=1
+  FITS_READ,detcorr,gainim,gainhead,message=message1,/no_abort,exten=2
+  ;  This should be 2048x2048x3 (each pixel) or 4x3 (each output),
+  ;  where the 2 is for a quadratic polynomial
+  FITS_READ,detcorr,lindata,linhead,message=message3,/no_abort,exten=3
+  if not keyword_set(silent) then print,'Using Detector file = ',detfile
+endif else begin
+  print,'No detector file found: ',detfile
+  dirs=getdir()
+  if dirs.instrument eq 'apogee-n' then begin
+    gain=1.9
+    rdnoise=8
+  endif
+  if dirs.instrument eq 'apogee-s' then begin
+    gain=3.0
+    rdnoise=12
+  endif
+  print,'Using default gain: ',gain
+endelse
+
 ; Calculate the background/read noise using the reference output
 ;  this is an underestimate
-if nx gt 2048 then noise = MAD(im1[2048:*,*]) > 8 else noise=15
+if nx gt 2048 then noise = MAD(im1[2048:*,*]) > rdnoise else noise=15
 
 
 ; Reference Pixel Correction
@@ -237,9 +261,8 @@ CASE ap3d_method of
     ; See Equation 1 in Rauscher et al.(2007), SPIE
     ;  with m=1
     ;  noise and image/flux should be in electrons, sample_noise is in electrons
-    gainim = 1.9  ; e/ADU
-    sample_noise = sqrt( 12*(ngdreads-1.)/(nreads*(ngdreads+1.))*noise^2 + 6.*(ngdreads^2+1)/(5.*ngdreads*(ngdreads+1))*im*gainim )
-    sample_noise /= gainim      ; convert to ADU
+    sample_noise = sqrt( 12*(ngdreads-1.)/(nreads*(ngdreads+1.))*noise^2 + 6.*(ngdreads^2+1)/(5.*ngdreads*(ngdreads+1))*im*gain )
+    sample_noise /= gain      ; convert to ADU
   end ; up-the-ramp
 
 
@@ -345,12 +368,12 @@ CASE ap3d_method of
     im = im*(1-satmask) + satmask*saturation
 
     ; Correct for the "missing" reads
-    im *= float(nreads-1)/float(delta_reads)
+    ;im *= float(nreads-1)/float(delta_reads)
 
     ; Noise contribution to the variance
     ;   NEED TO ACCOUNT FOR BAD READS!!!
     sample_noise = noise * sqrt(2.0/Nfowler_used)
-    sample_noise *= float(nreads-1)/float(delta_reads)  ; Correct for the "missing" reads
+    ;sample_noise *= float(nreads-1)/float(delta_reads)  ; Correct for the "missing" reads
 
   end
 
@@ -387,9 +410,6 @@ endif
 ; do "help apvariance" in IRAF and look for the noise model
 ;
 ; variance(ADU) = N(ADU)/Gain + rdnoise(ADU)^2
-
-; No gain image, using gain=1.9 for all pixels
-gain = 1.9
 
 ; Initialize varim
 varim = fltarr(npix,npix)         ; variance in ADU

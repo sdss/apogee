@@ -267,10 +267,9 @@ if n_elements(output1d) gt 0 and exptype eq 'OBJECT' and (n_elements(plugmap) gt
    endif
    APQUICKRED_SNRMAG,dbstr,plugmap=plugmap
 
-print,'SNR: ',dbstr.snr_standard
+   print,'SNR: ',dbstr.snr_standard
 
 endif
-
 
 ;-------------------------------
 ; Step 5 - Update the database

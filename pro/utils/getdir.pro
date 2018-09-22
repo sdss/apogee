@@ -21,10 +21,10 @@ function getdir,apogeedir,caldir,spectrodir,vers,libdir,prefix,v=v,apred_vers=ap
   endelse
   vers=apred_vers
 
-  apogeedir=getenv('APOGEE_REDUX')
-  speclib=getenv('APOGEE_SPECLIB')
-  aspcap=getenv('APOGEE_ASPCAP')
-  pipedir = getenv('APOGEE_DIR')
+  apogeedir=getenv('APOGEE_REDUX')+'/'
+  speclib=getenv('APOGEE_SPECLIB')+'/'
+  aspcap=getenv('APOGEE_ASPCAP')+'/'
+  pipedir = getenv('APOGEE_DIR')+'/'
   libdir=pipedir+'/data/'
   if telescop eq 'apo1m' then begin
     datadir=getenv('APOGEE_DATA_1M')+'/'
@@ -42,7 +42,7 @@ function getdir,apogeedir,caldir,spectrodir,vers,libdir,prefix,v=v,apred_vers=ap
     mapperdir=getenv('MAPPER_DATA_2S')+'/'
     calfile=libdir+'cal/apogee-s.par'
   endelse
-  spectrodir=apogeedir+'/'+apred_vers+'/'
+  spectrodir=apogeedir+apred_vers+'/'
   caldir=spectrodir+'cal/'
   expdir=spectrodir+'/exposures/'+instrume+'/'
 

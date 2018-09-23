@@ -79,7 +79,7 @@ class TV:
                     except:
                        object=None
                     return "[x,y]=[%4d, %4d] val=%8.5g   [%s %s]=[%10.6f,%10.6f]   OBJECT: %s" % (x,y, self.img[y, x], mywcs.wcs.ctype[0],mywcs.wcs.ctype[1],world[0,0], world[0,1], object)
-		except:
+                except:
                     mywcs=None
                 try:
                     return "[x,y]\n [%4i, %4i] val=%8.5g OBJECT: %s" % (x,y, self.img[y, x], object)

@@ -387,9 +387,13 @@ class TV:
         if min is None : 
            min = 0.
         if max is None : 
-           sky = mmm.mmm(data)
-           min = sky[0]-5*sky[1]
-           max = sky[0]+20*sky[1]
+           try :
+               sky = mmm.mmm(data)
+               min = sky[0]-5*sky[1]
+               max = sky[0]+20*sky[1]
+           except :
+               min = np.median(data)-5*data.std()
+               max = np.median(data)+20*data.std()
         self.scale = [min,max]
         self.scalelist.pop(current)
         self.scalelist.insert(current,self.scale)

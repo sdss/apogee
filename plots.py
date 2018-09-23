@@ -277,7 +277,7 @@ def ax(subplot=111) :
     fig=plt.figure()
     return fig.add_subplot(subplot)
 
-def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False,squeeze=True) :
+def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False,squeeze=True,xtickrot=None) :
     '''
     Returns figure and axes array for grid of nx by ny plots, suppressing appropriate axes if requested by hspace and wspace
 
@@ -318,6 +318,19 @@ def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False,squeeze
                 for j in range(ny) : 
                     ticklabels = ticklabels + ax[j,i].get_yticklabels()
         plt.setp(ticklabels, visible=False)
+    if xtickrot is not None :
+      for i in range(nx) :
+        for j in range(0,ny) : 
+          if nx == 1 and ny == 1:
+              print('setting rotation')
+              for tick in ax.get_xticklabels(): tick.set_rotation( xtickrot ) 
+          elif nx>1 and ny == 1:
+              for tick in ax[i].get_xticklabels(): tick.set_rotation( xtickrot ) 
+          elif ny>1 and nx == 1:
+              for tick in ax[j].get_xticklabels(): tick.set_rotation( xtickrot ) 
+          else :
+              for tick in ax[j,i].get_xticklabels(): tick.set_rotation( xtickrot ) 
+      fig.subplots_adjust(bottom=0.2)
     return fig,ax
 
 

@@ -36,7 +36,7 @@ def mjdcube(mjd, darkid=None, write=False, apred='current', clobber=False) :
 
     # loop over all files
     for file in files :
-      print file
+      print(file)
       print 'file: ',file
       if write :
         # output file name for individual uncompressed images

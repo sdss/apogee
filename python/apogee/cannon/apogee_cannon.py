@@ -183,7 +183,7 @@ def _process_normalization(path):
     clobber_normalization = False
     norm_kwds = normalization_kwds()
 
-    print apogee_id
+    print(apogee_id)
 
     # Check if this output file already exists.
     #if os.path.exists(output_path) and not clobber_normalization:

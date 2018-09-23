@@ -201,7 +201,7 @@ def concat(files,hdu=1,verbose=False) :
             except:
               all[name][j] = a[name][i][0]
           j+=1
-        if verbose: print len(all), len(a)
+        if verbose: print(len(all), len(a))
 
     return all
 

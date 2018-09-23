@@ -132,7 +132,7 @@ def fit2d(xdata,ydata,zdata,degree=1,reject=0,plot=None,xr=None,yr=None,zr=None,
             print('rejected ',len(xdata)-len(gd),' of ',len(xdata),' points')
             pfit = fit_p(p_init, xfit[gd], yfit[gd], zfit[gd])
 
-    print '2D rms: ',(zfit-pfit(xfit,yfit)).std()
+    print('2D rms: ',(zfit-pfit(xfit,yfit)).std())
     
     if plot is not None :
         if log :

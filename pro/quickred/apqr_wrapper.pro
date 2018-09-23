@@ -293,12 +293,11 @@ pro apqr_wrapper
                  qrBridge[pos]->SetVar, 'obs', obs
                  qrBridge[pos]->SetVar, 'frameid', frameid
                  qrBridge[pos]->SetVar, 'exp_pk', exp_pk
-                 qrBridge[pos]->SetVar, 'mjd5', mjd5
                  ; pass the whole structure
                  if n_elements(plugfile) gt 0 then $
                    qrBridge[pos]->SetVar, 'plugfile', plugfile
                  qrBridge[pos]->Execute, $
-                    'apquickred,frameid,plugfile=plugfile,obs=obs,exp_pk=exp_pk,mjd5=mjd5',/NOWAIT
+                    'apquickred,frameid,plugfile=plugfile,obs=obs,exp_pk=exp_pk',/NOWAIT
                  break
               endif
            endif

@@ -140,12 +140,14 @@ endif
 ; Load the detector file
 if n_elements(detfile) gt 0 then begin
   dethead = headfits(detfile)
-  FITS_READ,detcorr,rdnoiseim,noisehead,message=message2,/no_abort,exten=1
-  FITS_READ,detcorr,gainim,gainhead,message=message1,/no_abort,exten=2
+  FITS_READ,detfile,rdnoiseim,noisehead,message=message2,/no_abort,exten=1
+  FITS_READ,detfile,gainim,gainhead,message=message1,/no_abort,exten=2
   ;  This should be 2048x2048x3 (each pixel) or 4x3 (each output),
   ;  where the 2 is for a quadratic polynomial
-  FITS_READ,detcorr,lindata,linhead,message=message3,/no_abort,exten=3
+  FITS_READ,detfile,lindata,linhead,message=message3,/no_abort,exten=3
   if not keyword_set(silent) then print,'Using Detector file = ',detfile
+  gain=mean(gainim)
+  rdnoise=mean(rdnoiseim)
 endif else begin
   print,'No detector file specified'
   dirs=getdir()

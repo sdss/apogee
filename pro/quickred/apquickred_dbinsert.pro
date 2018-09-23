@@ -13,7 +13,7 @@
 ; 
 ;-
 ;
-
+pro apquickred_dbinsert, instruct=dbstr, savefile=savefile, exp_pk=exp_pk, insert_spectra=insert_spectra, insert_imbinzoom=insert_imbinzoom
 
    t0 = systime(1)  
 

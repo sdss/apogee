@@ -37,6 +37,7 @@ pro apql_wrapper, apqlhost, apqlport, obs
    if n_elements(apqlhost) eq 0 then apqlhost='127.0.0.1' ; hubhost='10.25.1.1'
    if n_elements(apqlport) eq 0 then apqlport=10038
 
+   print,'in apql_wrapper, obs: ', obs
    if obs eq 'APO' then apsetver,vers='quickred',telescope='apo25m'
    if obs eq 'LCO' then apsetver,vers='quickred',telescope='lco25m'
    ; define the IDL environment variables used by idlsql to point to the desired database
@@ -80,11 +81,12 @@ pro apql_wrapper, apqlhost, apqlport, obs
       ; sort through the files and use the latest one
       tinfogd = tinfo[gdpsf]       ; the good ones
       si = reverse(sort(tinfogd.mtime))
-      psffiles = psfdir+'apPSF-'+chiptag+'-'+tinfogd[si[0]].suffix+'.fits'
+      psffiles = psfdir+dirs.prefix+'PSF-'+chiptag+'-'+tinfogd[si[0]].suffix+'.fits'
+      print,'ql psffiles: ', psffiles
    endelse
 
    ; Get BPM file
-   binfo = APFILEINFO(FILE_SEARCH(bpmdir+'apBPM-a-*.fits'),/silent)
+   binfo = APFILEINFO(FILE_SEARCH(bpmdir+'*BPM-a-*.fits'),/silent)
    gdbpm = where(binfo.exists eq 1 and binfo.allchips eq 1 and binfo.suffix ne '',ngdbpm)
    if ngdbpm eq 0 then begin
       msg='No good BPM file found in '+bpmdir
@@ -94,8 +96,9 @@ pro apql_wrapper, apqlhost, apqlport, obs
       ; sort through the files and use the latest one
       binfogd = binfo[gdbpm]       ; the good ones
       si = reverse(sort(binfogd.mtime))
-      bpmfiles = bpmdir+'apBPM-'+chiptag+'-'+binfogd[si[0]].suffix+'.fits'
+      bpmfiles = bpmdir+dirs.prefix+'BPM-'+chiptag+'-'+binfogd[si[0]].suffix+'.fits'
       bpmid = bpmdir+binfogd[si[0]].suffix
+      print,'ql bpmfiles: ', bpmfiles
    endelse
 
    ; Initialize some arrays/structures

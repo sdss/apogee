@@ -41,6 +41,7 @@ if n_elements(apred) eq 0 then apred='quickred'
 if n_elements(obs) eq 0 then obs='APO'
 if obs eq 'APO' then apsetver,vers=apred,telescope='apo25m'
 if obs eq 'LCO' then apsetver,vers=apred,telescope='lco25m'
+dirs=getdir()
 
 t0 = systime(1)
 apgundef,dbstr
@@ -89,7 +90,7 @@ nchips = 3
 
 ; Get all of the files for this frame
 raw_dir=apogee_filename('Raw',num=frameid,read=1,/dir)
-rawfiles = file_search(raw_dir+'apRaw-'+strtrim(frameid,2)+'-???.fits',count=nrawfiles)
+rawfiles = file_search(raw_dir+'*Raw-'+strtrim(frameid,2)+'-???.fits',count=nrawfiles)
 if nrawfiles eq 0 then begin
   ;print,'NO RAW files for ',raw_dir+'apRaw-'+strtrim(frameid,2)+'-???.fits'
   print,'NO RAW files for ',rawfiles
@@ -106,12 +107,8 @@ nreads = nrawfiles
 bpmdir = apogee_filename('BPM',num=0,chip=chiptag,/dir)
 bpmfiles = file_search(bpmdir+'*BPM-a-*.fits',count=nbpmfiles)
 if nbpmfiles gt 0 then begin
-  bpminfo = file_info(bpmfiles)
-  info = file_info(rawfiles[0])
-  bestbpm = first_el(minloc( abs(bpminfo.mtime-info.mtime) ))
-  bpmframeids = strmid(file_basename(bpmfiles,'.fits'),8)
-  bpmcorr = bpmdir+'/apBPM-'+chiptag+'-'+bpmframeids[bestbpm]+'.fits'
-  print,'Using previously created BPM files ',bpmdir+bpmframeids[bestbpm]
+  bpmcorr = bpmdir+dirs.prefix+'BPM-'+chiptag+'-'+bestcorr(bpmfiles,frameid)+'.fits'
+  print,'Using previously created BPM files ',bpmcorr
 endif else begin
   print,'NO BPM calibration file found.'
 endelse
@@ -121,12 +118,9 @@ endelse
 ;-----------------------
 
 psfdir = apogee_filename('PSF',num=0,chip='a',/dir)
-psffiles = file_search(psfdir+'*PSF-a-*.fits',count=npsffiles)
+psffiles = file_search(psfdir+'??PSF-a-*.fits',count=npsffiles)
 if npsffiles gt 0 then begin
-  psfframeids = strmid(file_basename(psffiles,'.fits'),8,8)
-  psfframenums = long(psfframeids)
-  bestpsf = first_el(minloc( abs(psfframenums-long(frameid)) ))
-  psfcorr = psfdir+psfframeids[bestpsf]
+  psfcorr=psfdir+bestcorr(psffiles,frameid)
   print,'Using previously created PSF files ',psfcorr
 endif else begin
   print,'NO PSF calibration file found. CANNOT extract the spectra.'
@@ -140,10 +134,7 @@ print,''
 detdir = apogee_filename('Detector',num=getcmjd(frameid),chip='a',/dir)
 detfiles = file_search(detdir+'*Detector-*.fits',count=ndetfiles)
 if ndetfiles gt 0 then begin
-  detframeids = strmid(file_basename(detfiles,'.fits'),8,8)
-  detframenums = long(detframeids)
-  bestdet = first_el(minloc( abs(detframenums-long(frameid)) ))
-  detcorr = detdir+detframeids[bestdet]
+  detcorr = detdir+dirs.prefix+'Detector-'+chiptag+'-'+bestcorr(detfiles,frameid)+'.fits'
   print,'Using previously created Detecctor files ',detcorr
 endif else begin
   print,'NO Detector file found. Noise cannot be calculated.'
@@ -178,7 +169,6 @@ if ~keyword_set(useapz) then begin
     return
   endif
 endif else begin
-  dirs=getdir()
   tmpdir=dirs.expdir
   files=apogee_filename('R',num=frameid,chip=['a','b','c'])
   for ichip=0,2 do begin

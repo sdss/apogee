@@ -628,10 +628,11 @@ def mkgridlink(planfile) :
 
             GKg= fits.open('../giantisotopes/tgGK_'+linelist+'_lsfcombo5_l33/'+file)[0]
             Mg= fits.open('../giantisotopes/tgM_'+linelist+'_lsfcombo5_l33/'+file)[0]
+            Fg= fits.open('../giantisotopes/tgF_'+linelist+'_lsfcombo5_l33/'+file)[0]
             Fd= fits.open('../solarisotopes/tdF_'+linelist+'_lsfcombo5_l33/'+file)[0]
             GKd= fits.open('../solarisotopes/tdGK_'+linelist+'_lsfcombo5_l33/'+file)[0]
             Md= fits.open('../solarisotopes/tdM_'+linelist+'_lsfcombo5_l33/'+file)[0]
-            grids = [GKg, Mg, Fd, GKd, Md]
+            grids = [GKg, Mg, Fg, Fd, GKd, Md]
             for imh,mh in enumerate(spectra.vector(p['mh0'],p['dmh'],p['nmh'])) :
               for ilogg,logg in enumerate(spectra.vector(p['logg0'],p['dlogg'],p['nlogg'])) :
                 for iteff,teff in enumerate(spectra.vector(p['teff0'],p['dteff'],p['nteff'])) :
@@ -652,7 +653,7 @@ def mkgridlink(planfile) :
                     if i<0 or j<0 or k<0 :
                         print("can't find model to fill!",mh,logg,teff)
                     else :
-                        s[imh,ilogg,iteff,:]:grids[igrid].data[k,j,i,:]
+                        s[imh,ilogg,iteff,:]=grids[igrid].data[k,j,i,:]
 
 def getindex(header,axes,vals) :
     """ DEVELOPMENT : get index of requested model from input grid header

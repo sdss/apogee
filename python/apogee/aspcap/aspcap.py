@@ -12,7 +12,6 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import numpy as np
-import matplotlib.pyplot as plt
 import os
 import pdb
 import scipy.ndimage.filters
@@ -151,7 +150,6 @@ def elemsens(els=None,plot=None,ylim=[0.1,-0.3],teff=4750,logg=2.,feh=-1.,smooth
                     #plot.plot(wave,diff,color='g')
                     plot.plot(wave,diff)
                     plot.set_ylim(ylim[0],ylim[1])
-                    plt.draw()
                 out.append(diff)
             except: pass
     if len(out) == 1 :

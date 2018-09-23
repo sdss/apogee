@@ -211,8 +211,12 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
            hout=fits.ImageHDU(np.squeeze(holes.data[hcm,ham,:,:,:]))
            for idim in range(1,4) :
                spectra.add_dim(hout.header,holes.header['CRVAL'+str(idim)],holes.header['CDELT'+str(idim)],1,holes.header['CTYPE'+str(idim)],idim) 
-           grid.append(hout)
-           grid.writeto(indir+out+file,overwrite=True)
+           new = fits.HDUList()
+           new.append(grid[0])
+           new.append(hout)
+           new.writeto(indir+out+file,overwrite=True)
+           #grid.append(hout)
+           #grid.writeto(indir+out+file,overwrite=True)
          #holes.writeto(out+holefile,overwrite=True)
 
 def dorbf(pars) :
@@ -405,6 +409,20 @@ def comp(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',grid='
                          pdb.set_trace()
 
     html.htmltab(figs,file=out+'.html')
+
+def mkhtml(n=24,r0s=['1.25','1.00','0.75','0.50','0.25']) :
+
+    files=[]
+    for i in range(1,n+1) :
+      f=[]
+      xtit=[]
+      for r0 in r0s :
+        f.append('rbf'+r0+'_{:02d}.png'.format(i))
+        xtit.append(r0)
+      files.append(f)
+
+    html.htmltab(files,file='rbf.html',xtitle=xtit)
+
 
 def extend(start,end,vector,holevector) :
     """ Extend the subgrids one point if possible, to avoid edges

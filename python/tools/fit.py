@@ -41,7 +41,7 @@ def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=Non
             print('rejected ',len(xdata)-len(gd),' of ',len(xdata),' points')
             pfit = fit_p(p_init, xdata[gd], zdata[gd])
 
-    print '1D rms: ',(zdata-pfit(xdata)).std()
+    print('1D rms: ',(zdata-pfit(xdata)).std())
 
     # plot if requested
     if plot is not None :

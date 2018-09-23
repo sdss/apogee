@@ -96,6 +96,8 @@ def add_cols(a,b):
     for i in range(len(descrs)) :
         name= names[i]
         desc= descrs[i]
+        print(name,desc)
+        pdb.set_trace()
         if i < len(a.dtype.names) :
             shape= a[name][0].shape
         else :
@@ -181,7 +183,7 @@ def concat(files,hdu=1,verbose=False) :
         else :
             app,dt=append(app,a)
         ntot+=len(a)
-        if verbose: print len(app), len(a)
+        if verbose: print(len(app), len(a))
 
     # since broadcasting in np.append doesn't seem to work, create an empty structure using the maximal
     #    dtype, and load it up line by line, and field by field

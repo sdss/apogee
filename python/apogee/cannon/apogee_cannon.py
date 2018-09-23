@@ -792,12 +792,12 @@ def merge(planfile,fields=None,outfile=None,clobber=True) :
 
     c=fits.open(fields[0])[1].data
     for i,name in enumerate(c.names) :
-        print name
+        print(name)
         if name != 'APOGEE_ID'  and name != 'model_flux' and name != 'fvec' and name != 'flux' and name != 'ivar' :
             out.add_column(Column(name=name,dtype=c.dtype[i],length=length))
             print(name,type(out[name][0]))
             if type(out[name][0]) is np.string_: 
-                print 'str!'
+                print('str!')
                 out[name] = ''
             else :
                 out[name] = -9999.

@@ -178,7 +178,7 @@ def _process_normalization(path):
 
     apogee_id, input_path,output_path = path
 
-    print input_path, output_path
+    print(input_path, output_path)
     #normalization set up
     clobber_normalization = False
     norm_kwds = normalization_kwds()

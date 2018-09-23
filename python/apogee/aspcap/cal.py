@@ -85,7 +85,7 @@ def concat(files,hdu=1) :
             all=struct.append(all,a)
         except :
             all=a
-        print len(all), len(a)
+        print(len(all), len(a))
     return all
 
 def hrsample(indata,hrdata,maxbin=50,raw=True) :

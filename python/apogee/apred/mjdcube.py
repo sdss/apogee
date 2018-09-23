@@ -12,10 +12,10 @@ def mjdcube(mjd, darkid=None, write=False, apred='current', clobber=False) :
   Optionally, write out individual uncompressed data cubes
   """
 
-  print 'mjd: ', mjd
-  print 'apred: ', apred
-  print 'write: ', write
-  print 'darkid: ', darkid
+  print('mjd: ', mjd)
+  print('apred: ', apred)
+  print('write: ', write)
+  print('darkid: ', darkid)
   datadir=os.getenv('APOGEE_DATA')
   outdir=os.getenv('APOGEE_REDUX')+'/'+apred+'/exposures/apogee-n/'+str(mjd)+'/'
 

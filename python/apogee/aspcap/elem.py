@@ -960,7 +960,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                 elemfit = -1
         # transfer results for this element to output summary array 
         for key in ['elem','elemfit','mhmin','te0','temin','temax','caltemin','caltemax','extfit','extpar','clust','abun','par','errpar'] :
-            print key, pars[key], pars['elem'], pars['elemfit']
+            print(key, pars[key], pars['elem'], pars['elemfit'])
             if key == 'clust' or key == 'abun' or key == 'errpar':
                 n=len(pars[key])
                 rec[iel][key][0:n]=pars[key]

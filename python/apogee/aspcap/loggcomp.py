@@ -109,7 +109,7 @@ def rcrgb(allstar,apokasc='APOKASC_cat_v3.6.0.fits',logg='LOGG_SYD_SCALING',rcli
         if nbd < nbest : 
             cnfitbest=cnfit
             nbest=nbd
-    print nbest
+    print(nbest)
     cnfit=cnfitbest
     x=np.array([-200,400])
     for i in [0,1] :

@@ -41,12 +41,17 @@ spectra (from existing test.ipf file), and run some FERRE fits to see how well
 parameters are recovered.
 
 .. automodule:: apogee.speclib.pca
-      :members:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 
 rbf.py
 
 .. automodule:: apogee.speclib.rbf
-      :members:
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 
 sample.py
@@ -56,7 +61,9 @@ testing of FERRE and/or for construction of training sample for an interpolator,
 etc.
 
 .. automodule:: apogee.speclib.sample
-      :members:
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 sim.py
 
@@ -80,7 +87,9 @@ synth also includes a number of utility routines to accomplish the above
 tasks.
 
 .. automodule:: apogee.speclib.synth
-      :members:
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 welem.py
 

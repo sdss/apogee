@@ -606,7 +606,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
             hdulist.append(hdunorm)
             hdulist.writeto(specdir+'/'+p['name']+'.fits',overwrite=True)
 
-def mkgridlink(planfile) :
+def mkgridlink(planfile,suffix=None) :
     """  DEVELOPMENT : create coarse grid by merging syntheses from multiple grids
     """
 
@@ -617,6 +617,8 @@ def mkgridlink(planfile) :
     p=yanny.yanny(planfile,np=True)
 
     linelist=p['linelist'][2:]
+    if suffix is None :
+        suffix='_'+p['smooth']
 
     for ivm,vm in enumerate(spectra.vector(p['vt0'],p['dvt'],p['nvt'])) :
       for icm,cm in enumerate(spectra.vector(p['cm0'],p['dcm'],p['ncm'])) :
@@ -624,36 +626,63 @@ def mkgridlink(planfile) :
           for iam,am in enumerate(spectra.vector(p['am0'],p['dam'],p['nam'])) :
             file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
                    atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
-            s=np.zeros([int(p['nmh']),int(p['nlogg']),int(p['nteff']),nwave],dtype=np.float32)
 
-            GKg= fits.open('../giantisotopes/tgGK_'+linelist+'_lsfcombo5_l33/'+file)[0]
-            Mg= fits.open('../giantisotopes/tgM_'+linelist+'_lsfcombo5_l33/'+file)[0]
-            Fg= fits.open('../giantisotopes/tgF_'+linelist+'_lsfcombo5_l33/'+file)[0]
-            Fd= fits.open('../solarisotopes/tdF_'+linelist+'_lsfcombo5_l33/'+file)[0]
-            GKd= fits.open('../solarisotopes/tdGK_'+linelist+'_lsfcombo5_l33/'+file)[0]
-            Md= fits.open('../solarisotopes/tdM_'+linelist+'_lsfcombo5_l33/'+file)[0]
-            grids = [GKg, Mg, Fg, Fd, GKd, Md]
+            GKg= fits.open('../../giantisotopes/tgGK_'+linelist+suffix+'/'+file)[0]
+            Mg= fits.open('../../giantisotopes/tgM_'+linelist+suffix+'/'+file)[0]
+            Fg= fits.open('../../giantisotopes/tgF_'+linelist+suffix+'/'+file)[0]
+            Fd= fits.open('../../solarisotopes/tdF_'+linelist+suffix+'/'+file)[0]
+            GKd= fits.open('../../solarisotopes/tdGK_'+linelist+suffix+'/'+file)[0]
+            Md= fits.open('../../solarisotopes/tdM_'+linelist+suffix+'/'+file)[0]
+            nwave = GKg.shape[-1]
+            s=np.zeros([int(p['nmh']),int(p['nlogg']),int(p['nteff']),nwave],dtype=np.float32)
+            grids = [Fg, GKg, Mg, Fd, GKd, Md]
             for imh,mh in enumerate(spectra.vector(p['mh0'],p['dmh'],p['nmh'])) :
               for ilogg,logg in enumerate(spectra.vector(p['logg0'],p['dlogg'],p['nlogg'])) :
                 for iteff,teff in enumerate(spectra.vector(p['teff0'],p['dteff'],p['nteff'])) :
                     igrid=0
-                    i,j,k=getindex(GKg.header,(2,3,4),(teff,logg,mh))
+                    i,j,k=getindex(Fg.header,(2,3,4),(teff,logg,mh))
                     if i<0 or j<0 or k<0 :
                         igrid=1
-                        i,j,k=getindex(Mg.header,(2,3,4),(teff,logg,mh))
+                        i,j,k=getindex(GKg.header,(2,3,4),(teff,logg,mh))
                     if i<0 or j<0 or k<0 :
                         igrid=2
-                        i,j,k=getindex(Fd.header,(2,3,4),(teff,logg,mh))
+                        i,j,k=getindex(Mg.header,(2,3,4),(teff,logg,mh))
                     if i<0 or j<0 or k<0 :
                         igrid=3
-                        i,j,k=getindex(GKd.header,(2,3,4),(teff,logg,mh))
+                        i,j,k=getindex(Fd.header,(2,3,4),(teff,logg,mh))
                     if i<0 or j<0 or k<0 :
                         igrid=4
+                        i,j,k=getindex(GKd.header,(2,3,4),(teff,logg,mh))
+                    if i<0 or j<0 or k<0 :
+                        igrid=5
                         i,j,k=getindex(Md.header,(2,3,4),(teff,logg,mh))
                     if i<0 or j<0 or k<0 :
                         print("can't find model to fill!",mh,logg,teff)
                     else :
-                        s[imh,ilogg,iteff,:]=grids[igrid].data[k,j,i,:]
+                        print(mh,logg,teff,igrid,i,j,k)
+                        try:
+                            print(grids[igrid].data.shape)
+                            s[imh,ilogg,iteff,:]=grids[igrid].data[k,j,i,:]
+                        except:
+                            pdb.set_trace()
+            pdb.set_trace()
+            hdulist=fits.HDUList()
+            hdu=fits.ImageHDU(s)
+            idim=1
+            hdu.header['CRVAL1'] = GKg.header['CRVAL1']
+            hdu.header['CDELT1'] = GKg.header['CDELT1']
+            hdu.header['CTYPE1'] = GKg.header['CTYPE1']
+            if int(p['nteff']) > 1 :
+                idim+=1
+                spectra.add_dim(hdu.header,float(p['teff0']),float(p['dteff']),1,'TEFF',idim)
+            if int(p['nlogg']) > 1 :
+                idim+=1
+                spectra.add_dim(hdu.header,float(p['logg0']),float(p['dlogg']),1,'LOGG',idim)
+            if int(p['nmh']) > 1 :
+                idim+=1
+                spectra.add_dim(hdu.header,float(p['mh0']),float(p['dmh']),1,'M_H',idim)
+            hdulist.append(hdu)
+            hdulist.writeto(file,overwrite=True)
 
 def getindex(header,axes,vals) :
     """ DEVELOPMENT : get index of requested model from input grid header
@@ -662,7 +691,8 @@ def getindex(header,axes,vals) :
     out=[]
     for ax,val in zip(axes,vals) :
         i = (val-header['CRVAL'+str(ax)])/header['CDELT'+str(ax)]
-        out.append(i)
+        if i+1 > header['NAXIS'+str(ax)] : i=-1.
+        out.append(int(round(i)))
     return out
 
 def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred='r8',prefix='') :

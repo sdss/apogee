@@ -1293,15 +1293,17 @@ void statistics (double r0, int dim, int nd, int ni, double rset[][nd], double x
 	
 	if (bad == 1 && (printout == 1 || printout == 2 || printout == 4 || printout == 5))
 	{
-		printf("\nThere were points to be extrapolated in all dimensions, program quits!\n\n");
-		exit(0);
+		//printf("\nThere were points to be extrapolated in all dimensions, program quits!\n\n");
+		//exit(0);
+		printf("\nThere were points to be extrapolated in all dimensions!\n\n");
 	}
 	
 	if (warn > 0 && (printout == 3 || printout == 4 || printout == 5))
 	{
-		fprintf(g33, "\nThere were points to be extrapolated in all dimensions, program quits!\n\n");
+		//fprintf(g33, "\nThere were points to be extrapolated in all dimensions, program quits!\n\n");
+		//exit(0);
+		fprintf(g33, "\nThere were points to be extrapolated in all dimensions!\n\n");
 		fflush(g33);
-		exit(0);
 	}
 	
 	

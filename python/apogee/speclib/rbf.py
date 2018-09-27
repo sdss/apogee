@@ -234,12 +234,12 @@ def dorbf(pars) :
     print('doing rbf',name,ndim,holes.shape)
 
     # if we have no good models at the lowest logg, trim it off
-    gd=np.where(holes[:,:,0,:] < 1.e-4)[0]
-    if len(gd) == 0 :
-        print('Skipping lowest logg....')
-        logg1 = 1
-    else :
-        logg1 = 0
+    #gd=np.where(holes[:,:,0,:] < 1.e-4)[0]
+    #if len(gd) == 0 :
+    #    print('Skipping lowest logg....')
+    #    logg1 = 1
+    #else :
+    #    logg1 = 0
 
     nhole=0
     nsynhole=0

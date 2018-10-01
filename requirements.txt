@@ -6,3 +6,5 @@ sdss-tree>=2.15.2
 sdss-access>=0.2.3
 astropy>=2.0.8
 scipy>=1.1.0
+sklearn>=0.0
+astroquery>=0.3.9

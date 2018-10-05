@@ -260,6 +260,7 @@ def dorbf(pars) :
               fhole.write(('{:8.2f} '*4+'\n').format(iam/(ndim[0]-1.),imh/(ndim[1]-1.),ilogg/(ndim[2]-1.),iteff/(ndim[3]-1.)))
               nhole+=1
             else : 
+              #normalize spectrum
               spec/=np.nanmean(spec)
               fgood.write(('{:8.2f} '*4).format(iam/(ndim[0]-1.),imh/(ndim[1]-1.),ilogg/(ndim[2]-1.),iteff/(ndim[3]-1.)))
               for i in range(ndim[-1]) : fgood.write('{:12.6f}'.format(spec[i]))

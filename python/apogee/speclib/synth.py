@@ -695,7 +695,7 @@ def getindex(header,axes,vals) :
         out.append(int(round(i)))
     return out
 
-def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred='r8',prefix='') :
+def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None) :
     """ Create a grid of LSF-convolved spectra given specifications in input parameter file and existing raw syntheses
 
     Args :
@@ -716,6 +716,7 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred='r8',prefix='') :
     specdir = os.environ['APOGEE_SPECLIB']+'/synth/'+p['specdir'] if p.get('specdir') else './'
     if fiber is None : fiber=np.array(p.get('lsffiber').split()).astype(int).tolist()
     if isinstance(fiber,int): fiber= [fiber]
+    if apred is None :apred = p['apred'] if p.get('apred') else 'r10'
     lsfid=int(p.get('lsfid'))
     waveid=int(p.get('waveid'))
 
@@ -745,6 +746,9 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred='r8',prefix='') :
             hdu.writeto(lsfile,overwrite=True)
             os.remove(lsfile+'.lock') 
 
+    if prefix is None :  
+        if p.get('apred') and p['apred'] > 0. : prefix = 'rbf_'
+        else : prefix=''
     specdata = fits.open(specdir+'/'+prefix+p['name']+'.fits')[0]
     npix = specdata.data.shape[-1]
     nspec=1
@@ -773,20 +777,40 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred='r8',prefix='') :
     vmacro=np.array(vmacro)
 
     # LSF and rotation convolution all spectra at the same time
-    vrot=10.**.176
-    smoothdata=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=vrot,vmacro=vmacro)
-
     nmh=int(p['nmh'])
     nlogg=int(p['nlogg'])
     nteff=int(p['nteff'])
+    nrot = int(p['nrot'])
+    if nrot == 1 :
+        vrot=10.**.176
+        smoothdata=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=vrot,vmacro=vmacro)
+        smoothdata=np.reshape(smoothdata,(nmh,nlogg,nteff,nout)).astype(np.float32)
+    else :
+        smoothdata=np.zeros([nrot,nmh,nlogg,nteff,nout],dtype=np.float32)
+        for irot,vrot in enumerate(prange(p['rot0'],p['drot'],p['nrot'])) :
+            smooth=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=10.**vrot,vmacro=vmacro)
+            smoothdata[irot,:,:,:,:]=np.reshape(smooth,(nmh,nlogg,nteff,nout)).astype(np.float32)
+
     specdata.data=np.reshape(specdata.data,(nmh,nlogg,nteff,npix))
-    smoothdata=np.reshape(smoothdata,(nmh,nlogg,nteff,nout)).astype(np.float32)
 
     hdu=fits.PrimaryHDU(np.squeeze(smoothdata))
     hdu.header.extend(specdata.header.copy(strip=True))
     hdu.header['CRVAL1'] = aspcap.logw0
     hdu.header['CDELT1'] = aspcap.dlogw
     hdu.header['CTYPE1'] = 'LOG(WAVELENGTH)'
+    if nrot > 1 :
+        hdu.header.insert('CTYPE4',('CRVAL5',float(p['rot0']),''),after=True)
+        hdu.header.insert('CRVAL5',('CDELT5',float(p['drot']),''),after=True)
+        hdu.header.insert('CDELT5',('CRPIX5',1,''),after=True)
+        hdu.header.insert('CRPIX5',('CTYPE5','LOG(VSINI)',''),after=True)
+        #spectra.add_dim(hdu.header,float(p['rot0']),float(p['drot']),1,'LGVSINI',5)
+    hdu.header['INFILE'] = p['specdir']+'/'+prefix+p['name']+'.fits'
+    hdu.header['APRED'] = apred
+    hdu.header['LSFID'] = lsfid
+    hdu.header['WAVEID'] = waveid
+    hdu.header['HIGHRES'] = highres
+    hdu.header.add_comment('LSF convolved spectra')
+    hdu.header.add_comment('APOGEE_VER:'+os.environ['APOGEE_VER'])
     hdu.writeto(p['name']+'.fits',overwrite=True)
 
     return smoothdata

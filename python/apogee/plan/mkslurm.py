@@ -4,7 +4,7 @@ import os
 import argparse
 
 
-def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None,idlthreads=1,runplans=True,time='240:00:00',name=None) :
+def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None,idlthreads=1,runplans=True,time='240:00:00',name=None,fast=False) :
 
     try :
         os.mkdir(outdir)
@@ -16,7 +16,8 @@ def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None
     f=open(file,'w')
 
     f.write('#!/bin/csh\n')
-    f.write('#SBATCH --account=sdss-kp\n')
+    if fast : f.write('#SBATCH --account=sdss-kp-fast\n')
+    else : f.write('#SBATCH --account=sdss-kp\n')
     f.write('#SBATCH --partition=sdss-kp\n')
     f.write('#SBATCH --time='+time+'\n')
     f.write('#SBATCH --ntasks=16\n')

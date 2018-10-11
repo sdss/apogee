@@ -12,17 +12,21 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
+import matplotlib
+matplotlib.use('Agg')
 import numpy as np
+import math
 import os
 import glob
 import pdb
 import matplotlib.pyplot as plt
+import thread
 from tools import plots
 from tools import match
 from apogee.speclib import isochrones
 from astropy.io import ascii
 
-def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,logglim=[-0.5,5.5],mhlim=[-2.5,0.75],nmlim=[-0.5,2.],cmlim=[-1.5,1.],emlim=[-0.5,1.],vmicrolim=[0.5,8.],amlim=[-0.5,1.],rot=True,nsamp=1) :
+def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,logglim=[-0.5,5.5],mhlim=[-2.5,0.75],nmlim=[-0.5,2.],cmlim=[-1.5,1.],emlim=[-0.5,1.],vmicrolim=[0.3,4.8],amlim=[-0.5,1.],rot=True,nsamp=1,niso=None) :
     """ Generate a test sample of parameters and abundances from isochrones
     """
 
@@ -35,16 +39,26 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         tefflim=[3000,4000]
         logglim=[-0.5,3.0]
         dtlo=100.
+    elif gridclass == 'GKd' :
+        tefflim=[3500,6000]
+        logglim=[2.5,5.5]
+        dtlo=250.
+    elif gridclass == 'Md' :
+        tefflim=[3000,4000]
+        logglim=[2.5,5.5]
+        dtlo=100.
     elif gridclass == 'Fd' :
         tefflim=[5500,8000]
-        logglim=[2.0,5.5]
+        logglim=[2.5,5.5]
         dtlo=250.
+    if gridclass is not None : name = name+'_'+gridclass
     grid=[]
 
     # loop through isochrone data and take grid points nearest and +/- 1
     # accumulate unique set of these
     files = glob.glob(os.environ['ISOCHRONE_DIR']+'/z*.dat')
-    for file in files[0:1] :
+    if niso is None : niso = len(files)
+    for file in files[0:niso] :
         a = isochrones.read(file,agerange=[7,20])
         print(file)
         for i in range(len(a)) :
@@ -64,7 +78,7 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
 
     # output file
     f=open(name,'w')
-    finp=open(name+'.inp','w')
+    fipf=open(name+'.ipf','w')
     f.write("#   Teff   logg    [M/H] [alpha/M] [C/M]   [N/M]  vmicro  vrot")
     allteff=[]
     alllogg=[]
@@ -136,14 +150,15 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         nm=(round(nm/0.5))*0.5
         nm=clip(nm,nmlim,eps=eps)
         am=clip(am,amlim,eps=eps)
-        vmicro=round((np.log10(vmicro)+0.30103)/0.30103)*0.30103-0.30103
+        vmicro=round((np.log10(vmicro)-math.log10(vmicrolim[0]))/math.log10(2.))*math.log10(2.)+math.log10(vmicrolim[0])
+        vmicro=clip(vmicro,np.log10(np.array(vmicrolim)),eps=eps)
 
-        inp = '{:s}{:d} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:8.2f}'.format(
-               name,i+1,vmicro,cm,nm,am,mh,logg,teff)
-        finp.write(inp+'\n')
+        ipf = '{:s}{:d} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:8.2f}'.format(
+               os.path.basename(name),i+1,vmicro,cm,nm,am,mh,logg,teff)
+        fipf.write(ipf+'\n')
 
     f.close()
-    finp.close()
+    fipf.close()
 
     # plots of sample
     allteff=np.array(allteff)
@@ -172,7 +187,6 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
                 xr=[8000,2500],yr=[6.,-1],zr=nmlim,zt='[N/M]',colorbar=True,xt='Teff',yt='log g')
     fig.savefig(name+'.png')
     fig,ax=plots.multi(2,2,hspace=0.4,wspace=0.4)
-    pdb.set_trace()
     plots.plotc(ax[0,0],allmh+np.random.uniform(-0.1,0.1,size=len(allmh)),allam+np.random.uniform(-0.1,0.1,size=len(allam)),allteff,
                 xr=[-2.5,1],yr=[-0.75,1.],zr=[2500,8000],zt='Teff',colorbar=True,xt='[M/H]',yt='[alpha/M]')
     plots.plotc(ax[0,1],alllogg+np.random.uniform(-0.1,0.1,size=len(alllogg)),allcm+np.random.uniform(-0.1,0.1,size=len(allam)),allteff,
@@ -300,4 +314,8 @@ def clip(x,lim,eps=None) :
         if np.isclose(tmp,lim[0]) : tmp+=eps
         if np.isclose(tmp,lim[1]) : tmp-=eps
     return tmp
+
+def __main__() :
+    for gridclass in ['GKg','Mg','Fd','GKd','Md'] :
+        thread.start_new_thread(sample,('test',gridclass))
 

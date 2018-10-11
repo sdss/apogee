@@ -25,6 +25,7 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
         print('{:s} does not exist'.format(planfile))
         return
     p=yanny.yanny(planfile,np=True)
+    if p.get('r0') : r0 = float(p['r0'])
 
     # input directory 
     if dir is None :
@@ -44,24 +45,11 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
 
     # get configuration for grid
     # sizes of subgrids for RBF interpolation in [alpha/M], [M/H], logg, and Teff
-    if int(p['nteff']) == 11 : teffsize = [4,3,4]
-    else :  
-        print('unknown nteff config')
-        pdb.set_trace()
-    if int(p['nam']) == 8 : amsize = [4,4]
-    else :  
-        print('unknown nam config')
-        pdb.set_trace()
-    if int(p['nmh']) == 15 : mhsize = [3,3,3,3,3]
-    else :  
-        print('unknown nmh config')
-        pdb.set_trace()
-    if int(p['nlogg']) == 10 : loggsize = [4,3,3]
-    elif int(p['nlogg']) == 8 : loggsize = [4,4]
-    elif int(p['nlogg']) == 7 : loggsize = [4,3]
-    else :  
-        print('unknown nlogg config')
-        pdb.set_trace()
+
+    teffsize = subgrid(int(p['nteff']))
+    amsize = subgrid(int(p['nam']))
+    mhsize = subgrid(int(p['nmh']))
+    loggsize = subgrid(int(p['nlogg']))
 
     if grid is None :
         if p['specdir'].find('GK_') >= 0 : grid = 'GK'
@@ -218,6 +206,30 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
            #grid.append(hout)
            #grid.writeto(indir+out+file,overwrite=True)
          #holes.writeto(out+holefile,overwrite=True)
+
+def subgrid(n) :
+    ''' return subgrid sizes for input dimension '''
+    if n <=4 :
+        return [n]
+    elif n<=8 :
+        return [4,n-4]
+    elif n==9 :
+        return [3,3,3]
+    elif n==10 :
+        return [3,4,3]
+    elif n==11 :
+        return [4,4,3]
+    elif n==12 :
+        return [4,4,4]
+    elif n==13 :
+        return [3,3,4,3]
+    elif n==14 :
+        return [3,4,4,3]
+    elif n==15 :
+        return [3,3,3,3,3]
+    else :  
+        print('unknown subgrid config')
+        pdb.set_trace()
 
 def dorbf(pars) :
     """ Routine that actually does one RBF interpolation
@@ -434,7 +446,7 @@ def extend(start,end,vector,holevector) :
     hs=np.max([0,np.where(np.isclose(holevector,vector[s]))[0][0]])
     he=np.min([len(holevector),np.where(np.isclose(holevector,vector[e-1]))[0][0]+1])
     if e-s != he-hs :
-        print('ERROR: inconsistent size of data and hole grids')
+        print('ERROR: inconsistent size of data and hole grids',s,e,hs,he)
         pdb.set_trace()
 
     return s,e,hs,he

@@ -24,7 +24,7 @@ def mkgriddirs(configfile) :
     for i in range(len(p['GRID']['specdir'])) :
 
       # do both "raw" directory and final directory: former may be repeated!
-      for name in [ p['GRID']['specdir'][i]+'_'+p['GRID']['smooth'][i], p['GRID']['specdir'][i] ] :
+      for igrid,name in enumerate([ p['GRID']['specdir'][i]+'_'+p['GRID']['smooth'][i], p['GRID']['specdir'][i] ]) :
         # construct name and create output directory
         #name = p['GRID']['specdir'][i]+'_'+p['GRID']['smooth'][i]
 
@@ -53,9 +53,10 @@ def mkgriddirs(configfile) :
             if ( key != 'GRID' ) & (key != 'symbols') :
                 f.write('{:30s}{:30s}\n'.format(key, p[key].strip("'")))
         for key in p['GRID'].dtype.names :
-            out='{:30s}'.format(str(p['GRID'][key][i])).strip("'").strip('[]')
-            out='{:30s}{:30s}\n'.format(key,out.replace(']',''))
-            f.write(out.strip('[]'))
+            if igrid == 0 or key != 'smooth' :
+              out='{:30s}'.format(str(p['GRID'][key][i])).strip("'").strip('[]')
+              out='{:30s}{:30s}\n'.format(key,out.replace(']',''))
+              f.write(out.strip('[]'))
         f.close()
 
         # make all of the individual planfiles from the master planfile

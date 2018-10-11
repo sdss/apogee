@@ -301,7 +301,7 @@ def wrhead(planstr,file,npca=None,npix=None,wchip=None,cont=None) :
     steps=[]
     n=[]
     idim = 0
-    for dim in ['vt','cm','nm','am','mh','rot','logg','teff'] :
+    for dim in ['vt','cm','nm','am','rot','mh','logg','teff'] :
         if int(planstr['n'+dim]) > 1 : 
             ndim+=1
             n.append(int(planstr['n'+dim]))

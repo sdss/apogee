@@ -29,6 +29,8 @@ if __name__ == '__main__' :
         description='Makes a synthetic spectral grid')
 
     parser.add_argument('planfile', type=str, help='Plan file')
+    parser.add_argument("--prefix", type=str, default=None, help='Prefix for input files (default=None)')
+    parser.add_argument("--apred", type=str, default=None, help='apred version for lsf/wave (default=None)')
     parser.add_argument("--done")
     parser.add_argument("--host")
     parser.add_argument('--clobber', help='Overwrite files?',action="store_true")
@@ -42,7 +44,7 @@ if __name__ == '__main__' :
     #if args.clobber: clobber=',/clobber'
     #else : clobber=''
     #subprocess.call(["idl","-e","speclib_mkgrid,'"+args.planfile+"'"+clobber])
-    synth.mkgridlsf(args.planfile)
+    synth.mkgridlsf(args.planfile,prefix=args.prefix,apred=args.apred)
     now = datetime.datetime.now()
     print("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     print("elapsed: ",time.time()-start)

@@ -28,7 +28,7 @@ set flag = 111111
 
 set maxobj=`printenv APOGEE_MAXOBJ`
 if ( $maxobj == "") then
-  set maxobj = 1000
+  set maxobj = 2640
 endif
 echo maxobj: $maxobj
 

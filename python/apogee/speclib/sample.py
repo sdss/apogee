@@ -26,7 +26,7 @@ from tools import match
 from apogee.speclib import isochrones
 from astropy.io import ascii
 
-def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,logglim=[-0.5,5.5],mhlim=[-2.5,0.75],nmlim=[-0.5,2.],cmlim=[-1.5,1.],emlim=[-0.5,1.],vmicrolim=[0.3,4.8],amlim=[-0.5,1.],rot=True,nsamp=1,niso=None) :
+def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,logglim=[-0.5,5.5],mhlim=[-2.5,0.75],nmlim=[-0.5,2.],cmlim=[-1.5,1.],emlim=[-0.5,1.],vmicrolim=[0.3,4.8],amlim=[-0.5,1.],vrotlim=[1.5,96.],rot=True,nsamp=1,niso=None) :
     """ Generate a test sample of parameters and abundances from isochrones
     """
 
@@ -35,22 +35,27 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         tefflim=[3500,6000]
         logglim=[0,4.5]
         dtlo=250.
+        rot=False
     elif gridclass == 'Mg' :
         tefflim=[3000,4000]
         logglim=[-0.5,3.0]
         dtlo=100.
+        rot=False
     elif gridclass == 'GKd' :
         tefflim=[3500,6000]
         logglim=[2.5,5.5]
         dtlo=250.
+        rot=True
     elif gridclass == 'Md' :
         tefflim=[3000,4000]
         logglim=[2.5,5.5]
         dtlo=100.
+        rot=True
     elif gridclass == 'Fd' :
         tefflim=[5500,8000]
         logglim=[2.5,5.5]
         dtlo=250.
+        rot=True
     if gridclass is not None : name = name+'_'+gridclass
     grid=[]
 
@@ -152,9 +157,15 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         am=clip(am,amlim,eps=eps)
         vmicro=round((np.log10(vmicro)-math.log10(vmicrolim[0]))/math.log10(2.))*math.log10(2.)+math.log10(vmicrolim[0])
         vmicro=clip(vmicro,np.log10(np.array(vmicrolim)),eps=eps)
+        vrot=round((np.log10(vrot)-math.log10(vrotlim[0]))/math.log10(2.))*math.log10(2.)+math.log10(vrotlim[0])
+        vrot=clip(vrot,np.log10(np.array(vrotlim)),eps=eps)
 
-        ipf = '{:s}{:d} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:8.2f}'.format(
-               os.path.basename(name),i+1,vmicro,cm,nm,am,mh,logg,teff)
+        if rot :
+            ipf = '{:s}{:d} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:8.2f}'.format(
+                   os.path.basename(name),i+1,vmicro,cm,nm,am,vrot,mh,logg,teff)
+        else :
+            ipf = '{:s}{:d} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f} {:8.2f}'.format(
+                   os.path.basename(name),i+1,vmicro,cm,nm,am,mh,logg,teff)
         fipf.write(ipf+'\n')
 
     f.close()
@@ -259,21 +270,21 @@ def comp(file,true=None,truespec=None,hard=False,plot=False,minchi2=0.,testid=No
         tit='color: chi2'
       ax[0,ix].set_title(tit)
       if ix == 0 :
-        plots.plotc(ax[0,ix],obs['teff'][i2],obs['teff'][i2]-true['teff'][i1],z,xt='Teff',yt=r'$\Delta$Teff') #,yr=[-200,200])
-        plots.plotc(ax[1,ix],obs['teff'][i2],obs['logg'][i2]-true['logg'][i1],z,xt='Teff',yt=r'$\Delta$logg') #,yr=[-0.5,0.5])
-        plots.plotc(ax[2,ix],obs['teff'][i2],obs['mh'][i2]-true['mh'][i1],z,xt='Teff',yt=r'$\Delta$[M/H]') #,yr=[-0.5,0.5])
-        plots.plotc(ax[3,ix],obs['teff'][i2],obs['am'][i2]-true['am'][i1],z,xt='Teff',yt=r'$\Delta$[a/M]') #,yr=[-0.5,0.5])
-        plots.plotc(ax[4,ix],obs['teff'][i2],obs['cm'][i2]-true['cm'][i1],z,xt='Teff',yt=r'$\Delta$[C/M]') #,yr=[-0.5,0.5])
-        plots.plotc(ax[5,ix],obs['teff'][i2],obs['nm'][i2]-true['nm'][i1],z,xt='Teff',yt=r'$\Delta$[N/M]') #,yr=[-0.5,0.5])
-        plots.plotc(ax[6,ix],obs['teff'][i2],10.**obs['vmicro'][i2]-10.**true['vmicro'][i1],z,xt='Teff',yt=r'$\Delta$vmicro') #,yr=[-0.5,0.5])
+        plots.plotc(ax[0,ix],obs['teff'][i2],obs['teff'][i2]-true['teff'][i1],z,xt='Teff',yt=r'$\Delta$Teff',yr=[-1000,1000])
+        plots.plotc(ax[1,ix],obs['teff'][i2],obs['logg'][i2]-true['logg'][i1],z,xt='Teff',yt=r'$\Delta$logg',yr=[-2.0,2.0])
+        plots.plotc(ax[2,ix],obs['teff'][i2],obs['mh'][i2]-true['mh'][i1],z,xt='Teff',yt=r'$\Delta$[M/H]',yr=[-0.5,0.5])
+        plots.plotc(ax[3,ix],obs['teff'][i2],obs['am'][i2]-true['am'][i1],z,xt='Teff',yt=r'$\Delta$[a/M]',yr=[-0.5,0.5])
+        plots.plotc(ax[4,ix],obs['teff'][i2],obs['cm'][i2]-true['cm'][i1],z,xt='Teff',yt=r'$\Delta$[C/M]',yr=[-1.5,1.5])
+        plots.plotc(ax[5,ix],obs['teff'][i2],obs['nm'][i2]-true['nm'][i1],z,xt='Teff',yt=r'$\Delta$[N/M]',yr=[-1.5,1.5])
+        plots.plotc(ax[6,ix],obs['teff'][i2],10.**obs['vmicro'][i2]-10.**true['vmicro'][i1],z,xt='Teff',yt=r'$\Delta$vmicro',yr=[-1.0,1.0])
       else :
-        plots.plotc(ax[0,ix],obs['teff'][i2],obs['teff'][i2]-true['teff'][i1],z,xt='Teff')
-        plots.plotc(ax[1,ix],obs['teff'][i2],obs['logg'][i2]-true['logg'][i1],z,xt='Teff')
-        plots.plotc(ax[2,ix],obs['teff'][i2],obs['mh'][i2]-true['mh'][i1],z,xt='Teff')
-        plots.plotc(ax[3,ix],obs['teff'][i2],obs['am'][i2]-true['am'][i1],z,xt='Teff')
-        plots.plotc(ax[4,ix],obs['teff'][i2],obs['cm'][i2]-true['cm'][i1],z,xt='Teff')
-        plots.plotc(ax[5,ix],obs['teff'][i2],obs['nm'][i2]-true['nm'][i1],z,xt='Teff')
-        plots.plotc(ax[6,ix],obs['teff'][i2],10.**obs['vmicro'][i2]-10.**true['vmicro'][i1],z,xt='Teff')
+        plots.plotc(ax[0,ix],obs['teff'][i2],obs['teff'][i2]-true['teff'][i1],z,xt='Teff',yr=[-1000,1000])
+        plots.plotc(ax[1,ix],obs['teff'][i2],obs['logg'][i2]-true['logg'][i1],z,xt='Teff',yr=[-2,2])
+        plots.plotc(ax[2,ix],obs['teff'][i2],obs['mh'][i2]-true['mh'][i1],z,xt='Teff',yr=[-0.5,0.5])
+        plots.plotc(ax[3,ix],obs['teff'][i2],obs['am'][i2]-true['am'][i1],z,xt='Teff',yr=[-0.5,0.5])
+        plots.plotc(ax[4,ix],obs['teff'][i2],obs['cm'][i2]-true['cm'][i1],z,xt='Teff',yr=[-1.5,1.5])
+        plots.plotc(ax[5,ix],obs['teff'][i2],obs['nm'][i2]-true['nm'][i1],z,xt='Teff',yr=[-1.5,1.5])
+        plots.plotc(ax[6,ix],obs['teff'][i2],10.**obs['vmicro'][i2]-10.**true['vmicro'][i1],z,xt='Teff',yr=[-1.0,1.0])
     fig.suptitle(file)
     plt.show()
     if hard :

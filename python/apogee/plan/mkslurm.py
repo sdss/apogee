@@ -3,8 +3,9 @@ import sys
 import os
 import argparse
 
-
 def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None,idlthreads=1,runplans=True,time='240:00:00',name=None,fast=False) :
+    """ Routine to write a slurm file with specified input command and parameteres
+    """
 
     try :
         os.mkdir(outdir)
@@ -32,15 +33,20 @@ def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None
 
     if cwd is None : cwd=os.getcwd()
     f.write('cd '+cwd+'\n' )
-    if runplans : f.write('runplans ' + cmd+'\n' )
-    else : f.write(cmd+'\n' )
+    if runplans : 
+        f.write('runplans ' + cmd+'\n' )
+    elif isinstance(cmd,list) :
+        for c in cmd : f.write(c+'\n' )
+    else : 
+        f.write(cmd+'\n' )
     f.write('wait\n' )
     f.write('echo DONE\n' )
     f.close()
     os.chmod(file,0o770)
 
 def main(args) :
-
+    """ Main routine to create SLURM file from command line
+    """
     parser = argparse.ArgumentParser(
         prog=os.path.basename(args[0]),
         description='Makes a SLURM batch file')

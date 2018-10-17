@@ -87,7 +87,8 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
         p['nam'] = '1'
         p['ncm'] = '1'
         p['nnm'] = '1'
-    nmod = int(p['nvt'])*int(p['ncm'])*int(p['nnm'])*int(p['nam'])*int(p['nmh'])*int(p['nlogg'])*int(p['nteff'])
+        p['nrot'] = '1'
+    nmod = int(p['nvt'])*int(p['ncm'])*int(p['nnm'])*int(p['nam'])*int(p['nrot'])*int(p['nmh'])*int(p['nlogg'])*int(p['nteff'])
 
     # loop over requested combinations of npieces and npca
     if pcas is None : pcas = (int(p['npart']),int(p['npca']))
@@ -103,7 +104,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
     indata['rawsynth'] = rawsynth
     if incremental : indata['incremental'] = True
     else : indata['incremental'] = False
-    for key in ['am0','dam','nam','cm0','dcm','ncm','nm0','dnm','nnm','vt0','dvt','nvt','mh0','dmh','nmh','logg0','dlogg','nlogg','teff0','dteff','nteff'] :
+    for key in ['am0','dam','nam','cm0','dcm','ncm','nm0','dnm','nnm','vt0','dvt','nvt','mh0','dmh','nmh','logg0','dlogg','nlogg','teff0','dteff','nteff','rot0','drot','nrot'] :
         indata[key] = p[key]
 
     # determine number of pixels per piece
@@ -220,7 +221,8 @@ def dopca(pars) :
         pca = PCA(n_components=npca,whiten=whiten)
 
     # load data for this piece
-    pcadata=np.zeros([int(p['nam'])*int(p['ncm'])*int(p['nnm'])*int(p['nvt'])*int(p['nmh'])*int(p['nlogg'])*int(p['nteff']),npix],dtype=np.float32)
+    pcadata=np.zeros([int(p['nam'])*int(p['ncm'])*int(p['nnm'])*int(p['nvt'])*
+                      int(p['nrot'])*int(p['nmh'])*int(p['nlogg'])*int(p['nteff']),npix],dtype=np.float32)
     nmod=0
     pix_apstar=aspcap.gridPix()
     pix_aspcap=aspcap.gridPix(apStar=False)
@@ -238,25 +240,26 @@ def dopca(pars) :
                    atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
             # read file and pack into ASPCAP grid size
             sap=fits.open(indir+file)[0].data
-            s=np.zeros([int(p['nmh']),int(p['nlogg']),int(p['nteff']),nwave])
+            sap.reshape((int(p['nrot']),int(p['nmh']),int(p['nlogg']),int(p['nteff']),sap.shape[-1]))
+            s=np.zeros([int(p['nrot']),int(p['nmh']),int(p['nlogg']),int(p['nteff']),nwave])
             for pasp,pap in zip(pix_aspcap,pix_apstar) :
-                s[:,:,:,pasp[0]:pasp[1]]=sap[:,:,:,pap[0]:pap[1]]
+                s[:,:,:,:,pasp[0]:pasp[1]]=sap[:,:,:,:,pap[0]:pap[1]]
             #s1=fits.open(indir+file)[1].data
             #s2=fits.open(indir+file)[2].data
             #s3=fits.open(indir+file)[3].data
-            for imh,mh in enumerate(spectra.vector(p['mh0'],p['dmh'],p['nmh'])) :
+            for irot,rot in enumerate(spectra.vector(p['rot0'],p['drot'],p['nrot'])) :
+             for imh,mh in enumerate(spectra.vector(p['mh0'],p['dmh'],p['nmh'])) :
               for ilogg,logg in enumerate(spectra.vector(p['logg0'],p['dlogg'],p['nlogg'])) :
                 for iteff,teff in enumerate(spectra.vector(p['teff0'],p['dteff'],p['nteff'])) :
                   #s=np.append(s1[imh,ilogg,iteff,:],s2[imh,ilogg,iteff,:])
                   #s=np.append(s,s3[imh,ilogg,iteff,:])
                   #s=sall[imh,ilogg,iteff,:]
-                  if s[imh,ilogg,iteff,w1:w2].sum() == 0. : 
+                  if s[irot,imh,ilogg,iteff,w1:w2].sum() == 0. : 
                      print('!!ZERO MODEL',am,cm,nm,vm,mh,logg,teff,w1,w2)
-                     s[w1:w2] = 1.
-            #         #pdb.set_trace()
+                     s[irot,imh,ilogg,iteff,w1:w2] = 1.
             #      s/=np.nanmean(s)
             #      if len(np.where(np.isfinite(s) is False)[0]) > 0 : print(imh,ilogg,iteff,np.where(np.isfinite(s) is False) )
-                  pcadata[nmod,:] = s[imh,ilogg,iteff,w1:w2]/np.nanmean(s[imh,ilogg,iteff,:])
+                  pcadata[nmod,:] = s[irot,imh,ilogg,iteff,w1:w2]/np.nanmean(s[irot,imh,ilogg,iteff,:])
                   nmod+=1
       #del s1, s2, s3, s
     del s
@@ -283,7 +286,8 @@ def dopca(pars) :
     if writeraw: fraw.close()
     if npca > 0 : fpca.close()
     showtime('done piece: '+str(ipiece))
-    del pca
+    del pca 
+    del pcadata
     return eigen,mean
 
 def showtime(string) :
@@ -314,7 +318,7 @@ def liblink(lib,outdir) :
         os.symlink(prefix+lib+suffix,outdir+'/'+lib+suffix)
     return prefix
 
-def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True, fast=False, niso=None) :
+def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True, fast=False, niso=None, sns=[1000]) :
     """ Routine to set up and run a series of tests for a PCA library
         Includes comparison of raw and PCA spectra for a sample suite,
         and several FERRE runs to recover parameters for the sample suite
@@ -341,7 +345,7 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
     except : pass
 
     # create test sample for this grid
-    sample.sample('test/test',gridclass=grid,niso=niso)
+    if runraw: sample.sample('test/test',gridclass=grid,niso=niso)
 
     # raw and PCA library file root names
     flib='f_aps'+outfile
@@ -354,7 +358,7 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
     os.symlink(prefix+'test/test_'+grid+'.ipf','test/raw/test.ipf')
     l=ferre.rdlibhead('f_aps'+outfile+'.hdr')[0]
     ferre.writenml('test/raw/input.nml','test',l,nov=0,ncpus=1,f_access=1)
-    mkslurm.write('ferre.x',outdir='test/raw/',runplans='',cwd=os.getcwd()+'/raw',fast=fast)
+    mkslurm.write('ferre.x',outdir='test/raw/',runplans=False,cwd=os.getcwd()+'/test/raw',fast=fast)
     if runraw : 
         print('running ferre in raw to create spectra')
         subprocess.call(['test/raw/ferre.x'],shell=False)
@@ -364,14 +368,18 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
     else :
         true=np.loadtxt('test/raw/test.mdl')
     # add noise
-    #for sn in [100] :
-    #    dim=a.shape
-    #    an=a.flatten()+np.random.normal(0.,1./sn,a.flatten().shape)
-    #    an=np.reshape(an,(dim[0],dim[1]))
-    #    ferre.writespec('testsn{:d}.dat'.format(sn),an)
-    #    ferre.writespec('testsn{:d}.err'.format(sn),an*0.+1./sn)
+    for sn in sns :
+        if sn < 1000 :
+            name = 'test/raw/testsn{:d}'.format(sn)
+            if not os.path.isfile(name+'.mdl') :
+                dim=true.shape
+                truen=true.flatten()+np.random.normal(0.,1./sn,true.flatten().shape)
+                truen=np.reshape(truen,(dim[0],dim[1]))
+                ferre.writespec(name+'.mdl'.format(sn),truen)
+                ferre.writespec(name+'.err'.format(sn),truen*0.+1./sn)
  
-    # list of all the different tests and their input.nml files 
+    # list of all the different tests and their input.nml files; latter are set below
+    # first fdir is just for creating PCA
     root='test/pca_{:d}_{:d}'.format(npiece,npca)
     fdirs = [root+'/',root+'/algor3/',root+'/algor1/',root+'/algor1_12/',root+'/algor3_12/',
              root+'/algor3_001/',root+'/algor3_01/',root+'/algor3_1',
@@ -387,38 +395,43 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
         print(fdir)
         prefix=liblink(plib,fdir)
         # create input ipf
-        try: os.remove(fdir+'/test.ipf')
-        except: pass
-        os.symlink(prefix+'test.ipf',fdir+'/test.ipf')
-        #fp=open('test.ipf','r') 
-        #fout=open(fdir+'/test.ipf','w') 
-        #for line in fp : fout.write(line.split()[0]+' 0.  0.   0.  0.  0.  2.5  4500.\n')
-        #fout.close()
-        # create obs file with true spectra
-        try: os.remove(fdir+'/test.obs')
-        except: pass
-        os.symlink(prefix+'raw/test.mdl',fdir+'/test.obs')
-        # create dummy uncertainty file
-        try: os.remove(fdir+'/test.err')
-        except: pass
-        os.symlink(prefix+'raw/test.err',fdir+'/test.err')
+        cmds=[]
+        for sn in sns :
+            if sn < 1000 : name = fdir+'/testsn{:d}'.format(sn)
+            else : name = fdir+'/test'
+            # create input ipf
+            try: os.remove(name+'.ipf')
+            except: pass
+            os.symlink(prefix+'test/test_'+grid+'.ipf',name+'.ipf')
+            # create obs file with true spectra
+            try: os.remove(name+'.obs')
+            except: pass
+            os.symlink(prefix+'test/raw/'+os.path.basename(name)+'.mdl',name+'.obs')
+            # create uncertainty file
+            try: os.remove(name+'.err')
+            except: pass
+            os.symlink(prefix+'test/raw/'+os.path.basename(name)+'.err',name+'.err')
+            cmds.extend(['cp '+os.path.basename(name)+'.nml input.nml','ferre.x'])
         # create the command file to run FERRE
-        mkslurm.write('ferre.x',outdir=fdir+'/',runplans='',cwd=os.getcwd()+'/'+fdir,time='48:00:00',fast=fast)
+        mkslurm.write(cmds,name='ferre.x',outdir=fdir+'/',runplans=False,cwd=os.getcwd()+'/'+fdir,time='48:00:00',fast=fast)
 
     # test-specific input.nml files
     ferre.writenml(root+'/input.nml','test',l,nov=0,ncpus=1)
-    ferre.writenml(root+'/algor3/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32)
-    ferre.writenml(root+'/algor1_12/input.nml','test',l,algor=1,renorm=4,obscont=1,ncpus=32,indini=[1,1,1,1,2,2,3])
-    ferre.writenml(root+'/algor1/input.nml','test',l,algor=1,renorm=4,obscont=1,ncpus=32)
-    ferre.writenml(root+'/algor3_12/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,indini=[1,1,1,1,2,2,3])
-    ferre.writenml(root+'/algor3_001/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.001)
-    ferre.writenml(root+'/algor3_01/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.01)
-    ferre.writenml(root+'/algor3_12_01/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.01,indini=[1,1,1,1,2,2,3])
-    ferre.writenml(root+'/algor3_1/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.1)
-    ferre.writenml(root+'/algor3_12_1/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.1,indini=[1,1,1,1,2,2,3])
-    ferre.writenml(root+'/algor3_indi1234567/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,indi=[1,2,3,4,5,6,7])
-    ferre.writenml(root+'/algor3_indi3142567/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,indi=[3,1,4,2,5,6,7])
-    ferre.writenml(root+'/algor3_4d/input.nml','test',l,algor=3,renorm=4,obscont=1,ncpus=32,indv=[4,5,6,7])
+    for sn in sns :
+        if sn < 1000 : name = 'testsn{:d}'.format(sn)
+        else : name = 'test'
+        ferre.writenml(root+'/algor3/'+name+'.nml',name,l,algor=3,renorm=4,obscont=1,ncpus=32,init=1)
+        ferre.writenml(root+'/algor1_12/'+name+'.nml',name,l,algor=1,renorm=4,obscont=1,ncpus=32,indini=[1,1,1,1,2,2,3],init=1)
+        ferre.writenml(root+'/algor1/'+name+'.nml',name,l,algor=1,renorm=4,obscont=1,ncpus=32,init=1)
+        ferre.writenml(root+'/algor3_12/'+name+'.nml',name,l,algor=3,renorm=4,obscont=1,ncpus=32,indini=[1,1,1,1,2,2,3],init=1)
+        ferre.writenml(root+'/algor3_001/'+name+'.nml',name,l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.001,init=1)
+        ferre.writenml(root+'/algor3_01/'+name+'.nml',name,l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.01,init=1)
+        ferre.writenml(root+'/algor3_12_01/'+name+'.nml',name,l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.01,indini=[1,1,1,1,2,2,3],init=1)
+        ferre.writenml(root+'/algor3_1/'+name+'.nml',name,l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.1,init=1)
+        ferre.writenml(root+'/algor3_12_1/'+name+'.nml',name,l,algor=3,renorm=4,obscont=1,ncpus=32,stopcr=0.1,indini=[1,1,1,1,2,2,3],init=1)
+        ferre.writenml(root+'/algor3_indi1234567/'+name+'.nml',name,l,algor=3,renorm=4,obscont=1,ncpus=32,indi=[1,2,3,4,5,6,7],init=1)
+        ferre.writenml(root+'/algor3_indi3142567/'+name+'.nml',name,l,algor=3,renorm=4,obscont=1,ncpus=32,indi=[3,1,4,2,5,6,7],init=1)
+        ferre.writenml(root+'/algor3_4d/'+name+'.nml',name,l,algor=3,renorm=4,obscont=1,ncpus=32,indv=[4,5,6,7],init=1)
 
     # produce PCA version of test spectra
     if runpca : 
@@ -437,18 +450,30 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
     print("running/making plots...")
     tab=[]
     yt=[]
-    for fdir in fdirs :
+    # first fdir is just for creating PCA
+    for fdir in fdirs[1:] :
         print(fdir)
         if fit : subprocess.call(['sbatch','ferre.x'],shell=False,cwd=fdir)
-        try : 
-            sample.comp(fdir+'/test',hard=True,true='raw/test.ipf')
-            tab.append([fdir+'/test.png',fdir+'/test_2.png'])
-            dt=subprocess.check_output("grep ellapsed "+fdir+"/ferre.x.out | tail -1 | awk '{print $3}'",shell=True)
-            yt.append(fdir+'<br>FERRE time: '+dt+' s')
-        except : pass
+        xtab=[]
+        xt=[]
+        tmp=''
+        for sn in sns :
+            if sn < 1000 : name = fdir+'/testsn{:d}'.format(sn)
+            else : name = fdir+'/test'
+            try : 
+                sample.comp(name,hard=True,true='test/raw/test.ipf')
+                dt=subprocess.check_output("grep ellapsed "+fdir+"/ferre.x.out | tail -1 | awk '{print $3}'",shell=True)
+            except : 
+                dt='-1.'
+            xtab.extend(['../'+name+'.png','../'+name+'_2.png'])
+            xt.extend(['S/N = '+str(sn),'S/N = '+str(sn)])
+            tmp=tmp+dt+','
+        tab.append(xtab)
+        yt.append(fdir+'<br>FERRE time: '+tmp+' s')
 
     header = '<h3>'+outfile+'</h3>\n'
+    header = header + '<br> Test sample: <br><img src=test_'+grid+'.png width=40%> <img src=test_'+grid+'_2.png width=40%>'
     header = header + '<br> Histogram of pixel ratios between raw and PCA for test sample:<br>'
-    header = header + '<img src='+root+'/'+outfile+'_pca.png>\n'
+    header = header + '<img src=../'+root+'/'+outfile+'_pca.png width=40%>\n'
 
-    html.htmltab(tab,file='test.html',header=header,ytitle=yt)
+    html.htmltab(tab,file='test/test.html',header=header,ytitle=yt,xtitle=xt)

@@ -626,6 +626,7 @@ def mkgridlink(planfile,suffix=None) :
           for iam,am in enumerate(spectra.vector(p['am0'],p['dam'],p['nam'])) :
             file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
                    atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
+            print(file)
 
             GKg= fits.open('../../giantisotopes/tgGK_'+linelist+suffix+'/'+file)[0]
             Mg= fits.open('../../giantisotopes/tgM_'+linelist+suffix+'/'+file)[0]
@@ -659,13 +660,12 @@ def mkgridlink(planfile,suffix=None) :
                     if i<0 or j<0 or k<0 :
                         print("can't find model to fill!",mh,logg,teff)
                     else :
-                        print(mh,logg,teff,igrid,i,j,k)
+                        #print(mh,logg,teff,igrid,i,j,k)
                         try:
-                            print(grids[igrid].data.shape)
+                            #print(grids[igrid].data.shape)
                             s[imh,ilogg,iteff,:]=grids[igrid].data[k,j,i,:]
                         except:
                             pdb.set_trace()
-            pdb.set_trace()
             hdulist=fits.HDUList()
             hdu=fits.ImageHDU(s)
             idim=1
@@ -803,7 +803,6 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None) :
         hdu.header.insert('CRVAL5',('CDELT5',float(p['drot']),''),after=True)
         hdu.header.insert('CDELT5',('CRPIX5',1,''),after=True)
         hdu.header.insert('CRPIX5',('CTYPE5','LOG(VSINI)',''),after=True)
-        #spectra.add_dim(hdu.header,float(p['rot0']),float(p['drot']),1,'LGVSINI',5)
     hdu.header['INFILE'] = p['specdir']+'/'+prefix+p['name']+'.fits'
     hdu.header['APRED'] = apred
     hdu.header['LSFID'] = lsfid

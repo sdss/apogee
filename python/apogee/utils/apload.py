@@ -62,9 +62,7 @@ class ApLoad :
         ''' Read allStar file (downloading if necesssary)'''
         file = self.allfile('allStar')
         try :
-            print('calling allfile...')
             file = self.allfile('allStar')
-            print('calling readhdu...')
             return self._readhdu(file,hdu=hdu)
         except :
             self.printerror()
@@ -125,7 +123,7 @@ class ApLoad :
             try :
                 file = self.allfile(
                    'Flat',num=args[0],mjd=self.cmjd(args[0]),chips=True)
-                return _readchip(file,'Flat',**kwargs)
+                return self._readchip(file,'Flat',**kwargs)
             except :
                 self.printerror()
     
@@ -145,7 +143,7 @@ class ApLoad :
             try :
                 file = self.allfile(
                    'Wave',num=args[0],mjd=self.cmjd(args[0]),chips=True)
-                return _readchip(file,'Wave',**kwargs)
+                return self._readchip(file,'Wave',**kwargs)
             except :
                 self.printerror()
     
@@ -165,7 +163,7 @@ class ApLoad :
             try :
                 file = self.allfile(
                    'LSF',num=args[0],mjd=self.cmjd(args[0]),chips=True)
-                return _readchip(file,'LSF',**kwargs)
+                return self._readchip(file,'LSF',**kwargs)
             except :
                 self.printerror()
     
@@ -185,7 +183,7 @@ class ApLoad :
             try :
                 file = self.allfile(
                    'PSF',num=args[0],mjd=self.cmjd(args[0]),chips=True)
-                return _readchip(file,'PSF',**kwargs)
+                return self._readchip(file,'PSF',**kwargs)
             except :
                 self.printerror()
     
@@ -205,7 +203,7 @@ class ApLoad :
             try :
                 file = self.allfile(
                    'EPSF',num=args[0],mjd=self.cmjd(args[0]),chips=True)
-                return _readchip(file,'EPSF',**kwargs)
+                return self._readchip(file,'EPSF',**kwargs)
             except :
                 self.printerror()
     
@@ -225,7 +223,7 @@ class ApLoad :
             try :
                 file = self.allfile(
                    '1D',num=args[0],mjd=self.cmjd(args[0]),chips=True)
-                return _readchip(file,'1D',**kwargs)
+                return self._readchip(file,'1D',**kwargs)
             except :
                 self.printerror()
     
@@ -250,7 +248,7 @@ class ApLoad :
                 file = self.allfile(
                    '2D'+fz,num=args[0],mjd=self.cmjd(args[0]),chips=True)
                 print('file: ', file)
-                return _readchip(file,'2D',**kwargs)
+                return self._readchip(file,'2D',**kwargs)
             except :
                 self.printerror()
     
@@ -270,7 +268,7 @@ class ApLoad :
             try :
                 file = self.allfile(
                    '2Dmodel',num=args[0],mjd=self.cmjd(args[0]),chips=True)
-                return _readchip(file,'2Dmodel',**kwargs)
+                return self._readchip(file,'2Dmodel',**kwargs)
             except :
                 self.printerror()
     
@@ -290,7 +288,7 @@ class ApLoad :
             try :
                 file = self.allfile(
                    'Cframe',field=args[0],plate=args[1],mjd=args[2],num=args[3],chips=True)
-                return _readchip(file,'Cframe',**kwargs)
+                return self._readchip(file,'Cframe',**kwargs)
             except :
                 self.printerror()
     
@@ -310,7 +308,7 @@ class ApLoad :
             try :
                 file = self.allfile(
                    'Plate',plate=args[0],mjd=args[1],chips=True,telescope='apo25m')
-                return _readchip(file,'Plate',**kwargs)
+                return self.self._readchip(file,'Plate',**kwargs)
             except :
                 self.printerror()
     
@@ -520,9 +518,7 @@ class ApLoad :
         print('allfile...')
         sdss_path=path.Path()
         http_access=HttpAccess(verbose=True)
-        print('http_access.remote..')
         http_access.remote()
-        sys.stdout.flush()
         if self.instrument == 'apogee-n' :
             if root == 'R' :
                 prefix='ap'
@@ -563,12 +559,14 @@ class ApLoad :
                                 field=field, location=location,obj=obj,plate=plate,mjd=mjd,num=num,
                                 telescope=telescope,fiber=fiber,
                                 chip=chip,prefix=prefix,instrument=self.instrument)
-                print('filePath: ', filePath)
+                print('filePath: ', filePath, os.path.exists(filePath))
                 if os.path.exists(filePath) is False: 
+                  try:
                     http_access.get(sdssroot,
                                 apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
                                 field=field, location=location,obj=obj,plate=plate,mjd=mjd,num=num,
                                 telescope=telescope,fiber=fiber,
                                 chip=chip,prefix=prefix,instrument=self.instrument)
+                  except: pdb.set_trace()
             return filePath.replace('-c','')
     

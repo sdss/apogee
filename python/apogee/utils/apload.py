@@ -25,12 +25,22 @@ class ApLoad :
         self.apstar=apstar
         self.aspcap=aspcap
         self.results=results
+        self.telescope='apo25m'
         self.instrument='apogee-n'
         if dr == 'dr10' : self.dr10()
         elif dr == 'dr12' : self.dr12()
         elif dr == 'dr13' : self.dr13()
         elif dr == 'dr14' : self.dr14()
+        # set up 
+        self.sdss_path=path.Path()
+        self.http_access=HttpAccess(verbose=True)
+        self.http_access.remote()
    
+    def settelescope(self,telescope) :
+        self.telescope=telescope
+        if 'apo' in telescope : self.instrument='apogee-n'
+        if 'lco' in telescope : self.instrument='apogee-s'
+ 
     def setinst(self,instrument) :
         self.instrument=instrument
  
@@ -106,6 +116,26 @@ class ApLoad :
             return self._readhdu(file,hdu=hdu)
         except :
             self.printerror()
+    
+    def apR(self,*args,**kwargs) :
+        """
+        NAME: apload.apR
+        PURPOSE:  read apR file (downloading if necessary)
+        USAGE:  ret = apload.apR(imagenumber[,hdu=N,tuple=True])
+        RETURNS: if hdu==None : dictionary of ImageHDUs (all extensions) 
+                                for chips 'a', 'b', 'c'
+                 if hdu=N : returns dictionaries (data, header) for specified HDU
+                 if tuple=True : returns tuples rather than dictionaries
+        """
+        if len(args) != 1 :
+            print('Usage: apR(imagenumber)')
+        else :
+            try :
+                file = self.allfile(
+                   'R',num=args[0],mjd=self.cmjd(args[0]),chips=True)
+                return self._readchip(file,'R',**kwargs)
+            except :
+                self.printerror()
     
     def apFlat(self,*args,**kwargs) :
         """
@@ -307,7 +337,7 @@ class ApLoad :
         else :
             try :
                 file = self.allfile(
-                   'Plate',plate=args[0],mjd=args[1],chips=True,telescope='apo25m')
+                   'Plate',plate=args[0],mjd=args[1],chips=True)
                 return self.self._readchip(file,'Plate',**kwargs)
             except :
                 self.printerror()
@@ -511,61 +541,66 @@ class ApLoad :
             hd.close()
             return data, header
     
-    def allfile(self,root,dr=None,apred=None,apstar=None,aspcap=None,results=None,location=None,obj=None,plate=None,mjd=None,num=None,telescope='apo25m',fiber=None,chips=False,field=None) :
+    def allfile(self,root,dr=None,apred=None,apstar=None,aspcap=None,results=None,location=None,obj=None,plate=None,mjd=None,num=None,fiber=None,chips=False,field=None) :
         '''
         Uses sdss_access to create filenames and download files if necessary
         '''
+
         print('allfile...')
-        sdss_path=path.Path()
-        http_access=HttpAccess(verbose=True)
-        http_access.remote()
-        if self.instrument == 'apogee-n' :
-            if root == 'R' :
-                prefix='ap'
-            else :
-                prefix='ap'
-        else :
-            prefix='as'
-            telescope='lco25m'
-    
+        if self.instrument == 'apogee-n' : prefix='ap'
+        else : prefix='as'
+
+        # get the sdss_access root file name appropriate for telescope and file 
+        # usually just 'ap'+root, but not for "all" files, raw files, and 1m files, since
+        # those require different directory paths
         if 'all' in root or 'aspcap' in root or 'cannon' in root :
             sdssroot = root 
+        elif root == 'R' :
+            if 'lco' in self.telescope: sdssroot = 'asR'
+            elif 'apo1m' in self.telescope: sdssroot = 'apR-1m'
+            else : sdssroot = 'apR'
+        elif (self.telescope == 'apo1m' and 
+           (root == 'Plan' or root == 'PlateSum' or root == 'Visit' or root == 'VisitSum' or root == 'Tellstar' or 
+            root == 'Cframe' or root == 'Plate') ) :
+            sdssroot = 'ap'+root+'-1m'
         else :
             sdssroot = 'ap'+root
+
+#if n_elements(keywords) gt 0 then if tag_exist(keywords,'plate') then keywords=create_struct(keywords,'FIELD',apogee_field(0,keywords.plate))
     
         if chips == False :
             # First make sure the file doesn't exist locally
-            #print(sdssroot,apred,apstar,aspcap,results,location,obj,telescope,field,prefix)
-            filePath = sdss_path.full(sdssroot,
+            #print(sdssroot,apred,apstar,aspcap,results,location,obj,self.telescope,field,prefix)
+            filePath = self.sdss_path.full(sdssroot,
                                       apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
                                       field=field,location=location,obj=obj,plate=plate,mjd=mjd,num=num,
-                                      telescope=telescope,fiber=fiber,prefix=prefix,instrument=self.instrument)
+                                      telescope=self.telescope,fiber=fiber,prefix=prefix,instrument=self.instrument)
             print('filePath',filePath)
             if os.path.exists(filePath) is False: 
-                downloadPath = sdss_path.url(sdssroot,
+                downloadPath = self.sdss_path.url(sdssroot,
                                       apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
                                       location=location,obj=obj,plate=plate,mjd=mjd,num=num,
-                                      telescope=telescope,fiber=fiber,prefix=prefix,instrument=self.instrument)
-                http_access.get(sdssroot,
+                                      telescope=self.telescope,fiber=fiber,prefix=prefix,instrument=self.instrument)
+                self.http_access.get(sdssroot,
                                 apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
                                 location=location,obj=obj,plate=plate,mjd=mjd,num=num,
-                                telescope=telescope,fiber=fiber,prefix=prefix,instrument=self.instrument)
+                                telescope=self.telescope,fiber=fiber,prefix=prefix,instrument=self.instrument)
             return filePath
         else :
             for chip in ['a','b','c'] :
                 #print(chip,root,num,mjd,prefix)
-                filePath = sdss_path.full(sdssroot,
+                filePath = self.sdss_path.full(sdssroot,
                                 apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
                                 field=field, location=location,obj=obj,plate=plate,mjd=mjd,num=num,
-                                telescope=telescope,fiber=fiber,
+                                telescope=self.telescope,fiber=fiber,
                                 chip=chip,prefix=prefix,instrument=self.instrument)
                 print('filePath: ', filePath, os.path.exists(filePath))
                 if os.path.exists(filePath) is False: 
                   try:
-                    http_access.get(sdssroot,
+                    self.http_access.get(sdssroot,
                                 apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
                                 field=field, location=location,obj=obj,plate=plate,mjd=mjd,num=num,
-                                telescope=telescope,fiber=fiber,
+                                telescope=self.telescope,fiber=fiber,
                                 chip=chip,prefix=prefix,instrument=self.instrument)
                   except: pdb.set_trace()
             return filePath.replace('-c','')

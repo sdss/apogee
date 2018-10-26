@@ -446,10 +446,10 @@ def fitfield(model,field,stars=None,nfit=0,order=4,threads=8,plot=False,write=Tr
 
     # get model and list of stars
     get(model)
-    apload.dr14()
-    apfield=apload.apField(field)[1].data
-    aspcap_param=apload.aspcapField(field)[1].data
-    aspcap_spec=apload.aspcapField(field)[2].data
+    load=apload.ApLoad(dr='dr14')
+    apfield=load.apField(field)[1].data
+    aspcap_param=load.aspcapField(field)[1].data
+    aspcap_spec=load.aspcapField(field)[2].data
     if stars is None :
         stars=apfield['apogee_id']
         if nfit == 0 : stars = stars[0:nfit]
@@ -459,7 +459,7 @@ def fitfield(model,field,stars=None,nfit=0,order=4,threads=8,plot=False,write=Tr
     if plot : fig,ax=plots.multi(1,2,hspace=0.001,figsize=(15,3))
     pix = np.arange(0,8575,1)
     for star in stars :
-        apstar=apload.apStar(field,star)
+        apstar=dr14load.apStar(field,star)
         spec = apstar[1].data[0,:].squeeze()
         specerr = apstar[2].data[0,:].squeeze()
         cont = norm.cont(spec,specerr,poly=True,order=order,chips=True)
@@ -512,7 +512,7 @@ def aspcap_comp(model,fields,plot=True,save=None,loggmax=99) :
     """
 
     get(model)
-    apload.dr14()
+    load=apload.ApLoad(dr='dr14')
 
     apars_all=[]
     npars_all=[]
@@ -522,9 +522,9 @@ def aspcap_comp(model,fields,plot=True,save=None,loggmax=99) :
         out=fits.open('nn-'+field+'.fits')[1].data
         nfit = len(out)
         print(field,nfit)
-        apfield=apload.apField(field)[1].data
-        aspcap_param=apload.aspcapField(field)[1].data
-        aspcap_spec=apload.aspcapField(field)[2].data
+        apfield=load.apField(field)[1].data
+        aspcap_param=load.aspcapField(field)[1].data
+        aspcap_spec=load.aspcapField(field)[2].data
         stars=apfield['apogee_id']
 
         # look at results for each spectrum

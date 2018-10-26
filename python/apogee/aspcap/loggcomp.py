@@ -335,13 +335,13 @@ def dr13dr12() :
     j=np.where(apokasc['LOGG_SYD_SCALING'] > -1)[0]
     apokasc=apokasc[j]
 
-    apload.dr12()
-    dr12=apload.allStar()[1].data
-    apload.dr13()
-    dr13=apload.allStar()[1].data
-    apload.aspcap='l30i'
-    apload.results='l30i'
-    l30i=apload.allStar()[1].data
+    dr12load=apload.ApLoad(dr='dr12')
+    dr12=dr12load.allStar()[1].data
+    dr13load=apload.ApLoad(dr='dr13')
+    dr13=dr13load.allStar()[1].data
+    dr13load.aspcap='l30i'
+    dr13load.results='l30i'
+    l30i=dr13load.allStar()[1].data
 
     fig,ax =plots.multi(3,2,wspace=0.001,hspace=0.001)
 
@@ -405,11 +405,11 @@ def kurucz_marcs(logg='LOGG_SYD_SCALING',apokasc='APOKASC_cat_v3.6.0.fits') :
     #apokasc=apokasc[j]
 
     # read DR13 and l30i
-    apload.dr13()
-    dr13=apload.allStar()[1].data
-    apload.aspcap='l30i'
-    apload.results='l30i'
-    l30i=apload.allStar()[1].data
+    dr13load=apload.ApLoad(dr='dr13')
+    dr13=dr13load.allStar()[1].data
+    dr13load.aspcap='l30i'
+    dr13load.results='l30i'
+    l30i=dr13load.allStar()[1].data
 
     # define axes
     fig=plt.figure()

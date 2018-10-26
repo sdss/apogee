@@ -262,10 +262,7 @@ def train(planfile,skip=1,threads=8,xh=None,model_name=None,censor=None,sim=Fals
                 model_labels.append(el.upper()+'_FE')
             input_labels.append(el.upper()+'_FE')
 
-    apload.apred = apred
-    apload.apstar = apstar
-    apload.aspcap = aspcap_vers
-    apload.results = results
+    apl=apload.ApLoad(apred=apred,apstar=apstar,aspcap=aspcap_vers,results=results)
 
     if sim :
         allstar=fits.open('allStar.fits')[1].data
@@ -278,7 +275,7 @@ def train(planfile,skip=1,threads=8,xh=None,model_name=None,censor=None,sim=Fals
           gd2 = np.where( np.abs( (allstar['TEFF'][gd]-3500)*4/2000. - allstar['LOGG'][gd])  < float(gb) )[0]
           gd = gd[gd2]
     else :
-        allstar=apload.allStar()[1].data
+        allstar=apl.allStar()[1].data
         gd=apselect.select(allstar,badval=['STAR_BAD'],sn=[100,10000],logg=logg,teff=teff,mh=mh,alpha=alpha,badstar=['PERSIST_HIGH','PERSIST_MED','PERSIST_LOW'],gb=gb)
 
         gcstars = ascii.read(os.environ['IDLWRAP_DIR']+'/data/gc_szabolcs.dat')
@@ -538,11 +535,8 @@ def fit(planfile, model_name=None, spectrum_filenames=None, threads=8, clobber=T
     logger = logging.getLogger("AnniesLasso")
 
     # get allStar file for initial labels
-    apload.apred = apred
-    apload.apstar = apstar
-    apload.aspcap = aspcap
-    apload.results = results
-    allstar=apload.allStar()[1].data
+    apl=apload.ApLoad(apred=apred,apstar=apstar,aspcap=aspcap,results=results)
+    allstar=apl.allStar()[1].data
 
     # loop over fields in planfile
     for field in p['ASPCAP']['field'] :
@@ -774,11 +768,8 @@ def merge(planfile,fields=None,outfile=None,clobber=True) :
     apstar=p['apstar_vers'].strip("'")
     aspcap_vers=p['aspcap_vers'].strip("'")
     results=p['results_vers'].strip("'")
-    apload.apred = apred
-    apload.apstar = apstar
-    apload.aspcap = aspcap_vers
-    apload.results = results
-    a=apload.allStar()[1].data
+    apl=apload.ApLoad(apred=apred,apstar=apstar,aspcap=aspcap_vers,results=results)
+    a=apl.allStar()[1].data
     t=Table(a)
 
     out = Table()
@@ -846,11 +837,8 @@ def compare(planfile,model_name=None,outfile=None,xh=False,output_suffix='') :
     aspcap_vers=p['aspcap_vers'].strip("'")
     results=p['results_vers'].strip("'")
     if model_name is None: model_name = getval(p,'model_name','apogee-dr14-giants')
-    apload.apred = apred
-    apload.apstar = apstar
-    apload.aspcap = aspcap_vers
-    apload.results = results
-    a=apload.allStar()[1].data
+    apl=apload.ApLoad(apred=apred,apstar=apstar,aspcap=aspcap_vers,results=results)
+    a=apl.allStar()[1].data
 
     if outfile is None :
         outfile='allStarCannon-'+results+'.fits'

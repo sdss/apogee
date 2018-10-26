@@ -18,6 +18,7 @@ from astropy.io import fits
 import matplotlib.pyplot as plt
 
 from apogee.utils import apload
+load=apload.ApLoad()
 
 _SQRTTWO= numpy.sqrt(2.)
 
@@ -45,7 +46,7 @@ def get(lsfid,waveid,fiber,highres=9,apred=None) :
         l () : output LSF
 
     """
-    if apred is not None: apload.apred = apred
+    if apred is not None: load.apred = apred
     x=numpy.arange(-15.,15.01,1./highres)
     x=numpy.arange(-7.,7.01,1./highres)
     l=eval(x,fiber=fiber,waveid=waveid,lsfid=lsfid)
@@ -187,7 +188,7 @@ def eval(x,fiber='combo',lsfid=5440020,waveid=2420038,sparse=False):
     # Hi-res wavelength for output
     hireswav= 10.**numpy.arange(l10wav[0],l10wav[-1]+dowav/hires,dowav/hires)
     out= numpy.zeros((len(hireswav),len(x)))
-    lsfpars=apload.apLSF(lsfid,hdu=0)[0]
+    lsfpars=load.apLSF(lsfid,hdu=0)[0]
     for chip in ['a','b','c']:
         # Get pixel array for this chip, use fiber[0] for consistency if >1 fib
         pix= wave2pix(hireswav,chip,fiber=300-fiber[0],waveid=waveid)
@@ -378,7 +379,7 @@ def wave2pix(wave,chip,fiber=300,waveid=2420038):
         2015-02-27 - Written - Bovy (IAS)
     """
 # Load wavelength solutions
-    wave0 =apload.apWave(waveid,hdu=2)[0][chip][300-fiber]
+    wave0 =load.apWave(waveid,hdu=2)[0][chip][300-fiber]
     pix0= numpy.arange(len(wave0))
     # Need to sort into ascending order
     sindx= numpy.argsort(wave0)
@@ -406,7 +407,7 @@ def pix2wave(pix,chip,fiber=300,waveid=2420038):
     HISTORY:
         2015-02-27 - Written - Bovy (IAS)
     """
-    wave0 =apload.apWave(waveid,hdu=2)[0][chip][300-fiber]
+    wave0 =load.apWave(waveid,hdu=2)[0][chip][300-fiber]
     pix0= numpy.arange(len(wave0))
     # Need to sort into ascending order
     sindx= numpy.argsort(pix0)

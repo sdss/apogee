@@ -20,20 +20,21 @@ import sys
 
 class ApLoad :
 
-    def __init__(self,dr=None,apred='r8',apstar='stars',aspcap='l31c',results='l31c.2') :
+    def __init__(self,dr=None,apred='r8',apstar='stars',aspcap='l31c',results='l31c.2',verbose=False) :
         self.apred=apred
         self.apstar=apstar
         self.aspcap=aspcap
         self.results=results
         self.telescope='apo25m'
         self.instrument='apogee-n'
+        self.verbose=verbose
         if dr == 'dr10' : self.dr10()
         elif dr == 'dr12' : self.dr12()
         elif dr == 'dr13' : self.dr13()
         elif dr == 'dr14' : self.dr14()
         # set up 
         self.sdss_path=path.Path()
-        self.http_access=HttpAccess(verbose=True)
+        self.http_access=HttpAccess(verbose=verbose)
         self.http_access.remote()
    
     def settelescope(self,telescope) :
@@ -491,13 +492,13 @@ class ApLoad :
     
     def _readchip(self,file,root,hdu=None,tuple=None,fz=None) :
         """ low level routine to read set of 3 chip files and return data as requested"""
-        print('Reading from file: ', file)
+        if self.verbose : print('Reading from file: ', file)
         try:
-            print (file.replace(root,root+'-a'))
+            if self.verbose : print (file.replace(root,root+'-a'))
             a=fits.open(file.replace(root,root+'-a'))
-            print (file.replace(root,root+'-b'))
+            if self.verbose : print (file.replace(root,root+'-b'))
             b=fits.open(file.replace(root,root+'-b'))
-            print (file.replace(root,root+'-c'))
+            if self.verbose : print (file.replace(root,root+'-c'))
             c=fits.open(file.replace(root,root+'-c'))
         except:
             print("Can't open file: ", file)
@@ -505,10 +506,10 @@ class ApLoad :
     
         if hdu is None :
             if tuple :
-               print('file: ', file,' read into tuple')
+               if self.verbose : print('file: ', file,' read into tuple')
                return a,b,c 
             else :
-               print('file: ', file,' read into dictionary with entries a, b, c')
+               if self.verbose : print('file: ', file,' read into dictionary with entries a, b, c')
                return {'a' : a, 'b' : b, 'c' : c, 'filename' : file}
         else :
             a[hdu].header.set('filename',os.path.basename(file.replace(root,root+'-a')))
@@ -525,11 +526,11 @@ class ApLoad :
             c.close()
             return data, header
     
-    def _readhdu(self,file,hdu=None,verbose=False) :
+    def _readhdu(self,file,hdu=None) :
         '''
         internal routine for reading all HDU or specified HDU and returning data and header
         '''
-        if verbose :
+        if self.verbose :
             print('Reading from file: ', file)
         if hdu is None :
             fits.open(file)
@@ -546,7 +547,7 @@ class ApLoad :
         Uses sdss_access to create filenames and download files if necessary
         '''
 
-        print('allfile...')
+        if self.verbose: print('allfile...')
         if self.instrument == 'apogee-n' : prefix='ap'
         else : prefix='as'
 
@@ -575,7 +576,7 @@ class ApLoad :
                                       apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
                                       field=field,location=location,obj=obj,plate=plate,mjd=mjd,num=num,
                                       telescope=self.telescope,fiber=fiber,prefix=prefix,instrument=self.instrument)
-            print('filePath',filePath)
+            if self.verbose: print('filePath',filePath)
             if os.path.exists(filePath) is False: 
                 downloadPath = self.sdss_path.url(sdssroot,
                                       apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
@@ -594,7 +595,7 @@ class ApLoad :
                                 field=field, location=location,obj=obj,plate=plate,mjd=mjd,num=num,
                                 telescope=self.telescope,fiber=fiber,
                                 chip=chip,prefix=prefix,instrument=self.instrument)
-                print('filePath: ', filePath, os.path.exists(filePath))
+                if self.verbose : print('filePath: ', filePath, os.path.exists(filePath))
                 if os.path.exists(filePath) is False: 
                   try:
                     self.http_access.get(sdssroot,

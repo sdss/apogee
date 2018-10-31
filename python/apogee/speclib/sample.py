@@ -31,6 +31,10 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
     """
 
     # set output limits
+    dthi=250
+    dlogg=0.5
+    dmh=0.25
+    dam=0.25
     if gridclass == 'GKg' :
         tefflim=[3500,6000]
         logglim=[0,4.5]
@@ -44,17 +48,34 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
     elif gridclass == 'GKd' :
         tefflim=[3500,6000]
         logglim=[2.5,5.5]
+        cmlim=[-0.5,0.5]
+        nmlim=[-0.5,1.5]
         dtlo=250.
         rot=True
     elif gridclass == 'Md' :
         tefflim=[3000,4000]
         logglim=[2.5,5.5]
+        cmlim=[-0.5,0.5]
+        nmlim=[-0.5,1.5]
         dtlo=100.
         rot=True
     elif gridclass == 'Fd' :
         tefflim=[5500,8000]
         logglim=[2.5,5.5]
+        cmlim=[-0.5,0.5]
+        nmlim=[-0.5,1.5]
         dtlo=250.
+        rot=True
+    elif gridclass == 'coarse' :
+        tefflim=[3500,8000]
+        logglim=[0.5,5. ]
+        cmlim=[-0.5,0.5]
+        nmlim=[-0.5,1.5]
+        dtlo=500.
+        dthi=500.
+        dlogg=1.0
+        dmh=0.5
+        dam=0.5
         rot=True
     if gridclass is not None : name = name+'_'+gridclass
     grid=[]
@@ -68,11 +89,11 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         print(file)
         for i in range(len(a)) :
             if a['teff'][i] < 4000 : dt=dtlo
-            else : dt = 250.
+            else : dt = dthi
             for j in range(-1,2) :
               teff = (int(round(a['teff'][i]/dt))+j)*int(dt)
-              logg = (int(round(a['logg'][i]/0.5))+j)*0.5
-              mh = (int(round(a['feh'][i]/0.25))+j)*0.25
+              logg = (int(round(a['logg'][i]/dlogg))+j)*dlogg
+              mh = (int(round(a['feh'][i]/dmh))+j)*dmh
               # clip to stay within requested grid limits
               teff=clip(teff,tefflim)
               logg=clip(logg,logglim)
@@ -125,7 +146,7 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         cm=clip(cm,cmlim)
         nm=clip(nm,nmlim)
         am=np.random.uniform(-0.25,0.5)
-        am = (round(am/0.25))*0.25
+        am = (round(am/dam))*dam
         am=clip(am,amlim)
         allteff.append(teff)
         alllogg.append(logg)
@@ -197,6 +218,7 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
     plots.plotc(ax[2,1],allteff+np.random.uniform(-30.,30.,size=len(allteff)),alllogg+np.random.uniform(-0.1,0.1,size=len(alllogg)),allnm,
                 xr=[8000,2500],yr=[6.,-1],zr=nmlim,zt='[N/M]',colorbar=True,xt='Teff',yt='log g')
     fig.savefig(name+'.png')
+    plt.close()
     fig,ax=plots.multi(2,2,hspace=0.4,wspace=0.4)
     plots.plotc(ax[0,0],allmh+np.random.uniform(-0.1,0.1,size=len(allmh)),allam+np.random.uniform(-0.1,0.1,size=len(allam)),allteff,
                 xr=[-2.5,1],yr=[-0.75,1.],zr=[2500,8000],zt='Teff',colorbar=True,xt='[M/H]',yt='[alpha/M]')
@@ -206,23 +228,43 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
                 xr=[6,-1],yr=[-1.5,2.],zr=[2500,8000],zt='Teff',colorbar=True,xt='log g',yt='[N/M]')
     fig.tight_layout()
     fig.savefig(name+'_2.png')
+    plt.close()
 
 def dclip(d,lim=[-0.5,0.5]) :
     d[np.where(d < lim[0])]=lim[0]
     d[np.where(d > lim[1])]=lim[1]
     return d
 
-def comp(file,true=None,truespec=None,hard=False,plot=False,minchi2=0.,testid=None) :
+def comp(file,true=None,truespec=None,hard=False,plot=False,minchi2=0.,testid=None,rot=False) :
     """ Compare input parameters with output results
     """
     if true is None: true=file+'.ipf'
-    true=ascii.read(true,names=['id','vmicro','cm','nm','am','mh','logg','teff'])
+    if rot :
+        names=['id','vmicro','cm','nm','am','vrot','mh','logg','teff']
+        names_spm=['id','vmicro','cm','nm','am','vrot','mh','logg','teff',
+                   'evmicro','ecm','enm','eam','evrot','emh','elogg','eteff','a','b','chi2']
+    else :
+        names=['id','vmicro','cm','nm','am','mh','logg','teff']
+        names_spm=['id','vmicro','cm','nm','am','mh','logg','teff',
+                   'evmicro','ecm','enm','eam','emh','elogg','eteff','a','b','chi2']
+    true=ascii.read(true,names=names)
     ##spec=np.loadtxt('test.dat')
 
-    obs=ascii.read(file+'.spm',names=['id','vmicro','cm','nm','am','mh','logg','teff','evm','ecm','enm','eam','emh','elogg','eteff','a','b','chi2'])
-    #mdl=np.loadtxt(file+'.out')
+    obs=ascii.read(file+'.spm',names=names_spm)
     i1,i2=match.match(true['id'],obs['id'])
 
+    # write out file with differences
+    f=open(file+'.out','w')
+    for i in range(len(i1)) :
+        f.write(('{:<15s}'+'{:7.2f}'*14+'\n').format(true[i1[i]]['id'],
+                 true[i1[i]]['teff'],true[i1[i]]['logg'],true[i1[i]]['mh'],true[i1[i]]['am'],true[i1[i]]['cm'],
+                 true[i1[i]]['nm'],true[i1[i]]['vmicro'],
+                 obs[i2[i]]['teff']-true[i1[i]]['teff'],obs[i2[i]]['logg']-true[i1[i]]['logg'],obs[i2[i]]['mh']-true[i1[i]]['mh'],
+                 obs[i2[i]]['am']-true[i1[i]]['am'],obs[i2[i]]['cm']-true[i1[i]]['cm'],
+                 obs[i2[i]]['nm']-true[i1[i]]['nm'],obs[i2[i]]['vmicro']-true[i1[i]]['vmicro']))
+    f.close()
+
+    # histogram of differences, in linear and log histograms
     fig,ax=plots.multi(8,2,wspace=0.001,hspace=0.001,figsize=(12,4),xtickrot=60)
     for iy,log in enumerate([False,True]) :
         ax[iy,0].hist(dclip(obs[i2]['teff']-true[i1]['teff'],lim=[-200,200]),bins=np.arange(-200,201,10),histtype='step',log=log)  
@@ -246,45 +288,52 @@ def comp(file,true=None,truespec=None,hard=False,plot=False,minchi2=0.,testid=No
         fig.savefig(file+'.png')
         plt.close()
 
+    # plots of differences vs Teff, color-coded by various quantities
     fig,ax=plots.multi(6,7,hspace=0.001,wspace=0.001,figsize=(16,8),xtickrot=60)
-    #for ix,z in enumerate(['mh','logg','cm']) :
+    x = true['teff'][i1] + np.random.uniform(-45.,45.,size=len(i1))
     for ix in range(6) :
       yt=''
       if ix == 0 : 
         z=true['logg'][i1]
         tit='color: logg'
+        zr=[0,5]
       elif ix == 1 : 
         z=true['mh'][i1]
         tit='color: [M/H]'
+        zr=[-1.5,0.5]
       elif ix == 2 : 
         z=true['mh'][i1]+true['am'][i1]
         tit='color: [alpha/H]'
+        zr=[-1.5,1.5]
       elif ix == 3 : 
         z=true['mh'][i1]+true['cm'][i1]
         tit='color: [C/H]'
+        zr=[-1.5,1.5]
       elif ix == 4 : 
         z=true['mh'][i1]+true['nm'][i1]
         tit='color: [N/H]'
+        zr=[-1.5,1.5]
       elif ix == 5 : 
         z=obs['chi2'][i2]
         tit='color: chi2'
+        zr=[0,10.]
       ax[0,ix].set_title(tit)
       if ix == 0 :
-        plots.plotc(ax[0,ix],obs['teff'][i2],obs['teff'][i2]-true['teff'][i1],z,xt='Teff',yt=r'$\Delta$Teff',yr=[-1000,1000])
-        plots.plotc(ax[1,ix],obs['teff'][i2],obs['logg'][i2]-true['logg'][i1],z,xt='Teff',yt=r'$\Delta$logg',yr=[-2.0,2.0])
-        plots.plotc(ax[2,ix],obs['teff'][i2],obs['mh'][i2]-true['mh'][i1],z,xt='Teff',yt=r'$\Delta$[M/H]',yr=[-0.5,0.5])
-        plots.plotc(ax[3,ix],obs['teff'][i2],obs['am'][i2]-true['am'][i1],z,xt='Teff',yt=r'$\Delta$[a/M]',yr=[-0.5,0.5])
-        plots.plotc(ax[4,ix],obs['teff'][i2],obs['cm'][i2]-true['cm'][i1],z,xt='Teff',yt=r'$\Delta$[C/M]',yr=[-1.5,1.5])
-        plots.plotc(ax[5,ix],obs['teff'][i2],obs['nm'][i2]-true['nm'][i1],z,xt='Teff',yt=r'$\Delta$[N/M]',yr=[-1.5,1.5])
-        plots.plotc(ax[6,ix],obs['teff'][i2],10.**obs['vmicro'][i2]-10.**true['vmicro'][i1],z,xt='Teff',yt=r'$\Delta$vmicro',yr=[-1.0,1.0])
+        plots.plotc(ax[0,ix],x,obs['teff'][i2]-true['teff'][i1],z,xt='Teff',yt=r'$\Delta$Teff',yr=[-1000,1000],zr=zr)
+        plots.plotc(ax[1,ix],x,obs['logg'][i2]-true['logg'][i1],z,xt='Teff',yt=r'$\Delta$logg',yr=[-2.0,2.0],zr=zr)
+        plots.plotc(ax[2,ix],x,obs['mh'][i2]-true['mh'][i1],z,xt='Teff',yt=r'$\Delta$[M/H]',yr=[-0.5,0.5],zr=zr)
+        plots.plotc(ax[3,ix],x,obs['am'][i2]-true['am'][i1],z,xt='Teff',yt=r'$\Delta$[a/M]',yr=[-0.5,0.5],zr=zr)
+        plots.plotc(ax[4,ix],x,obs['cm'][i2]-true['cm'][i1],z,xt='Teff',yt=r'$\Delta$[C/M]',yr=[-1.5,1.5],zr=zr)
+        plots.plotc(ax[5,ix],x,obs['nm'][i2]-true['nm'][i1],z,xt='Teff',yt=r'$\Delta$[N/M]',yr=[-1.5,1.5],zr=zr)
+        plots.plotc(ax[6,ix],x,10.**obs['vmicro'][i2]-10.**true['vmicro'][i1],z,xt='Teff',yt=r'$\Delta$vmicro',yr=[-1.0,1.0],zr=zr)
       else :
-        plots.plotc(ax[0,ix],obs['teff'][i2],obs['teff'][i2]-true['teff'][i1],z,xt='Teff',yr=[-1000,1000])
-        plots.plotc(ax[1,ix],obs['teff'][i2],obs['logg'][i2]-true['logg'][i1],z,xt='Teff',yr=[-2,2])
-        plots.plotc(ax[2,ix],obs['teff'][i2],obs['mh'][i2]-true['mh'][i1],z,xt='Teff',yr=[-0.5,0.5])
-        plots.plotc(ax[3,ix],obs['teff'][i2],obs['am'][i2]-true['am'][i1],z,xt='Teff',yr=[-0.5,0.5])
-        plots.plotc(ax[4,ix],obs['teff'][i2],obs['cm'][i2]-true['cm'][i1],z,xt='Teff',yr=[-1.5,1.5])
-        plots.plotc(ax[5,ix],obs['teff'][i2],obs['nm'][i2]-true['nm'][i1],z,xt='Teff',yr=[-1.5,1.5])
-        plots.plotc(ax[6,ix],obs['teff'][i2],10.**obs['vmicro'][i2]-10.**true['vmicro'][i1],z,xt='Teff',yr=[-1.0,1.0])
+        plots.plotc(ax[0,ix],x,obs['teff'][i2]-true['teff'][i1],z,xt='Teff',yr=[-1000,1000],zr=zr)
+        plots.plotc(ax[1,ix],x,obs['logg'][i2]-true['logg'][i1],z,xt='Teff',yr=[-2,2],zr=zr)
+        plots.plotc(ax[2,ix],x,obs['mh'][i2]-true['mh'][i1],z,xt='Teff',yr=[-0.5,0.5],zr=zr)
+        plots.plotc(ax[3,ix],x,obs['am'][i2]-true['am'][i1],z,xt='Teff',yr=[-0.5,0.5],zr=zr)
+        plots.plotc(ax[4,ix],x,obs['cm'][i2]-true['cm'][i1],z,xt='Teff',yr=[-1.5,1.5],zr=zr)
+        plots.plotc(ax[5,ix],x,obs['nm'][i2]-true['nm'][i1],z,xt='Teff',yr=[-1.5,1.5],zr=zr)
+        plots.plotc(ax[6,ix],x,10.**obs['vmicro'][i2]-10.**true['vmicro'][i1],z,xt='Teff',yr=[-1.0,1.0],zr=zr)
     fig.suptitle(file)
     plt.show()
     if hard :

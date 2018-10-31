@@ -628,12 +628,12 @@ def mkgridlink(planfile,suffix=None) :
                    atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
             print(file)
 
-            GKg= fits.open('../../giantisotopes/tgGK_'+linelist+suffix+'/'+file)[0]
-            Mg= fits.open('../../giantisotopes/tgM_'+linelist+suffix+'/'+file)[0]
+            GKg= fits.open('../../giantisotopes/tgGK_'+linelist+suffix+'/rbf_'+file)[0]
+            Mg= fits.open('../../giantisotopes/tgM_'+linelist+suffix+'/rbf_'+file)[0]
             Fg= fits.open('../../giantisotopes/tgF_'+linelist+suffix+'/'+file)[0]
-            Fd= fits.open('../../solarisotopes/tdF_'+linelist+suffix+'/'+file)[0]
-            GKd= fits.open('../../solarisotopes/tdGK_'+linelist+suffix+'/'+file)[0]
-            Md= fits.open('../../solarisotopes/tdM_'+linelist+suffix+'/'+file)[0]
+            Fd= fits.open('../../solarisotopes/tdF_'+linelist+suffix+'/rbf_'+file)[0]
+            GKd= fits.open('../../solarisotopes/tdGK_'+linelist+suffix+'/rbf_'+file)[0]
+            Md= fits.open('../../solarisotopes/tdM_'+linelist+suffix+'/rbf_'+file)[0]
             nwave = GKg.shape[-1]
             s=np.zeros([int(p['nmh']),int(p['nlogg']),int(p['nteff']),nwave],dtype=np.float32)
             grids = [Fg, GKg, Mg, Fd, GKd, Md]
@@ -747,7 +747,7 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None) :
             os.remove(lsfile+'.lock') 
 
     if prefix is None :  
-        if p.get('apred') and p['apred'] > 0. : prefix = 'rbf_'
+        if p.get('r0') and float(p['r0']) >= -0.001 : prefix = 'rbf_'
         else : prefix=''
     specdata = fits.open(specdir+'/'+prefix+p['name']+'.fits')[0]
     npix = specdata.data.shape[-1]
@@ -958,27 +958,64 @@ def mini_linelist(elem,linelist,maskdir) :
     """
 
     wind=np.loadtxt(os.environ['APOGEE_DIR']+'/data/windows/'+maskdir+'/'+elem+'.wave')
+    nwind=wind.shape[0]
     wair=spectra.vactoair(wind)
    
+    # filter APOGEE format files and then convert to Turbospectrum
     outdir = os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'/'
     try: os.mkdir(outdir)
     except: pass
-    nout=filter_lines(os.environ['APOGEE_SPECLIB']+'/linelists/linelist.'+linelist,outdir+linelist,wair/10.)
-    subprocess.call(['turboscript',outdir+linelist])
+    #nout=filter_lines(os.environ['APOGEE_SPECLIB']+'/linelists/linelist.'+linelist,outdir+linelist,wair/10.)
+    #subprocess.call(['turboscript',outdir+linelist])
 
-    lists=['turbospec.20170418.Hlinedata','turbospec.h2o-BC8.5V.molec','turbospec.h2o-BC9.5V.molec']
-    code=['01.000000','010108.000000000','010108.00000000']
-    comment=['HI culled','Barber culled','Barber culled']
+    # convert Turbospectrum files to filtered Turbospectrum files
+    lists=['turbospec.'+linelist+'.atoms','turbospec.'+linelist+'.molec',
+           'turbospec.20170418.Hlinedata','turbospec.h2o-BC8.5V.molec','turbospec.h2o-BC9.5V.molec']
+#    code=['01.000000','010108.000000000','010108.00000000']
+#    comment=['HI culled','Barber culled','Barber culled']
     for i,list in enumerate(lists) :
-        nout=filter_lines(os.environ['APOGEE_SPECLIB']+'/linelists/'+list,outdir+list+'.tmp',wair,nskip=2)
-        fin=open(outdir+list+'.tmp','r')
+#        nout=filter_lines(os.environ['APOGEE_SPECLIB']+'/linelists/'+list,outdir+list+'.tmp',wair,nskip=2)
+#        fin=open(outdir+list+'.tmp','r')
+#        fout=open(outdir+list,'w')
+#        fout.write("'"+code[i]+" '  1 "+'{:d}\n'.format(nout))
+#        fout.write("'"+comment[i]+"' \n")
+#        for line in fin :
+#            fout.write(line)
+#        fout.close()
+#        fin.close()
+#        os.remove(outdir+list+'.tmp')
+
+        filepath=os.environ['APOGEE_SPECLIB']+'/linelists/'+list
         fout=open(outdir+list,'w')
-        fout.write("'"+code[i]+" '  1 "+'{:d}\n'.format(nout))
-        fout.write("'"+comment[i]+"' \n")
-        for line in fin :
-            fout.write(line)
+        with open(filepath) as fp:  
+            out = ''
+            nelem = 0
+            n = 0
+            line = fp.readline()
+            while line :
+                if line[0] == "'" :
+                    if nelem > 0 :
+                        if n > 0 :
+                            j=head.split("'")[2].split()[0]
+                            fout.write("'"+head.split("'")[1]+"'   "+j+'{:10d}\n'.format(n))
+                            fout.write(out)
+                            n=0
+                    head = line
+                    out = fp.readline()
+                    nelem += 1
+                else :
+                    w = line.split()[0]
+                    for i in range(nwind) :
+                      if (float(w) >= wair[i,0]) and (float(w) <=wair[i,1]) : 
+                          out=out+line
+                          n+=1
+                line = fp.readline()          
+            if n > 0 :
+                j=head.split("'")[2].split()[0]
+                fout.write("'"+head.split("'")[1]+"'   "+j+'{:10d}\n'.format(n))
+                fout.write(out)
         fout.close()
-        fin.close()
-        os.remove(outdir+list+'.tmp')
+
+
     return wind
 

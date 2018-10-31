@@ -46,7 +46,7 @@
 ;;########################
 
 pro apwavecal,lampid,lsfid,coefstr,psfid=psfid,verbose=verbose,pl=pl,refitlines=refitlines,fitmethod=fitmethod,$
-              save=save,stp=stp,shortname=shortname,medfilt=medfilt
+              save=save,stp=stp,name=name,medfilt=medfilt
 
 
 ; Error Handling
@@ -105,7 +105,7 @@ lampframeid = string(long(file_basename(lampid)),format='(I08)')
 ; Create the output name
 allinfo = APFILEINFO(file_dirname(lampid)+'/'+dirs.prefix+'1D-a-'+lampframeid+'.fits',/silent)
 mjd5 = strtrim(long(allinfo[0].mjd5),2)
-if keyword_set(shortname) then outname = lampframeid[0] $
+if keyword_set(name) then outname = string(name,format='(i8.8)') $
   else outname = strjoin(lampframeid,'-')
 
 ; Starting the output plot file
@@ -283,7 +283,9 @@ if file_test(savefile) eq 0 or keyword_set(refitlines) then begin
       frame0.(k).flux[bdmask] = 0.0
       frame0.(k).err[bdmask] = baderr()
 
-      medfilt=5
+      ; median filtering across fibers will really mess up the individual fiber positions!
+      ; perhaps this was introduced to deal with missing fibers?
+      ;medfilt=5
       if n_elements(medfilt) gt 0 then begin
         f=medfilt2D(frame0.(k).flux,medfilt,dim=2)
         frame0.(k).flux = f
@@ -707,7 +709,7 @@ CASE fitmethod of
   ;----------------------------------------------------------------------
   mjd5 = strtrim(long(allinfo[0].mjd5),2)
   ;outname = mjd5+'-'+strjoin(lampframeid,'-')
-  if keyword_set(shortname) then outname = lampframeid[0] $
+  if keyword_set(name) then outname = name $
     else outname = strjoin(lampframeid,'-')
   if not keyword_set(silent) then $
     print,'Writing output files to = '+wave_dir+dirs.prefix+'Wave-[abc]-'+outname+'.fits'
@@ -1086,7 +1088,7 @@ End  ; poly fits to each fiber sepatately
   ;----------------------------------------------------------------------
   mjd5 = strtrim(long(allinfo[0].mjd5),2)
   ;outname = mjd5+'-'+strjoin(lampframeid,'-')
-  if keyword_set(shortname) then outname = lampframeid[0] $
+  if keyword_set(name) then outname = name $
     else outname = strjoin(lampframeid,'-')
   if not keyword_set(silent) then $
     print,'Writing output files to = '+wave_dir+dirs.prefix+'Wave-[abc]-'+outname+'.fits'
@@ -2229,7 +2231,7 @@ End ; 2D poly fitting method
   ;----------------------------------------------------------------------
   mjd5 = strtrim(long(allinfo[0].mjd5),2)
   ;outname = mjd5+'-'+strjoin(lampframeid,'-')
-  if keyword_set(shortname) then outname = lampframeid[0] $
+  if keyword_set(name) then outname = name $
     else outname = strjoin(lampframeid,'-')
   if not keyword_set(silent) then $
     print,'Writing output files to = '+wave_dir+dirs.prefix+'Wave-[abc]-'+outname+'.fits'

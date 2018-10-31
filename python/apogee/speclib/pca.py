@@ -48,7 +48,8 @@ from tools import html
 
 colors=['r','g','b','c','m','y']
 
-def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whiten=False,writeraw=False,test=False, incremental=False, threads=4, rawsynth=False) :
+def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whiten=False,writeraw=False,test=False, 
+        incremental=False, threads=4, rawsynth=False, prefix='') :
     """ Read in grid of spectra and do PCA compression
 
     Args :
@@ -102,8 +103,8 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
     indata['outfile'] = outfile
     indata['writeraw'] = writeraw
     indata['rawsynth'] = rawsynth
-    if incremental : indata['incremental'] = True
-    else : indata['incremental'] = False
+    indata['prefix'] = prefix
+    indata['incremental'] = incremental
     for key in ['am0','dam','nam','cm0','dcm','ncm','nm0','dnm','nnm','vt0','dvt','nvt','mh0','dmh','nmh','logg0','dlogg','nlogg','teff0','dteff','nteff','rot0','drot','nrot'] :
         indata[key] = p[key]
 
@@ -213,6 +214,7 @@ def dopca(pars) :
     outfile=p['outfile']
     writeraw=p['writeraw']
     rawsynth=p['rawsynth']
+    prefix=p['prefix']
 
     if p['incremental'] :
         print('using incremental PCA')
@@ -239,7 +241,7 @@ def dopca(pars) :
             file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
                    atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
             # read file and pack into ASPCAP grid size
-            sap=fits.open(indir+file)[0].data
+            sap=fits.open(indir+prefix+file)[0].data
             sap.reshape((int(p['nrot']),int(p['nmh']),int(p['nlogg']),int(p['nteff']),sap.shape[-1]))
             s=np.zeros([int(p['nrot']),int(p['nmh']),int(p['nlogg']),int(p['nteff']),nwave])
             for pasp,pap in zip(pix_aspcap,pix_apstar) :
@@ -254,8 +256,8 @@ def dopca(pars) :
                   #s=np.append(s1[imh,ilogg,iteff,:],s2[imh,ilogg,iteff,:])
                   #s=np.append(s,s3[imh,ilogg,iteff,:])
                   #s=sall[imh,ilogg,iteff,:]
-                  if s[irot,imh,ilogg,iteff,w1:w2].sum() == 0. : 
-                     print('!!ZERO MODEL',am,cm,nm,vm,mh,logg,teff,w1,w2)
+                  if s[irot,imh,ilogg,iteff,w1:w2].sum() == 0. or not np.isfinite(np.nanmean(s[irot,imh,ilogg,iteff,:]))  : 
+                     print('!!ZERO or NaN MODEL',am,cm,nm,vm,rot,mh,logg,teff,w1,w2)
                      s[irot,imh,ilogg,iteff,w1:w2] = 1.
             #      s/=np.nanmean(s)
             #      if len(np.where(np.isfinite(s) is False)[0]) > 0 : print(imh,ilogg,iteff,np.where(np.isfinite(s) is False) )
@@ -318,7 +320,7 @@ def liblink(lib,outdir) :
         os.symlink(prefix+lib+suffix,outdir+'/'+lib+suffix)
     return prefix
 
-def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True, fast=False, niso=None, sns=[1000]) :
+def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True, fast=False, niso=None, sns=[1000], rot=False) :
     """ Routine to set up and run a series of tests for a PCA library
         Includes comparison of raw and PCA spectra for a sample suite,
         and several FERRE runs to recover parameters for the sample suite
@@ -461,15 +463,16 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
             if sn < 1000 : name = fdir+'/testsn{:d}'.format(sn)
             else : name = fdir+'/test'
             try : 
-                sample.comp(name,hard=True,true='test/raw/test.ipf')
+                sample.comp(name,hard=True,true='test/raw/test.ipf',rot=rot)
                 dt=subprocess.check_output("grep ellapsed "+fdir+"/ferre.x.out | tail -1 | awk '{print $3}'",shell=True)
             except : 
+                print('failed comp: ',name)
                 dt='-1.'
             xtab.extend(['../'+name+'.png','../'+name+'_2.png'])
             xt.extend(['S/N = '+str(sn),'S/N = '+str(sn)])
             tmp=tmp+dt+','
         tab.append(xtab)
-        yt.append(fdir+'<br>FERRE time: '+tmp+' s')
+        yt.append('<a href=../'+name+'.nml>'+fdir+'</a><br>FERRE time: '+tmp+' s')
 
     header = '<h3>'+outfile+'</h3>\n'
     header = header + '<br> Test sample: <br><img src=test_'+grid+'.png width=40%> <img src=test_'+grid+'_2.png width=40%>'

@@ -33,7 +33,7 @@
 ;           /lsf:  make all of the lsfs in the file
 ;           lsf=lsfid:  make the lsf with name=lsfid 
 ;
-pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,lsf=lsf,bpm=bpm,$
+pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,lsf=lsf,bpm=bpm,$
     psf=psf,flux=flux,sparse=sparse,fiber=fiber,$
     littrow=littrow,persist=persist,modelpersist=modelpersist,response=response,mjd=mjd,full=full,$
     newwave=newwave,nskip=nskip,average=average,clobber=clobber,vers=vers,telescope=telescope
@@ -52,7 +52,7 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,lsf=lsf,bpm=bpm,$
   if not keyword_set(nskip) then nskip=1
 
   ; read calibration master file into calibration structures
-  readcal,file,darkstr,flatstr,sparsestr,fiberstr,badfiberstr,fixfiberstr,wavestr,lsfstr,bpmstr,fluxstr,detstr,littrowstr,persiststr,persistmodelstr,responsestr
+  readcal,file,darkstr,flatstr,sparsestr,fiberstr,badfiberstr,fixfiberstr,wavestr,lsfstr,bpmstr,fluxstr,detstr,littrowstr,persiststr,persistmodelstr,responsestr,multiwavestr
   ; make detector file as called for
   if keyword_set(det) then begin
     print,'makecal det: ', det
@@ -275,7 +275,6 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,lsf=lsf,bpm=bpm,$
     endif
   endif
 
-
   if keyword_set(wave) then begin
     print,'makecal wave: ', wave
     if wave gt 1 then begin
@@ -287,7 +286,7 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,lsf=lsf,bpm=bpm,$
       ims=getnums(wavestr[i[0]].frames)
       cmjd=getcmjd(ims[0],mjd=mjd)
       getcal,mjd,calfile,darkid=darkid,flatid=flatid
-      mkwave,ims,darkid=darkid,flatid=flatid,psfid=wavestr[i[0]].psfid
+      mkwave,ims,name=wavestr[i[0]].name,darkid=darkid,flatid=flatid,psfid=wavestr[i[0]].psfid,clobber=clobber
     endif else begin
       if keyword_set(mjd) then  begin
         num=getnum(mjd) 
@@ -298,7 +297,30 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,lsf=lsf,bpm=bpm,$
         ims=getnums(wavestr[red[i]].frames)
         cmjd=getcmjd(ims[0],mjd=mjd)
         getcal,mjd,calfile,darkid=darkid,flatid=flatid
-        mkwave,ims,darkid=darkid,flatid=flatid,psfid=wavestr[red[i]].psfid
+        mkwave,ims,name=wavestr[red[i]].name,darkid=darkid,flatid=flatid,psfid=wavestr[red[i]].psfid,clobber=clobber,/nowait
+       endfor
+      endif
+    endelse
+  endif
+  if keyword_set(multiwave) then begin
+    print,'makecal multiwave: ', multiwave
+    if multiwave gt 1 then begin
+      i=where(multiwavestr.name eq multiwave,nwave)
+      if nwave le 0 then begin
+        print,'No matching calibration line for ', wave
+        stop
+      endif
+      ims=getnums(multiwavestr[i[0]].frames)
+      mkmultiwave,ims,name=multiwavestr[i[0]].name,clobber=clobber,file=file
+    endif else begin
+      if keyword_set(mjd) then  begin
+        num=getnum(mjd) 
+        red=where(multiwavestr.frames/10000L eq num)
+      endif else red=indgen(n_elements(multiwavestr))
+      if (red[0] ge 0) then begin
+       for i=0,n_elements(red)-1,nskip do begin
+        ims=getnums(multiwavestr[red[i]].frames)
+        mkmultiwave,ims,name=multiwavestr[red[i]].name,clobber=clobber,file=file,/nowait
        endfor
       endif
     endelse
@@ -314,7 +336,7 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,lsf=lsf,bpm=bpm,$
       ims=getnums(lsfstr[i[0]].frames)
       cmjd=getcmjd(ims[0],mjd=mjd)
       getcal,mjd,calfile,darkid=darkid,flatid=flatid,waveid=waveid
-      mklsf,ims,waveid,darkid=darkid,flatid=flatid,psfid=lsfstr[i[0]].psfid,full=full,newwave=newwave
+      mklsf,ims,waveid,darkid=darkid,flatid=flatid,psfid=lsfstr[i[0]].psfid,full=full,newwave=newwave,clobber=clobber
     endif else begin
       if keyword_set(mjd) then  begin
         num=getnum(mjd) 
@@ -325,7 +347,7 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,lsf=lsf,bpm=bpm,$
         ims=getnums(lsfstr[red[i]].frames)
         cmjd=getcmjd(ims[0],mjd=mjd)
         getcal,mjd,calfile,darkid=darkid,flatid=flatid,waveid=waveid
-        mklsf,ims,waveid,darkid=darkid,flatid=flatid,psfid=lsfstr[i].psfid,full=full,newwave=newwave
+        mklsf,ims,waveid,darkid=darkid,flatid=flatid,psfid=lsfstr[i].psfid,full=full,newwave=newwave,clobber=clobber
        endfor
       endif
     endelse

@@ -399,7 +399,7 @@ endif else begin
     cmdj = getcmjd(long(info1.frame),mjd=mjd)
     info1.mjd = mjd
     info1.ditherpix = sxpar(head0,'dithpix')
-    info1.dateobs = spxar(head0,'date-obs')
+    info1.dateobs = sxpar(head0,'date-obs')
     info1.jd = date2jd(info1.dateobs)
     push,allinfo,info1
   

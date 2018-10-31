@@ -35,6 +35,7 @@ if __name__ == '__main__' :
     parser.add_argument("--dir")
     parser.add_argument("--test", help='reduce dims?',action="store_true")
     parser.add_argument("--writeraw", help='write uncompressed file?',action="store_true")
+    parser.add_argument("--rawsynth", help='use raw synthesis file?',action="store_true")
     parser.add_argument("--incremental", help='use incremental PCA?',action="store_true")
     parser.add_argument("--pcas",nargs='+',type=int)
     parser.add_argument("--threads",type=int,default=4)
@@ -45,7 +46,8 @@ if __name__ == '__main__' :
     now = datetime.datetime.now()
     start = time.time()
     print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
-    pca.pca(args.planfile,pcas=tuple(args.pcas),dir=args.dir,test=args.test,writeraw=args.writeraw,incremental=args.incremental,threads=args.threads)
+    pca.pca(args.planfile,pcas=tuple(args.pcas),dir=args.dir,test=args.test,writeraw=args.writeraw,
+            incremental=args.incremental,threads=args.threads,rawsynth=args.rawsynth)
     now = datetime.datetime.now()
     print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     print("elapsed: ",time.time()-start)

@@ -267,8 +267,10 @@ endif else begin
       bdmask = where(frame0.(k).mask and badmask(),nbdmask)
       frame0.(k).flux[bdmask] = 0.0
       frame0.(k).err[bdmask] = baderr()
-  
-      medfilt=5
+ 
+     ; median filtering across fibers will really mess up the individual fiber positions!
+     ; perhaps this was introduced to deal with missing fibers?
+     ;medfilt=5
       if n_elements(medfilt) gt 0 then begin
         f=medfilt2D(frame0.(k).flux,medfilt,dim=2)
         frame0.(k).flux = f
@@ -537,7 +539,7 @@ if ngroups gt 1 then begin
       parinfo = replicate({limited:[0,0],limits:[0.0,0.0],fixed:0},n_elements(initpars))
       parinfo[0:1].fixed = 1  ; chipgaps are fixed
       parinfo[2:ngroups*3+1].limited = 1
-      for j=0,ngroups*3-1 do parinfo[j+2].limits = [-0.5,0.5]+grpchipxoff[j]
+      for j=0,ngroups*3-1 do parinfo[j+2].limits = [-1.0,1.0]+grpchipxoff[j]
       parinfo[indgen(ngroups)*3+3].limits[0] = -15   ; large limits for pixel shifts
       parinfo[indgen(ngroups)*3+3].limits[1] = 15
       parinfo[3].fixed = 1  ; force group 1 green chip xoff=0, ANCHOR
@@ -577,7 +579,6 @@ if ngroups gt 1 then begin
       medxoff_blue = median(fpars[indgen(ngroups)*3+4],/even)
       fpars[1] += medxoff_blue
       fpars[indgen(ngroups)*3+4] -= medxoff_blue
-
       fparstr[i].fiber = i
       fparstr[i].pars = fpars
       fparstr[i].perror = perror2

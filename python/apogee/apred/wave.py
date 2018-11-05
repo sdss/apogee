@@ -244,6 +244,8 @@ def wavecal(nums=[2420038],inst='apogee-n',rows=[150],npoly=4,plot=False,verbose
     #  initial quadratic relation
     pars[npoly-3:npoly] = coef0['b']
     allpars=np.zeros([npars,300])
+    chippars=np.zeros([14,300])
+    chipwaves=np.zeros([2048,300])
     for row in rows :
         bounds = ( np.zeros(len(pars))-np.inf, np.zeros(len(pars))+np.inf)
         bounds[0][npoly+1] =  -1.e-10
@@ -267,15 +269,22 @@ def wavecal(nums=[2420038],inst='apogee-n',rows=[150],npoly=4,plot=False,verbose
                     plots.plotp(ax[ichip,niter],x[0,gd[plt]],y[gd[plt]]-func_multi_poly(x[:,gd[plt]],*popt))
         print(row,pars)
         allpars[:,row] = pars
-    for chip in chips :
+    x = np.zeros([3,2048])
+    for ichip,chip in enumerate(chips) :
         hdu=fits.HDUList()
+        x[0,:] = pixels
+        x[1,:] = ichip+1
+        x[2,:] = 0
         for row in rows :
-            chippars = [ -1023.5+(ichip-1)*2048) + allpars[npoly+1,row],0., 0., 1., 0., 0., allpars[0:npoly]]
-        hdu.append(np.array(chippars))
-        hdu.append(func_multi_par(pixels))
-        hdu.append(np.array(allpars))
-        name='apWave-a'
-        hdu.writeto(name+'.fits')
+            chippars[:,row] = np.append([ -1023.5+(ichip-1)*2048 + allpars[npoly+1,row],0., 0., 1., 0., 0.], 
+                                np.append(np.zeros(8-npoly),allpars[0:npoly,row]))
+            chipwaves[:,row] = func_multi_poly(x,*allpars[:,row])
+        hdu.append(fits.PrimaryHDU())
+        hdu.append(fits.ImageHDU(chippars))
+        hdu.append(fits.ImageHDU(chipwaves))
+        hdu.append(fits.ImageHDU(np.array(allpars)))
+        name='apWave-'+chip
+        hdu.writeto(name+'.fits',overwrite=True)
     pdb.set_trace()
 
 def visit(planfile,out=None,lco=False,waveid=True,skyfile='airglow_oct18a') :

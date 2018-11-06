@@ -34,12 +34,20 @@ if __name__ == '__main__' :
 
     parser.add_argument("frames", type=int, help='List of frames',nargs='+')
     parser.add_argument("--rows", type=int, help='list of rows to fit', default=np.arange(300),nargs='+')
+    parser.add_argument("--inst", type=str, help='Instrument (default=apogee-n', default='apogee-n')
+    parser.add_argument("--npoly", type=int, help='Polynomial order', default=4)
+    parser.add_argument("--plot", help='Create plot?', action="store_true")
+    parser.add_argument("--hard", type=str, help='Hardcopy root name if desired')
+    parser.add_argument("--clobber", help='Redo line finding?', action="store_true")
+    parser.add_argument("--verbose", help='Verbose output?', action="store_true")
+    parser.add_argument("--init", help='Use initial quadratic guess?', action="store_true")
     args=parser.parse_args()
 
     now = datetime.datetime.now()
     start = time.time()
     print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
-    wave.wavecal(args.frames,rows=args.rows)
+    wave.wavecal(args.frames,rows=args.rows,npoly=args.npoly,inst=args.inst,plot=args.plot,hard=args.hard,
+                 verbose=args.verbose,clobber=args.clobber,init=args.init)
     now = datetime.datetime.now()
     print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     print("elapsed: ",time.time()-start)

@@ -29,7 +29,7 @@
 ; Modifications J. Holtzman 2011+
 ;-
 
-pro ap1dvisit,planfiles,clobber=clobber,verbose=verbose,stp=stp,newwave=newwave,test=test,mapper_data=mapper_data,halt=halt
+pro ap1dvisit,planfiles,clobber=clobber,verbose=verbose,stp=stp,newwave=newwave,test=test,mapper_data=mapper_data,halt=halt,dithonly=dithonly
 
 common telluric,convolved_telluric
 
@@ -305,7 +305,9 @@ FOR i=0L,nplanfiles-1 do begin
             plot=1
             pfile=plate_dir+'/plots/dithershift-'+framenum 
           endif else begin
-            pfile=0 & plot=0
+            ;pfile=0 & plot=0
+            plot=1
+            pfile=plate_dir+'/plots/dithershift-'+framenum 
           endelse
         endif
            
@@ -341,6 +343,8 @@ FOR i=0L,nplanfiles-1 do begin
       ;----------------------------------
       ; THIS IS NOW DONE AS PART OF AP2DPROC, CAN RERUN AS A TEST OR NEEDED IF NEWWAVE IS SPECIFIED...
       print,'STEP 2: Wavelength Calibrating with AP1DWAVECAL'
+      plotfile = plate_dir+'/plots/pixshift_chip-'+framenum 
+      if keyword_set(dithonly) then AP1DWAVECAL_REFIT,frame,frame_wave,plugmap=plugmap,/verbose,/plot,pfile=plotfile
       plotfile = plate_dir+'/plots/pixshift-'+framenum 
       if planstr.platetype eq 'twilight' then $
       AP1DWAVECAL,frame,frame_wave,/verbose,/plot,pfile=plotfile else $
@@ -349,6 +353,7 @@ FOR i=0L,nplanfiles-1 do begin
       apgundef,frame  ; free up memory
       writelog,logfile,'  wavecal '+string(format='(f8.2)',systime(1)-t1)+string(format='(f8.2)',systime(1)-t0)
 
+      if keyword_set(dithonly) then goto, BOMB1
       ;stop
 
       ;----------------------------------
@@ -475,6 +480,8 @@ FOR i=0L,nplanfiles-1 do begin
 
 
   ENDFOR  ; frame loop
+
+  if keyword_set(dithonly) then return
 
 
   ; write summary telluric file

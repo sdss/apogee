@@ -245,6 +245,11 @@ if keyword_set(xcorr) then begin
   bad=where(xshiftarr lt -99 or (chip eq 2 and fiber gt 200),complement=gd)
   shift = AP_ROBUST_POLY_FIT(fiber[gd],xshiftarr[gd],1)
   print,'Fit coefficients: ', shift
+  chipshift=fltarr(3,2)
+  for ichip=0,2 do begin
+    bad=where(xshiftarr[*,ichip] lt -99 ,complement=gd)
+    chipshift[ichip,*] = AP_ROBUST_POLY_FIT(fiber[gd,ichip],xshiftarr[gd,ichip],1)
+  endfor
   ; Plot all the xcorr shifts
   ;plot = 1 ;1
   if keyword_set(plot) then begin
@@ -258,11 +263,21 @@ if keyword_set(xcorr) then begin
     ;yr = [min(xshiftarr),max(xshiftarr)]
     yr = [-3,3]*mad(xshiftarr)+median(xshiftarr)
   xr=[0,nfibers]
-  yr=[-0.6,0.6]
+  yr = [-0.1,0.1]+median(xshiftarr)
+  ;yr=[-0.6,0.6]
     plot,indgen(nfibers),POLY(findgen(nfibers),shift),xtit='Spectrum #',ytit='Pixel Shift',xr=xr,yr=yr,xs=1,ys=1,thick=3
     oplot,xshiftarr[0:nfibers-1],color=2,ps=1
     oplot,xshiftarr[nfibers:2*nfibers-1],color=3,ps=1
     oplot,xshiftarr[2*nfibers:3*nfibers-1],color=4,ps=1
+    for ichip=0,2 do begin
+      if ichip eq 0 then color=2
+      if ichip eq 1 then color=3
+      if ichip eq 2 then color=4
+      oplot,indgen(nfibers),POLY(findgen(nfibers),chipshift[ichip,*]),color=color
+    endfor
+    f1=strsplit(file_basename(frame1.chipa.filename,'.fits'),'-',/ext)
+    f2=strsplit(file_basename(frame2.chipa.filename,'.fits'),'-',/ext)
+    xyouts,0.05,-0.09+median(xshiftarr),'ref: '+f1[2] +'    frame: '+ f2[2]
     ;oplot,[300,300],[-10,10],linestyle=2
     ;xyouts,150,-0.12,'Chip a',align=0.5,charsize=1.3
     ;oplot,[600,600],[-10,10],linestyle=2

@@ -22,12 +22,18 @@ pro mkmultiwave,waveid,name=name,clobber=clobber,nowait=nowait,file=calfile
   openw,lock,/get_lun,caldir+'wave/'+file+'.lock'
   free_lun,lock
 
-  ; make the individual wavecals if not already made
-  for i=0,n_elements(waveid)-1 do makecal,wave=waveid[i],file=calfile
+  
+  ; new Python version!
+  cmd=['apmultiwavecal','--plot','--hard','plots/apPwave-'+name,'--inst',dirs.instrument]
+  for i=0,n_elements(waveid)-1 do cmd=[cmd,string(waveid[i])]
+  spawn,cmd,/noshell
 
-  cmjd=getcmjd(waveid[0])
-  wavefile = dirs.expdir+cmjd+'/'+string(format='(i8.8)',waveid)
-  apmultiwavecal,wavefile,name=name,/save,/multi;,/pl
+  ;; make the individual wavecals if not already made
+  ;for i=0,n_elements(waveid)-1 do makecal,wave=waveid[i],file=calfile,clobber=clobber
+;
+;  cmjd=getcmjd(waveid[0])
+;  wavefile = dirs.expdir+cmjd+'/'+string(format='(i8.8)',waveid)
+;  apmultiwavecal,wavefile,name=name,/save,/multi,clobber=clobber ;,/pl
 
   file_delete,caldir+'wave/'+file+'.lock'
 

@@ -27,7 +27,7 @@ pro mkwave,waveid,name=name,darkid=darkid,flatid=flatid,psfid=psfid,clobber=clob
   w=approcess(waveid,dark=darkid,flat=flatid,psf=psfid,flux=0,/doproc)
   psffile = caldir+'psf/'+string(format='(i8.8)',psfid)
   wavefile = dirs.expdir+cmjd+'/'+string(format='(i8.8)',waveid)
-  apmultiwavecal,wavefile,psfid=psffile,name=name,/save;,/pl
+  apmultiwavecal,wavefile,psfid=psffile,name=name,/save,clobber=clobber ;,/pl
 
   file_delete,caldir+'wave/'+file+'.lock'
 

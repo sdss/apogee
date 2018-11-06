@@ -170,7 +170,7 @@ for i=0,n_elements(waves)-1 do begin
     reads,fields[3],name
     reads,fields[4],frames
     str = { mjd1: mjd1, mjd2: mjd2, name: string(name,format='(i8.8)'), frames: frames}
-    if i eq 0 then multiwavestr=str else multiwavestr = struct_append(wavestr,str)
+    if i eq 0 then multiwavestr=str else multiwavestr = struct_append(multiwavestr,str)
   endif
 endfor
 

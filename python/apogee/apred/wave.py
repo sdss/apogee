@@ -32,7 +32,7 @@ from tools import plots
 from sdss import yanny
 
 chips=['a','b','c']
-colors=['r','g','b']
+colors=['r','g','b','c','m','y']
 xlim=[[16400,17000],[15900,16500],[15100,15800]]
 
 def gauss(x,a,x0,sig) :
@@ -244,9 +244,12 @@ def wavecal(nums=[2420038],inst='apogee-n',rows=[150],npoly=4,plot=False,verbose
     #  initial quadratic relation
     pars[npoly-3:npoly] = coef0['b']
     allpars=np.zeros([npars,300])
-    chippars=np.zeros([14,300])
-    chipwaves=np.zeros([2048,300])
-    for row in rows :
+    rms=np.zeros(300)
+    sig=np.zeros(300)
+    if plot : 
+        fig,ax=plots.multi(1,3,hspace=0.001,wspace=0.001)
+        fig2,ax2=plots.multi(1,1,hspace=0.001,wspace=0.001)
+    for irow,row in enumerate(rows) :
         bounds = ( np.zeros(len(pars))-np.inf, np.zeros(len(pars))+np.inf)
         bounds[0][npoly+1] =  -1.e-10
         bounds[1][npoly+1] =  1.e-10
@@ -256,36 +259,43 @@ def wavecal(nums=[2420038],inst='apogee-n',rows=[150],npoly=4,plot=False,verbose
         x[1,:] = linestr['chip'][thisrow]
         x[2,:] = linestr['frameid'][thisrow]
         y = linestr['wave'][thisrow]
-        if plot : fig,ax=plots.multi(maxiter,3,hspace=0.001,wspace=0.001)
+        res = y-func_multi_poly(x,*pars)
         for niter in range(maxiter) :
-            res = y-func_multi_poly(x,*pars)
             gd = np.where(abs(res) < np.median(res)+reject*np.median(np.abs(res)))[0]
             popt,pcov = curve_fit(func_multi_poly,x[:,gd],y[gd],p0=pars,bounds=bounds)
+            res = y-func_multi_poly(x,*pars)
+            rms[row] = res[gd].std()
+            sig[row] = np.median(np.abs(res[gd]))
             print(niter,row,len(gd),np.median(res),np.median(np.abs(res)),res[gd].std())
             pars = popt
-            if plot :
-                for ichip in range(3) :
-                    plt = np.where(x[1,gd] == ichip+1)[0]
-                    plots.plotp(ax[ichip,niter],x[0,gd[plt]],y[gd[plt]]-func_multi_poly(x[:,gd[plt]],*popt))
+        if plot :
+            for ichip in range(3) :
+                plt = np.where(x[1,gd] == ichip+1)[0]
+                plots.plotp(ax[ichip],x[0,gd[plt]],y[gd[plt]]-func_multi_poly(x[:,gd[plt]],*popt),color=colors[irow%7],size=10)
         print(row,pars)
         allpars[:,row] = pars
+    if plot : 
+        plots.plotp(ax2,np.arange(300),rms,color='r',size=10)
+        plots.plotp(ax2,np.arange(300),sig,color='g',size=10)
     x = np.zeros([3,2048])
     for ichip,chip in enumerate(chips) :
         hdu=fits.HDUList()
         x[0,:] = pixels
         x[1,:] = ichip+1
         x[2,:] = 0
+        chippars=np.zeros([14,300])
+        chipwaves=np.zeros([300,2048])
         for row in rows :
-            chippars[:,row] = np.append([ -1023.5+(ichip-1)*2048 + allpars[npoly+1,row],0., 0., 1., 0., 0.], 
-                                np.append(np.zeros(8-npoly),allpars[0:npoly,row]))
-            chipwaves[:,row] = func_multi_poly(x,*allpars[:,row])
+            pow=npoly-1-np.arange(npoly)
+            polypars=allpars[0:npoly,row]*3000**pow
+            chippars[:,row] = np.append([ -1023.5+(ichip-1)*2048 + allpars[npoly+ichip,row],0., 0., 1., 0., 0.], 
+                              np.flip( np.append(np.zeros(8-npoly),polypars)))
+            chipwaves[row,:] = func_multi_poly(x,*allpars[:,row])
         hdu.append(fits.PrimaryHDU())
         hdu.append(fits.ImageHDU(chippars))
         hdu.append(fits.ImageHDU(chipwaves))
-        hdu.append(fits.ImageHDU(np.array(allpars)))
-        name='apWave-'+chip
+        name='apWave-'+chip+'-{:08d}'.format(0)
         hdu.writeto(name+'.fits',overwrite=True)
-    pdb.set_trace()
 
 def visit(planfile,out=None,lco=False,waveid=True,skyfile='airglow_oct18a') :
     """ Determine positions of skylines for all frames in input planfile

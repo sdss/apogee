@@ -191,7 +191,8 @@ def data(str,loc=None) :
         apogee_id = name.split('.')[0].split('-')[2]
         if loc is None :
             loc = name.split('.')[1].split('_')[0]
-        s=apload.apStar(loc,apogee_id)
+        ap=apload.ApLoad()
+        s=ap.apStar(loc,apogee_id)
         field=s[0].header['FIELD']
         try :
             obj=fits.open(os.environ['APOGEE_TARGET']+'/apogeeObject/apogeeObject_'+field+'.fits')[1].data

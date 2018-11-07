@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import copy
 from astropy.io import fits
 from astropy.io import ascii
-from apogee.utils import apload
 from apogee.aspcap import aspcap
 
 def cont(spec,specerr,chips=False,order=4,poly=True) :

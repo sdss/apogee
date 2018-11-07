@@ -10,16 +10,18 @@ from tools import plots
 
 def dr_compare() :
     # load the DRs, select stars with SN>150
-    apload.dr12()
-    dr12=apload.allStar()[1].data
+    dr12load=apload.ApLoad(dr='dr12')
+    dr12=dr12load.allStar()[1].data
     gd=np.where(dr12['SNR'] > 150)[0]
     dr12=dr12[gd]
-    apload.dr13()
-    dr13=apload.allStar()[1].data
+
+    dr13load=apload.ApLoad(dr='dr13')
+    dr13=dr13load.allStar()[1].data
     gd=np.where(dr13['SNR'] > 150)[0]
     dr13=dr13[gd]
-    apload.dr14()
-    dr14=apload.allStar()[1].data
+
+    dr14load=apload.ApLoad(dr='dr14')
+    dr14=dr14load.allStar()[1].data
     gd=np.where(dr14['SNR'] > 150)[0]
     dr14=dr14[gd]
     c=apload.allStar()[3].data
@@ -125,13 +127,13 @@ def dr_compare() :
 
 def kurucz_marcs() :
 
-    apload.dr13()
-    dr13=apload.allStar()[1].data
+    dr13load=apload.ApLoad(dr='dr13')
+    dr13=dr13load.allStar()[1].data
     gd=np.where(dr13['SNR'] > 150)[0]
     dr13=dr13[gd]
 
-    apload.aspcap = 'l30g'
-    dr13_marcs=apload.allStar()[1].data
+    dr13load.aspcap = 'l30g'
+    dr13_marcs=dr13load.allStar()[1].data
     gd=np.where(dr13_marcs['SNR'] > 150)[0]
     dr13_marcs=dr13_marcs[gd]
 

@@ -26,9 +26,9 @@ def read(file='allStar-testcal.fits') :
     '''
     Read allStar file, get main structure, elem_symbol, and elemtoh
     '''
-    apload.dr13()
+    dr13load=apload.ApLoad(dr='dr13')
     #a=apload.allStar()[1].data
-    c=apload.allStar()[3].data
+    c=dr13load.allStar()[3].data
     #a=fits.open('../dist/allStar+.fits')[1].data
     #x,y,z,r = galmodel.lbd2xyz(a['GLON'],a['GLAT'],a['DISO'][:,2]/1000.)
     #zone=np.where((r>9) & (r<11) & (dt<40))[0]

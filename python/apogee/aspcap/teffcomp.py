@@ -275,10 +275,10 @@ def dr13dr12() :
     compare dr13 dr12 Teff
     '''
 
-    apload.dr12()
-    dr12=apload.allStar()[1].data
-    apload.dr13()
-    dr13=apload.allStar()[1].data
+    dr12load=apload.ApLoad(dr='dr12')
+    dr12=dr12load.allStar()[1].data
+    dr13load=apload.ApLoad(dr='dr13')
+    dr13=dr13load.allStar()[1].data
     i1,i2 = match.match(dr12['APOGEE_ID'],dr13['APOGEE_ID'])
     dr12=dr12[i1]
     dr13=dr13[i2]

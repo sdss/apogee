@@ -249,7 +249,7 @@ def docal(vers,clobber=False,allstar=True,hr=True,teff=True,logg=True,vmicro=Tru
         cc=fits.open('allStar-'+vers+'.fits')[3].data
     else :
         c=allc
-        cc=apload.allStar()[3].data
+        cc=apl.allStar()[3].data
     print('Total stars:',len(c))
 
     figs=[]
@@ -416,8 +416,8 @@ def errcomp(vers=['dr14','dr13','dr12'],els=['alpha','O','Mg','Ni','M'],out='com
     html.htmltab(np.asarray(grid).T.tolist(),file=out,xtitle=vers,ytitle=ytit)
 
 def errplots(tags=['ALPHA_M','O_FE','MG_FE','NI_FE','M_H'],cannon=None) :
-    a=apload.allStar()[1].data
-    a3=apload.allStar()[3].data
+    a=apl.allStar()[1].data
+    a3=apl.allStar()[3].data
     if cannon is not None :
         cannon=fits.open(cannon)[1].data
         abun=cannon
@@ -445,13 +445,15 @@ def errplots(tags=['ALPHA_M','O_FE','MG_FE','NI_FE','M_H'],cannon=None) :
         elem.cal(a,a3['ELEM_SYMBOL'][0],a3['ELEMTOH'][0],[el,el],hard='cal/'+el+'_clust',errpar=True,calib=True)
 
 def allplots() :
+    global apl
+
     os.chdir( '../dr14')
-    apload.dr14()
+    apl=apload.apLoad(dr='dr14')
     errplots()
     os.chdir('../dr13')
-    apload.dr13()
+    apl=apload.apLoad(dr='dr13')
     errplots()
     os.chdir('../dr12')
-    apload.dr12()
+    apl=apload.apLoad(dr='dr12')
     errplots(tags=['PARAM_ALPHA_M','O_H','MG_H','NI_H','PARAM_M_H'])
 

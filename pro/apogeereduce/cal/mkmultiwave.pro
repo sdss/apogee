@@ -22,9 +22,8 @@ pro mkmultiwave,waveid,name=name,clobber=clobber,nowait=nowait,file=calfile
   openw,lock,/get_lun,caldir+'wave/'+file+'.lock'
   free_lun,lock
 
-  
   ; new Python version!
-  cmd=['apmultiwavecal','--plot','--hard','plots/apPwave-'+name,'--inst',dirs.instrument]
+  cmd=['apmultiwavecal','--name',name,'--plot','--hard','plots/apPwave-'+name,'--inst',dirs.instrument]
   for i=0,n_elements(waveid)-1 do cmd=[cmd,string(waveid[i])]
   spawn,cmd,/noshell
 

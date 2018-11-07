@@ -25,9 +25,15 @@ pro mkwave,waveid,name=name,darkid=darkid,flatid=flatid,psfid=psfid,clobber=clob
   cmjd=getcmjd(psfid)
   mkpsf,psfid,darkid=darkid,flatid=flatid
   w=approcess(waveid,dark=darkid,flat=flatid,psf=psfid,flux=0,/doproc)
-  psffile = caldir+'psf/'+string(format='(i8.8)',psfid)
-  wavefile = dirs.expdir+cmjd+'/'+string(format='(i8.8)',waveid)
-  apmultiwavecal,wavefile,psfid=psffile,name=name,/save,clobber=clobber ;,/pl
+
+  ; new Python version!
+  cmd=['apmultiwavecal','--plot','--hard','plots/apPwave-'+name,'--inst',dirs.instrument]
+  for i=0,n_elements(waveid)-1 do cmd=[cmd,string(waveid[i])]
+  spawn,cmd,/noshell
+
+  ;psffile = caldir+'psf/'+string(format='(i8.8)',psfid)
+  ;wavefile = dirs.expdir+cmjd+'/'+string(format='(i8.8)',waveid)
+  ;apmultiwavecal,wavefile,psfid=psffile,name=name,/save,clobber=clobber ;,/pl
 
   file_delete,caldir+'wave/'+file+'.lock'
 

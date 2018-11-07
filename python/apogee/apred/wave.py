@@ -230,25 +230,28 @@ def wavecal(nums=[2420038],name=None,inst='apogee-n',rows=[150],npoly=4,reject=3
     for inum,num in enumerate(nums) :
         # load 1D frame
         frame = apload.ap1D(num)
-        # get correct arclines
-        if frame['a'][0].header['LAMPUNE'] : lampfile = 'UNe.vac.apogee'
-        if frame['a'][0].header['LAMPTHAR'] : lampfile = 'tharne.lines.vac.apogee'
-        arclines=ascii.read(os.environ['APOGEE_DIR']+'/data/arclines/'+lampfile)
-        j=np.where(arclines['USEWAVE'])[0]
-        arclines=arclines[j]
-        # find lines or use previous found lines
-        linesfile='apLines-{:08d}.fits'.format(num)
-        if os.path.exists(linesfile) and not clobber :
-            flinestr = fits.open(linesfile)[1].data
+        if frame is not None and frame != 0 :
+            # get correct arclines
+            if frame['a'][0].header['LAMPUNE'] : lampfile = 'UNe.vac.apogee'
+            if frame['a'][0].header['LAMPTHAR'] : lampfile = 'tharne.lines.vac.apogee'
+            arclines=ascii.read(os.environ['APOGEE_DIR']+'/data/arclines/'+lampfile)
+            j=np.where(arclines['USEWAVE'])[0]
+            arclines=arclines[j]
+            # find lines or use previous found lines
+            linesfile='apLines-{:08d}.fits'.format(num)
+            if os.path.exists(linesfile) and not clobber :
+                flinestr = fits.open(linesfile)[1].data
+            else :
+                flinestr = findlines(frame,rows,waves,arclines,verbose=verbose,estsig=2)
+                Table(flinestr).write(linesfile,overwrite=True)
+            # replace frameid tag with group identification, which must start at 0 for func_multi_poly indexing
+            if inum > 0 and abs(num-nums[inum-1]) > 1 : ngroup +=1
+            flinestr['frameid'] = ngroup-1
+            if inum == 0 : linestr = flinestr
+            else : linestr = np.append(linestr,flinestr)
+            print(' Frame: {:d}  Nlines: {:d}  '.format(num,len(flinestr)))
         else :
-            flinestr = findlines(frame,rows,waves,arclines,verbose=verbose,estsig=2)
-            Table(flinestr).write(linesfile,overwrite=True)
-        # replace frameid tag with group identification, which must start at 0 for func_multi_poly indexing
-        if inum > 0 and abs(num-nums[inum-1]) > 1 : ngroup +=1
-        flinestr['frameid'] = ngroup-1
-        if inum == 0 : linestr = flinestr
-        else : linestr = np.append(linestr,flinestr)
-        print(' Frame: {:d}  Nlines: {:d}  '.format(num,len(flinestr)))
+            print('Error reading frame: ', num)
 
     # do the wavecal fit
     # initial parameter guess for first row, subsequent rows will use guess from previous row
@@ -256,7 +259,9 @@ def wavecal(nums=[2420038],name=None,inst='apogee-n',rows=[150],npoly=4,reject=3
     pars = np.zeros(npars)
     # initial quadratic relation from chip b and initial chip offsets or better guess if we have it
     if init :pars[npoly-3:npoly] = coef0['b']
-    else : pars[npoly-4:] = pars0
+    else : 
+        pars[npoly-4:npoly] = pars0[0:4]
+        for igroup in range(ngroup): pars[npoly+igroup*3:npoly+(igroup+1)*3] = pars0[4:7]
 
     # set up output arrays for all 300 fibers
     allpars=np.zeros([npars,300])
@@ -337,6 +342,7 @@ def wavecal(nums=[2420038],name=None,inst='apogee-n',rows=[150],npoly=4,reject=3
         hdu.append(fits.PrimaryHDU())
         hdu.append(fits.ImageHDU(chippars))
         hdu.append(fits.ImageHDU(chipwaves))
+        hdu.append(fits.ImageHDU(allpars))
         out='apPWave-'+chip+'-{:08d}'.format(name)
         hdu.writeto(out+'.fits',overwrite=True)
 

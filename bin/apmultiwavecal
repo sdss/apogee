@@ -35,6 +35,7 @@ if __name__ == '__main__' :
     parser.add_argument("frames", type=int, help='List of frames',nargs='+')
     parser.add_argument("--rows", type=int, help='list of rows to fit', default=np.arange(300),nargs='+')
     parser.add_argument("--inst", type=str, help='Instrument (default=apogee-n', default='apogee-n')
+    parser.add_argument("--name", type=int, help='Name', default=None)
     parser.add_argument("--npoly", type=int, help='Polynomial order', default=4)
     parser.add_argument("--plot", help='Create plot?', action="store_true")
     parser.add_argument("--hard", type=str, help='Hardcopy root name if desired')
@@ -46,7 +47,7 @@ if __name__ == '__main__' :
     now = datetime.datetime.now()
     start = time.time()
     print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
-    wave.wavecal(args.frames,rows=args.rows,npoly=args.npoly,inst=args.inst,plot=args.plot,hard=args.hard,
+    wave.wavecal(args.frames,rows=args.rows,name=args.name,npoly=args.npoly,inst=args.inst,plot=args.plot,hard=args.hard,
                  verbose=args.verbose,clobber=args.clobber,init=args.init)
     now = datetime.datetime.now()
     print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))

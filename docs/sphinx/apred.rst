@@ -8,6 +8,9 @@ these are limited because the reduction is done in an IDL environment, but
 there are a few utility routines used for quality assurance. It is expected
 that additional functionality will be implemented in Python in the future.
 
+In late 2018, routines for doing wavelength calibration were added, 
+see  :ref:`Wavelength Calibration`
+
 lsfmap.py
 
 routines to create maps of FWHM and resolution across the APOGEE detectors,

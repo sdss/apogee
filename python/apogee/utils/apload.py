@@ -20,13 +20,13 @@ import sys
 
 class ApLoad :
 
-    def __init__(self,dr=None,apred='r8',apstar='stars',aspcap='l31c',results='l31c.2',verbose=False) :
+    def __init__(self,dr=None,apred='r8',apstar='stars',aspcap='l31c',results='l31c.2',telescope='apo25m',instrument='apogee-n',verbose=False) :
         self.apred=apred
         self.apstar=apstar
         self.aspcap=aspcap
         self.results=results
-        self.telescope='apo25m'
-        self.instrument='apogee-n'
+        self.telescope=telescope
+        self.instrument=instrument
         self.verbose=verbose
         if dr == 'dr10' : self.dr10()
         elif dr == 'dr12' : self.dr12()
@@ -542,7 +542,16 @@ class ApLoad :
             hd.close()
             return data, header
     
-    def allfile(self,root,dr=None,apred=None,apstar=None,aspcap=None,results=None,location=None,obj=None,plate=None,mjd=None,num=None,fiber=None,chips=False,field=None) :
+    def filename(self,root,dr=None,apred=None,apstar=None,aspcap=None,results=None,
+                 location=None,obj=None,plate=None,mjd=None,num=None,fiber=None,chips=False,field=None) :
+
+        return self.allfile(root,dr=dr,apred=apred,apstar=apstar,aspcap=aspcap,results=results,
+                            location=location,obj=obj,plate=plate,mjd=mjd,num=num,fiber=fiber,chips=chips,field=field,
+                            download=False)
+
+    def allfile(self,root,dr=None,apred=None,apstar=None,aspcap=None,results=None,
+                location=None,obj=None,plate=None,mjd=None,num=None,fiber=None,chips=False,field=None,
+                download=True) :
         '''
         Uses sdss_access to create filenames and download files if necessary
         '''
@@ -577,7 +586,7 @@ class ApLoad :
                                       field=field,location=location,obj=obj,plate=plate,mjd=mjd,num=num,
                                       telescope=self.telescope,fiber=fiber,prefix=prefix,instrument=self.instrument)
             if self.verbose: print('filePath',filePath)
-            if os.path.exists(filePath) is False: 
+            if os.path.exists(filePath) is False and download: 
                 downloadPath = self.sdss_path.url(sdssroot,
                                       apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
                                       location=location,obj=obj,plate=plate,mjd=mjd,num=num,
@@ -596,7 +605,7 @@ class ApLoad :
                                 telescope=self.telescope,fiber=fiber,
                                 chip=chip,prefix=prefix,instrument=self.instrument)
                 if self.verbose : print('filePath: ', filePath, os.path.exists(filePath))
-                if os.path.exists(filePath) is False: 
+                if os.path.exists(filePath) is False and download : 
                   try:
                     self.http_access.get(sdssroot,
                                 apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,

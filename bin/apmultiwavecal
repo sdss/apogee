@@ -38,7 +38,7 @@ if __name__ == '__main__' :
     parser.add_argument("--name", type=int, help='Name', default=None)
     parser.add_argument("--npoly", type=int, help='Polynomial order', default=4)
     parser.add_argument("--plot", help='Create plot?', action="store_true")
-    parser.add_argument("--hard", type=str, help='Hardcopy root name if desired')
+    parser.add_argument("--hard", help='Hardcopy?' ,action="store_true")
     parser.add_argument("--clobber", help='Redo line finding?', action="store_true")
     parser.add_argument("--verbose", help='Verbose output?', action="store_true")
     parser.add_argument("--init", help='Use initial quadratic guess?', action="store_true")

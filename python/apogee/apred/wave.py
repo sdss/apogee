@@ -29,8 +29,10 @@ from scipy.signal import medfilt
 from scipy import interpolate
 from apogee.utils import apload
 from tools import plots
+from tools import html
 from sdss import yanny
 from astropy.table import Table
+from pyvista import tv
 
 chips=['a','b','c']
 colors=['r','g','b','c','m','y']
@@ -190,7 +192,7 @@ def findlines(frame,rows,waves,lines,out=None,verbose=False,estsig=2) :
                     if verbose : print('failed: ',num,row,chip)
     return linestr[0:nline]
 
-def wavecal(nums=[2420038],name=None,inst='apogee-n',rows=[150],npoly=4,reject=3,plot=False,hard=None,verbose=False,clobber=False,init=False) :
+def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=4,reject=3,plot=False,hard=None,verbose=False,clobber=False,init=False) :
     """ APOGEE wavelength calibration
 
     Solves for wavelength calibration given input frameid(s) allowing for a single polynomial
@@ -202,8 +204,7 @@ def wavecal(nums=[2420038],name=None,inst='apogee-n',rows=[150],npoly=4,reject=3
         plot verbose (bool)  plot fits (default=False)
         verbose (bool) :  plot fits (default=False)
     """
-    apload.apred='t9'
-    apload.instrument=inst
+    load=apload.ApLoad(apred=vers,instrument=inst)
 
     if name is None : name = nums[0]
     # Initial guess for wavelengths, used to find lines
@@ -229,7 +230,8 @@ def wavecal(nums=[2420038],name=None,inst='apogee-n',rows=[150],npoly=4,reject=3
     ngroup=1
     for inum,num in enumerate(nums) :
         # load 1D frame
-        frame = apload.ap1D(num)
+        frame = load.ap1D(num)
+        out = load.filename('Wave',num=num,chips=True)
         if frame is not None and frame != 0 :
             # get correct arclines
             if frame['a'][0].header['LAMPUNE'] : lampfile = 'UNe.vac.apogee'
@@ -238,10 +240,15 @@ def wavecal(nums=[2420038],name=None,inst='apogee-n',rows=[150],npoly=4,reject=3
             j=np.where(arclines['USEWAVE'])[0]
             arclines=arclines[j]
             # find lines or use previous found lines
-            linesfile='apLines-{:08d}.fits'.format(num)
+            linesfile=out.replace('Wave','Lines')
             if os.path.exists(linesfile) and not clobber :
+                print('Reading existing Lines data',num)
+                flinestr = fits.open(linesfile)[1].data
+            elif os.path.exists(linesfile.replace('as','ap')) :
+                os.rename(linesfile.replace('as','ap'),linesfile)
                 flinestr = fits.open(linesfile)[1].data
             else :
+                print('Finding lines: ', num)
                 flinestr = findlines(frame,rows,waves,arclines,verbose=verbose,estsig=2)
                 Table(flinestr).write(linesfile,overwrite=True)
             # replace frameid tag with group identification, which must start at 0 for func_multi_poly indexing
@@ -253,6 +260,7 @@ def wavecal(nums=[2420038],name=None,inst='apogee-n',rows=[150],npoly=4,reject=3
         else :
             print('Error reading frame: ', num)
 
+    out=load.filename('Wave',num=name,chips=True).replace('Wave','PWave')
     # do the wavecal fit
     # initial parameter guess for first row, subsequent rows will use guess from previous row
     npars=npoly+3*ngroup
@@ -295,7 +303,7 @@ def wavecal(nums=[2420038],name=None,inst='apogee-n',rows=[150],npoly=4,reject=3
                 res = y-func_multi_poly(x,*pars)
                 rms[row] = res[gd].std()
                 sig[row] = np.median(np.abs(res[gd]))
-                print(niter,row,len(gd),np.median(res),np.median(np.abs(res)),res[gd].std())
+                if verbose: print(niter,row,len(gd),np.median(res),np.median(np.abs(res)),res[gd].std())
                 pars = popt
             except :
                 print('Solution failed for row: ', row)
@@ -307,7 +315,7 @@ def wavecal(nums=[2420038],name=None,inst='apogee-n',rows=[150],npoly=4,reject=3
                 z=np.zeros(len(plt))+row
                 plots.plotc(ax[ichip],x[0,gd[plt]],y[gd[plt]]-func_multi_poly(x[:,gd[plt]],*popt),z,zr=[0,300],
                             xt='Pixel',yt='obs-fit wavelength',size=10)
-        print(row,pars)
+        if verbose : print(row,pars)
         allpars[:,row] = popt
     # plot rms/sig and chip locations if requested
     if plot :
@@ -320,9 +328,9 @@ def wavecal(nums=[2420038],name=None,inst='apogee-n',rows=[150],npoly=4,reject=3
                             size=10,yt='chip location')
         fig.suptitle(name)
         fig2.suptitle(name)
-        if hard is not None :
-            fig.savefig(hard+'.jpg')
-            fig2.savefig(hard+'_sig.jpg')
+        if hard :
+            fig.savefig(os.path.dirname(out)+'/plots/'+os.path.basename(out).replace('.fits','.jpg'))
+            fig2.savefig(os.path.dirname(out)+'/plots/'+os.path.basename(out).replace('.fits','_sig.jpg'))
 
     # output the apWavecal files with correct format
     x = np.zeros([3,2048])
@@ -343,24 +351,25 @@ def wavecal(nums=[2420038],name=None,inst='apogee-n',rows=[150],npoly=4,reject=3
         hdu.append(fits.ImageHDU(chippars))
         hdu.append(fits.ImageHDU(chipwaves))
         hdu.append(fits.ImageHDU(allpars))
-        out='apPWave-'+chip+'-{:08d}'.format(name)
-        hdu.writeto(out+'.fits',overwrite=True)
+        hdu.writeto(out.replace('Wave','Wave-'+chip),overwrite=True)
 
-def visit(planfile,out=None,lco=False,waveid=True,skyfile='airglow_oct18a') :
+def visit(planfile,out=None,lco=False,waveid=True,skyfile='airglow_oct18a',vers='t9') :
     """ Determine positions of skylines for all frames in input planfile
     """
     if out is not None : f=open(out,'a')
     else : f=None
     p=yanny.yanny(planfile)
 
+    if lco : inst='apogee-s'
+    else : inst='apogee-n'
+    load=apload.ApLoad(apred=vers,instrument=inst)
+
     # get the plugmap to get the sky fibers
     plugmjd=p['plugmap'].split('-')[1]
     if lco : 
-        apload.instrument='apogee-s'
         plugmap=yanny.yanny(
                 os.environ['MAPPER_DATA_2S']+'/'+plugmjd+'/plPlugMapM-'+p['plugmap'].strip("'")+'.par')
     else :
-        apload.instrument='apogee-n'
         plugmap=yanny.yanny(
                 os.environ['MAPPER_DATA']+'/'+plugmjd+'/plPlugMapM-'+p['plugmap'].strip("'")+'.par')
     skyind=np.where((np.array(plugmap['PLUGMAPOBJ']['objType']) == 'SKY') & 
@@ -373,11 +382,11 @@ def visit(planfile,out=None,lco=False,waveid=True,skyfile='airglow_oct18a') :
 
     # loop over all frames in the planfile and assess skylines in each
     for iframe,name in enumerate(p['APEXP']['name']) :
-        frame = apload.ap1D(int(name))
+        frame = load.ap1D(int(name))
         waves=[]
         if waveid :
             # use wavelength solution from specified wavecal
-            waveframe=apload.apWave(waveid)
+            waveframe=load.apWave(waveid)
             for chip in chips : waves[chip] = waveframe[chip][2].data
             plot = os.path.dirname(planfile)+'/plots/skypixshift-'+frame+'-'+skyfile
         else :
@@ -509,4 +518,75 @@ def pix2wave(pix,wave0) :
     out[pix < 0]= np.nan
     out[pix > 2047]= np.nan
     return out
+
+def compare(npoly=4) :
+
+    files=glob.glob('apPWave-b-*.fits')
+    files.sort()
+    dates=[]
+    for file in files :
+        dates.append(int(file.split('-')[2].replace('.fits',''))/10000)
+    dates=np.array(dates)
+    files=np.array(files)
+
+    w=np.arange(15160.,16900.,50.)
+    x=np.arange(-1024-2048-150,1024+2048+150,25)
+    grid=[]
+    for year in range(0,7,7) :
+        print('year: ', year)
+        i1 = 55757+year*365-55562
+        i2 = i1+365*7
+        j = np.where((dates >=i1) & (dates<=i2) & ((dates<2430) | (dates>2450)) )[0]
+        wave=np.zeros([len(x),len(j)])
+        pix=np.zeros([len(w),len(j)])
+        chipa=np.zeros([300,len(j)])
+        chipc=np.zeros([300,len(j)])
+        fig,ax=plots.multi(1,3)
+        for ifile,file in enumerate(files[j]) :
+            print(file)
+            a=fits.open(file)[3].data
+            wave[:,ifile]=np.polyval(a[0:npoly,150],x)
+            pix[:,ifile]=wave2pix(w,wave[:,ifile])
+            chipa[:,ifile]=a[npoly]
+            chipc[:,ifile]=a[npoly+2]
+
+        wmed = np.median(wave,axis=1)
+        pmed = np.nanmedian(pix,axis=1)
+        chipamed = np.median(chipa,axis=1)
+        chipcmed = np.median(chipc,axis=1)
+        for ifile,file in enumerate(files[j]) :
+            pix[:,ifile]-=pmed
+            wave[:,ifile]-=wmed
+            wave[:,ifile]-=np.median(wave[:,ifile])
+            pix[:,ifile]-=np.median(pix[:,ifile])
+            chipa[:,ifile]-=chipamed
+            chipc[:,ifile]-=chipcmed
+            plots.plotl(ax[0],x,wave[:,ifile],yr=[-0.5,0.5],xt='global pixel',yt=r'$\lambda-\lambda_{med}$')
+            plots.plotl(ax[1],np.arange(300),chipa[:,ifile],yr=[-0.5,0.5],xt='Fiber',yt='chipa-chipamed')
+            plots.plotl(ax[2],np.arange(300),chipc[:,ifile],yr=[-0.5,0.5],xt='Fiber',yt='chipc-chipcmed')
+        fig.suptitle('Year: {:d}'.format(year))
+        fig.savefig('year{:1d}.jpg'.format(year))
+        plt.close()
+        t=tv.TV()
+        t.cmap='viridis'
+        t.tv(wave,min=-0.1,max=0.05)
+        t.fig.suptitle('Year: {:d}'.format(year))
+        t.fig.savefig('year{:1d}wave.jpg'.format(year))
+        t.ax.cla()
+        t.tv(pix,min=-0.1,max=0.05)
+        t.fig.suptitle('Year: {:d}'.format(year))
+        t.fig.savefig('year{:1d}pix.jpg'.format(year))
+        t.ax.cla()
+        t.tv(chipa,min=-0.1,max=0.05)
+        t.fig.suptitle('Year: {:d}'.format(year))
+        t.fig.savefig('year{:1d}chipa.jpg'.format(year))
+        t.ax.cla()
+        t.tv(chipc,min=-0.1,max=0.05)
+        t.fig.suptitle('Year: {:d}'.format(year))
+        t.fig.savefig('year{:1d}chipc.jpg'.format(year))
+        plt.close()
+        root='year{:1d}'.format(year)
+        grid.append([root+'.jpg',root+'wave.jpg',root+'pix.jpg',root+'chipa.jpg',root+'chipc.jpg'])
+    html.htmltab(grid,file='apogee-n.html')
+
 

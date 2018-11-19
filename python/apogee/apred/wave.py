@@ -122,14 +122,14 @@ def func_multi_poly(x,*pars) :
           w = poly(x + offset(group,chip))
           pars = [npoly coefficients, ngroup*3 chip offsets]
         Args:  
-            x (float) : [npts,3] array of (pixel,chip,group)
+            x (float) : [3,npts] array of (pixel,chip,group)
          pars (float) : input parameter array
 
         Returns :
          wave (float) : wavelength array for input pixel(s), parameters
     """
     wave=np.zeros(x.shape[1])
-    ngroup = len(set(x[2,:]))
+    ngroup = int(round(x[2,:].max()))+1
     nchip = 3
     npoly = len(pars)-ngroup*nchip
     coef = pars[0:npoly]
@@ -163,25 +163,35 @@ def findlines(frame,rows,waves,lines,out=None,verbose=False,estsig=2) :
                        ('dpixel','f4'), ('frameid','i4')
                        ])
     nline=0
-    for row in rows :
-        for ichip,chip in enumerate(['a','b','c']) :
+    for ichip,chip in enumerate(['a','b','c']) :
+        # Use median offset of previous row for starting guess
+        # Add a dummy first row to get starting guess offset for the first row
+        dpixel_median = 0.
+        for irow,row in enumerate(np.append([rows[0]],rows)) :
+            # subtract off median-filtered spectrum to remove background
             medspec = frame[chip][1].data[row,:]-medfilt(frame[chip][1].data[row,:],101)
             j=np.where(lines['CHIPNUM'] == ichip+1)[0]
+            dpixel=[]
+            # for dummy row, open up the search window by a factor of two
+            if irow == 0 : estsig0=2*estsig
+            else : estsig0=estsig
             for iline in j :
                 wave=lines['WAVE'][iline]
-                pix0=wave2pix(wave,waves[chip][row,:])
+                pix0=wave2pix(wave,waves[chip][row,:])+dpixel_median
                 try :
                     # find peak in median-filtered subtracted spectrum
-                    pars=peakfit(medspec,pix0,estsig=estsig,
+                    pars=peakfit(medspec,pix0,estsig=estsig0,
                                  sigma=frame[chip][2].data[row,:],mask=frame[chip][3].data[row,:])
-                    linestr['chip'][nline] = ichip+1
-                    linestr['row'][nline] = row
-                    linestr['wave'][nline] = wave
-                    linestr['peak'][nline] = pars[0]
-                    linestr['pixel'][nline] = pars[1]
-                    linestr['dpixel'][nline] = pars[1]-pix0
-                    linestr['frameid'][nline] = num
-                    nline+=1
+                    dpixel.append(pars[1]-pix0)
+                    if irow > 0 :
+                        linestr['chip'][nline] = ichip+1
+                        linestr['row'][nline] = row
+                        linestr['wave'][nline] = wave
+                        linestr['peak'][nline] = pars[0]
+                        linestr['pixel'][nline] = pars[1]
+                        linestr['dpixel'][nline] = pars[1]-pix0
+                        linestr['frameid'][nline] = num
+                        nline+=1
                     if out is not None :
                         out.write('{:5d}{:5d}{:12.3f}{:12.3f}{:12.3f}{:12.3f}{:12d}\n'.format(
                                   ichip+1,row,wave,pars[0],pars[1],pars[1]-pix0,num))
@@ -190,9 +200,12 @@ def findlines(frame,rows,waves,lines,out=None,verbose=False,estsig=2) :
                               ichip+1,row,wave,pars[0],pars[1],pars[1]-pix0,num))
                 except :
                     if verbose : print('failed: ',num,row,chip)
+            dpixel_median = np.median(dpixel)
+            if verbose: print('median offset: ',row,chip,dpixel_median)
+
     return linestr[0:nline]
 
-def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=4,reject=3,plot=False,hard=None,verbose=False,clobber=False,init=False) :
+def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=4,reject=3,plot=False,hard=None,verbose=False,clobber=False,init=False,nofit=False) :
     """ APOGEE wavelength calibration
 
     Solves for wavelength calibration given input frameid(s) allowing for a single polynomial
@@ -203,6 +216,7 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
         rows (list of ints): list of rows to get solutions at
         plot verbose (bool)  plot fits (default=False)
         verbose (bool) :  plot fits (default=False)
+        clobber (bool) : forces remeasuring lines
     """
     load=apload.ApLoad(apred=vers,instrument=inst)
 
@@ -221,17 +235,19 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
         coef0['c'] = np.flip([  15802.3346,  -3.08933509e-01,  -9.45618858e-06])
         pars0 = [ 1.19138048e-10,-1.03101159e-05,-2.84129914e-01,1.61531282e+04,
                  -1.49566344e+02,-9.99666738e-11, 1.58164526e+02]
-    waves = {}
-    pixels = np.arange(2048)
-    for chip in chips : waves[chip] = np.tile(np.polyval(coef0[chip],pixels),(300,1))
 
     # find lines
     print('finding lines with initial wavelength guess: ',coef0)
+    waves = {}
+    pixels = np.arange(2048)
+    for chip in chips : waves[chip] = np.tile(np.polyval(coef0[chip],pixels),(300,1))
     ngroup=1
+    frames=[]
     for inum,num in enumerate(nums) :
         # load 1D frame
         frame = load.ap1D(num)
         out = load.filename('Wave',num=num,chips=True)
+        print(num,frame)
         if frame is not None and frame != 0 :
             # get correct arclines
             if frame['a'][0].header['LAMPUNE'] : lampfile = 'UNe.vac.apogee'
@@ -244,12 +260,12 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
             if os.path.exists(linesfile) and not clobber :
                 print('Reading existing Lines data',num)
                 flinestr = fits.open(linesfile)[1].data
-            elif os.path.exists(linesfile.replace('as','ap')) :
-                os.rename(linesfile.replace('as','ap'),linesfile)
-                flinestr = fits.open(linesfile)[1].data
+            #elif os.path.exists(linesfile.replace('as','ap')) :
+            #    os.rename(linesfile.replace('as','ap'),linesfile)
+            #    flinestr = fits.open(linesfile)[1].data
             else :
                 print('Finding lines: ', num)
-                flinestr = findlines(frame,rows,waves,arclines,verbose=verbose,estsig=2)
+                flinestr = findlines(frame,rows,waves,arclines,verbose=verbose,estsig=1)
                 Table(flinestr).write(linesfile,overwrite=True)
             # replace frameid tag with group identification, which must start at 0 for func_multi_poly indexing
             if inum > 0 and abs(num-nums[inum-1]) > 1 : ngroup +=1
@@ -257,33 +273,45 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
             if inum == 0 : linestr = flinestr
             else : linestr = np.append(linestr,flinestr)
             print(' Frame: {:d}  Nlines: {:d}  '.format(num,len(flinestr)))
+            frames.append(num)
         else :
             print('Error reading frame: ', num)
 
-    out=load.filename('Wave',num=name,chips=True).replace('Wave','PWave')
+    if nofit : return
+
     # do the wavecal fit
     # initial parameter guess for first row, subsequent rows will use guess from previous row
     npars=npoly+3*ngroup
     pars = np.zeros(npars)
+
+    # if we have more than one group, get starting polynomial guess from first group, to help
+    #   to avoid local minima
+    if ngroup > 1 :
+        pars0 = wavecal(nums=nums[0:2],name=None,vers=vers,inst=inst,rows=[rows[0]],npoly=npoly,reject=reject,init=init)
+        init = False
+
     # initial quadratic relation from chip b and initial chip offsets or better guess if we have it
     if init :pars[npoly-3:npoly] = coef0['b']
     else : 
         pars[npoly-4:npoly] = pars0[0:4]
         for igroup in range(ngroup): pars[npoly+igroup*3:npoly+(igroup+1)*3] = pars0[4:7]
-
+    initpars=copy.copy(pars)
+ 
     # set up output arrays for all 300 fibers
     allpars=np.zeros([npars,300])
-    rms=np.zeros(300)
-    sig=np.zeros(300)
+    chipa=np.zeros([300,ngroup])
+    chipb=np.zeros([300,ngroup])
+    chipc=np.zeros([300,ngroup])
+    rms=np.zeros([300,ngroup])
+    sig=np.zeros([300,ngroup])
     if plot : 
         fig,ax=plots.multi(1,3,hspace=0.001,wspace=0.001)
-        fig2,ax2=plots.multi(1,4,hspace=0.001,wspace=0.001)
+        fig2,ax2=plots.multi(1,3,hspace=0.001,wspace=0.001)
     # loop over requested rows
     for irow,row in enumerate(rows) :
-        # position of green chip in first group fixed to 0., otherwise no bounds
+        pars = copy.copy(initpars)
+        # position of green chip in first group fixed to 0., don't allow other groups to shift more than 5 pixels, otherwise no bounds
         bounds = ( np.zeros(len(pars))-np.inf, np.zeros(len(pars))+np.inf)
-        bounds[0][npoly+1] =  -1.e-10
-        bounds[1][npoly+1] =  1.e-10
         # set up independent variable array with pixel, chip, groupid, and dependent variable (wavelength)
         thisrow = np.where(linestr['row'] == row)[0]
         x = np.zeros([3,len(thisrow)])
@@ -295,44 +323,72 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
         if irow == 0 : maxiter=15
         else : maxiter=7
         for niter in range(maxiter) :
+            # every third iteration, just fit for chip locations
+            if niter%3 ==  1 : delta = 1.e-11
+            else : delta = np.inf
+            for i in range(npoly) : 
+                bounds[0][i] =  pars[i]-delta
+                bounds[1][i] =  pars[i]+delta
             # reject lines that have bad residuals
             gd = np.where(abs(res) < np.median(res)+reject*np.median(np.abs(res)))[0]
+            # lock the middle chip position of the group with best residuals
+            nn=0
+            for igroup in range(ngroup) : 
+                j=np.where(x[2,gd] == igroup)[0]
+                if len(j) > 0 :
+                  rms[row,igroup] = res[gd[j]].std()
+                  bounds[0][npoly+igroup*3+1] =  -5.
+                  bounds[1][npoly+igroup*3+1] =  5.
+                  nn += 1
+                else :
+                  print('missing lines from group: ', igroup)
+            ;bestgroup=rms[row,:].argmin()
+            bestgroup = 0
+            bounds[0][npoly+bestgroup*3+1] = pars[npoly+bestgroup*3+1]-1.e-10
+            bounds[1][npoly+bestgroup*3+1] = pars[npoly+bestgroup*3+1]+1.e-10
+            
             # use curve_fit to optimize paramtyers
             try :
                 popt,pcov = curve_fit(func_multi_poly,x[:,gd],y[gd],p0=pars,bounds=bounds)
                 res = y-func_multi_poly(x,*pars)
-                rms[row] = res[gd].std()
-                sig[row] = np.median(np.abs(res[gd]))
                 if verbose: print(niter,row,len(gd),np.median(res),np.median(np.abs(res)),res[gd].std())
                 pars = popt
             except :
                 print('Solution failed for row: ', row)
                 popt = pars*0.
-        # plot individual line residuals if requested
-        if plot :
-            for ichip in range(3) :
-                plt = np.where(x[1,gd] == ichip+1)[0]
-                z=np.zeros(len(plt))+row
-                plots.plotc(ax[ichip],x[0,gd[plt]],y[gd[plt]]-func_multi_poly(x[:,gd[plt]],*popt),z,zr=[0,300],
-                            xt='Pixel',yt='obs-fit wavelength',size=10)
+            # plot individual line residuals if requested. Get rid of maxiter-1 if you want
+            #  to see plots at each iteration
+            if plot and niter == maxiter-1 :
+                for ichip in range(3) :
+                    gdplt = np.where(x[1,gd] == ichip+1)[0]
+                    if niter == maxiter-1 : 
+                        z=np.zeros(len(y))+row
+                        zr=[0,300]
+                    else : 
+                        z=x[2,:]
+                        zr=[0,ngroup]
+                    ax[ichip].cla()
+                    plots.plotc(ax[ichip],x[0,gd[gdplt]],res[gd[gdplt]],z[gd[gdplt]],zr=zr,
+                                xt='Pixel',yt='obs-fit wavelength',size=10)
+                    plt.show()
+                if not hard : pdb.set_trace()
+        
+        allrms = res[gd].std()
+        # throw out bad solutions
+        #if allrms > 0.1 : popt = pars*0.
+        if allrms < 0.1 : initpars = copy.copy(pars)
         if verbose : print(row,pars)
         allpars[:,row] = popt
-    # plot rms/sig and chip locations if requested
-    if plot :
-        plots.plotp(ax2[0],np.arange(300),rms,color='r',size=10,xt='Row',yt='rms/sig')
-        plots.plotp(ax2[0],np.arange(300),sig,color='g',size=10)
-        for ichip in range(3) : 
-            for igroup in range(ngroup) :
-                y=allpars[npoly+igroup*3+ichip,:]
-                plots.plotp(ax2[1+ichip],np.arange(300),y,yr=[np.median(y)-2,np.median(y)+2],color=colors[ichip],
-                            size=10,yt='chip location')
-        fig.suptitle(name)
-        fig2.suptitle(name)
-        if hard :
-            fig.savefig(os.path.dirname(out)+'/plots/'+os.path.basename(out).replace('.fits','.jpg'))
-            fig2.savefig(os.path.dirname(out)+'/plots/'+os.path.basename(out).replace('.fits','_sig.jpg'))
+        for igroup in range(ngroup) :
+            j=np.where(x[2,gd] == igroup)[0]
+            chipa[row,igroup] = allpars[npoly+igroup*3,row]
+            chipb[row,igroup] = allpars[npoly+1+igroup*3,row]
+            chipc[row,igroup] = allpars[npoly+2+igroup*3,row]
+            rms[row,igroup] = res[gd[j]].std()
+            sig[row,igroup] = np.median(np.abs(res[gd[j]]))
 
     # output the apWavecal files with correct format
+    out=load.filename('Wave',num=name,chips=True).replace('Wave','PWave')
     x = np.zeros([3,2048])
     for ichip,chip in enumerate(chips) :
         hdu=fits.HDUList()
@@ -346,12 +402,58 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
             polypars=allpars[0:npoly,row]*3000**pow
             chippars[:,row] = np.append([ -1023.5+(ichip-1)*2048 + allpars[npoly+ichip,row],0., 0., 1., 0., 0.], 
                               np.flip( np.append(np.zeros(8-npoly),polypars)))
-            chipwaves[row,:] = func_multi_poly(x,*allpars[:,row])
+            # since we only are feeding one group, need to reduce allpars so that correct npoly is deduced!
+            chipwaves[row,:] = func_multi_poly(x,*allpars[0:npoly+3,row])
         hdu.append(fits.PrimaryHDU())
+        hdu[0].header['NFRAMES']=len(frames)
+        for i in range(len(frames)) : hdu[0].header['FRAME{:d}'.format(i)] = frames[i]
+        hdu[0].header['NGROUP']=ngroup
+        hdu[0].header['MEDRMS']=np.nanmedian(rms)
+        hdu[0].header['MEDSIG']=np.nanmedian(sig)
         hdu.append(fits.ImageHDU(chippars))
         hdu.append(fits.ImageHDU(chipwaves))
         hdu.append(fits.ImageHDU(allpars))
         hdu.writeto(out.replace('Wave','Wave-'+chip),overwrite=True)
+
+    # plot rms/sig and chip locations if requested
+    if plot :
+        for ichip in range(3) : 
+            for igroup in range(ngroup) :
+                y=allpars[npoly+igroup*3+ichip,:]
+                plots.plotp(ax2[ichip],np.arange(300),y,yr=[np.median(y)-2,np.median(y)+2],color=colors[ichip],
+                            size=10,yt='chip location')
+        fig.suptitle(name)
+        fig2.suptitle(name)
+        grid=[]
+        root = os.path.dirname(out)+'/plots/'+os.path.basename(out).replace('.fits','')
+        rootname = os.path.basename(root)
+        if hard :
+            fig.savefig(root+'.jpg')
+            fig2.savefig(root+'_chiploc.jpg')
+            grid.append([rootname+'.jpg',rootname+'_chiploc.jpg',''])
+        t=tv.TV()
+        t.cmap='viridis'
+        chipamed = np.median(chipa,axis=1)
+        chipcmed = np.median(chipc,axis=1)
+        for igroup in range(ngroup) :
+            chipa[:,igroup] -= chipamed
+            chipc[:,igroup] -= chipcmed
+        t.tv(chipa,min=-0.5,max=0.5)
+        if hard : t.fig.savefig(root+'_chipa.jpg')
+        t.tv(chipb,min=-0.5,max=0.5)
+        if hard : t.fig.savefig(root+'_chipb.jpg')
+        t.tv(chipc,min=-0.5,max=0.5)
+        if hard : t.fig.savefig(root+'_chipc.jpg')
+        grid.append([rootname+'_chipa.jpg',rootname+'_chipb.jpg',rootname+'_chipc.jpg'])
+        t.tv(rms,min=0.,max=0.1)
+        if hard : t.fig.savefig(root+'_rms.jpg')
+        t.tv(sig,min=0.,max=0.05)
+        if hard : t.fig.savefig(root+'_sig.jpg')
+        grid.append([rootname+'_rms.jpg',rootname+'_sig.jpg',''])
+        if hard : html.htmltab(grid,file=root+'.html')
+        else: pdb.set_trace()
+
+    return pars
 
 def visit(planfile,out=None,lco=False,waveid=True,skyfile='airglow_oct18a',vers='t9') :
     """ Determine positions of skylines for all frames in input planfile
@@ -419,7 +521,10 @@ def visit(planfile,out=None,lco=False,waveid=True,skyfile='airglow_oct18a',vers=
                 wfig.tight_layout()
                 wfig.savefig(plot+'_wave.jpg')
                 fig.savefig(plot+'.jpg')
-            else : pdb.set_trace()
+            else : 
+                plt.show()
+                plt.draw()
+                pdb.set_trace()
             plt.close('all')
 
         # Get shifts relative to first frame for each line/fiber
@@ -519,9 +624,16 @@ def pix2wave(pix,wave0) :
     out[pix > 2047]= np.nan
     return out
 
-def compare(npoly=4) :
+def compare(npoly=4,lco=False) :
 
-    files=glob.glob('apPWave-b-*.fits')
+    if lco :
+        files=glob.glob('asPWave-b-*.fits')
+        out='apogee-s'
+        root='lco'
+    else :
+        files=glob.glob('apPWave-b-*0000.fits')
+        out='apogee-n'
+        root='apo'
     files.sort()
     dates=[]
     for file in files :
@@ -529,64 +641,110 @@ def compare(npoly=4) :
     dates=np.array(dates)
     files=np.array(files)
 
-    w=np.arange(15160.,16900.,50.)
+    # wavelengths to compare solutions at
+    w=np.arange(15160.,16900.)
+    rows=np.arange(300.)
     x=np.arange(-1024-2048-150,1024+2048+150,25)
+    x=np.arange(-1024-2048-150,1024+2048+150)
     grid=[]
-    for year in range(0,7,7) :
-        print('year: ', year)
-        i1 = 55757+year*365-55562
-        i2 = i1+365*7
-        j = np.where((dates >=i1) & (dates<=i2) & ((dates<2430) | (dates>2450)) )[0]
+    ytit=[]
+    for year in range(-1,7) :
+      if year == -1 :
+          i1=55757-55562
+          i2=99999
+      else :
+          i1 = 55757+year*365-55562
+          i2 = i1+365
+      j = np.where((dates >=i1) & (dates<=i2) & ((dates<2430) | (dates>2450)) )[0]
+      print('year: ', year,i1,i2,len(j))
+      maxgroup=20
+      if len(j) > 0 :
         wave=np.zeros([len(x),len(j)])
-        pix=np.zeros([len(w),len(j)])
-        chipa=np.zeros([300,len(j)])
-        chipc=np.zeros([300,len(j)])
+        # in pix, store the global pixel corresponding to the range of wavelengths
+        # this is better than looking at the wavelength comparison of different solutions, 
+        # because if the chips have moved (shifted dither position), this is a constant
+        # global pixel offset, but not a constant wavelength offset (because dispersion varies)
+        pix=np.zeros([len(w[::50]),len(j)])
+        pixraw=np.zeros([len(w[::50]),len(j)])
+        chipa=np.zeros([300,len(j)*maxgroup])
+        chipc=np.zeros([300,len(j)*maxgroup])
+        chipafit=np.zeros([300,len(j)*maxgroup])
+        chipcfit=np.zeros([300,len(j)*maxgroup])
         fig,ax=plots.multi(1,3)
+        nfile=0
+        noffset=0
+        gdfiles=[]
         for ifile,file in enumerate(files[j]) :
             print(file)
-            a=fits.open(file)[3].data
-            wave[:,ifile]=np.polyval(a[0:npoly,150],x)
-            pix[:,ifile]=wave2pix(w,wave[:,ifile])
-            chipa[:,ifile]=a[npoly]
-            chipc[:,ifile]=a[npoly+2]
+            try :
+              a=fits.open(file)[3].data
+              wave[:,ifile]=np.polyval(a[0:npoly,150],x)
+              pix[:,ifile]=wave2pix(w,wave[:,ifile])[::50]
+              ngroup=fits.open(file)[0].header['NGROUP']
+              for igroup in range(ngroup) :
+                  chipa[:,noffset]=a[npoly+igroup*3]
+                  # fit a lit to the chip offsets as a function of row, ignoring bad fits
+                  gd = np.where(np.abs(a[npoly+igroup*3]) > 1)[0]
+                  p=np.polyfit(rows[gd],a[npoly+igroup*3,gd],1)
+                  chipafit[:,noffset]=p[0]*rows+p[1]
+                  chipc[:,noffset]=a[npoly+2+igroup*3]
+                  p=np.polyfit(rows[gd],a[npoly+2+igroup*3,gd],1)
+                  chipcfit[:,noffset]=p[0]*rows+p[1]
+                  noffset+=1
+              nfile +=1
+              gdfiles.append(file.split('.')[0].split('-')[2])
+            except:
+              pass
+        # exclude bad/missing columns
+        chipa=chipa[:,0:noffset]
+        chipc=chipc[:,0:noffset]
+        chipafit=chipafit[:,0:noffset]
+        chipcfit=chipcfit[:,0:noffset]
+        wave=wave[:,0:nfile]
+        pix=pix[:,0:nfile]
+        pixraw=pixraw[:,0:nfile]
 
         wmed = np.median(wave,axis=1)
         pmed = np.nanmedian(pix,axis=1)
-        chipamed = np.median(chipa,axis=1)
-        chipcmed = np.median(chipc,axis=1)
-        for ifile,file in enumerate(files[j]) :
+        chipamed = np.median(chipafit,axis=1)
+        chipcmed = np.median(chipcfit,axis=1)
+        for ifile in range(nfile) :
             pix[:,ifile]-=pmed
             wave[:,ifile]-=wmed
             wave[:,ifile]-=np.median(wave[:,ifile])
+            pixraw[:,ifile]=pix[:,ifile]
             pix[:,ifile]-=np.median(pix[:,ifile])
+            plots.plotl(ax[0],x,wave[:,ifile],yr=[-0.5,0.5],xt='global pixel',yt=r'$\lambda-\lambda_{med}$')
+        for ifile in range(noffset) :
+            # to account for dither shifts, subtract median pixel for this solution
+            # for chip gaps, get shift relative to median across all solutions
             chipa[:,ifile]-=chipamed
             chipc[:,ifile]-=chipcmed
-            plots.plotl(ax[0],x,wave[:,ifile],yr=[-0.5,0.5],xt='global pixel',yt=r'$\lambda-\lambda_{med}$')
+            chipafit[:,ifile]-=chipamed
+            chipcfit[:,ifile]-=chipcmed
             plots.plotl(ax[1],np.arange(300),chipa[:,ifile],yr=[-0.5,0.5],xt='Fiber',yt='chipa-chipamed')
             plots.plotl(ax[2],np.arange(300),chipc[:,ifile],yr=[-0.5,0.5],xt='Fiber',yt='chipc-chipcmed')
-        fig.suptitle('Year: {:d}'.format(year))
-        fig.savefig('year{:1d}.jpg'.format(year))
+        if year < 0 : tit='All years'
+        else : tit='Year: {:d}'.format(year)
+        ytit.append(tit)
+        name=root+'year{:1d}'.format(year)
+        fig.savefig(name+'.jpg'.format(year))
         plt.close()
-        t=tv.TV()
+        t=tv.TV(aspect='auto')
         t.cmap='viridis'
-        t.tv(wave,min=-0.1,max=0.05)
-        t.fig.suptitle('Year: {:d}'.format(year))
-        t.fig.savefig('year{:1d}wave.jpg'.format(year))
-        t.ax.cla()
-        t.tv(pix,min=-0.1,max=0.05)
-        t.fig.suptitle('Year: {:d}'.format(year))
-        t.fig.savefig('year{:1d}pix.jpg'.format(year))
-        t.ax.cla()
-        t.tv(chipa,min=-0.1,max=0.05)
-        t.fig.suptitle('Year: {:d}'.format(year))
-        t.fig.savefig('year{:1d}chipa.jpg'.format(year))
-        t.ax.cla()
-        t.tv(chipc,min=-0.1,max=0.05)
-        t.fig.suptitle('Year: {:d}'.format(year))
-        t.fig.savefig('year{:1d}chipc.jpg'.format(year))
+        row=[name+'.jpg']
+        names=['pixraw','pix','chipa','chipc','chipafit','chipcfit']
+        for i,im in enumerate([pixraw,pix,chipa,chipc,chipafit,chipcfit]) :
+            t.ax.cla()
+            t.tv(im,min=-0.05,max=0.05)
+            if i < 2 :
+                for ifile,f in enumerate(gdfiles) :
+                    t.ax.text(ifile+0.5,-1.,str(f),ha='right',rotation=90,fontsize=8)
+            t.fig.suptitle(tit)
+            t.fig.savefig(root+name+names[i]+'.jpg'.format(year))
+            row.append(root+name+names[i]+'.jpg')
         plt.close()
-        root='year{:1d}'.format(year)
-        grid.append([root+'.jpg',root+'wave.jpg',root+'pix.jpg',root+'chipa.jpg',root+'chipc.jpg'])
-    html.htmltab(grid,file='apogee-n.html')
+        grid.append(row)
+    html.htmltab(grid,file=out+'.html',ytitle=ytit)
 
 

@@ -37,6 +37,7 @@ if __name__ == '__main__' :
     parser.add_argument("--inst", type=str, help='Instrument (default=apogee-n', default='apogee-n')
     parser.add_argument("--name", type=int, help='Name', default=None)
     parser.add_argument("--npoly", type=int, help='Polynomial order', default=4)
+    parser.add_argument("--nofit", help='Skip fit (find lines only)?', action="store_true")
     parser.add_argument("--plot", help='Create plot?', action="store_true")
     parser.add_argument("--hard", help='Hardcopy?' ,action="store_true")
     parser.add_argument("--clobber", help='Redo line finding?', action="store_true")
@@ -48,7 +49,7 @@ if __name__ == '__main__' :
     start = time.time()
     print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     wave.wavecal(args.frames,rows=args.rows,name=args.name,npoly=args.npoly,inst=args.inst,plot=args.plot,hard=args.hard,
-                 verbose=args.verbose,clobber=args.clobber,init=args.init)
+                 nofit=args.nofit,verbose=args.verbose,clobber=args.clobber,init=args.init)
     now = datetime.datetime.now()
     print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     print("elapsed: ",time.time()-start)

@@ -14,12 +14,15 @@ from __future__ import unicode_literals
 import numpy as np
 import os
 import pdb
+from shutil import copyfile
+import subprocess
 import scipy.ndimage.filters
 from astropy.io import fits
 from astropy.io import ascii
 #from holtz.tools import struct
 #from holtz.tools import plots
 from apogee.utils import apload
+from apogee.aspcap import ferre
 
 def params() :
     '''
@@ -110,19 +113,41 @@ def readstars(starlist,libpar) :
         spec,err=readstar(star)
         cont=cont_normalize(spec)
 
-def ferre(spec,libpar,te0=None,logg0=None,mh0=None) :
-    '''
-    Runs FERRE for a set of input spectra
-    '''
-    np.savetxt(out+'.frd',spec)
-    np.savetxt(out+'.err',spec)
-    np.savetxt(out+'.con',spec)
+def getparams(name,lib,coarse=None,n=None) :
 
-    # write ferre control file
-    ferre.writenml()
+    objs=ascii.read(name+'.ipf')['col1']
+    if n is not None : objs = objs[0:n]
 
-    out=ferre.readferre(name)
+    # if we have a coarse library, run FERRE with it first
+    #   to get starting guesses
+    if coarse is not None :
+        l=ferre.rdlibhead(coarse+'.hdr')[0]
+        link(name+'.obs',name+'_coarse.obs')
+        link(name+'.err',name+'_coarse.err')
+        ferre.writeipf(name+'_coarse',coarse+'.hdr',objs)
+        ferre.writenml(name+'_coarse.nml',name+'_coarse',l,algor=3,renorm=4,obscont=1,ncpus=32,init=1)
+        copyfile(name+'_coarse.nml','input.nml')
+        subprocess.call(['ferre.x'],shell=False)
+        out,outspec,outwave=ferre.read(name+'_coarse',coarse+'.hdr')
+        ferre.writeipf(name+'_1',lib+'.hdr',objs,param=out['FPARAM']) 
+    else :
+        ferre.writeipf(name+'_1',lib+'.hdr',objs)
+    l=ferre.rdlibhead(lib+'.hdr')[0]
+    ferre.writenml(name+'_1.nml',name+'_1',l,algor=3,renorm=4,obscont=1,ncpus=32,init=1)
+    copyfile(name+'_1.nml','input.nml')
+    link(name+'.obs',name+'_1.obs')
+    link(name+'.err',name+'_1.err')
+    subprocess.call(['ferre.x'],shell=False)
+    out,outspec,outwave=ferre.read(name+'_1',lib+'.hdr')
 
+
+def link(src,dest) :
+    try :
+        os.remove(dest)
+    except :
+        pass
+    os.symlink(src,dest)
+   
 def elemsens(els=None,plot=None,ylim=[0.1,-0.3],teff=4750,logg=2.,feh=-1.,smooth=None) :
     '''
     Returns and optionally plots wavelength sensitivity to changes in elemental abundances for specified elements from MOOG mini-elem grid

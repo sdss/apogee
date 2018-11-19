@@ -13,7 +13,7 @@ from __future__ import unicode_literals
 
 import numpy as np
 import pdb
-#from apogee.tools import match
+from tools import match
 from apogee.aspcap import aspcap
 
 def writespec(name,data) :
@@ -72,6 +72,7 @@ def writenml(outfile,file,libhead,ncpus=2,nruns=1,interord=3,direct=1,pca=1,errb
         f.write(' NRUNS = {:2d}\n'.format(nruns))
     if stopcr is not None : f.write(' STOPCR = {:f}\n'.format(stopcr))
     f.write(' NTHREADS = {:2d}\n'.format(ncpus))
+    f.write(' COVPRINT = 1\n')
     f.write(' PCAPROJECT = 0\n')
     f.write(' PCACHI = 0\n')
     f.write(' INTER = {:d}\n'.format(interord))
@@ -79,6 +80,20 @@ def writenml(outfile,file,libhead,ncpus=2,nruns=1,interord=3,direct=1,pca=1,errb
     f.write(' F_ACCESS = {:d}\n'.format(f_access))
     f.write(' /\n')
     f.close()
+
+def clip(x,lim,eps=None) :
+    """ Utility routine to clip values within limits, and move slightly off edges if requested
+    """
+    # set negative zero to zero
+    if np.isclose(x,0.) : x=0.
+    # clip to limits
+    tmp=np.max([lim[0],np.min([lim[1],x])])
+    # move off limit if requested
+    if eps is not None :
+        if np.isclose(tmp,lim[0]) : tmp+=eps
+        if np.isclose(tmp,lim[1]) : tmp-=eps
+    return tmp
+
 
 def writeipf(name,libfile,stars,param=None) :
     """ Writes FERRE input file
@@ -92,6 +107,7 @@ def writeipf(name,libfile,stars,param=None) :
     index=np.zeros(nparams,dtype=int)
     for i in range(nparams) :
         index[i] = np.where(params == libhead0['LABEL'][i])[0]
+        print(i,index[i])
     # if input parameters aren't specified, use zeros
     if param is None :
         param=np.zeros([len(stars),len(params)])
@@ -100,7 +116,8 @@ def writeipf(name,libfile,stars,param=None) :
     for i,star in enumerate(stars) :
         f.write('{:<40s}'.format(star))
         for ipar in range(nparams) : 
-            f.write('{:12.3f}'.format(param[i][index[ipar]]))
+            lims = [libhead0['LLIMITS'][ipar],libhead0['LLIMITS'][ipar]+libhead0['STEPS'][ipar]*libhead0['N_P'][ipar]]
+            f.write('{:12.3f}'.format(clip(param[i][index[ipar]],lims,eps=0.001)))
         f.write('\n')
     f.close()
         

@@ -250,7 +250,9 @@ def comp(file,true=None,truespec=None,hard=False,plot=False,minchi2=0.,testid=No
     true=ascii.read(true,names=names)
     ##spec=np.loadtxt('test.dat')
 
-    obs=ascii.read(file+'.spm',names=names_spm)
+    obs=ascii.read(file+'.spm')
+    for i in range(len(names_spm) ):
+        obs.rename_column('col{:d}'.format(i+1),names_spm[i])
     i1,i2=match.match(true['id'],obs['id'])
 
     # write out file with differences

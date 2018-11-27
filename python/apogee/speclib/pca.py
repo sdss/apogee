@@ -377,8 +377,8 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
                 dim=true.shape
                 truen=true.flatten()+np.random.normal(0.,1./sn,true.flatten().shape)
                 truen=np.reshape(truen,(dim[0],dim[1]))
-                ferre.writespec(name+'.mdl'.format(sn),truen)
-                ferre.writespec(name+'.err'.format(sn),truen*0.+1./sn)
+                ferre.writespec(name+'.mdl',truen)
+                ferre.writespec(name+'.err',truen*0.+1./sn)
  
     # list of all the different tests and their input.nml files; latter are set below
     # first fdir is just for creating PCA

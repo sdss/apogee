@@ -1,7 +1,7 @@
 ;======================================================================
-pro mkwave,waveid,name=name,darkid=darkid,flatid=flatid,psfid=psfid,clobber=clobber,nowait=nowait
+pro mkwave,waveid,name=name,darkid=darkid,flatid=flatid,psfid=psfid,clobber=clobber,nowait=nowait,nofit=nofit
 
-  if ~keyword_set(name) then name=waveid[0]
+  if ~keyword_set(name) then name=string(waveid[0])
 
   dirs=getdir(apodir,caldir,spectrodir,vers)
   caldir=dirs.caldir
@@ -26,8 +26,9 @@ pro mkwave,waveid,name=name,darkid=darkid,flatid=flatid,psfid=psfid,clobber=clob
   mkpsf,psfid,darkid=darkid,flatid=flatid
   w=approcess(waveid,dark=darkid,flat=flatid,psf=psfid,flux=0,/doproc)
 
-  ; new Python version!
-  cmd=['apmultiwavecal','--plot','--hard','plots/apPwave-'+name,'--inst',dirs.instrument]
+  ; new Python version! 
+  if keyword_set(nofit) then nofit='--nofit' else nofit=''
+  cmd=['apmultiwavecal','--name',name,nofit,'--plot','--hard','--inst',dirs.instrument,'--verbose']
   for i=0,n_elements(waveid)-1 do cmd=[cmd,string(waveid[i])]
   spawn,cmd,/noshell
 

@@ -36,7 +36,7 @@
 pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,lsf=lsf,bpm=bpm,$
     psf=psf,flux=flux,sparse=sparse,fiber=fiber,$
     littrow=littrow,persist=persist,modelpersist=modelpersist,response=response,mjd=mjd,full=full,$
-    newwave=newwave,nskip=nskip,average=average,clobber=clobber,vers=vers,telescope=telescope
+    newwave=newwave,nskip=nskip,average=average,clobber=clobber,vers=vers,telescope=telescope,nofit=nofit
 
   if keyword_set(vers) and keyword_set(telescope) then apsetver,vers=vers,telescope=telescope
   dirs=getdir(apo_dir,cal_dir,spectro_dir,apo_vers,lib_dir)
@@ -281,12 +281,13 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
       i=where(wavestr.name eq wave,nwave)
       if nwave le 0 then begin
         print,'No matching calibration line for ', wave
+        return
         stop
       endif
       ims=getnums(wavestr[i[0]].frames)
       cmjd=getcmjd(ims[0],mjd=mjd)
       getcal,mjd,calfile,darkid=darkid,flatid=flatid
-      mkwave,ims,name=wavestr[i[0]].name,darkid=darkid,flatid=flatid,psfid=wavestr[i[0]].psfid,clobber=clobber
+      mkwave,ims,name=wavestr[i[0]].name,darkid=darkid,flatid=flatid,psfid=wavestr[i[0]].psfid,clobber=clobber,nofit=nofit
     endif else begin
       if keyword_set(mjd) then  begin
         num=getnum(mjd) 
@@ -297,7 +298,7 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
         ims=getnums(wavestr[red[i]].frames)
         cmjd=getcmjd(ims[0],mjd=mjd)
         getcal,mjd,calfile,darkid=darkid,flatid=flatid
-        mkwave,ims,name=wavestr[red[i]].name,darkid=darkid,flatid=flatid,psfid=wavestr[red[i]].psfid,clobber=clobber,/nowait
+        mkwave,ims,name=wavestr[red[i]].name,darkid=darkid,flatid=flatid,psfid=wavestr[red[i]].psfid,clobber=clobber,/nowait,nofit=nofit
        endfor
       endif
     endelse

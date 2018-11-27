@@ -71,20 +71,32 @@ def convolve(wav,spec,
        2015-03-14 - Written - Bovy (IAS)
     """
     # Parse LSF input
+    pdb.set_trace()
     if lsf is None:
         xlsf= numpy.linspace(-7.,7.,43)
         lsf= eval(xlsf,fiber=fiber)
-    if not isinstance(lsf,sparse.dia_matrix):
-        lsf= sparsify(lsf)
     if dxlsf is None:
         dx= xlsf[1]-xlsf[0]
     else:
         dx= dxlsf
     hires= int(round(1./dx))
-    l10wav= numpy.log10(aspcap.apStarWave())
+    waveout=aspcap.apStarWave()
+    if wav[0]-waveout[0] > 10 :
+        # if first wavelength is far from first apStar wavelength, minigrid: trim the output and LSF 
+        gd = numpy.where((waveout > wav[0]) & (waveout < wav[-1]) )[0]
+    else :
+        gd=numpy.arange(len(waveout))
+    l10wav= numpy.log10(waveout[gd])
     dowav= l10wav[1]-l10wav[0]
     tmpwav= 10.**numpy.arange(l10wav[0],l10wav[-1]+dowav/hires,dowav/hires)
     tmp= numpy.empty(len(l10wav)*hires)   
+    # for minigrid, extract same length for LSF
+    if wav[0]-waveout[0] > 10 :
+        lsf = lsf[gd[0]*hires:gd[0]*hires+len(tmpwav),:]
+
+    # sparsify, need to do after trimming lsf for minigrid
+    if not isinstance(lsf,sparse.dia_matrix):
+        lsf= sparsify(lsf)
 
     # Interpolate the input spectrum, starting from a polynomial baseline
     if len(spec.shape) == 1: spec= numpy.reshape(spec,(1,len(spec)))

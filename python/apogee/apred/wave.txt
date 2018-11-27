@@ -1,0 +1,22 @@
+APOGEE wavelength calibration
+
+Does the wavelength calibration drift?
+
+- look at weekly solutions, compare pixel locations for set range of wavelengths
+  also chip locations
+   wave.compare()
+  see what seems like some variation both in pixel locations and chip locations,
+  however, to what extent is this just noise in the solutions?
+
+  when you look at chip locations _within_ a weekly solution, they agree much
+  better, so this suggests that it is just noise!
+
+- create annual solutions from cal groups every 10 days or so
+  if the rms for each group is good and constant over the year, suggests little
+  variation in wavelength solution
+
+- still, dither shifts between pairs show row dependent offsets, and possibly
+  different for different chips
+
+  is this seen in the annual wavelength solution? Does this sample different
+  dither positions?

@@ -200,12 +200,12 @@ def findlines(frame,rows,waves,lines,out=None,verbose=False,estsig=2) :
                               ichip+1,row,wave,pars[0],pars[1],pars[1]-pix0,num))
                 except :
                     if verbose : print('failed: ',num,row,chip)
-            dpixel_median = np.median(dpixel)
+            if len(dpixel) > 10 : dpixel_median = np.median(dpixel)
             if verbose: print('median offset: ',row,chip,dpixel_median)
 
     return linestr[0:nline]
 
-def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=4,reject=3,plot=False,hard=None,verbose=False,clobber=False,init=False,nofit=False) :
+def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=4,reject=3,plot=False,hard=None,verbose=False,clobber=False,init=False,nofit=False,test=False) :
     """ APOGEE wavelength calibration
 
     Solves for wavelength calibration given input frameid(s) allowing for a single polynomial
@@ -221,6 +221,7 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
     load=apload.ApLoad(apred=vers,instrument=inst)
 
     if name is None : name = nums[0]
+    if test : name = int(name/10000)*10000+9999
     # Initial guess for wavelengths, used to find lines
     coef0 = {}
     if inst == 'apogee-n' :
@@ -241,7 +242,7 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
     waves = {}
     pixels = np.arange(2048)
     for chip in chips : waves[chip] = np.tile(np.polyval(coef0[chip],pixels),(300,1))
-    ngroup=1
+    maxgroup=1
     frames=[]
     for inum,num in enumerate(nums) :
         # load 1D frame
@@ -260,16 +261,13 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
             if os.path.exists(linesfile) and not clobber :
                 print('Reading existing Lines data',num)
                 flinestr = fits.open(linesfile)[1].data
-            #elif os.path.exists(linesfile.replace('as','ap')) :
-            #    os.rename(linesfile.replace('as','ap'),linesfile)
-            #    flinestr = fits.open(linesfile)[1].data
             else :
                 print('Finding lines: ', num)
                 flinestr = findlines(frame,rows,waves,arclines,verbose=verbose,estsig=1)
                 Table(flinestr).write(linesfile,overwrite=True)
             # replace frameid tag with group identification, which must start at 0 for func_multi_poly indexing
-            if inum > 0 and abs(num-nums[inum-1]) > 1 : ngroup +=1
-            flinestr['frameid'] = ngroup-1
+            if inum > 0 and abs(num-nums[inum-1]) > 1 : maxgroup +=1
+            flinestr['frameid'] = maxgroup-1
             if inum == 0 : linestr = flinestr
             else : linestr = np.append(linestr,flinestr)
             print(' Frame: {:d}  Nlines: {:d}  '.format(num,len(flinestr)))
@@ -281,83 +279,102 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
 
     # do the wavecal fit
     # initial parameter guess for first row, subsequent rows will use guess from previous row
-    npars=npoly+3*ngroup
+    npars=npoly+3*maxgroup
     pars = np.zeros(npars)
-
-    # if we have more than one group, get starting polynomial guess from first group, to help
-    #   to avoid local minima
-    if ngroup > 1 :
-        pars0 = wavecal(nums=nums[0:2],name=None,vers=vers,inst=inst,rows=[rows[0]],npoly=npoly,reject=reject,init=init)
-        init = False
 
     # initial quadratic relation from chip b and initial chip offsets or better guess if we have it
     if init :pars[npoly-3:npoly] = coef0['b']
     else : 
         pars[npoly-4:npoly] = pars0[0:4]
-        for igroup in range(ngroup): pars[npoly+igroup*3:npoly+(igroup+1)*3] = pars0[4:7]
+        for igroup in range(maxgroup): pars[npoly+igroup*3:npoly+(igroup+1)*3] = pars0[4:7]
     initpars=copy.copy(pars)
  
     # set up output arrays for all 300 fibers
     allpars=np.zeros([npars,300])
-    chipa=np.zeros([300,ngroup])
-    chipb=np.zeros([300,ngroup])
-    chipc=np.zeros([300,ngroup])
-    rms=np.zeros([300,ngroup])
-    sig=np.zeros([300,ngroup])
+    chipa=np.zeros([300,maxgroup])
+    chipb=np.zeros([300,maxgroup])
+    chipc=np.zeros([300,maxgroup])
+    rms=np.zeros([300,maxgroup])
+    sig=np.zeros([300,maxgroup])
     if plot : 
         fig,ax=plots.multi(1,3,hspace=0.001,wspace=0.001)
         fig2,ax2=plots.multi(1,3,hspace=0.001,wspace=0.001)
+
     # loop over requested rows
     for irow,row in enumerate(rows) :
-        pars = copy.copy(initpars)
-        # position of green chip in first group fixed to 0., don't allow other groups to shift more than 5 pixels, otherwise no bounds
-        bounds = ( np.zeros(len(pars))-np.inf, np.zeros(len(pars))+np.inf)
         # set up independent variable array with pixel, chip, groupid, and dependent variable (wavelength)
-        thisrow = np.where(linestr['row'] == row)[0]
+        thisrow = np.where((linestr['row'] == row) & (linestr['peak'] > 100))[0]
         x = np.zeros([3,len(thisrow)])
         x[0,:] = linestr['pixel'][thisrow]
         x[1,:] = linestr['chip'][thisrow]
-        x[2,:] = linestr['frameid'][thisrow]
+        # we may have missing groups for this row
+        groupid,groups = getgroup(linestr['frameid'][thisrow])
+        x[2,:] = groupid
+        #x[2,:] = linestr['frameid'][thisrow]
+        ngroup = len(groups)
         y = linestr['wave'][thisrow]
+        if ngroup<= 0: 
+            pdb.set_trace()
+            continue
+
+        npars=npoly+3*ngroup
+        pars = np.zeros(npars)
+        # if we have more than one group, get starting polynomial guess from first group, to help
+        #   to avoid local minima
+        if ngroup > 1 :
+            pars0 = wavecal(nums=nums[0:2],name=None,vers=vers,inst=inst,rows=[row],npoly=npoly,reject=reject,init=init,verbose=verbose)
+            pars[npoly-4:npoly] = pars0[0:4]
+            for igroup in range(ngroup): pars[npoly+igroup*3:npoly+(igroup+1)*3] = pars0[4:7]
+        else :
+            pars = copy.copy(initpars)
+        # initial residuals
         res = y-func_multi_poly(x,*pars)
-        if irow == 0 : maxiter=15
+            # iterate to allow outlier rejection
+        if irow == 0 : maxiter=7
         else : maxiter=7
         for niter in range(maxiter) :
-            # every third iteration, just fit for chip locations
-            if niter%3 ==  1 : delta = 1.e-11
-            else : delta = np.inf
-            for i in range(npoly) : 
-                bounds[0][i] =  pars[i]-delta
-                bounds[1][i] =  pars[i]+delta
-            # reject lines that have bad residuals
+            # initialize bounds (to no bounds)
+            bounds = ( np.zeros(len(pars))-np.inf, np.zeros(len(pars))+np.inf)
+            # lock the middle chip position if we have one group, else the central wavelength
+            if ngroup==1 :
+                bounds[0][npoly+1] = -1.e-7
+                bounds[1][npoly+1] = 1.e-7
+            else :
+                bounds[0][npoly-1] = pars[npoly-1]-1.e-7*abs(pars[npoly-1])
+                bounds[1][npoly-1] = pars[npoly-1]+1.e-7*abs(pars[npoly-1])
+                # if we have multiple groups, only fit for chip locations during first iterations and every 3rd thereafter
+                if test or niter<3 or niter%3 == 1 : 
+                    for i in range(npoly) : 
+                        bounds[0][i] =  pars[i]-1.e-7*abs(pars[i])
+                        bounds[1][i] =  pars[i]+1.e-7*abs(pars[i])
+
+            # reject lines with bad residuals
             gd = np.where(abs(res) < np.median(res)+reject*np.median(np.abs(res)))[0]
-            # lock the middle chip position of the group with best residuals
-            nn=0
+
+            # calculate rms in each group and make sure we have lines in all groups
             for igroup in range(ngroup) : 
                 j=np.where(x[2,gd] == igroup)[0]
-                if len(j) > 0 :
-                  rms[row,igroup] = res[gd[j]].std()
-                  bounds[0][npoly+igroup*3+1] =  -5.
-                  bounds[1][npoly+igroup*3+1] =  5.
-                  nn += 1
-                else :
+                if len(j) <= 0 :
+                  # if any group is missing, things will fail in func_multi_poly to determine correct npoly
                   print('missing lines from group: ', igroup)
-            ;bestgroup=rms[row,:].argmin()
-            bestgroup = 0
-            bounds[0][npoly+bestgroup*3+1] = pars[npoly+bestgroup*3+1]-1.e-10
-            bounds[1][npoly+bestgroup*3+1] = pars[npoly+bestgroup*3+1]+1.e-10
+                  pdb.set_trace()
             
-            # use curve_fit to optimize paramtyers
+            # use curve_fit to optimize parameters
             try :
+                if verbose: 
+                    print('Niter: ', niter, 'row: ', row, 'ngroup: ', ngroup, 'nlines: ', len(thisrow), 'gd: ', len(gd))
+                    print(pars)
                 popt,pcov = curve_fit(func_multi_poly,x[:,gd],y[gd],p0=pars,bounds=bounds)
+                pars = copy.copy(popt)
                 res = y-func_multi_poly(x,*pars)
-                if verbose: print(niter,row,len(gd),np.median(res),np.median(np.abs(res)),res[gd].std())
-                pars = popt
+                if verbose: 
+                    print('res: ',len(gd),np.median(res),np.median(np.abs(res)),res[gd].std())
+                    print(pars)
             except :
                 print('Solution failed for row: ', row)
+                pdb.set_trace()
                 popt = pars*0.
-            # plot individual line residuals if requested. Get rid of maxiter-1 if you want
-            #  to see plots at each iteration
+            # plot individual line residuals if requested. Get rid of maxiter-1 if you want to see plots at each iteration
             if plot and niter == maxiter-1 :
                 for ichip in range(3) :
                     gdplt = np.where(x[1,gd] == ichip+1)[0]
@@ -367,7 +384,7 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
                     else : 
                         z=x[2,:]
                         zr=[0,ngroup]
-                    ax[ichip].cla()
+                    if niter < maxiter-1 : ax[ichip].cla()
                     plots.plotc(ax[ichip],x[0,gd[gdplt]],res[gd[gdplt]],z[gd[gdplt]],zr=zr,
                                 xt='Pixel',yt='obs-fit wavelength',size=10)
                     plt.show()
@@ -378,8 +395,13 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
         #if allrms > 0.1 : popt = pars*0.
         if allrms < 0.1 : initpars = copy.copy(pars)
         if verbose : print(row,pars)
-        allpars[:,row] = popt
-        for igroup in range(ngroup) :
+        allpars[0:npoly,row] = popt[0:npoly]
+        ref=allpars[npoly+1,row]
+        # save final fits in allpars. For chip locations, transform to chip gaps
+        for jgroup in range(ngroup) :
+            igroup=groups[jgroup]
+            for ichip in range(3) : allpars[npoly+igroup*3+ichip,row] = popt[npoly+jgroup*3+ichip]
+            for ichip in [0,2] : allpars[npoly+igroup*3+ichip,row] -= allpars[npoly+igroup*3+1,row]
             j=np.where(x[2,gd] == igroup)[0]
             chipa[row,igroup] = allpars[npoly+igroup*3,row]
             chipb[row,igroup] = allpars[npoly+1+igroup*3,row]
@@ -413,6 +435,8 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
         hdu.append(fits.ImageHDU(chippars))
         hdu.append(fits.ImageHDU(chipwaves))
         hdu.append(fits.ImageHDU(allpars))
+        hdu.append(fits.ImageHDU(rms))
+        hdu.append(fits.ImageHDU(sig))
         hdu.writeto(out.replace('Wave','Wave-'+chip),overwrite=True)
 
     # plot rms/sig and chip locations if requested
@@ -420,7 +444,8 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
         for ichip in range(3) : 
             for igroup in range(ngroup) :
                 y=allpars[npoly+igroup*3+ichip,:]
-                plots.plotp(ax2[ichip],np.arange(300),y,yr=[np.median(y)-2,np.median(y)+2],color=colors[ichip],
+                gdlim=np.where(np.abs(y) > 0.0001)[0] 
+                plots.plotc(ax2[ichip],np.arange(300),y,np.zeros(300)+igroup,yr=[np.median(y[gdlim])-5,np.median(y[gdlim])+5],zr=[0,ngroup],
                             size=10,yt='chip location')
         fig.suptitle(name)
         fig2.suptitle(name)
@@ -454,6 +479,17 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
         else: pdb.set_trace()
 
     return pars
+
+def getgroup(groups) :
+    """ Given input list of group ids that may not be consecutive, return consecutive list
+    """
+    group=sorted(set(groups))
+    out = np.zeros(len(groups))
+    for i in range(len(group)) :
+        j=np.where(groups == group[i])[0]
+        out[j] = i
+    return out,group
+
 
 def visit(planfile,out=None,lco=False,waveid=True,skyfile='airglow_oct18a',vers='t9') :
     """ Determine positions of skylines for all frames in input planfile

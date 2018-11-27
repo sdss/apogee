@@ -497,15 +497,24 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
     if elem == '' :
         nelem=1
         gd=range(nspec)
+        nwind = 1
+        pixels=[[0,nspec]]
     else :
         # number of minigrid abundances
         nelem=8
-        wvac = mini_linelist(elem,linelist,maskdir)
-        nwind=wvac.shape[0]
+        wvac,wair = mini_linelist(elem,linelist,maskdir)
+        nwind=wair.shape[0]
         gd=[]
+        pixels=[]
         for iwind in range(nwind) :
-            gd.extend(np.where( (rawwave >= wvac[iwind,0]) & (rawwave <= wvac[iwind,1]) )[0])
+            pix=np.where( (rawwave >= wair[iwind,0]) & (rawwave <= wair[iwind,1]) )[0]
+            gd.extend(pix)
+            pixels.append([pix[0],pix[-1]+1])
         nspec=len(gd)
+        # for elem with all waves, use next line and comment out previous 8
+        #gd=range(nspec)
+        #nwind = 1
+        #pixels=[[0,nspec]]
 
     # make the grid(s)
     for am in prange(p['am0'],p['dam'],p['nam']) :
@@ -568,41 +577,55 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
                                int(teff),logg,mh,am,cm,nm,vout,len(spec)))
 
             # FITS header and output after each metallicity subgrid
-            hdu=fits.PrimaryHDU(np.squeeze(specdata))
-            idim=1
-            if elem == '' :
-                spectra.add_dim(hdu.header,rawwave[0],rawwave[1]-rawwave[0],1,'WAVELENGTH',idim)
-            else :
-                hdu.header.append(('CDELT1',rawwave[1]-rawwave[0]))
-                for iwind in range(nwind) :
-                    hdu.header.append(('WIND0_{:d}'.format(iwind),wvac[iwind,0]))
-                    hdu.header.append(('WIND1_{:d}'.format(iwind),wvac[iwind,1]))
-            if int(p['nteff']) > 1 :
-                idim+=1
-                spectra.add_dim(hdu.header,float(p['teff0']),float(p['dteff']),1,'TEFF',idim)
-            if int(p['nlogg']) > 1 :
-                idim+=1
-                spectra.add_dim(hdu.header,float(p['logg0']),float(p['dlogg']),1,'LOGG',idim)
-            if int(p['nmh']) > 1 :
-                idim+=1
-                spectra.add_dim(hdu.header,float(p['mh0']),float(p['dmh']),1,'M_H',idim)
-            hdu.header['LOGW'] = 0
-            if p.get('width') : hdu.header['width'] = p['width']
-            if p.get('linelist') : hdu.header['linelist'] = p['linelist']
-            if p['synthcode'] == 'asset'  : hdu.header.add_comment('ASSET generated synthetic spectra')
-            if p['synthcode'] == 'turbospec' : hdu.header.add_comment('Turbospec generated synthetic spectra')
-            if p['synthcode'] == 'moog ' : hdu.header.add_comment('MOOG generated synthetic spectra')
-            hdu.header.add_comment('APOGEE_VER:'+os.environ['APOGEE_VER'])
-            # following card for partial completion output
-            if imh+1 < int(p['nmh']) : hdu.header['nmh'] = imh+1
-            try : os.mkdir(specdir)
-            except: pass
+            # for minigrids, each section is output in a separate HDU
+            p1=0
+            hdulist=fits.HDUList()
+            for iwind in range(nwind) :
+                p2 = p1 + pixels[iwind][1]-pixels[iwind][0]
+                print(iwind,p1,p2)
+                if iwind == 0 :
+                    hdu=fits.PrimaryHDU(np.squeeze(specdata[:,:,:,:,p1:p2]))
+                else :
+                    hdu=fits.ImageHDU(np.squeeze(specdata[:,:,:,:,p1:p2]))
+                p1 += pixels[iwind][1]-pixels[iwind][0]
+                idim=1
+                # for elem with all waves, use next line and comment out following 7
+                #spectra.add_dim(hdu.header,rawwave[0],rawwave[1]-rawwave[0],1,'WAVELENGTH',idim)
+                if elem == '' :
+                    spectra.add_dim(hdu.header,rawwave[0],rawwave[1]-rawwave[0],1,'WAVELENGTH',idim)
+                else :
+                    hdu.header.append(('ELEM',elem))
+                    gd = np.where( (rawwave >= wair[iwind,0]) & (rawwave <= wair[iwind,1]) )[0]
+                    spectra.add_dim(hdu.header,rawwave[gd[0]],rawwave[1]-rawwave[0],1,'WAVELENGTH',idim)
+                    hdu.header.append(('CDELT1',rawwave[1]-rawwave[0]))
+                if int(p['nteff']) > 1 :
+                    idim+=1
+                    spectra.add_dim(hdu.header,float(p['teff0']),float(p['dteff']),1,'TEFF',idim)
+                if int(p['nlogg']) > 1 :
+                    idim+=1
+                    spectra.add_dim(hdu.header,float(p['logg0']),float(p['dlogg']),1,'LOGG',idim)
+                if int(p['nmh']) > 1 :
+                    idim+=1
+                    spectra.add_dim(hdu.header,float(p['mh0']),float(p['dmh']),1,'M_H',idim)
+                if elem != '' :
+                    idim+=1
+                    spectra.add_dim(hdu.header,-0.75,0.25,1,elem,idim)
+                hdu.header['LOGW'] = 0
+                if p.get('width') : hdu.header['width'] = p['width']
+                if p.get('linelist') : hdu.header['linelist'] = p['linelist']
+                if p['synthcode'] == 'asset'  : hdu.header.add_comment('ASSET generated synthetic spectra')
+                if p['synthcode'] == 'turbospec' : hdu.header.add_comment('Turbospec generated synthetic spectra')
+                if p['synthcode'] == 'moog ' : hdu.header.add_comment('MOOG generated synthetic spectra')
+                hdu.header.add_comment('APOGEE_VER:'+os.environ['APOGEE_VER'])
+                # following card for partial completion output
+                if imh+1 < int(p['nmh']) : hdu.header['nmh'] = imh+1
+                try : os.mkdir(specdir)
+                except: pass
+                hdulist.append(hdu)
             hdunorm=fits.ImageHDU(np.squeeze(specnormdata))
             hdunorm.header.extend(hdu.header.copy(strip=True))
             hdunorm.header['BZERO'] = 0.5
             hdunorm.header['BSCALE'] = 1./65534.
-            hdulist=fits.HDUList()
-            hdulist.append(hdu)
             hdulist.append(hdunorm)
             hdulist.writeto(specdir+'/'+p['name']+'.fits',overwrite=True)
 
@@ -746,6 +769,7 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None) :
             hdu.writeto(lsfile,overwrite=True)
             os.remove(lsfile+'.lock') 
 
+    # read in raw spectra, from RBF interpolated if we have it
     if prefix is None :  
         if p.get('r0') and float(p['r0']) >= -0.001 : prefix = 'rbf_'
         else : prefix=''
@@ -781,17 +805,20 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None) :
     nlogg=int(p['nlogg'])
     nteff=int(p['nteff'])
     nrot = int(p['nrot'])
+    if p['elem'] == '' : nelem = 1
+    else : nelem=8
+
     if nrot == 1 :
         vrot=10.**.176
         smoothdata=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=vrot,vmacro=vmacro)
-        smoothdata=np.reshape(smoothdata,(nmh,nlogg,nteff,nout)).astype(np.float32)
+        smoothdata=np.reshape(smoothdata,(nelem,nmh,nlogg,nteff,nout)).astype(np.float32)
     else :
-        smoothdata=np.zeros([nrot,nmh,nlogg,nteff,nout],dtype=np.float32)
+        smoothdata=np.zeros([nrot,nelem,nmh,nlogg,nteff,nout],dtype=np.float32)
         for irot,vrot in enumerate(prange(p['rot0'],p['drot'],p['nrot'])) :
             smooth=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=10.**vrot,vmacro=vmacro)
-            smoothdata[irot,:,:,:,:]=np.reshape(smooth,(nmh,nlogg,nteff,nout)).astype(np.float32)
+            smoothdata[irot,:,:,:,:,:]=np.reshape(smooth,(nelem,nmh,nlogg,nteff,nout)).astype(np.float32)
 
-    specdata.data=np.reshape(specdata.data,(nmh,nlogg,nteff,npix))
+    specdata.data=np.reshape(specdata.data,(nelem,nmh,nlogg,nteff,npix))
 
     hdu=fits.PrimaryHDU(np.squeeze(smoothdata))
     hdu.header.extend(specdata.header.copy(strip=True))
@@ -969,8 +996,9 @@ def mini_linelist(elem,linelist,maskdir) :
     #subprocess.call(['turboscript',outdir+linelist])
 
     # convert Turbospectrum files to filtered Turbospectrum files
+    # Turbospectrum files are in air wavelengths
     lists=['turbospec.'+linelist+'.atoms','turbospec.'+linelist+'.molec',
-           'turbospec.20170418.Hlinedata','turbospec.h2o-BC8.5V.molec','turbospec.h2o-BC9.5V.molec']
+           'turbospec.'+linelist+'.Hlinedata','turbospec.h2o-BC8.5V.molec','turbospec.h2o-BC9.5V.molec']
 #    code=['01.000000','010108.000000000','010108.00000000']
 #    comment=['HI culled','Barber culled','Barber culled']
     for i,list in enumerate(lists) :
@@ -997,6 +1025,7 @@ def mini_linelist(elem,linelist,maskdir) :
                     if nelem > 0 :
                         if n > 0 :
                             j=head.split("'")[2].split()[0]
+
                             fout.write("'"+head.split("'")[1]+"'   "+j+'{:10d}\n'.format(n))
                             fout.write(out)
                             n=0
@@ -1016,6 +1045,5 @@ def mini_linelist(elem,linelist,maskdir) :
                 fout.write(out)
         fout.close()
 
-
-    return wind
+    return wind,wair
 

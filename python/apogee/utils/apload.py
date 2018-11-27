@@ -158,6 +158,26 @@ class ApLoad :
             except :
                 self.printerror()
     
+    def apFlux(self,*args,**kwargs) :
+        """
+        NAME: apload.apFlux
+        PURPOSE:  read apFlux file (downloading if necessary)
+        USAGE:  ret = apload.apFlux(imagenumber[,hdu=N,tuple=True])
+        RETURNS: if hdu==None : dictionary of ImageHDUs (all extensions) 
+                                for chips 'a', 'b', 'c'
+                 if hdu=N : returns dictionaries (data, header) for specified HDU
+                 if tuple=True : returns tuples rather than dictionaries
+        """
+        if len(args) != 1 :
+            print('Usage: apFlux(imagenumber)')
+        else :
+            try :
+                file = self.allfile(
+                   'Flux',num=args[0],mjd=self.cmjd(args[0]),chips=True)
+                return self._readchip(file,'Flux',**kwargs)
+            except :
+                self.printerror()
+    
     def apWave(self,*args,**kwargs) :
         """
         NAME: apload.apWave

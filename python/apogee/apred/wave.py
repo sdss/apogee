@@ -154,6 +154,9 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
         # if we have more than one group, get starting polynomial guess from first group, to help
         #   to avoid local minima
         if ngroup > 1 :
+            if abs(nums[1]-nums[0]) > 1 : 
+                print('for multiple groups, first two frames must be from same group!')
+                pdb.set_trace()
             pars0 = wavecal(nums=nums[0:2],name=None,vers=vers,inst=inst,rows=[row],npoly=npoly,reject=reject,init=init,verbose=verbose)
             pars[npoly-4:npoly] = pars0[0:4]
             for igroup in range(ngroup): pars[npoly+igroup*3:npoly+(igroup+1)*3] = pars0[4:7]
@@ -287,26 +290,43 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
         if hard :
             fig.savefig(root+'.jpg')
             fig2.savefig(root+'_chiploc.jpg')
-            grid.append([rootname+'.jpg',rootname+'_chiploc.jpg',''])
-        t=tv.TV()
-        t.cmap='viridis'
-        chipamed = np.median(chipa,axis=1)
-        chipcmed = np.median(chipc,axis=1)
-        for igroup in range(ngroup) :
-            chipa[:,igroup] -= chipamed
-            chipc[:,igroup] -= chipcmed
-        t.tv(chipa,min=-0.5,max=0.5)
-        if hard : t.fig.savefig(root+'_chipa.jpg')
-        t.tv(chipb,min=-0.5,max=0.5)
-        if hard : t.fig.savefig(root+'_chipb.jpg')
-        t.tv(chipc,min=-0.5,max=0.5)
-        if hard : t.fig.savefig(root+'_chipc.jpg')
-        grid.append([rootname+'_chipa.jpg',rootname+'_chipb.jpg',rootname+'_chipc.jpg'])
-        t.tv(rms,min=0.,max=0.1)
-        if hard : t.fig.savefig(root+'_rms.jpg')
-        t.tv(sig,min=0.,max=0.05)
-        if hard : t.fig.savefig(root+'_sig.jpg')
-        grid.append([rootname+'_rms.jpg',rootname+'_sig.jpg',''])
+
+        # summary figure of chip locations
+        fig,ax=plots.multi(1,4,hspace=0.001)
+        cb_ax=fig.add_axes((0.9,0.72,0.03,0.15))
+        cb_ax2=fig.add_axes((0.9,0.15,0.03,0.4))
+        # get chip positions relative to median postion across all groups
+        chipa=allpars[4:200:3,:]-np.median(allpars[4:200:3,:],axis=0)
+        chipc=allpars[6:200:3,:]-np.median(allpars[6:200:3,:],axis=0)
+        chipb=allpars[5:200:3,:]-np.median(allpars[5:200:3,:],axis=0)
+        # image of chip b shifts
+        aximage=ax[0].imshow(chipb,vmin=-2,vmax=2,cmap='viridis',interpolation='nearest',aspect='auto')
+        ax[0].set_ylabel('chip loc')
+        fig.colorbar(aximage,cax=cb_ax,orientation='vertical')
+
+        # get chip b shift relative to median across all rows
+        chipb=(chipb.T-np.median(chipb,axis=1)).T
+        ax[1].imshow(chipb,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
+        ax[1].set_ylabel('rel chip loc')
+        # chip gaps 
+        ax[2].imshow(chipa,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
+        ax[2].set_ylabel('g-r gap')
+        aximage=ax[3].imshow(chipc,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
+        ax[3].set_xlabel('Row')
+        ax[3].set_ylabel('b-g gap')
+        fig.suptitle(rootname)
+        fig.colorbar(aximage,cax=cb_ax2,orientation='vertical')
+        fig.savefig(root+'_sum.jpg')
+
+        fig,ax=plots.multi(1,2,hspace=0.5)
+        cb_ax=fig.add_axes((0.9,0.6,0.03,0.3))
+        cb_ax2=fig.add_axes((0.9,0.1,0.03,0.3))
+        aximage=ax[0].imshow(rms,vmin=0.,vmax=0.1,cmap='viridis',interpolation='nearest',aspect='auto')
+        fig.colorbar(aximage,cax=cb_ax,orientation='vertical')
+        aximage=ax[1].imshow(sig,vmin=0.,vmax=0.05,cmap='viridis',interpolation='nearest',aspect='auto')
+        fig.colorbar(aximage,cax=cb_ax2,orientation='vertical')
+        if hard : fig.savefig(root+'_rms.jpg')
+        grid.append([rootname+'.jpg',rootname+'_chiploc.jpg',rootname+'_sum.jpg',rootname+'_rms.jpg'])
         if hard : html.htmltab(grid,file=root+'.html')
         else: pdb.set_trace()
 
@@ -375,6 +395,15 @@ def findlines(frame,rows,waves,lines,out=None,verbose=False,estsig=2) :
 
     return linestr[0:nline]
 
+def gaussbin(x,a,x0,sig) :
+    """ Evaluate integrated Gaussian function 
+    """
+    # bin width
+    xbin=1.
+    t1=(x-x0-xbin/2.)/np.sqrt(2.)/sig
+    t2=(x-x0+xbin/2.)/np.sqrt(2.)/sig
+    y=(myerf(t2)-myerf(t1))/xbin
+    return a*y
 
 def peakfit(spec,pix0,estsig=5,sigma=None,mask=None,plot=False,func=gaussbin) :
     """ Return integrated-Gaussian centers near input pixel center
@@ -758,8 +787,10 @@ def compare(npoly=4,lco=False) :
     html.htmltab(grid,file=out+'.html',ytitle=ytit)
 
 def allplots() :
-   
-    t=tv.TV(aspect='auto') 
+    """ Routine to put together master web page for summary plots from all years
+    """ 
+
+    # summary plots should be made in wavecal!
     fig,ax=plots.multi(1,4,hspace=0.001)
     cb_ax=fig.add_axes((0.9,0.72,0.03,0.15))
     cb_ax2=fig.add_axes((0.9,0.15,0.03,0.4))
@@ -771,18 +802,22 @@ def allplots() :
         else :
             root='asPWave-{:08d}'.format(cal)
 
+        # read the fit parameters
         a = fits.open(root.replace('-','-b-')+'.fits'.format(cal))[3].data
+        # get chip positions relative to median postion across all groups
         chipa=a[4:200:3,:]-np.median(a[4:200:3,:],axis=0)
         chipc=a[6:200:3,:]-np.median(a[6:200:3,:],axis=0)
         chipb=a[5:200:3,:]-np.median(a[5:200:3,:],axis=0)
+        # image of chip b shifts
         aximage=ax[0].imshow(chipb,vmin=-2,vmax=2,cmap='viridis',interpolation='nearest',aspect='auto')
         ax[0].set_ylabel('chip loc')
-        t.tv(chipb,min=-2.03,max=2.03)
         fig.colorbar(aximage,cax=cb_ax,orientation='vertical')
 
+        # get chip b shift relative to median across all rows
         chipb=(chipb.T-np.median(chipb,axis=1)).T
         ax[1].imshow(chipb,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
         ax[1].set_ylabel('rel chip loc')
+        # chip gaps 
         ax[2].imshow(chipa,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
         ax[2].set_ylabel('g-r gap')
         aximage=ax[3].imshow(chipc,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
@@ -791,9 +826,6 @@ def allplots() :
         fig.suptitle('{:08d}'.format(cal))
         fig.colorbar(aximage,cax=cb_ax2,orientation='vertical')
         fig.savefig('plots/'+root+'_sum.jpg'.format(cal))
-        t.tv(chipb,min=-0.03,max=0.03)
-        t.tv(chipa,min=-0.03,max=0.03)
-        t.tv(chipc,min=-0.03,max=0.03)
         grid.append([root+'.jpg',root+'_chiploc.jpg',root+'_sum.jpg'])
         ytit.append(root)
         pdb.set_trace()
@@ -803,16 +835,6 @@ def gauss(x,a,x0,sig) :
     """ Evaluate Gaussian function 
     """
     return a/np.sqrt(2*np.pi)/sig*np.exp(-(x-x0)**2/2./sig**2)
-
-def gaussbin(x,a,x0,sig) :
-    """ Evaluate integrated Gaussian function 
-    """
-    # bin width
-    xbin=1.
-    t1=(x-x0-xbin/2.)/np.sqrt(2.)/sig
-    t2=(x-x0+xbin/2.)/np.sqrt(2.)/sig
-    y=(myerf(t2)-myerf(t1))/xbin
-    return a*y
 
 def myerf(t) :
     """ Evaluate function that integrates Gaussian from -inf to t

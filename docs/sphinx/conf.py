@@ -114,7 +114,8 @@ intersphinx_mapping = {'python': ('https://docs.python.org/3.6', None),
                        'numpy': ('http://docs.scipy.org/doc/numpy/', None)}
 
 autodoc_mock_imports = ['_tkinter']
-autodoc_member_order = 'groupwise'
+#autodoc_member_order = 'groupwise'
+autodoc_member_order = 'bysource'
 
 napoleon_use_rtype = False
 napoleon_use_ivar = True

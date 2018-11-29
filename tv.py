@@ -67,7 +67,7 @@ class TV:
         def format_coord(x, y):
             x = int(x + 0.5)
             y = int(y + 0.5)
-            if x< 0 or y<0 : return
+            if x< 0 or y<0 : return " "
 
             try:
                 self.img

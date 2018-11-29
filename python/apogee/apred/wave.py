@@ -1,6 +1,6 @@
 # encoding: utf-8
 #
-# @Author: Jon Holtzman
+# @Author: Jon Holtzman, some routines based off of IDL routines of David Nidever
 # @Date: October 2018
 # @Filename: wave.py
 # @License: BSD 3-Clause

@@ -313,9 +313,8 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
         #x[2,:] = linestr['frameid'][thisrow]
         ngroup = len(groups)
         y = linestr['wave'][thisrow]
-        if ngroup<= 0: 
-            pdb.set_trace()
-            continue
+        # if we don't have any groups, skip this row
+        if ngroup<= 0: continue
 
         npars=npoly+3*ngroup
         pars = np.zeros(npars)
@@ -783,4 +782,45 @@ def compare(npoly=4,lco=False) :
         grid.append(row)
     html.htmltab(grid,file=out+'.html',ytitle=ytit)
 
+def allplots() :
+   
+    t=tv.TV(aspect='auto') 
+    fig,ax=plots.multi(1,4,hspace=0.001)
+    cb_ax=fig.add_axes((0.9,0.72,0.03,0.15))
+    cb_ax2=fig.add_axes((0.9,0.15,0.03,0.4))
+    grid=[]
+    ytit=[]
+    for ical,cal in enumerate([2380000,5680000,9500000,13140000,16680000,20380000,24040000,22670000,24040000]) :
+        if ical<7 :
+            root='apPWave-{:08d}'.format(cal)
+        else :
+            root='asPWave-{:08d}'.format(cal)
+
+        a = fits.open(root.replace('-','-b-')+'.fits'.format(cal))[3].data
+        chipa=a[4:200:3,:]-np.median(a[4:200:3,:],axis=0)
+        chipc=a[6:200:3,:]-np.median(a[6:200:3,:],axis=0)
+        chipb=a[5:200:3,:]-np.median(a[5:200:3,:],axis=0)
+        aximage=ax[0].imshow(chipb,vmin=-2,vmax=2,cmap='viridis',interpolation='nearest',aspect='auto')
+        ax[0].set_ylabel('chip loc')
+        t.tv(chipb,min=-2.03,max=2.03)
+        fig.colorbar(aximage,cax=cb_ax,orientation='vertical')
+
+        chipb=(chipb.T-np.median(chipb,axis=1)).T
+        ax[1].imshow(chipb,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
+        ax[1].set_ylabel('rel chip loc')
+        ax[2].imshow(chipa,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
+        ax[2].set_ylabel('g-r gap')
+        aximage=ax[3].imshow(chipc,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
+        ax[3].set_xlabel('Row')
+        ax[3].set_ylabel('b-g gap')
+        fig.suptitle('{:08d}'.format(cal))
+        fig.colorbar(aximage,cax=cb_ax2,orientation='vertical')
+        fig.savefig('plots/'+root+'_sum.jpg'.format(cal))
+        t.tv(chipb,min=-0.03,max=0.03)
+        t.tv(chipa,min=-0.03,max=0.03)
+        t.tv(chipc,min=-0.03,max=0.03)
+        grid.append([root+'.jpg',root+'_chiploc.jpg',root+'_sum.jpg'])
+        ytit.append(root)
+        pdb.set_trace()
+    html.htmltab(grid,file='plots/all.html',ytitle=ytit)
 

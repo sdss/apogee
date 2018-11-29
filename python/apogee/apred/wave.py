@@ -38,173 +38,6 @@ chips=['a','b','c']
 colors=['r','g','b','c','m','y']
 xlim=[[16400,17000],[15900,16500],[15100,15800]]
 
-def gauss(x,a,x0,sig) :
-    """ Evaluate Gaussian function 
-    """
-    return a/np.sqrt(2*np.pi)/sig*np.exp(-(x-x0)**2/2./sig**2)
-
-def gaussbin(x,a,x0,sig) :
-    """ Evaluate integrated Gaussian function 
-    """
-    # bin width
-    xbin=1.
-    t1=(x-x0-xbin/2.)/np.sqrt(2.)/sig
-    t2=(x-x0+xbin/2.)/np.sqrt(2.)/sig
-    y=(myerf(t2)-myerf(t1))/xbin
-    return a*y
-
-def myerf(t) :
-    """ Evaluate function that integrates Gaussian from -inf to t
-    """
-    neg = np.where(t<0.)[0]
-    pos = np.where(t>=0.)[0]
-    out = t*0.
-    out[neg] = erfc(abs(t[neg]))/2.
-    out[pos] = 0.5+erf(abs(t[pos]))/2.
-    return out
-
-
-def peakfit(spec,pix0,estsig=5,sigma=None,mask=None,plot=False,func=gaussbin) :
-    """ Return integrated-Gaussian centers near input pixel center
-    
-    Args:
-        spec (float) : data spectrum arraty
-        pix0 (float) : initial pixel guess
-        estsig (float ) : initial guess for window width=5*estsig (default=5)
-        sigma (float)  : uncertainty array (default=None)
-        mask (float)  : mask array (default=None), NOT CURRENTLY IMPLEMENT
-        plot (bool) : plot spectrum and fit in current plot window (default=False)
-        func (function) : user-supplied function to use to fit (default=gaussbin)
-    """
-    x = np.arange(len(spec))
-    cen = int(round(pix0))
-    sig=estsig
-    back=0.
-    for iter in range(11) :
-        # window width to search
-        xwid=int(round(5*sig))
-        if xwid < 3 : xwid=3
-        y=spec[cen-xwid:cen+xwid+1]
-        yerr=sigma[cen-xwid:cen+xwid+1]
-        x0 = y.argmax()+(cen-xwid)
-        peak = y.max()
-        sig = np.sqrt(y.sum()**2/peak**2/(2*np.pi))
-        pars=curve_fit(func,x[cen-xwid:cen+xwid+1],y,p0=[peak/sig/np.sqrt(2*np.pi),x0,sig],sigma=yerr)[0]
-        # iterate unless new array range is the same
-        if int(round(5*pars[2])) == xwid and int(round(pars[1])) == cen : break
-        cen=int(round(pars[1]))
-        sig=pars[2]
-    if plot :
-        plt.clf()
-        plt.plot(x,spec)
-        plt.plot(x,func(x,pars[0],pars[1],pars[2]))
-        plt.xlim((pars[1]-50,pars[1]+50))
-        plt.draw()
-        pdb.set_trace()
-    return(pars)
-
-def test() :
-    """ test routine for peakfity
-    """
-    spec=np.zeros([200])
-    specbin=np.zeros([200])
-    spec[50:151]=gauss(np.arange(50,151),100.,99.5,0.78)
-    specbin[50:151]=gaussbin(np.arange(50,151),100.,99.5,0.78)
-    plt.plot(spec)
-    plt.plot(specbin)
-    plt.show()
-    plt.draw()
-    pdb.set_trace()
-    peakfit(spec,[95,99,102,107])
-
-def func_multi_poly(x,*pars) :
-    """ Convert pixel to wavelength using wavecal parameters
-          w = poly(x + offset(group,chip))
-          pars = [npoly coefficients, ngroup*3 chip offsets]
-        Args:  
-            x (float) : [3,npts] array of (pixel,chip,group)
-         pars (float) : input parameter array
-
-        Returns :
-         wave (float) : wavelength array for input pixel(s), parameters
-    """
-    wave=np.zeros(x.shape[1])
-    ngroup = int(round(x[2,:].max()))+1
-    nchip = 3
-    npoly = len(pars)-ngroup*nchip
-    coef = pars[0:npoly]
-    # loop over all chip/group combinations
-    for ichip in range(nchip) :
-        for igroup in range(ngroup) :
-            offset = pars[npoly+igroup*nchip+ichip]
-            j=np.where((x[1,:] == ichip+1) & (np.round(x[2,:]).astype(int) == igroup))[0]
-            xglobal = x[0,j] - 1023.5 + (ichip-1)*2048 + offset
-            wave[j] = np.polyval(coef,xglobal)
-    return wave
-
-def findlines(frame,rows,waves,lines,out=None,verbose=False,estsig=2) :
-    """ Determine positions of lines from input file in input frame for specified rows
-
-    Args:
-        frame (dict) : dictionary with ['a','b','c'] keys for each chip containing HDULists with flux, error, and mask
-        rows (list) : list of rows to look for lines in
-        waves (list)  : list of wavelength arrays to be used to get initial pixel guess for input lines
-        lines :  table with desired lines, must have at least CHIPNUM and WAVE tags
-        out= (str) : optional name of output ASCII file for lines (default=None)
-
-    Returns :
-        structure with identified lines, with tags chip, row, wave, peak, pixrel, dpixel, frameid
-    """
-    num=int(os.path.basename(frame['a'][0].header['FILENAME']).split('-')[1])
-    nlines=len(lines)
-    nrows=len(rows)
-    linestr = np.zeros(nlines*nrows,dtype=[
-                       ('chip','i4'), ('row','i4'), ('wave','f4'), ('peak','f4'), ('pixel','f4'),
-                       ('dpixel','f4'), ('frameid','i4')
-                       ])
-    nline=0
-    for ichip,chip in enumerate(['a','b','c']) :
-        # Use median offset of previous row for starting guess
-        # Add a dummy first row to get starting guess offset for the first row
-        dpixel_median = 0.
-        for irow,row in enumerate(np.append([rows[0]],rows)) :
-            # subtract off median-filtered spectrum to remove background
-            medspec = frame[chip][1].data[row,:]-medfilt(frame[chip][1].data[row,:],101)
-            j=np.where(lines['CHIPNUM'] == ichip+1)[0]
-            dpixel=[]
-            # for dummy row, open up the search window by a factor of two
-            if irow == 0 : estsig0=2*estsig
-            else : estsig0=estsig
-            for iline in j :
-                wave=lines['WAVE'][iline]
-                pix0=wave2pix(wave,waves[chip][row,:])+dpixel_median
-                try :
-                    # find peak in median-filtered subtracted spectrum
-                    pars=peakfit(medspec,pix0,estsig=estsig0,
-                                 sigma=frame[chip][2].data[row,:],mask=frame[chip][3].data[row,:])
-                    dpixel.append(pars[1]-pix0)
-                    if irow > 0 :
-                        linestr['chip'][nline] = ichip+1
-                        linestr['row'][nline] = row
-                        linestr['wave'][nline] = wave
-                        linestr['peak'][nline] = pars[0]
-                        linestr['pixel'][nline] = pars[1]
-                        linestr['dpixel'][nline] = pars[1]-pix0
-                        linestr['frameid'][nline] = num
-                        nline+=1
-                    if out is not None :
-                        out.write('{:5d}{:5d}{:12.3f}{:12.3f}{:12.3f}{:12.3f}{:12d}\n'.format(
-                                  ichip+1,row,wave,pars[0],pars[1],pars[1]-pix0,num))
-                    elif verbose :
-                        print('{:5d}{:5d}{:12.3f}{:12.3f}{:12.3f}{:12.3f}{:12d}'.format(
-                              ichip+1,row,wave,pars[0],pars[1],pars[1]-pix0,num))
-                except :
-                    if verbose : print('failed: ',num,row,chip)
-            if len(dpixel) > 10 : dpixel_median = np.median(dpixel)
-            if verbose: print('median offset: ',row,chip,dpixel_median)
-
-    return linestr[0:nline]
-
 def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=4,reject=3,plot=False,hard=None,verbose=False,clobber=False,init=False,nofit=False,test=False) :
     """ APOGEE wavelength calibration
 
@@ -478,6 +311,148 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
         else: pdb.set_trace()
 
     return pars
+
+def findlines(frame,rows,waves,lines,out=None,verbose=False,estsig=2) :
+    """ Determine positions of lines from input file in input frame for specified rows
+
+    Args:
+        frame (dict) : dictionary with ['a','b','c'] keys for each chip containing HDULists with flux, error, and mask
+        rows (list) : list of rows to look for lines in
+        waves (list)  : list of wavelength arrays to be used to get initial pixel guess for input lines
+        lines :  table with desired lines, must have at least CHIPNUM and WAVE tags
+        out= (str) : optional name of output ASCII file for lines (default=None)
+
+    Returns :
+        structure with identified lines, with tags chip, row, wave, peak, pixrel, dpixel, frameid
+    """
+    num=int(os.path.basename(frame['a'][0].header['FILENAME']).split('-')[1])
+    nlines=len(lines)
+    nrows=len(rows)
+    linestr = np.zeros(nlines*nrows,dtype=[
+                       ('chip','i4'), ('row','i4'), ('wave','f4'), ('peak','f4'), ('pixel','f4'),
+                       ('dpixel','f4'), ('frameid','i4')
+                       ])
+    nline=0
+    for ichip,chip in enumerate(['a','b','c']) :
+        # Use median offset of previous row for starting guess
+        # Add a dummy first row to get starting guess offset for the first row
+        dpixel_median = 0.
+        for irow,row in enumerate(np.append([rows[0]],rows)) :
+            # subtract off median-filtered spectrum to remove background
+            medspec = frame[chip][1].data[row,:]-medfilt(frame[chip][1].data[row,:],101)
+            j=np.where(lines['CHIPNUM'] == ichip+1)[0]
+            dpixel=[]
+            # for dummy row, open up the search window by a factor of two
+            if irow == 0 : estsig0=2*estsig
+            else : estsig0=estsig
+            for iline in j :
+                wave=lines['WAVE'][iline]
+                pix0=wave2pix(wave,waves[chip][row,:])+dpixel_median
+                try :
+                    # find peak in median-filtered subtracted spectrum
+                    pars=peakfit(medspec,pix0,estsig=estsig0,
+                                 sigma=frame[chip][2].data[row,:],mask=frame[chip][3].data[row,:])
+                    dpixel.append(pars[1]-pix0)
+                    if irow > 0 :
+                        linestr['chip'][nline] = ichip+1
+                        linestr['row'][nline] = row
+                        linestr['wave'][nline] = wave
+                        linestr['peak'][nline] = pars[0]
+                        linestr['pixel'][nline] = pars[1]
+                        linestr['dpixel'][nline] = pars[1]-pix0
+                        linestr['frameid'][nline] = num
+                        nline+=1
+                    if out is not None :
+                        out.write('{:5d}{:5d}{:12.3f}{:12.3f}{:12.3f}{:12.3f}{:12d}\n'.format(
+                                  ichip+1,row,wave,pars[0],pars[1],pars[1]-pix0,num))
+                    elif verbose :
+                        print('{:5d}{:5d}{:12.3f}{:12.3f}{:12.3f}{:12.3f}{:12d}'.format(
+                              ichip+1,row,wave,pars[0],pars[1],pars[1]-pix0,num))
+                except :
+                    if verbose : print('failed: ',num,row,chip)
+            if len(dpixel) > 10 : dpixel_median = np.median(dpixel)
+            if verbose: print('median offset: ',row,chip,dpixel_median)
+
+    return linestr[0:nline]
+
+
+def peakfit(spec,pix0,estsig=5,sigma=None,mask=None,plot=False,func=gaussbin) :
+    """ Return integrated-Gaussian centers near input pixel center
+    
+    Args:
+        spec (float) : data spectrum arraty
+        pix0 (float) : initial pixel guess
+        estsig (float ) : initial guess for window width=5*estsig (default=5)
+        sigma (float)  : uncertainty array (default=None)
+        mask (float)  : mask array (default=None), NOT CURRENTLY IMPLEMENT
+        plot (bool) : plot spectrum and fit in current plot window (default=False)
+        func (function) : user-supplied function to use to fit (default=gaussbin)
+    """
+    x = np.arange(len(spec))
+    cen = int(round(pix0))
+    sig=estsig
+    back=0.
+    for iter in range(11) :
+        # window width to search
+        xwid=int(round(5*sig))
+        if xwid < 3 : xwid=3
+        y=spec[cen-xwid:cen+xwid+1]
+        yerr=sigma[cen-xwid:cen+xwid+1]
+        x0 = y.argmax()+(cen-xwid)
+        peak = y.max()
+        sig = np.sqrt(y.sum()**2/peak**2/(2*np.pi))
+        pars=curve_fit(func,x[cen-xwid:cen+xwid+1],y,p0=[peak/sig/np.sqrt(2*np.pi),x0,sig],sigma=yerr)[0]
+        # iterate unless new array range is the same
+        if int(round(5*pars[2])) == xwid and int(round(pars[1])) == cen : break
+        cen=int(round(pars[1]))
+        sig=pars[2]
+    if plot :
+        plt.clf()
+        plt.plot(x,spec)
+        plt.plot(x,func(x,pars[0],pars[1],pars[2]))
+        plt.xlim((pars[1]-50,pars[1]+50))
+        plt.draw()
+        pdb.set_trace()
+    return(pars)
+
+def test() :
+    """ test routine for peakfity
+    """
+    spec=np.zeros([200])
+    specbin=np.zeros([200])
+    spec[50:151]=gauss(np.arange(50,151),100.,99.5,0.78)
+    specbin[50:151]=gaussbin(np.arange(50,151),100.,99.5,0.78)
+    plt.plot(spec)
+    plt.plot(specbin)
+    plt.show()
+    plt.draw()
+    pdb.set_trace()
+    peakfit(spec,[95,99,102,107])
+
+def func_multi_poly(x,*pars) :
+    """ Convert pixel to wavelength using wavecal parameters
+          w = poly(x + offset(group,chip))
+          pars = [npoly coefficients, ngroup*3 chip offsets]
+        Args:  
+            x (float) : [3,npts] array of (pixel,chip,group)
+         pars (float) : input parameter array
+
+        Returns :
+         wave (float) : wavelength array for input pixel(s), parameters
+    """
+    wave=np.zeros(x.shape[1])
+    ngroup = int(round(x[2,:].max()))+1
+    nchip = 3
+    npoly = len(pars)-ngroup*nchip
+    coef = pars[0:npoly]
+    # loop over all chip/group combinations
+    for ichip in range(nchip) :
+        for igroup in range(ngroup) :
+            offset = pars[npoly+igroup*nchip+ichip]
+            j=np.where((x[1,:] == ichip+1) & (np.round(x[2,:]).astype(int) == igroup))[0]
+            xglobal = x[0,j] - 1023.5 + (ichip-1)*2048 + offset
+            wave[j] = np.polyval(coef,xglobal)
+    return wave
 
 def getgroup(groups) :
     """ Given input list of group ids that may not be consecutive, return consecutive list
@@ -823,4 +798,29 @@ def allplots() :
         ytit.append(root)
         pdb.set_trace()
     html.htmltab(grid,file='plots/all.html',ytitle=ytit)
+
+def gauss(x,a,x0,sig) :
+    """ Evaluate Gaussian function 
+    """
+    return a/np.sqrt(2*np.pi)/sig*np.exp(-(x-x0)**2/2./sig**2)
+
+def gaussbin(x,a,x0,sig) :
+    """ Evaluate integrated Gaussian function 
+    """
+    # bin width
+    xbin=1.
+    t1=(x-x0-xbin/2.)/np.sqrt(2.)/sig
+    t2=(x-x0+xbin/2.)/np.sqrt(2.)/sig
+    y=(myerf(t2)-myerf(t1))/xbin
+    return a*y
+
+def myerf(t) :
+    """ Evaluate function that integrates Gaussian from -inf to t
+    """
+    neg = np.where(t<0.)[0]
+    pos = np.where(t>=0.)[0]
+    out = t*0.
+    out[neg] = erfc(abs(t[neg]))/2.
+    out[pos] = 0.5+erf(abs(t[pos]))/2.
+    return out
 

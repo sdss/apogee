@@ -8,8 +8,9 @@ from holtz.tools import html
 import matplotlib.pyplot as plt
 import subprocess
 import argparse
-import multiprocessing
+import multiprocessing as mp
 import logging
+import os
 import pdb
 import numpy as np
 
@@ -19,40 +20,64 @@ def apogee1m(root) :
     files=glob.glob(dir+'apogee_*.dat')
     figs=[]
     ylab=[]
+    pars=[]
+    # loop over each program
     for file in files :
         print(file)
         fp = open(file,"r")
+        # get all of the objects observed for this program
+        objs=[]
         for line in fp :
             print(line)
-            obj=line.split()[0]
+            objs.append(line.split()[0])
+        fp.close()
+
+        for obj in set(objs) :
             #makemovie(root,obj)
-            p=multiprocessing.Process(target=makemovie,args=(root,obj,))
-            p.start()
+            #p=multiprocessing.Process(target=makemovie,args=(root,obj,))
+            #p.start()
+            pars.append((root,obj))
             ylab.append(obj)
             col=[]
+            col.append(obj+'.png')
             col.append(obj+'.jpg')
             col.append(obj+'.gif')
             figs.append(col)
+    #outputs = []
+    #for par in pars :
+    #    outputs.append(makemovie(par))
+
+    pool = mp.Pool(32)
+    outputs = pool.map_async(makemovie, pars).get()
+    pool.close()
+    pool.join()
     html.htmltab(figs,file=root+'sum.html',ytitle=ylab)
 
-def makemovie(root,obj,min=1500,max=2000) :
+#def makemovie(root,obj,min=1500,max=2000) :
+def makemovie(pars) :
+    root=pars[0]
+    obj=pars[1]   
+    min=1500
+    max=2000
 
     dir='/home/1m/'+root+'/'
+    print('dir: ',dir)
     logging.debug('makemovie '+dir+obj)
     try: 
         seqs=ascii.read(dir+obj+'.dat')
-        gifs=['convert','-loop','0']
     except:
         logging.debug("can't open file "+dir+obj+".dat")
     else :
         for i in range(len(seqs)) :
-            i1=seqs['col4'][i]-3
+            i1=seqs['col4'][i]-2
             i2=seqs['col5'][i]
+            if i2-i1 < 3 : return
             alt=[]
             az=[]
             dalt=[]
             daz=[]
             air=[]
+            gifs=['convert','-loop','0']
             for j in range(i1,i2,3) :
                 print(j)
                 if j < 1000 : num='{:03d}'.format(j)
@@ -84,10 +109,11 @@ def makemovie(root,obj,min=1500,max=2000) :
                     fig.savefig(num+'.png')
                     plt.close(fig)
                     gifs.append(num+'.png')
-                
+            print('obj: ',obj)    
             gifs.append(obj+'.gif')
             subprocess.call(gifs)
-            subprocess.call(['rm']+gifs[3:-1])
+            os.rename(gifs[3],obj+'.png')
+            subprocess.call(['rm']+gifs[4:-1])
         hdu=fits.PrimaryHDU(tot)
         hdu.writeto(dir+obj+'.fits',overwrite=True)
         fig=plt.figure()

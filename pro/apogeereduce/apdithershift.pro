@@ -1,4 +1,4 @@
-pro apdithershift,frame1,frame2,shift,shifterr,xcorr=xcorr,lines=lines,object=object,plot=plot,pfile=pfile,stp=stp,shiftarr=shiftarr,plugmap=plugmap,nofit=nofit
+pro apdithershift,frame1,frame2,shift,shifterr,xcorr=xcorr,lines=lines,object=object,plot=plot,pfile=pfile,stp=stp,shiftarr=shiftarr,plugmap=plugmap,nofit=nofit,mjd=mjd
 
 ;+
 ;
@@ -228,28 +228,64 @@ if keyword_set(xcorr) then begin
 ;  end
 
   if keyword_set(shiftarr) then shiftarr=xshiftarr
-  ; Measure final shift
+  ; Measure mean shift
   gd = where(xshiftarr gt -99)
   ROBUST_MEAN,xshiftarr[gd],shift,shiftsig
   shifterr = shiftsig/sqrt(nfibers*3)
 ; Printing the results
   print,'Shift = ',strtrim(shift,2),'+/-',strtrim(shifterr,2),' pixels'
 
-  ; do a linear fit to the shifts
-  ; don't use blue fibers in superpersistence region
+  ;if nofit, we only have one row, so return chip offsets
   if keyword_set(nofit) then begin
+   pars=[0.]
+   for ichip=0,2 do begin
+     gd=where(xshiftarr[*,ichip] gt -99)
+     robust_mean,xshiftarr[gd,ichip],tmp,tmpsig
+     pars=[pars,tmp]
+   endfor
+   print,pars
    shift=[shift,0.]
    goto, fitend
   endif
 
+  ; do linear fits to the shifts
+  ; don't use blue fibers in superpersistence region
+  if mjd lt 56860 then begin
+    bd=where(chip eq 2 and fiber gt 200,n)
+    if n gt 0 then xshiftarr[bd]=-100
+  endif
+
+  ; single slope and offset
   bad=where(xshiftarr lt -99 or (chip eq 2 and fiber gt 200),complement=gd)
   shift = AP_ROBUST_POLY_FIT(fiber[gd],xshiftarr[gd],1)
+  ; slope and offset for each chip
   print,'Fit coefficients: ', shift
   chipshift=fltarr(3,2)
   for ichip=0,2 do begin
     bad=where(xshiftarr[*,ichip] lt -99 ,complement=gd)
     chipshift[ichip,*] = AP_ROBUST_POLY_FIT(fiber[gd,ichip],xshiftarr[gd,ichip],1)
   endfor
+  ; global fit for slope with row and 3 independent chip offsets
+  for iter=0,2 do begin
+   gd = where(xshiftarr gt -99)
+   print,'n: ',n_elements(gd)
+   design=fltarr(n_elements(gd),4)
+   design[*,0] = fiber[gd]
+   for ichip=0,2 do begin
+     j=where(chip[gd] eq ichip)
+     design[j,ichip+1] = 1.
+   endfor
+   y=xshiftarr[gd]
+   a=matrix_multiply(design,design,/atranspose)
+   b=matrix_multiply(design,y,/atranspose)
+   pars=invert(a)#b
+   res=y-matrix_multiply(pars,design,/btrans)
+   bd=where(abs(res) gt 5*mad(res))
+   print,pars
+   print,'mad: ', mad(res)
+   xshiftarr[bd]=-100
+  endfor
+
   ; Plot all the xcorr shifts
   ;plot = 1 ;1
   if keyword_set(plot) then begin

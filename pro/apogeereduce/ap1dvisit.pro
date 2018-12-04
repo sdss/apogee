@@ -312,7 +312,7 @@ FOR i=0L,nplanfiles-1 do begin
         endif
            
         if planstr.platetype eq 'single' then nofit=1 else nofit=0
-        APDITHERSHIFT,ref_frame,frame,shift,shifterr,/xcorr,pfile=pfile,plot=plot,plugmap=plugmap,nofit=nofit
+        APDITHERSHIFT,ref_frame,frame,shift,shifterr,/xcorr,pfile=pfile,plot=plot,plugmap=plugmap,nofit=nofit,mjd=planstr.mjd
         if keyword_set(stp) then stop
         print,'Measured dither shift: ',ashift,shift
 

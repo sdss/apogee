@@ -80,7 +80,7 @@ def mkgriddirs(configfile) :
         else :
             mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=12,time='24:00:00')
             #mkslurm.write('bundle plan/'+name+'_??.par',queryhost=os.uname()[1],queryport=1052,maxrun=32)
-            mkslurm.write('pca --pcas 12 75 --incremental --threads 2 --writeraw plan/'+name+'.par',runplans=False,time='72:00:00')
+            mkslurm.write('pca --pcas 12 75 --incremental --threads 0 --writeraw plan/'+name+'.par',runplans=False,time='72:00:00')
 
 def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,vtsplit=True,el=None) :
     """ Make a bunch of individual plan files from master, splitting [alpha/M],[C/M],[N/M],vt

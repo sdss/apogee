@@ -21,6 +21,7 @@ import sys
 import subprocess
 import matplotlib
 matplotlib.use('Agg')
+import pdb
 
 from apogee.speclib import pca
 from apogee.aspcap import ferre
@@ -37,6 +38,7 @@ if __name__ == '__main__' :
     parser.add_argument("--writeraw", help='write uncompressed file?',action="store_true")
     parser.add_argument("--rawsynth", help='use raw synthesis file?',action="store_true")
     parser.add_argument("--incremental", help='use incremental PCA?',action="store_true")
+    parser.add_argument("--piece",nargs='+',type=int)
     parser.add_argument("--pcas",nargs='+',type=int)
     parser.add_argument("--threads",type=int,default=4)
     parser.add_argument("--done")
@@ -47,7 +49,7 @@ if __name__ == '__main__' :
     start = time.time()
     print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     pca.pca(args.planfile,pcas=tuple(args.pcas),dir=args.dir,test=args.test,writeraw=args.writeraw,
-            incremental=args.incremental,threads=args.threads,rawsynth=args.rawsynth)
+            incremental=args.incremental,threads=args.threads,rawsynth=args.rawsynth,piece=args.piece)
     now = datetime.datetime.now()
     print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     print("elapsed: ",time.time()-start)

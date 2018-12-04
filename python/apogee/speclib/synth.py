@@ -29,6 +29,7 @@ from apogee.aspcap import aspcap
 from apogee.aspcap import ferre
 from apogee.speclib import atmos
 from apogee.speclib import lsf
+from apogee.speclib import sample
 from apogee.utils import atomic
 from apogee.utils import spectra
 #from sdss.utilities import yanny
@@ -40,6 +41,7 @@ from sklearn.decomposition import IncrementalPCA
 import matplotlib.pyplot as plt
 from tools import plots
 from tools import match
+from tools import html
 
 colors=['r','g','b','c','m','y']
 
@@ -768,6 +770,9 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None) :
             hdu.append(fits.ImageHDU(ls))
             hdu.writeto(lsfile,overwrite=True)
             os.remove(lsfile+'.lock') 
+    else :
+        x = ls[0]
+        ls = ls[1]
 
     # read in raw spectra, from RBF interpolated if we have it
     if prefix is None :  
@@ -805,8 +810,10 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None) :
     nlogg=int(p['nlogg'])
     nteff=int(p['nteff'])
     nrot = int(p['nrot'])
-    if p['elem'] == '' : nelem = 1
-    else : nelem=8
+    try :
+        if p['elem'] == '' : nelem = 1
+        else : nelem=8
+    except : nelem=1
 
     if nrot == 1 :
         vrot=10.**.176
@@ -886,11 +893,56 @@ def mkspec(pars) :
     for j,el in enumerate(els) :
         elems.append([el,pars[8+j]])
     print(teff,logg,mh,vmicro,am,cm,nm)
-    spec,specnorm=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=False,fill=False,linelist='20180721',wrange=[15100.,17000.],save=True)
+    spec,specnorm=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=False,fill=False,linelist='20180901',wrange=[15100.,17000.],save=False)
     return pars,spec
     
 
-def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fiber='combo',plot=False,lines=None) :
+def elemsens(outfile='elemsens.fits',highres=9,waveid=2420038,lsfid=5440020,apred='r10',fiber='combo',plot=True,calc=False) :
+    """ Create spectra at a range of paramters with individual abundances varied independently
+    """
+    files=sample.elemsens()
+    hdu=fits.HDUList()
+    if calc: x,ls=lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred)
+    grid=[]
+    ytit=[]
+    for i,name in enumerate(files) :
+        print(name)
+        if name == 'C.dat' or name == 'N.dat' : continue
+        if calc : out=mksynth(name,threads=16,ls=(x,ls))
+        else : out=name+'.fits'
+        ehdu=fits.open(out)[2]
+        ehdu.header['ELEM'] = name.replace('.dat','')
+        ehdu.header['CRVAL1'] = aspcap.logw0
+        ehdu.header['CDELT1'] = aspcap.dlogw
+        ehdu.header['CTYPE1'] = 'LOG(WAVELENGTH)'
+        hdu.append(ehdu)
+        if plot :
+            if i==0 :
+                ref=ehdu.data
+            else :
+                fig,ax=plots.multi(3,3,hspace=0.001,wspace=0.001,xtickrot=60,figsize=(12,8))
+                nspec = ehdu.data.shape[0]
+                ispec=0
+                for ix in range(3) :
+                    te=3500+ix*1000
+                    for iy in range(3) :
+                        logg=1.+iy*2.
+                        x=10.**spectra.fits2vector(ehdu.header,1)
+                        y=ehdu.data[ispec,:]/ref[ispec,:]
+                        plots.plotl(ax[iy,ix],x,y,yr=[0.9,1.1],xr=[15100,16950])
+                        ax[iy,ix].text(0.05,0.9,'Teff:{:6.0f} logg:{:6.1f}'.format(te,logg),transform=ax[iy,ix].transAxes)
+                        j=np.where(y < 0.99)[0]
+                        ispec+=1
+                figname = ehdu.header['ELEM'].strip()+'.png'
+                fig.savefig(figname)
+                plt.close()
+                grid.append([figname])
+                ytit.append(ehdu.header['ELEM'])
+    # output single file
+    if outfile is not None: hdu.writeto(outfile,overwrite=True)
+    html.htmltab(grid,ytitle=ytit,file='elemsens.html')
+
+def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fiber='combo',plot=False,lines=None,ls=None) :
     """ Make a series of spectra from parameters in an input file, with parallel processing for turbospec
         Outputs to FITS file {file}.fits
 
@@ -919,7 +971,12 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fi
 
     # convolved and bundle output spectra into output fits file
     wa=aspcap.apStarWave()
-    x,ls=lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred)
+    if ls is None :
+        print('getting lsf...')
+        x,ls=lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred)
+    else :
+        x=ls[0]
+        ls=ls[1]
 
     out=[]
     conv=[]
@@ -928,6 +985,7 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fi
     ws=np.linspace(15100.,17000., len(specs[0][1]))
     # synthesis is in air, we want vacuum
     ws=spectra.airtovac(ws)
+    print('convolving...')
     for spec in specs :
         if isinstance(spec[1],np.ndarray) :
           if spec[1].sum() > 0.001 :
@@ -947,8 +1005,10 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fi
     hdu=fits.HDUList()
     hdu.append(fits.ImageHDU(outpar))
     hdu.append(fits.ImageHDU(out))
+    h=fits.ImageHDU(conv)
     hdu.append(fits.ImageHDU(conv))
     hdu.writeto(file+suffix+'.fits',overwrite=True)
+    return file+suffix+'.fits' 
    
 def filter_lines(infile,outfile,wind,nskip=0) :
     """ Read from input linelist file, output comments and lines falling in windows of [w1,w2] to outfile

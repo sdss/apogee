@@ -49,18 +49,19 @@ from tools import html
 colors=['r','g','b','c','m','y']
 
 def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whiten=False,writeraw=False,test=False, 
-        incremental=False, threads=4, rawsynth=False, prefix='') :
+        incremental=False, threads=4, rawsynth=False, prefix='',piece=None) :
     """ Read in grid of spectra and do PCA compression
 
     Args :
         planfile (str) : input file name with grid parameteris
         dir (str) :  input directory relative to #$APOGEE_SPECLIB/synth/turbospec (default='kurucz/giantisotopes/tgGK_150714_lsfcombo5')
         pcas (2-tuple) : input number of PCA components and number of pieces (default=None --> get from input planfile)
+        pieces (list) : process only specified pieces, useful if want to split across processors, use pieces=[] to bundle existing output (default=None --> all pieces)
         whiten (bool) : pre-whiten data? (default=False)
         writeraw (bool ) : output uncompressed grid in FERRE format ? (default=False)
         test (bool) : used abreviated grid for testing (speed) (default=False)
-        incremental (bool) : use incremental PCA routline (default=False)
-        threads (int) : number of threads to use for parallel calculation (default=4)
+        incremental (bool) : use incremental PCA routline (default=False) (WARNING: if not incremental, default PCA is not perfectly repeatable!)
+        threads (int) : number of threads to use for parallel calculation (default=4), large grids may require threads=0
         rawsynth (bool) : work on raw highres synthesis output (default=False), UNTESTED??
 
     Output: compressed grid in FERRE format
@@ -88,7 +89,8 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
         p['nam'] = '1'
         p['ncm'] = '1'
         p['nnm'] = '1'
-        p['nrot'] = '1'
+        outfile = 'test'+outfile
+
     nmod = int(p['nvt'])*int(p['ncm'])*int(p['nnm'])*int(p['nam'])*int(p['nrot'])*int(p['nmh'])*int(p['nlogg'])*int(p['nteff'])
 
     # loop over requested combinations of npieces and npca
@@ -118,13 +120,17 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
     print(npiece,npca,nspec,nwave)
 
     # loop over pieces
-    npixels = []
     pars = []
-    for ipiece in range(npiece) :
+    if piece == None : 
+        piece=range(npiece)
+        outdir = os.environ['APOGEE_LOCALDIR']
+    else :
+        outdir = './'
+    indata['outdir'] = outdir
+    for ipiece in piece :
         w1=ipiece*nspec
         w2=(ipiece+1)*nspec if ipiece < npiece -1 else nwave
         npix=w2-w1
-        npixels.append(npix)
         print(ipiece,w1,w2)
         pars.append((ipiece,indata,[w1,w2]))
 
@@ -146,14 +152,28 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
             [aspcap.nw_chip[2],aspcap.logw0_chip[2],aspcap.dlogw] ]
     cont=[(1,1,0.,0.),(1,1,0.,0.),(1,1,0.,0)]
 
+    # if we've just done some of the pieces (e.g. on different nodes), stop here
+    if len(piece) != npiece and len(piece) != 0 : return
+
     # put together output eigenvectors and means (components are written to disk in pieces)
     if npca > 0 :
         eigen = np.zeros([npca,nwave])
         mean = np.zeros([nwave])
-        for ipiece,output in enumerate(outputs) :
-            wrange=pars[ipiece][2]
-            eigen[:,wrange[0]:wrange[1]] = output[0]
-            mean[wrange[0]:wrange[1]] = output[1]
+        npixels = []
+        for ipiece in range(npiece) :
+            w1=ipiece*nspec
+            w2=(ipiece+1)*nspec if ipiece < npiece -1 else nwave
+            npix=w2-w1
+            npixels.append(npix)
+            if npca > 0 : 
+                feigen=open(outdir+'/'+outfile+'_{:03d}_{:03d}_{:03d}.eigen'.format(npiece,npca,ipiece),'rb')
+                for i in range(npca) : eigen[i,w1:w2] = struct.unpack('f'*npix,feigen.read(npix*4))
+                mean[w1:w2] = struct.unpack('f'*npix,feigen.read(npix*4))
+                feigen.close()
+        #for ipiece,output in enumerate(outputs) :
+        #    wrange=pars[ipiece][2]
+        #    eigen[:,wrange[0]:wrange[1]] = output[0]
+        #    mean[wrange[0]:wrange[1]] = output[1]
 
         ferre.wrhead(p,'p_aps'+outfile+'_{:03d}_{:03d}.hdr'.format(npiece,npca),npca=npixels,npix=npiece*npca,wchip=wchip,cont=cont)
         # output eigenvectors
@@ -161,6 +181,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
         out=np.append(mean.reshape((1,nwave)),mean.reshape((1,nwave))*0.,axis=0)
         out=np.append(out,eigen,axis=0)
         np.savetxt(fp,out)
+        fp.close()
     
         # bundle the component files into a single file
         allpca=open('p_aps'+outfile+'_{:03d}_{:03d}.unf'.format(npiece,npca),'wb')
@@ -171,8 +192,8 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
         allraw=open('f_aps'+outfile+'.unf','wb')
         fraw=[]
     for ipiece in range(npiece) :
-        if writeraw: fraw.append(open(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.raw'.format(npiece,npca,ipiece),'rb'))
-        if npca > 0 : fpca.append(open(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.pca'.format(npiece,npca,ipiece),'rb'))
+        if writeraw: fraw.append(open(outdir+'/'+outfile+'_{:03d}_{:03d}_{:03d}.raw'.format(npiece,npca,ipiece),'rb'))
+        if npca > 0 : fpca.append(open(outdir+'/'+outfile+'_{:03d}_{:03d}_{:03d}.pca'.format(npiece,npca,ipiece),'rb'))
     for i in range(nmod) :
         for ipiece in range(npiece) :
             w1=ipiece*nspec
@@ -188,10 +209,10 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
     for ipiece in range(npiece) :
         if npca > 0 : 
             fpca[ipiece].close()
-            os.remove(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.pca'.format(npiece,npca,ipiece))
+            os.remove(outdir+'/'+outfile+'_{:03d}_{:03d}_{:03d}.pca'.format(npiece,npca,ipiece))
         if writeraw: 
             fraw[ipiece].close()
-            os.remove(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.raw'.format(npiece,npca,ipiece))
+            os.remove(outdir+'/'+outfile+'_{:03d}_{:03d}_{:03d}.raw'.format(npiece,npca,ipiece))
 
 def dopca(pars) :
     """ do a single PCA decomposition for a limited number of pixels
@@ -212,6 +233,7 @@ def dopca(pars) :
     whiten=p['whiten']
     indir=p['indir']
     outfile=p['outfile']
+    outdir=p['outdir']
     writeraw=p['writeraw']
     rawsynth=p['rawsynth']
     prefix=p['prefix']
@@ -280,8 +302,13 @@ def dopca(pars) :
 
     # write out uncompressed and compressed in binary to local file
     showtime('start write: '+str(ipiece))
-    if writeraw: fraw=open(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.raw'.format(npiece,npca,ipiece),'wb')
-    if npca > 0 : fpca=open(os.environ['APOGEE_LOCALDIR']+'/'+outfile+'_{:03d}_{:03d}_{:03d}.pca'.format(npiece,npca,ipiece),'wb')
+    if writeraw: fraw=open(outdir+'/'+outfile+'_{:03d}_{:03d}_{:03d}.raw'.format(npiece,npca,ipiece),'wb')
+    if npca > 0 : 
+        fpca=open(outdir+'/'+outfile+'_{:03d}_{:03d}_{:03d}.pca'.format(npiece,npca,ipiece),'wb')
+        feigen=open(outdir+'/'+outfile+'_{:03d}_{:03d}_{:03d}.eigen'.format(npiece,npca,ipiece),'wb')
+        for i in range(npca) : feigen.write(struct.pack('f'*npix,*eigen[i,:]))
+        feigen.write(struct.pack('f'*npix,*mean))
+        feigen.close()
     for i in range(nmod) :
         if writeraw: fraw.write(struct.pack('f'*npix,*pcadata[i,:]))
         if npca > 0 : fpca.write(struct.pack('f'*npca,*model[i,:]))

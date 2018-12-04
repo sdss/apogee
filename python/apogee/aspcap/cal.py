@@ -8,7 +8,8 @@ from tools import match
 from tools import struct
 from tools import plots
 from tools import fit
-from tools import vfit
+try: from tools import vfit
+except: pass
 import os
 import shutil
 import pdb
@@ -17,6 +18,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from astropy.io import fits
+from astropy.io import ascii
 
 def allField(files=['apo*/*/apField-*.fits','apo*/*/apFieldC-*.fits'],out='allField.fits',verbose=False) :
     '''
@@ -37,7 +39,7 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
     Concatenate aspcapField files, adding ELEM tags if not there
     '''
     # concatenate the structures
-    all=struct.concat(files,verbose=False)
+    all=struct.concat(files,verbose=True)
 
     # add elements tags if we don't have them
     try :
@@ -107,7 +109,7 @@ def hrsample(indata,hrdata,maxbin=50,raw=True) :
                 gd.extend(x)
     return i1[gd],i2[gd]
 
-def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v3.6.0',cal1m=True,galcen=True,lowext=True,dir='cal',hrdata=None) :
+def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v3.6.0',cal1m=True,galcen=True,dir='cal',hrdata=None,optical=True) :
     '''
     selects a calibration subsample from an input apField structure, including several calibration sub-classes: 
         cluster, APOKASC stars, 1m calibration stars. Creates cluster web pages/plots if requested
@@ -118,11 +120,11 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
 
     j=np.where(indata['COMMISS'] == 0)[0]
     data=indata[j]
-    jc=[]
 
     try: os.mkdir(dir)
     except: pass
     if clusters :
+        jc=[]
         clusts=apselect.clustdata()
         f=html.head(file=dir+'/'+file)
         f.write('<TABLE BORDER=2>\n')
@@ -138,16 +140,11 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
             f.write('<TD><A HREF='+clust[ic].name+'_pos.jpg><IMG SRC='+clust[ic].name+'_cmd.jpg width=300></A>\n')
         html.tail(f)
         print('Number of cluster stars: ',len(jc))
-        # remove existing output directories, create new ones
-        cleandir(dir+'/clust',50)
-        # create symbolic links in output directories
-        nsplit=len(jc)//50+1
-        for i in range(len(jc)) :
-            symlink(data[jc[i]],dir+'/clust',i//nsplit)
-        jc=[]
+        mklinks(data,jc,dir+'/clust')
     
     if apokasc is not None :
-        apokasc = fits.open(os.environ['IDLWRAP_DIR']+'/data/'+apokasc+'.fits')[1].data
+        jc=[]
+        apokasc = fits.open(os.environ['APOGEE_DIR']+'/data/apokasc/'+apokasc+'.fits')[1].data
         i1,i2=match.match(data['APOGEE_ID'],apokasc['2MASS_ID'])
         rgb=np.where(apokasc['CONS_EVSTATES'][i2] == 'RGB')[0]
         print('Number of APOKASC RGB stars (every 3rd): ',len(rgb[0:-1:3]))
@@ -164,40 +161,41 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         lowz=np.where((apokasc['FE_H_ADOP_COR'][i2] < -1.) & (apokasc['FE_H_ADOP_COR'][i2] > -90.))[0]
         print('Number of APOKASC low [Fe/H] stars: ',len(lowz))
         jc.extend(i1[lowz])
+        mklinks(data,jc,dir+'/apokasc')
     
     if galcen :
         j=np.where(data['FIELD'] == 'GALCEN')[0]
         print('Number of GALCEN stars: ',len(j))
-        jc.extend(j)
+        mklinks(data,j,dir+'/galcen')
 
     if cal1m :
         j=np.where(data['FIELD'] == 'calibration')[0]
         print('Number of 1m calibration stars: ',len(j))
-        jc.extend(j)
+        mklinks(data,j,dir+'/cal')
 
-    #if lowext :
-
-    # remove existing output directories, create new ones
-    cleandir(dir+'/cal',50)
-    # create symbolic links in output directories
-    nsplit=len(jc)//50+1
-    for i in range(len(jc)) :
-        symlink(data[jc[i]],dir+'/cal',i//nsplit)
-    jc=[]
+    if optical :
+        stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/validation_stars_DR16.txt',names=['id'],format='fixed_width_no_header')
+        i1,i2=match.match(data['APOGEE_ID'],stars['id'])
+        print('Number of optical validation stars: ',len(i1))
+        mklinks(data,i1,dir+'/optical')
 
     if hrdata is not None:
         i1, i2 = hrsample(data,hrdata)
         print('Number of HR sample stars: ',len(i1))
-        jc.extend(i1)
-
-    # remove existing output directories, create new ones
-    cleandir(dir+'/hr',50)
-    # create symbolic links in output directories
-    nsplit=len(jc)//50+1
-    for i in range(len(jc)) :
-        symlink(data[jc[i]],dir+'/hr',i//nsplit)
+        mklinks(data,i1,dir+'/hr')
 
     return indata
+
+def mklinks(data,j,out,n=48) :
+    """ Create links in n different output directories for requested indices
+    """
+
+    # remove existing output directories, create new ones
+    cleandir(out,n)
+    # create symbolic links in output directories
+    nsplit=len(j)//n+1
+    for i in range(len(j)) :
+        symlink(data[j[i]],out,i//nsplit)
 
 
 def cleandir(out,n) :
@@ -216,10 +214,10 @@ def symlink(data,out,idir) :
     '''
     auxiliary routine to create symlinks to appropriate files from calibration directories
     '''
-    outfile='{:s}{:03d}/{:s}.{:04d}.fits'.format(
-            out,idir,os.path.splitext(os.path.basename(data['FILE']))[0],data['LOCATION_ID'])
-    if data['TELESCOPE'] == 'apo25m' :
-        infile='../../{:s}/{:04d}/{:s}'.format(data['TELESCOPE'],data['LOCATION_ID'],data['FILE'])
+    outfile='{:s}{:03d}/{:s}.{:s}.fits'.format(
+            out,idir,os.path.splitext(os.path.basename(data['FILE']))[0],data['FIELD'])
+    if data['TELESCOPE'] == 'apo25m' or data['TELESCOPE'] == 'lco25m' :
+        infile='../../{:s}/{:s}/{:s}'.format(data['TELESCOPE'],data['FIELD'],data['FILE'])
     else :
         infile='../../{:s}/calibration/{:s}'.format(data['TELESCOPE'],data['FILE'])
     os.symlink(infile,outfile)

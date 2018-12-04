@@ -9,7 +9,8 @@ from tools import match
 from tools import plots
 from tools import fit
 from apogee.utils import bitmask
-from apogee.aspcap import cal
+try: from apogee.aspcap import cal
+except: pass
 import pdb
 import matplotlib.pyplot as plt
 import numpy as np

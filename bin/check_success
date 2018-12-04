@@ -1,0 +1,5 @@
+#!/bin/csh
+foreach log ( *.log ) 
+  set success = `grep "completed success" $log`
+  if ( "$success" == '' ) echo $log
+end

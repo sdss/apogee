@@ -71,7 +71,6 @@ def convolve(wav,spec,
        2015-03-14 - Written - Bovy (IAS)
     """
     # Parse LSF input
-    pdb.set_trace()
     if lsf is None:
         xlsf= numpy.linspace(-7.,7.,43)
         lsf= eval(xlsf,fiber=fiber)

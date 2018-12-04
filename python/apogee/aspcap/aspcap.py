@@ -22,7 +22,8 @@ from astropy.io import ascii
 #from holtz.tools import struct
 #from holtz.tools import plots
 from apogee.utils import apload
-from apogee.aspcap import ferre
+try: from apogee.aspcap import ferre
+except: pass
 
 def params() :
     '''

@@ -50,5 +50,5 @@ if __name__ == '__main__' :
         except: pass
         print('host', args.host)
         if args.host is not None :
-            try: os.remove(args.done+'.'+args.host)
+            try: os.remove(args.done+'*.'+args.host)
             except: pass

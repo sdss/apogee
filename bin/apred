@@ -3,7 +3,7 @@
 #
 # @Author: Jon Holtzman
 # @Date: March 2018
-# @Filename: mkgrid
+# @Filename: apred
 # @License: BSD 3-Clause
 # @Copyright: Jon Holtzman
 
@@ -23,7 +23,7 @@ if __name__ == '__main__' :
 
     parser = argparse.ArgumentParser(
         prog=os.path.basename(sys.argv[0]),
-        description='Makes a synthetic spectral grid')
+        description='Runs apogee IDL reduction')
 
     parser.add_argument('planfile', type=str, help='Plan file')
     parser.add_argument("--done")
@@ -44,5 +44,5 @@ if __name__ == '__main__' :
         except: pass
         print('host', args.host)
         if args.host is not None :
-            try: os.remove(args.done+'.'+args.host)
+            try: os.remove(args.done+'*.'+args.host)
             except: pass

@@ -199,6 +199,8 @@ for i=0,n_elements(stars)-1 do begin
     gridloc=fix((param-libhead0.llimits)/libhead0.steps)
     ; if we are off grid, set to grid edge
     for ipar=0,n_elements(gridloc)-1 do begin
+      ; for Carbon, the grid starts at -1.5, but the holefile starts at -1
+      if libhead0.label[ipar] eq 'C' then gridloc[ipar]-=2
       if gridloc[ipar] lt 0 then gridloc[ipar] = 0
       if gridloc[ipar] gt libhead0.n_p[ipar]-1 then gridloc[ipar] = 0
     endfor

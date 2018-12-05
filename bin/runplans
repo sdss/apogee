@@ -1,4 +1,4 @@
-#!/bin/csh -f
+#!/bin/csh -fv
 
 #runflag handles job management for multiple run jobs
 #arguments
@@ -24,7 +24,13 @@ if ( $clobber == "") then
 endif
 echo clobber: $clobber
 
-set flag = 111111
+if ( $?APOGEE_FLAG) then
+  set flag = $APOGEE_FLAG
+else
+  set flag = 111111
+endif
+echo flag: $flag
+
 
 set maxobj=`printenv APOGEE_MAXOBJ`
 if ( $maxobj == "") then
@@ -69,10 +75,24 @@ foreach plan ( $plans )
 
    # setrunning will check for done or already running before starting and return status appropriately
    if ( { setrunning log/$base } )  then
-     touch log/$base.$host
 
      echo $cmd $plan --host $host --done log/$base
-     $cmd $plan --host $host --done log/$base >& log/$base.$host.log &
+
+     if ( $?UUFSCELL & ( $maxrun == 2 | $maxrun == 4 | $maxrun == 8 ) ) then
+       if ( $maxrun == 2 ) set nodes = "00ff00ff ff00ff00"
+       if ( $maxrun == 4 ) set nodes = "000000ff 0000ff00 00ff0000 ff000000" 
+       if ( $maxrun == 8 ) set nodes = "f0000000 0f000000 00f00000 000f0000 0000f000 00000f00 000000f0 0000000f"
+       foreach node ( $nodes )
+         set n = `ls log/*.$node.$host | wc | awk '{print $1}'`
+         if ( $n == 0 ) set usenode = $node
+       end
+       touch log/$base.$usenode.$host
+       taskset $usenode $cmd $plan --host $host --flag $flag --done log/$base >& log/$base.$host.log &
+     else
+       touch log/$base.$host
+       $cmd $plan --host $host --flag $flag --done log/$base >& log/$base.$host.log &
+     endif
+
 
      @ nobj = $nobj + 1
      sleep 10

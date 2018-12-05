@@ -31,6 +31,7 @@ if __name__ == '__main__' :
     parser.add_argument('planfile', type=str, help='Plan file')
     parser.add_argument("--prefix", type=str, default=None, help='Prefix for input files (default=None)')
     parser.add_argument("--apred", type=str, default=None, help='apred version for lsf/wave (default=None)')
+    parser.add_argument("--flag",default='11111')
     parser.add_argument("--done")
     parser.add_argument("--host")
     parser.add_argument('--clobber', help='Overwrite files?',action="store_true")

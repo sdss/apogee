@@ -60,7 +60,7 @@ def mkgriddirs(configfile) :
         f.close()
 
         # make all of the individual planfiles from the master planfile
-        speclib_split(dir+name)
+        for elem in elems : speclib_split(dir+name,el=elem)
         #subprocess.call(['idl','-e',"speclib_allplan,'"+name+".par'"])
 
         # make pbs scripts
@@ -82,7 +82,7 @@ def mkgriddirs(configfile) :
             #mkslurm.write('bundle plan/'+name+'_??.par',queryhost=os.uname()[1],queryport=1052,maxrun=32)
             mkslurm.write('pca --pcas 12 75 --incremental --threads 0 --writeraw plan/'+name+'.par',runplans=False,time='72:00:00')
 
-def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,vtsplit=True,el=None) :
+def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,vtsplit=True,el='') :
     """ Make a bunch of individual plan files from master, splitting [alpha/M],[C/M],[N/M],vt
     """
     # read master plan file
@@ -92,7 +92,7 @@ def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,vtsplit=True,e
     p.pop('npart',None)
     p.pop('npca',None)
     p.pop('vmsuffix',None)
-    if el is not None : p['el'] = el 
+    if el is not '' : p['elem'] = el 
     else: p.pop('elem',None)
 
     # make specdir the full path relative to $APOGEE_SPECLIB/synth
@@ -152,5 +152,5 @@ def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,vtsplit=True,e
                     if nmsplit : suffix+='n'+atmos.cval(nm)
                     if vtsplit : suffix+='v'+atmos.cval(10.**vt)
                     p['name'] = suffix
-                    p.write(planfile+'_'+suffix+'.par')
+                    p.write(planfile+'_'+suffix+el+'.par')
 

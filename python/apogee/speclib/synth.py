@@ -1051,7 +1051,7 @@ def mini_linelist(elem,linelist,maskdir) :
 
     # if files are being create by other process, wait until done
     while os.path.isfile(outdir+elem+'.lock') : 
-        print('waiting for lock: ',lsfile+'.lock')
+        print('waiting for lock: ',outdir+elem+'.lock')
         time.sleep(10)
 
     # if files are already created, return, otherwise open .lock file and create

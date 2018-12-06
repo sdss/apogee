@@ -629,7 +629,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
             hdunorm.header['BZERO'] = 0.5
             hdunorm.header['BSCALE'] = 1./65534.
             hdulist.append(hdunorm)
-            hdulist.writeto(specdir+'/'+p['name']+'.fits',overwrite=True)
+            hdulist.writeto(specdir+'/'+p['name']+elem+'.fits',overwrite=True)
 
 def mkgridlink(planfile,suffix=None) :
     """  DEVELOPMENT : create coarse grid by merging syntheses from multiple grids
@@ -1044,35 +1044,31 @@ def mini_linelist(elem,linelist,maskdir) :
         Return array of vacuum wavelength ranges
     """
 
-    wind=np.loadtxt(os.environ['APOGEE_DIR']+'/data/windows/'+maskdir+'/'+elem+'.wave')
-    nwind=wind.shape[0]
-    wair=spectra.vactoair(wind)
-   
     # filter APOGEE format files and then convert to Turbospectrum
     outdir = os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'/'
     try: os.mkdir(outdir)
     except: pass
-    #nout=filter_lines(os.environ['APOGEE_SPECLIB']+'/linelists/linelist.'+linelist,outdir+linelist,wair/10.)
-    #subprocess.call(['turboscript',outdir+linelist])
 
+    # if files are being create by other process, wait until done
+    while os.path.isfile(outdir+elem+'.lock') : 
+        print('waiting for lock: ',lsfile+'.lock')
+        time.sleep(10)
+
+    # if files are already created, return, otherwise open .lock file and create
+    if os.path.isfile(outdir+elem+'.done') : return
+    fp = open(outdir+elem+'.lock','w')
+    fp.close()
+
+    # get window ranges
+    wind=np.loadtxt(os.environ['APOGEE_DIR']+'/data/windows/'+maskdir+'/'+elem+'.wave')
+    nwind=wind.shape[0]
+    wair=spectra.vactoair(wind)
+   
     # convert Turbospectrum files to filtered Turbospectrum files
     # Turbospectrum files are in air wavelengths
     lists=['turbospec.'+linelist+'.atoms','turbospec.'+linelist+'.molec',
            'turbospec.'+linelist+'.Hlinedata','turbospec.h2o-BC8.5V.molec','turbospec.h2o-BC9.5V.molec']
-#    code=['01.000000','010108.000000000','010108.00000000']
-#    comment=['HI culled','Barber culled','Barber culled']
     for i,list in enumerate(lists) :
-#        nout=filter_lines(os.environ['APOGEE_SPECLIB']+'/linelists/'+list,outdir+list+'.tmp',wair,nskip=2)
-#        fin=open(outdir+list+'.tmp','r')
-#        fout=open(outdir+list,'w')
-#        fout.write("'"+code[i]+" '  1 "+'{:d}\n'.format(nout))
-#        fout.write("'"+comment[i]+"' \n")
-#        for line in fin :
-#            fout.write(line)
-#        fout.close()
-#        fin.close()
-#        os.remove(outdir+list+'.tmp')
-
         filepath=os.environ['APOGEE_SPECLIB']+'/linelists/'+list
         fout=open(outdir+list,'w')
         with open(filepath) as fp:  
@@ -1105,5 +1101,9 @@ def mini_linelist(elem,linelist,maskdir) :
                 fout.write(out)
         fout.close()
 
+    # write .done file and remove .lock
+    fp = open(outdir+elem+'.done','w')
+    fp.close()
+    os.remove(outdir+elem+'.lock') 
     return wind,wair
 

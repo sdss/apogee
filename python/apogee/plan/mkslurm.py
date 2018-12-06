@@ -3,7 +3,7 @@ import sys
 import os
 import argparse
 
-def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None,idlthreads=1,runplans=True,time='240:00:00',name=None,fast=False) :
+def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None,idlthreads=1,runplans=True,time='240:00:00',name=None,fast=False,tacc=False) :
     """ Routine to write a slurm file with specified input command and parameteres
     """
 
@@ -17,11 +17,15 @@ def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None
     f=open(file,'w')
 
     f.write('#!/bin/csh\n')
-    if fast : f.write('#SBATCH --account=sdss-kp-fast\n')
-    else : f.write('#SBATCH --account=sdss-kp\n')
-    f.write('#SBATCH --partition=sdss-kp\n')
+    if tacc :
+        f.write('#SBATCH --partition=normal\n')
+        f.write('#SBATCH --ntasks-per-node=24\n')
+    else :
+        if fast : f.write('#SBATCH --account=sdss-kp-fast\n')
+        else : f.write('#SBATCH --account=sdss-kp\n')
+        f.write('#SBATCH --partition=sdss-kp\n')
+        f.write('#SBATCH --ntasks=16\n')
     f.write('#SBATCH --time='+time+'\n')
-    f.write('#SBATCH --ntasks=16\n')
     f.write('#SBATCH --nodes=1\n')
     f.write('#SBATCH -o '+os.path.basename(file)+'.out\n' )
     f.write('#SBATCH -e '+os.path.basename(file)+'.out\n' )

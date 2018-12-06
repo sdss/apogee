@@ -1041,10 +1041,15 @@ def filter_lines(infile,outfile,wind,nskip=0) :
  
 def mini_linelist(elem,linelist,maskdir) :
     """ Produce an abbreviated line list for minigrid construction given mask file and linelist file IN AIR
-        Return array of vacuum wavelength ranges
+        Return arrays of wavelength ranges wind,wair
     """
 
-    # filter APOGEE format files and then convert to Turbospectrum
+    # get window ranges in vacuum and convert to air
+    wind=np.loadtxt(os.environ['APOGEE_DIR']+'/data/windows/'+maskdir+'/'+elem+'.wave')
+    nwind=wind.shape[0]
+    wair=spectra.vactoair(wind)
+
+    # setup output directory
     outdir = os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'/'
     try: os.mkdir(outdir)
     except: pass
@@ -1055,15 +1060,10 @@ def mini_linelist(elem,linelist,maskdir) :
         time.sleep(10)
 
     # if files are already created, return, otherwise open .lock file and create
-    if os.path.isfile(outdir+elem+'.done') : return
+    if os.path.isfile(outdir+elem+'.done') : return wind,wair
     fp = open(outdir+elem+'.lock','w')
     fp.close()
 
-    # get window ranges
-    wind=np.loadtxt(os.environ['APOGEE_DIR']+'/data/windows/'+maskdir+'/'+elem+'.wave')
-    nwind=wind.shape[0]
-    wair=spectra.vactoair(wind)
-   
     # convert Turbospectrum files to filtered Turbospectrum files
     # Turbospectrum files are in air wavelengths
     lists=['turbospec.'+linelist+'.atoms','turbospec.'+linelist+'.molec',

@@ -530,7 +530,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
           else :
               try :
                   # does output file exist?
-                  old=fits.open(specdir+'/'+p['name']+'.fits')[0]
+                  old=fits.open(specdir+'/'+p['name']+elem+'.fits')[0]
                   specdata=old.data
                   if len(old.shape) < 5 : specdata=np.expand_dims(specdata,axis=0)
                   # is it a partially completed file with nmh card, or a completed file?

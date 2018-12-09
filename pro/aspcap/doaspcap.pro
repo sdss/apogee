@@ -117,7 +117,7 @@ params=aspcap_params(npar=npar)
 readcol,liblist_path+aspcap_config+'/class-'+dirs.instrument+'.list',format='(a)',class,stringskip='#'
 
 ; create configuration files
-configdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+dirs.telescope+'/config/'
+configdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/config/'+dirs.instrument+'/'
 file_mkdir,configdir
 while file_test(configdir+'lockfile') do apwait,configdir+'lockfile',10
 if ~file_test(configdir+'/done') then begin

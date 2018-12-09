@@ -152,6 +152,12 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         rc=np.where(apokasc['CONS_EVSTATES'][i2] == 'RC')[0]
         print('Number of APOKASC RC stars (every 2nd): ',len(rc[0:-2:2]))
         jc.extend(i1[rc][0:-1:2])
+        rc=np.where(apokasc['CONS_EVSTATES'][i2] == '2CL')[0]
+        print('Number of APOKASC 2CL stars: ',len(rc))
+        jc.extend(i1[rc])
+        rc=np.where(apokasc['CONS_EVSTATES'][i2] == 'RC/2CL')[0]
+        print('Number of APOKASC RC/2CL stars: ',len(rc))
+        jc.extend(i1[rc])
         lowg=np.where((apokasc['LOGG_SYD_SCALING'][i2] < 2) & (apokasc['LOGG_SYD_SCALING'][i2] > 0.1))[0]
         print('Number of APOKASC low log g  stars: ',len(lowg))
         jc.extend(i1[lowg])

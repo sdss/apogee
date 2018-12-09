@@ -11,6 +11,7 @@ from tools import fit
 from apogee.utils import bitmask
 try: from apogee.aspcap import cal
 except: pass
+from apogee.aspcap import err
 import pdb
 import matplotlib.pyplot as plt
 import numpy as np
@@ -148,7 +149,7 @@ def rcrgb(allstar,apokasc='APOKASC_cat_v3.6.0.fits',logg='LOGG_SYD_SCALING',rcli
     return {'rclim' : rclim, 'rgbsep' : rgbfit, 'cnsep' : cnfit}
     
 
-def apokasc(allstar,logg='LOGG_SYD_SCALING',apokasc_cat='APOKASC_cat_v3.6.0.fits',raw=True,plotcal=False,out='loggcomp',calloggrange=[-1.,3.8],loggrange=[1.,3.2],mhrange=[-2.5,0.5],teffrange=[3500,5500],calib=False) :
+def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False,out='loggcomp',calloggrange=[-1.,3.8],loggrange=[1.,3.2],mhrange=[-2.5,0.5],teffrange=[3500,5500],calib=False) :
     '''
     asteroseismic log g comparisons for input allStar structure
     '''
@@ -162,13 +163,25 @@ def apokasc(allstar,logg='LOGG_SYD_SCALING',apokasc_cat='APOKASC_cat_v3.6.0.fits
     allstar=allstar[gd]
 
     # match ASPCAP with APOKASC, and get RC/RGB stars
-    apokasc=fits.open(os.environ['APOGEE_IDR']+'/data/apokasc/'+apokasc_cat)[1].data
+    apokasc=fits.open(os.environ['APOGEE_DIR']+'/data/apokasc/'+apokasc_cat)[1].data
     i1,i2=match.match(allstar['APOGEE_ID'],apokasc['2MASS_ID'])
-    rgb=np.where((apokasc['CONS_EVSTATES'][i2] == 'RGB') & (apokasc[logg][i2] > -1))[0]
-    rc=np.where((apokasc['CONS_EVSTATES'][i2] == 'RC') & (apokasc[logg][i2] > -1))[0]
-    notrc=np.where(apokasc['CONS_EVSTATES'][i2] != 'RC')[0]
-    rc2=np.where((apokasc['CONS_EVSTATES'][i2] == '2CL') & (apokasc[logg][i2] > -1))[0]
-    rc2cl=np.where((apokasc['CONS_EVSTATES'][i2] == 'RC/2CL') & (apokasc[logg][i2] > -1))[0]
+    try:
+        print('trying APOKASC2 catalog tags...')
+        logg='APOKASC2_LOGG'
+        rgb=np.where((apokasc['CONS_EVSTATES'][i2] == 'RGB') & (apokasc[logg][i2] > -1))[0]
+        rc=np.where((apokasc['CONS_EVSTATES'][i2] == 'RC') & (apokasc[logg][i2] > -1))[0]
+        notrc=np.where(apokasc['CONS_EVSTATES'][i2] != 'RC')[0]
+        rc2=np.where((apokasc['CONS_EVSTATES'][i2] == '2CL') & (apokasc[logg][i2] > -1))[0]
+        rc2cl=np.where((apokasc['CONS_EVSTATES'][i2] == 'RC/2CL') & (apokasc[logg][i2] > -1))[0]
+    except :
+        # DR14 used APOKASC_cat_v3.6.0
+        print('trying older APOKASC catalog tags...')
+        logg='LOGG_SYD_SCALING'
+        rgb=np.where((apokasc['CONS_EVSTATES'][i2] == 'RGB') & (apokasc[logg][i2] > -1))[0]
+        rc=np.where((apokasc['CONS_EVSTATES'][i2] == 'RC') & (apokasc[logg][i2] > -1))[0]
+        notrc=np.where(apokasc['CONS_EVSTATES'][i2] != 'RC')[0]
+        rc2=np.where((apokasc['CONS_EVSTATES'][i2] == '2CL') & (apokasc[logg][i2] > -1))[0]
+        rc2cl=np.where((apokasc['CONS_EVSTATES'][i2] == 'RC/2CL') & (apokasc[logg][i2] > -1))[0]
     rcall=np.append(rc,rc2)
     rcall=np.append(rcall,rc2cl)
 
@@ -179,7 +192,7 @@ def apokasc(allstar,logg='LOGG_SYD_SCALING',apokasc_cat='APOKASC_cat_v3.6.0.fits
         plot=ax[0],yt='[M/H]',xt='log g',zt='$\Delta log g$',reject=0.3)
     rgbrms=(allstar[param][i1[rgb],1]-rgbfit(allstar['FPARAM'][i1[rgb],1],allstar['FPARAM'][i1[rgb],3])-apokasc[logg][i2[rgb]]).std()
     ax[0].text(0.98,0.98,'rms: {:5.3f}'.format(rgbrms),transform=ax[0].transAxes,va='top',ha='right')
-    rgberrpar = cal.errfit(allstar[param][i1[rgb],0],allstar['SNR'][i1[rgb]],allstar[param][i1[rgb],3],
+    rgberrpar = err.errfit(allstar[param][i1[rgb],0],allstar['SNR'][i1[rgb]],allstar[param][i1[rgb],3],
                         allstar[param][i1[rgb],1]-rgbfit(allstar['FPARAM'][i1[rgb],1],allstar['FPARAM'][i1[rgb],3])-apokasc[logg][i2[rgb]],
                         out=out+'_rgb',title='log g',zr=[0,0.2])
 
@@ -188,7 +201,7 @@ def apokasc(allstar,logg='LOGG_SYD_SCALING',apokasc_cat='APOKASC_cat_v3.6.0.fits
         plot=ax[1],yt='[M/H]',xt='log g',zt='$\Delta log g$',reject=0.3)
     rcfit2 = fit.fit1d(allstar['FPARAM'][i1[rcall],1], allstar[param][i1[rcall],1]-apokasc[logg][i2[rcall]],zr=[-1,0.5],yr=[-3,1],xr=[1,4],degree=2,reject=0.3)
     rcrms=(allstar[param][i1[rc],1]-rcfit(allstar['FPARAM'][i1[rc],1],allstar['FPARAM'][i1[rc],3])-apokasc[logg][i2[rc]]).std()
-    rcerrpar = cal.errfit(allstar[param][i1[rc],0],allstar['SNR'][i1[rc]],allstar[param][i1[rc],3],
+    rcerrpar = err.errfit(allstar[param][i1[rc],0],allstar['SNR'][i1[rc]],allstar[param][i1[rc],3],
                         allstar[param][i1[rc],1]-rcfit(allstar['FPARAM'][i1[rc],1],allstar['FPARAM'][i1[rc],3])-apokasc[logg][i2[rc]],
                         out=out+'_rc',title='log g',zr=[0,0.2])
     ax[1].text(0.98,0.98,'rms: {:5.3f}'.format(rcrms),transform=ax[1].transAxes,va='top',ha='right')
@@ -200,7 +213,7 @@ def apokasc(allstar,logg='LOGG_SYD_SCALING',apokasc_cat='APOKASC_cat_v3.6.0.fits
     if raw and plotcal :
         fig,ax=plots.multi(2,3,hspace=0.5,wspace=0.001,figsize=(12,12))
     else :
-        fig,tmpax=plots.multi(1,3,hspace=0.5,wspace=0.001,figsize=(8,8))
+        fig,tmpax=plots.multi(1,4,hspace=0.5,wspace=0.001,figsize=(8,10))
 
     # diff color-coded by gravity as f([M/H])
     # diff color-coded by [M/H] as f(log g)
@@ -233,6 +246,14 @@ def apokasc(allstar,logg='LOGG_SYD_SCALING',apokasc_cat='APOKASC_cat_v3.6.0.fits
         plots.plotl(tmpax[2],loggfit,rcfit(loggfit,mhfit),color='g',linewidth=2)
         plots.plotl(tmpax[2],loggfit,rcfit2(loggfit),color='k',linewidth=2)
 
+        plots.plotp(tmpax[3],allstar['FPARAM'][i1[rgb],0],allstar[param][i1[rgb],1]-apokasc[logg][i2[rgb]],
+           xr=[3500,5500],yr=[-1,1],xt='Teff',yt='ASPCAP-seismic log g',label=[0.9,0.8,'RGB'],color='r',size=15)
+        plots.plotp(tmpax[3],allstar['FPARAM'][i1[rc],0],allstar[param][i1[rc],1]-apokasc[logg][i2[rc]],
+           xr=[3500,5500],yr=[-1,1],xt='Teff',yt='ASPCAP-seismic log g',label=[0.9,0.6,'RC'],color='b',size=15)
+        plots.plotp(tmpax[3],allstar['FPARAM'][i1[rc2],0],allstar[param][i1[rc2],1]-apokasc[logg][i2[rc2]],
+           xr=[3500,5500],yr=[-1,1],xt='Teff',yt='ASPCAP-seismic log g',label=[0.9,0.6,'RC'],color='g',size=15)
+        plots.plotp(tmpax[3],allstar['FPARAM'][i1[rc2cl],0],allstar[param][i1[rc2cl],1]-apokasc[logg][i2[rc2cl]],
+           xr=[3500,5500],yr=[-1,1],xt='Teff',yt='ASPCAP-seismic log g',label=[0.9,0.6,'RC'],color='m',size=15)
         #plots.plotc(tmpax[3],allstar['FPARAM'][i1[rgb],1],allstar['PARAM'][i1[rgb],1]-allstar['FPARAM'][i1[rgb],1],
         #   allstar['FPARAM'][i1[rgb],3],xr=[0,5],yr=[-1,1],xt='seismic log g',yt='corrected-raw log g',label=[0.1,0.9,'allstar (Kurucz)'],zr=[-2,0.5])
 

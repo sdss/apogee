@@ -672,7 +672,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
         while elemfit >= 0 :
             # get the good abundance data for this element, load variables for fit (teff, abun, clust)
             abundata, ok = getabun(data,elems,elemtoh,el,xh=xh,calib=calib)
-
+            print(el,pars['elemfit'],pars['mhmin'],len(ok))
             snr=np.clip(data['SNR'],0.,snbins[-1]+dsnbin-0.1)
 
             ind=np.array([],dtype=int)

@@ -12,15 +12,17 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import numpy as np
+import glob
 import os
 import pdb
 from shutil import copyfile
 import subprocess
 import scipy.ndimage.filters
+import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy.io import ascii
 #from holtz.tools import struct
-#from holtz.tools import plots
+from tools import plots
 from apogee.utils import apload
 try: from apogee.aspcap import ferre
 except: pass
@@ -237,3 +239,45 @@ def elemmask(el,maskdir='filters_26112015',plot=None,yr=[0,1]) :
     if plot is not None :
         plots.plotl(plot,wave,mask,yr=yr)
     return wave,mask
+
+def intplot(a,param='FPARAM') :
+    """ Given input structure, plot HR diagram, and enter event loop to mark stars to plot spectra
+    """
+
+    fig,ax = hr(a,param=param)
+    plots.event(fig)
+    sf,sa=plots.multi(1,1)
+    while (1) :
+        ret=plots.mark(fig)
+        if ret[2] == 'q' : break
+        f=glob.glob('cal/*/*'+a['APOGEE_ID'][plots._index[0]]+'*')
+        print(f)
+        dir=f[0].split('/')[1]
+        f=fits.open('cal/'+dir+'/aspcapField-'+dir+'.fits')
+        data=f[1].data
+        j=np.where(data['APOGEE_ID'] == a['APOGEE_ID'][plots._index[0]])[0][0]
+        sa.cla()
+        plots.plotl(sa,10.**f[3].data['WAVE'][0],f[2].data['SPEC'][j,:])
+        plots.plotl(sa,10.**f[3].data['WAVE'][0],f[2].data['SPEC_BESTFIT'][j,:])
+        text='ID: {:s} FIELD: {:s} SNR: {:6.1f} '.format(data['APOGEE_ID'][j],data['FIELD'][j],data['SNR'][j])
+        sa.text(0.05,0.95,text,transform=sa.transAxes)
+        text=r'Teff: {:6.0f} logg: {:6.1f} [M/H]: {:6.2f} [$\alpha$/M]: {:6.2f}'.format(
+             data[param][j,0],data[param][j,1],data[param][j,3],data[param][j,4])
+        sa.text(0.05,0.90,text,transform=sa.transAxes)
+        plt.draw()
+        plt.show()
+    plt.close(sf)
+
+def hr(a,param='FPARAM',colorbar=False) :
+    """ Plot an HR diagram from input structure
+
+        Args:
+            all  : structure that includes stellar parameter array with (Teff, logg, ...)
+            param : tag to use (default='FPARAM')
+            colorbar : show colorbar? (default= False)
+    """
+    fig,ax = plots.multi(1,1)
+    plots.plotc(ax,a[param][:,0],a[param][:,1],a[param][:,3],xr=[8000,3000],yr=[6,-1],zr=[-2,0.5],
+                xt='Teff',yt='log g',zt='[M/H]',colorbar=colorbar)
+    plots._data = a
+    return fig,ax

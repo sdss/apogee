@@ -259,16 +259,18 @@ def intplot(a,param='FPARAM') :
         sa.cla()
         plots.plotl(sa,10.**f[3].data['WAVE'][0],f[2].data['SPEC'][j,:])
         plots.plotl(sa,10.**f[3].data['WAVE'][0],f[2].data['SPEC_BESTFIT'][j,:])
-        text='ID: {:s} FIELD: {:s} SNR: {:6.1f} '.format(data['APOGEE_ID'][j],data['FIELD'][j],data['SNR'][j])
+        text=r'ID: {:s} FIELD: {:s} SNR: {:6.1f} $\chi^2$: {:6.1f}'.format(
+             data['APOGEE_ID'][j],data['FIELD'][j],data['SNR'][j],data['PARAM_CHI2'][j])
         sa.text(0.05,0.95,text,transform=sa.transAxes)
-        text=r'Teff: {:6.0f} logg: {:6.1f} [M/H]: {:6.2f} [$\alpha$/M]: {:6.2f}'.format(
-             data[param][j,0],data[param][j,1],data[param][j,3],data[param][j,4])
+        text=r'Teff: {:5.0f} logg: {:5.1f} [M/H]: {:5.2f} [$\alpha$/M]: {:5.2f} [C/M]: {:5.2f} [N/M]: {:5.2f}'.format(
+             data[param][j,0],data[param][j,1],data[param][j,3],data[param][j,6],data[param][j,4],data[param][j,5])
         sa.text(0.05,0.90,text,transform=sa.transAxes)
         plt.draw()
         plt.show()
     plt.close(sf)
+    plt.close(fig)
 
-def hr(a,param='FPARAM',colorbar=False) :
+def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None) :
     """ Plot an HR diagram from input structure
 
         Args:
@@ -277,7 +279,13 @@ def hr(a,param='FPARAM',colorbar=False) :
             colorbar : show colorbar? (default= False)
     """
     fig,ax = plots.multi(1,1)
-    plots.plotc(ax,a[param][:,0],a[param][:,1],a[param][:,3],xr=[8000,3000],yr=[6,-1],zr=[-2,0.5],
-                xt='Teff',yt='log g',zt='[M/H]',colorbar=colorbar)
+    if zt == '[M/H]' : 
+        z=a[param][:,3]
+        if zr is None : zr=[-2,0.5]
+    elif zt == 'chi2' : 
+        z=a['PARAM_CHI2']
+        if zr is None : zr=[0,10]
+    plots.plotc(ax,a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+                xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
     plots._data = a
     return fig,ax

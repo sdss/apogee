@@ -29,13 +29,19 @@ if __name__ == '__main__' :
     parser.add_argument("--done")
     parser.add_argument("--host")
     #parser.add_argument("--clobber")
+    parser.add_argument('--noplot', help='Skip plots?',action="store_true")
+    parser.add_argument('--elemplot', help='Add elemental plots (lots!)?',action="store_true")
     parser.add_argument('--clobber', help='Overwrite files?',action="store_true")
     parser.add_argument("--flag",default='11111')
     args=parser.parse_args()
 
     if args.clobber: clobber='1'
     else : clobber='0'
-    subprocess.call(["idl","-e","aspcaprun,'"+args.planfile+"','"+args.flag+"','"+clobber+"'"])
+    if args.noplot: noplot=',/noplot'
+    else : noplot=''
+    if args.elemplot: elemplot=',/elemplot'
+    else : elemplot=''
+    subprocess.call(["idl","-e","aspcaprun,'"+args.planfile+"','"+args.flag+"','"+clobber+"'"+noplot+elemplot])
 
     if args.done is not None :
         subprocess.call(['setdone',args.done])

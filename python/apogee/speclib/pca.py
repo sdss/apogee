@@ -358,8 +358,11 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
         planfile (str) : name of input plan file that includes filename
         npiece (int) : number of PCA pieces (for directory/file names)
         npca (int) : number of PCA pieces (for directory/file names)
-        run (bool) : do the raw-PCA FERRE runs and comparison (default=True)
+        runraw (bool) : create the sample and input FERRE spectra (default=True)
+        runpca (bool) : create the PCA-derived spectra (default=True)
+        fit (bool) : do the raw-PCA FERRE runs and comparison (default=True)
         fit (bool) : submit the FERRE test runs to queue (default=True)
+        fast (bool) : use the sdss-fast queue (default=False)
 
     """
     # Read planfile and set output file name
@@ -470,7 +473,7 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
     # histogram of ratio of pca to true
     print("making pca/raw comparison histogram ...")
     fig,ax=plots.multi(1,1)
-    hist,bins=np.histogram((pca/true).flatten(),bins=np.linspace(0.8,1.2,4001))
+    hist,bins=np.histogram((pca/true).flatten(),bins=np.linspace(0.9,1.1,4001))
     plots.plotl(ax,np.linspace(0.8005,1.2,4000),hist/hist.sum(),semilogy=True)
     fig.savefig(root+'/'+outfile+'_pca.png')
     plt.close()

@@ -1,0 +1,1 @@
+awk -f $APOGEE_DIR/scripts/spm.awk $*

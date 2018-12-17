@@ -20,13 +20,13 @@ import sys
 
 class ApLoad :
 
-    def __init__(self,dr=None,apred='r8',apstar='stars',aspcap='l31c',results='l31c.2',telescope='apo25m',instrument='apogee-n',verbose=False) :
+    def __init__(self,dr=None,apred='r8',apstar='stars',aspcap='l31c',results='l31c.2',telescope='apo25m',instrument=None,verbose=False) :
         self.apred=apred
         self.apstar=apstar
         self.aspcap=aspcap
         self.results=results
-        self.telescope=telescope
-        self.instrument=instrument
+        self.settelescope(telescope)
+        if instrument is not None : self.instrument=instrument
         self.verbose=verbose
         if dr == 'dr10' : self.dr10()
         elif dr == 'dr12' : self.dr12()

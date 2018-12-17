@@ -33,6 +33,7 @@ if __name__ == '__main__' :
         description='Does pca compression of a synthetic spectral grid')
 
     parser.add_argument("frames", type=int, help='List of frames',nargs='+')
+    parser.add_argument("--vers", type=str, help='redux version', default='current')
     parser.add_argument("--rows", type=int, help='list of rows to fit', default=np.arange(300),nargs='+')
     parser.add_argument("--inst", type=str, help='Instrument (default=apogee-n', default='apogee-n')
     parser.add_argument("--name", type=int, help='Name', default=None)
@@ -49,7 +50,7 @@ if __name__ == '__main__' :
     start = time.time()
     print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     wave.wavecal(args.frames,rows=args.rows,name=args.name,npoly=args.npoly,inst=args.inst,plot=args.plot,hard=args.hard,
-                 nofit=args.nofit,verbose=args.verbose,clobber=args.clobber,init=args.init)
+                 nofit=args.nofit,verbose=args.verbose,clobber=args.clobber,init=args.init,vers=args.vers)
     now = datetime.datetime.now()
     print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     print("elapsed: ",time.time()-start)

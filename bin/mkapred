@@ -17,4 +17,4 @@ idl  << endidl
 endidl
 
 echo "Remember to copy apPersistModel files !"
-mkslurm apred "visit/*/*/*/*/a?Plan*.par"
+mkslurm "apred visit/*/*/*/*/a?Plan*.par" --maxrun=8 --idlthreads=4

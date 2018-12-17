@@ -38,7 +38,7 @@ chips=['a','b','c']
 colors=['r','g','b','c','m','y']
 xlim=[[16400,17000],[15900,16500],[15100,15800]]
 
-def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=4,reject=3,plot=False,hard=None,verbose=False,clobber=False,init=False,nofit=False,test=False) :
+def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=4,reject=3,plot=False,hard=True,verbose=False,clobber=False,init=False,nofit=False,test=False) :
     """ APOGEE wavelength calibration
 
     Solves for wavelength calibration given input frameid(s) allowing for a single polynomial
@@ -157,6 +157,7 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
             if abs(nums[1]-nums[0]) > 1 : 
                 print('for multiple groups, first two frames must be from same group!')
                 pdb.set_trace()
+            print('running wavecal for: ', nums[0:2],maxgroup,ngroup,' row: ',row)
             pars0 = wavecal(nums=nums[0:2],name=None,vers=vers,inst=inst,rows=[row],npoly=npoly,reject=reject,init=init,verbose=verbose)
             pars[npoly-4:npoly] = pars0[0:4]
             for igroup in range(ngroup): pars[npoly+igroup*3:npoly+(igroup+1)*3] = pars0[4:7]
@@ -288,6 +289,8 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
         root = os.path.dirname(out)+'/plots/'+os.path.basename(out).replace('.fits','')
         rootname = os.path.basename(root)
         if hard :
+            try : os.mkdir(os.path.dirname(root))
+            except : pass
             fig.savefig(root+'.jpg')
             fig2.savefig(root+'_chiploc.jpg')
 
@@ -316,7 +319,7 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
         ax[3].set_ylabel('b-g gap')
         fig.suptitle(rootname)
         fig.colorbar(aximage,cax=cb_ax2,orientation='vertical')
-        fig.savefig(root+'_sum.jpg')
+        if hard: fig.savefig(root+'_sum.jpg')
 
         fig,ax=plots.multi(1,2,hspace=0.5)
         cb_ax=fig.add_axes((0.9,0.6,0.03,0.3))

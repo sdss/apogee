@@ -74,7 +74,7 @@ def mkgriddirs(configfile) :
 
         if name == p['GRID']['specdir'][i] :
             speclib_split(dir+name,amsplit=False)
-            mkslurm.write('mkgrid plan/'+name+'_a[mp]*vp20.par plan/'+name+'_a[mp]vp48.par plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=32)
+            mkslurm.write('mkgrid plan/'+name+'_a[mp]*vp20.par plan/'+name+'_a[mp]*vp48.par plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=32)
             mkslurm.write('mkrbf plan/'+name+'_c[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=1,time='72:00:00')
             mkslurm.write('mkrbf --nofill plan/'+name+'.par',name='mkrbfholes',runplans=False,time='72:00:00')
         else :

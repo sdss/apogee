@@ -34,7 +34,7 @@ if __name__ == '__main__' :
     parser.add_argument('name', type=str, help='Sample name file')
     parser.add_argument('--gridclass', type=str, help='Grid class for sample', default=None)
     parser.add_argument('--nsamp', type=int, help='Number of samples per HR point', default=1)
-    parser.add_argument('--nosynth', help='Save intermediate file?',action="store_true")
+    parser.add_argument('--nosynth', help='Create sample but not syntheses',action="store_true")
     parser.add_argument("--done")
     parser.add_argument("--host")
     args=parser.parse_args()

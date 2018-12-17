@@ -96,9 +96,9 @@ def hrsample(indata,hrdata,maxbin=50,raw=True) :
     '''
     i1,i2 = match.match(indata['APOGEE_ID'],hrdata['APOGEE_ID'])
     gd=[]
-    for teff in np.arange(3500,6000,500) :
+    for teff in np.arange(3000,6000,500) :
         gdteff=apselect.select(hrdata[i2],badval=['STAR_BAD'],badtarg=['EMBEDDED','EXTENDED'],teff=[teff,teff+500],sn=[100,1000],raw=raw)
-        for logg in np.arange(0,5,1) :
+        for logg in np.arange(-0.5,5.5,1) :
             j=apselect.select(hrdata[i2[gdteff]],logg=[logg,logg+1],raw=True)
             gdlogg=gdteff[j]
             for mh in np.arange(-2.5,0.5,0.5) :
@@ -123,6 +123,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
 
     try: os.mkdir(dir)
     except: pass
+    all=[]
     if clusters :
         jc=[]
         clusts=apselect.clustdata()
@@ -141,6 +142,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         html.tail(f)
         print('Number of cluster stars: ',len(jc))
         mklinks(data,jc,dir+'/clust')
+        all.extend(jc)
     
     if apokasc is not None :
         jc=[]
@@ -168,27 +170,39 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         print('Number of APOKASC low [Fe/H] stars: ',len(lowz))
         jc.extend(i1[lowz])
         mklinks(data,jc,dir+'/apokasc')
+        all.extend(jc)
     
     if galcen :
         j=np.where(data['FIELD'] == 'GALCEN')[0]
         print('Number of GALCEN stars: ',len(j))
         mklinks(data,j,dir+'/galcen')
+        all.extend(j)
 
     if cal1m :
         j=np.where(data['FIELD'] == 'calibration')[0]
         print('Number of 1m calibration stars: ',len(j))
         mklinks(data,j,dir+'/cal')
+        all.extend(j)
+        j=np.where(data['FIELD'] == 'RCB')[0]
+        print('Number of 1m RCB stars: ',len(j))
+        all.extend(j)
 
     if optical :
-        stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/validation_stars_DR16.txt',names=['id'],format='fixed_width_no_header')
+        #stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/validation_stars_DR16.txt',names=['id'],format='fixed_width_no_header')
+        stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/all_comparisons.txt',names=['id'],format='fixed_width_no_header')
         i1,i2=match.match(data['APOGEE_ID'],stars['id'])
         print('Number of optical validation stars: ',len(i1))
         mklinks(data,i1,dir+'/optical')
+        all.extend(i1)
 
     if hrdata is not None:
         i1, i2 = hrsample(data,hrdata)
         print('Number of HR sample stars: ',len(i1))
         mklinks(data,i1,dir+'/hr')
+        all.extend(i1)
+
+    # create "all" directories with all stars, removing duplicates
+    mklinks(data,list(set(all)),dir+'/all')
 
     return indata
 
@@ -224,6 +238,8 @@ def symlink(data,out,idir) :
             out,idir,os.path.splitext(os.path.basename(data['FILE']))[0],data['FIELD'])
     if data['TELESCOPE'] == 'apo25m' or data['TELESCOPE'] == 'lco25m' :
         infile='../../{:s}/{:s}/{:s}'.format(data['TELESCOPE'],data['FIELD'],data['FILE'])
+        if not os.path.exists(infile) :
+            infile='../../{:s}/{:d}/{:s}'.format(data['TELESCOPE'],data['LOCATION_ID'],data['FILE'])
     else :
         infile='../../{:s}/calibration/{:s}'.format(data['TELESCOPE'],data['FILE'])
     os.symlink(infile,outfile)

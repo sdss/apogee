@@ -28,7 +28,10 @@ verbose=0
 reg=0.
 nepochs=25000
 
-def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0, threads=32,
+nodes=20
+nepochs=50000
+
+def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0, threads=32,payne=False,
           teff=[0,10000],logg=[-1,6],mh=[-3,1],am=[-1,1],cm=[-2,2],nm=[-2,2],raw=False,rot=False,nolog=True,elem=False) :
     """ Train a neural net model on an input training set
     """
@@ -38,17 +41,26 @@ def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0
     pixels=np.arange(pixels[0],pixels[1],pixels[2])
     npix=len(pixels)
     print('npix: ', npix)
-    pars=fits.open(file+'.fits')[0].data
-    if raw:
-        spec=fits.open(file+'.fits')[1].data
+    if '.npz' in file :
+        a = np.load(file)
+        pars = a['labels'].T
+        spec = a['spectra'] 
     else :
-        spec=fits.open(file+'.fits')[2].data
+        pars=fits.open(file+'.fits')[0].data
+        if raw:
+            spec=fits.open(file+'.fits')[1].data
+        else :
+            spec=fits.open(file+'.fits')[2].data
     head = {}
     head['nin'] = pars.shape[0]
     head['npix'] = npix
 
     # limit parameter range
-    gd=np.where((pars[:,0]>=teff[0]) & (pars[:,0]<=teff[1]) &
+    if payne :
+        gd = np.where( (pars[:,1] > (pars[:,0]-6000.)*(1.0/1000.)+1.99) &
+                       (pars[:,1] < (pars[:,0]-5000.)*(-0.45/3000.)+5.01) )[0]
+    else :
+        gd=np.where((pars[:,0]>=teff[0]) & (pars[:,0]<=teff[1]) &
                 (pars[:,1]>=logg[0]) & (pars[:,1]<=logg[1]) &
                 (pars[:,2]>=mh[0]) & (pars[:,2]<=mh[1]) &
                 (pars[:,3]>=am[0]) & (pars[:,3]<=am[1]) &
@@ -81,8 +93,9 @@ def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0
         gd = np.where(np.isfinite(spec[i,:]))[0]
         if len(gd) == 0 :
           print(i,pars[i,:])
-        cont = norm.cont(spec[i,:],specerr,poly=True,order=order,chips=True)
-        spec[i,:] /= cont
+        if order >= 0 : 
+            cont = norm.cont(spec[i,:],specerr,poly=True,order=order,chips=True)
+            spec[i,:] /= cont
 
     if plot :
         fig,ax=plots.multi(2,2)
@@ -144,7 +157,9 @@ def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0
     pool.join()
     print('done pool')
 
-    if plot: fig,ax=plots.multi(npix,9,wspace=0.001,hspace=0.001,figsize=(20,10))
+    if plot: 
+        fig,ax=plots.multi(npix,7,wspace=0.001,hspace=0.001,figsize=(15,10),xtickrot=60)
+        fig2,ax2=plots.multi(npix,2,wspace=0.001,hspace=0.5,figsize=(15,4),xtickrot=90)
     ifit=0
     for i,ipix in enumerate(pixels) :
       if np.isfinite(means[i]) :
@@ -163,19 +178,24 @@ def train(file,plot=False,pixels=[1000,9000,1000],suffix='',fitfrac=1.0, order=0
               plots.plotc(ax[5,i],pars[0:nfit,0],pix[0:nfit]-mod[0:nfit,0],pars[0:nfit,6],xr=[3000,8000],zr=[0.5,3.])
               plots.plotc(ax[6,i],pars[0:nfit,0],pix[0:nfit]-mod[0:nfit,0],pars[0:nfit,7],xr=[3000,8000],zr=[0,50.])
               n=len(loss)
-              plots.plotl(ax[7,i],range(n),np.log10(loss),xr=[0,nepochs],yr=[-4,0],color='b')
-              plots.plotl(ax[7,i],range(n),np.log10(vloss),xr=[0,nepochs],yr=[-4,0],color='r')
-              ax[8,i].hist(pix-mod[:,0],bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='k')
-              ax[8,i].hist(pix[0:nfit]-mod[0:nfit,0],bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='b')
-              ax[8,i].hist(pix[nfit:]-mod[nfit:,0],bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='r')
-              ax[8,i].set_xlim(0,0.01)
-              ax[8,i].set_ylim(0,1.1)
+              plots.plotl(ax2[0,i],range(n),np.log10(loss),xr=[0,nepochs],yr=[-4,0],color='b')
+              if fitfrac < 1.0 :
+                  plots.plotl(ax2[0,i],range(n),np.log10(vloss),xr=[0,nepochs],yr=[-4,0],color='r')
+              try : 
+                  ax2[1,i].hist(np.abs(pix-mod[:,0]),bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='k')
+                  ax2[1,i].hist(np.abs(pix[0:nfit]-mod[0:nfit,0]),bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='b')
+              except: pass
+              if fitfrac < 1.0 :
+                  ax2[1,i].hist(np.abs(pix[nfit:]-mod[nfit:,0]),bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='r')
+              ax2[1,i].set_xlim(0,0.01)
+              ax2[1,i].set_ylim(0,1.1)
               plt.draw()
               plt.show()
   
         weights.append(w)
         biases.append(b)
     if plot: fig.savefig(file+suffix+'_pixels.jpg')
+    pdb.set_trace()
 
     # Save the model as a dictionary into a pickle file
     head['nodes'] = nodes
@@ -213,7 +233,7 @@ def fit(data) :
     #        kernel_regularizer=regularizers.l2(reg)))
     net.add(layers.Dense(nodes, activation='sigmoid', input_shape=(pars.shape[1],),
             kernel_regularizer=regularizers.l2(reg)))
-    #net.add(layers.Dense(nodes, activation='sigmoid',kernel_regularizer=regularizers.l2(reg)))
+    net.add(layers.Dense(nodes, activation='sigmoid',kernel_regularizer=regularizers.l2(reg)))
     net.add(layers.Dense(1, activation='linear'))
     ##opt=optimizers.RMSprop(lr=0.01)
     opt=optimizers.Adam(lr=0.001)
@@ -228,7 +248,10 @@ def fit(data) :
 
     showtime('done fitting pixel: '+str(data[2]))
 
-    return w,b,mod,history.history['loss'],history.history['val_loss']
+    try :
+        return w,b,mod,history.history['loss'],history.history['val_loss']
+    except :
+        return w,b,mod,history.history['loss'],0.
 
 def merge(file,n=8) :
     """ Merge pieces of a model (e.g., run on different nodes for pixel subsets) into a single model

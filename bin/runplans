@@ -87,7 +87,7 @@ foreach plan ( $plans )
          if ( $n == 0 ) set usenode = $node
        end
        touch log/$base.$usenode.$host
-       taskset $usenode $cmd $plan --host $host --flag $flag --done log/$base.$usenode >& log/$base.$host.log &
+       taskset $usenode $cmd $plan --host $usenode.$host --flag $flag --done log/$base >& log/$base.$host.log &
      else
        touch log/$base.$host
        $cmd $plan --host $host --flag $flag --done log/$base >& log/$base.$host.log &

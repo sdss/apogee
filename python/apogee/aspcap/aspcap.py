@@ -289,3 +289,29 @@ def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None) :
                 xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
     plots._data = a
     return fig,ax
+
+def plot(wave,spec,color=None,ax=None,hard=None,sum=False,title=None) :
+    """  Multipanel plots of APOGEE spectra
+    """
+    if sum : ny=11
+    else : ny=10
+    if ax is None : fig,ax=plots.multi(1,ny,figsize=(8.5,11),hspace=0.2)
+    for i in range(10) :
+        plots.plotl(ax[i],wave,spec,xr=[15000+i*200,15200+i*200],yr=[0,1.5],color=color,linewidth=0.3)
+        ax[i].xaxis.label.set_size(6)
+        ax[i].yaxis.label.set_size(6)
+        ax[i].tick_params(axis = 'both', which = 'major', labelsize = 6)
+        ax[i].xaxis.set_minor_locator(plt.MultipleLocator(10.))
+    if sum :
+        plots.plotl(ax[10],wave,spec,xr=[15100,17000],yr=[0,1.5],color=color,linewidth=0.3)
+        ax[10].xaxis.label.set_size(6)
+        ax[10].yaxis.label.set_size(6)
+        ax[10].tick_params(axis = 'both', which = 'major', labelsize = 6)
+        ax[10].xaxis.set_minor_locator(plt.MultipleLocator(100.))
+    try: 
+        if title is not None : fig.suptitle(title)
+    except: pass
+    if hard is not None : fig.savefig(hard)
+
+    try: return fig,ax
+    except: return

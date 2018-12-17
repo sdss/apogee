@@ -472,9 +472,14 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
     pca=np.loadtxt(root+'/test.mdl')
     # histogram of ratio of pca to true
     print("making pca/raw comparison histogram ...")
-    fig,ax=plots.multi(1,1)
+    fig,ax=plots.multi(1,2)
     hist,bins=np.histogram((pca/true).flatten(),bins=np.linspace(0.9,1.1,4001))
-    plots.plotl(ax,np.linspace(0.8005,1.2,4000),hist/hist.sum(),semilogy=True)
+    plots.plotl(ax[0],np.linspace(0.8005,1.2,4000),hist/hist.sum(),semilogy=True,xt='pca/true')
+    ax[1].hist(np.abs((pca-true).flatten()),bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='k')
+    ax[1].set_xlim(0.,0.01)
+    ax[1].set_xlabel('|pca-true|')
+    ax[1].set_ylabel('Cumulative fraction')
+    fig.tight_layout()
     fig.savefig(root+'/'+outfile+'_pca.png')
     plt.close()
 

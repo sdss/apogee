@@ -356,6 +356,10 @@ for idir=0,n_elements(datadir)-1 do begin
                jpar=where(strtrim(beststr.lib.param_symbol,2) eq strtrim(libhead0.label[ipar],2))
                par[ipar]=beststr.param[best[0]].fparam[jpar]
              endfor
+             coarsename=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/class_'+class[0]+'/'+class[0]+'-'+oname[idir]
+             aspcap_load,coarsename+'.norm',data
+             normspec=float(data)
+             new/=normspec[*,best]
            endif
            ; determine whether we should skip the star for this grid, depending on parameters and mean fiber
            skip=0
@@ -438,6 +442,9 @@ TOC
    ; output FITS file and HTML summary
    aspcap_writefits,str,resultsdir+'/'+outname+'.fits'
    ;aspcap_writehtml,str,resultsdir+'/class_'+class[iclass],class[iclass]+'-'+oname[idir],npar=npar
+   print,'correct'
+   if coarse eq 1 then spawn,['continuum_correct',workdir+outname,libfile,'--write',workdir+outname+'.norm'],/noshell
+   print,'done correct'
   endif
   cd,cwd
 TOC

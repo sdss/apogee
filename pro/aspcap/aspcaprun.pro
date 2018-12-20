@@ -21,7 +21,7 @@
 ; By J.Holtzman  Feb 2012
 ;-
 
-pro aspcaprun,planfile,flag,sclobber,noplot=noplot,elemplot=elemplot
+pro aspcaprun,planfile,flag,sclobber,noelem=noelem,noplot=noplot,elemplot=elemplot
 
 clobber=intarr(1)
 reads,sclobber,clobber
@@ -38,7 +38,7 @@ print,'flag: ', flag
 print,'planfile: ', planfile
 print,'clobber: ', clobber
 
-doaspcap,planfile,clobber=clobber,noplot=noplot,doelemplot=elemplot
+doaspcap,planfile,clobber=clobber,noelem=noelem,noplot=noplot,doelemplot=elemplot
 ;doaspcap,planfile
 print,'doaspcap completed successfully'
 

@@ -56,7 +56,8 @@ def main(args) :
         description='Makes a SLURM batch file')
     parser.add_argument('cmd', type=str, help='cmd')
     parser.add_argument('--outdir', type=str, help='directory',default='slurm/')
-    parser.add_argument('--runplans', type=str, help='directory',default='runplans ')
+    parser.add_argument('--name', type=str, help='output file name',default=None)
+    parser.add_argument('--norunplans', help='directory',action="store_false")
     parser.add_argument('--queryport', type=int, help='port to use for queue manager',default=1050)
     parser.add_argument('--queryhost', type=str, help='host to use for queue manager',default=os.uname()[1])
     parser.add_argument('--maxrun', type=int, help='maximum jobs to run at a time',default=1)
@@ -64,5 +65,5 @@ def main(args) :
     parser.add_argument('--idlthreads', type=int, help='maximum IDL threads',default=1)
     args=parser.parse_args(args)
 
-    write(args.cmd,outdir=args.outdir,queryhost=args.queryhost,queryport=args.queryport,maxrun=args.maxrun,idlthreads=args.idlthreads,runplans=args.runplans,time=args.time)
+    write(args.cmd,outdir=args.outdir,name=args.name,queryhost=args.queryhost,queryport=args.queryport,maxrun=args.maxrun,idlthreads=args.idlthreads,runplans=args.norunplans,time=args.time)
 

@@ -174,16 +174,37 @@ pro mkflat,ims,cmjd=cmjd,darkid=darkid,clobber=clobber,kludge=kludge,nrep=nrep,d
  ; if not dithered, still take out spectral signature
    rows=intarr(2048)+1
    cols=fltarr(2048)
+
+   ; spectral signature from median of each column
    for icol=0,2047 do cols[icol]=median(flat[icol,*])
-   cols=medfilt1d(cols,100)
-   smrows=rows##cols
+   ; medfilt doesn't do much if intensity is varying across cols
+   smrows=rows##medfilt1d(cols,100)
+   sflat=smrows
 
-   ;spec=total(flat,2,/nan)
-   ;rows=intarr(2048)+1
-   ;smrows=rows##(total(flat,2,/nan)/2048)
+   ; Dec 2018: don't take out median spectral signature, this leaves 
+   ;  structure in spectra that is hard to normalize out
+   ; instead, take out a low order polynomial fit to estimate spectral signature
+   x=indgen(2048)
+   gd=where(finite(cols))
+   coef=robust_poly_fit(x[gd],cols[gd],2)
+   smrows=rows##poly(x,coef)
+   sflat=smrows
+
+   ; divide out estimate of spectral signature
    flat/=smrows
- endelse
 
+   ;  do, however, adjust for small differences between quadrants
+   ;  that are visible in high signal images and don't seem to 
+   ;  be removed by reference pixel reduction....
+   ;flat/=smrows
+
+   ; WAIT !!! Doesn't this account for small gain differences?
+   ;for i=1,3 do begin
+   ;  left=median(flat[i*512-1,*])
+   ;  right=median(flat[i*512,*])
+   ;  flat[i*512:2047,*] *= left/right
+   ;endfor
+ endelse
  ; set bad values to -100 before writing to avoid NaNs in output file
  bad=where(finite(flat) eq 0,nbad)
  if nbad gt 0 then flat[bad]=0.

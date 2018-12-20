@@ -507,7 +507,7 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
             xt.extend(['S/N = '+str(sn),'S/N = '+str(sn)])
             tmp=tmp+dt+','
         tab.append(xtab)
-        yt.append('<a href=../'+name+'.nml>'+fdir+'</a><br>FERRE time: '+tmp+' s')
+        yt.append('<a href=../'+fdir+'>'+fdir+'</a><br>FERRE time: '+tmp+' s')
 
     header = '<h3>'+outfile+'</h3>\n'
     header = header + '<br> Test sample: <br><img src=test_'+grid+'.png width=40%> <img src=test_'+grid+'_2.png width=40%>'

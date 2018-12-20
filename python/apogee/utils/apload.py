@@ -17,6 +17,8 @@ from sdss_access.path import path
 from sdss_access.sync.http import HttpAccess
 import pdb
 import sys
+from sdss import yanny
+import numpy as np
 
 class ApLoad :
 
@@ -359,7 +361,7 @@ class ApLoad :
             try :
                 file = self.allfile(
                    'Plate',plate=args[0],mjd=args[1],chips=True)
-                return self.self._readchip(file,'Plate',**kwargs)
+                return self._readchip(file,'Plate',**kwargs)
             except :
                 self.printerror()
     
@@ -596,8 +598,11 @@ class ApLoad :
         else :
             sdssroot = 'ap'+root
 
-#if n_elements(keywords) gt 0 then if tag_exist(keywords,'plate') then keywords=create_struct(keywords,'FIELD',apogee_field(0,keywords.plate))
-    
+        if plate is not None :
+            plateplans = yanny.yanny(os.environ['PLATELIST_DIR']+'/platePlans.par')['PLATEPLANS']
+            j = np.where(np.array(plateplans['plateid']) == plate)[0][0]
+            field = plateplans['name'][j]
+ 
         if chips == False :
             # First make sure the file doesn't exist locally
             #print(sdssroot,apred,apstar,aspcap,results,location,obj,self.telescope,field,prefix)

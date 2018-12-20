@@ -55,7 +55,7 @@ endif
 
 ; Check that there are three tags
 tags = tag_names(frame)
-if n_elements(tags) ne 3 then begin
+if n_elements(tags) lt 3 then begin
   print,'FRAME must have three chip sub-structure'
   return
 endif

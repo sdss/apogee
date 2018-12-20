@@ -11,10 +11,13 @@ cd $APOGEE_REDUX
 mkvers $apred_vers 
 cd $apred_vers
 
+mkslurm "apred visit/*/*/*/*/a?Plan*.par" --maxrun=8 --idlthreads=4
+mkslurm "mkwave-n $apred" --norunplans --idlthreads 4
+mkslurm "mkwave-s $apred" --norunplans --idlthreads 4
+
 idl  << endidl
   apmkallplan,$mjdstart,$mjdend,vers='$apred_vers'
   @allplan
 endidl
 
 echo "Remember to copy apPersistModel files !"
-mkslurm "apred visit/*/*/*/*/a?Plan*.par" --maxrun=8 --idlthreads=4

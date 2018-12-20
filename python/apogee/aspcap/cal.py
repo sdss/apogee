@@ -109,14 +109,15 @@ def hrsample(indata,hrdata,maxbin=50,raw=True) :
                 gd.extend(x)
     return i1[gd],i2[gd]
 
-def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v3.6.0',cal1m=True,galcen=True,dir='cal',hrdata=None,optical=True) :
+def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v3.6.0',cal1m=True,coolstars=True,dir='cal',hrdata=None,optical=True,ns=True) :
     '''
     selects a calibration subsample from an input apField structure, including several calibration sub-classes: 
         cluster, APOKASC stars, 1m calibration stars. Creates cluster web pages/plots if requested
     '''
 
     if indata is None :
-        indata=allField(files=['apo25m/*/apField-*.fits','apo1m/calibration/apField-*.fits'],out=None,verbose=True)
+        indata=allField(files=['apo25m/*/apField-*.fits','lco25m/*/apField-*.fits','apo1m/calibration/apField-*.fits'],out=None,verbose=True)
+        return indata
 
     j=np.where(indata['COMMISS'] == 0)[0]
     data=indata[j]
@@ -172,11 +173,17 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         mklinks(data,jc,dir+'/apokasc')
         all.extend(jc)
     
-    if galcen :
+    if coolstars :
+        jc=[]
         j=np.where(data['FIELD'] == 'GALCEN')[0]
         print('Number of GALCEN stars: ',len(j))
-        mklinks(data,j,dir+'/galcen')
-        all.extend(j)
+        jc.extend(j)
+        stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/coolstars.txt',names=['id'],format='fixed_width_no_header')
+        i1,i2=match.match(data['APOGEE_ID'],stars['id'])
+        print('Number of cool stars: ',len(i1))
+        jc.extend(i1)
+        mklinks(data,jc,dir+'/galcen')
+        all.extend(jc)
 
     if cal1m :
         j=np.where(data['FIELD'] == 'calibration')[0]
@@ -194,6 +201,18 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         print('Number of optical validation stars: ',len(i1))
         mklinks(data,i1,dir+'/optical')
         all.extend(i1)
+
+    if ns :
+        #north-south overlap
+        jn=np.where((data['FIELD'] == 'N2243') | (data['FIELD'] == '000+08') |
+                    (data['FIELD'] == '300+75') | (data['FIELD'] == 'M12-N') | (data['FIELD'] == 'SA57-N') )[0]
+        js=np.where((data['FIELD'] == 'N2243-S') | (data['FIELD'] == '000+08-S') |
+                    (data['FIELD'] == '300+75-S') | (data['FIELD'] == 'M12-S') | (data['FIELD'] == 'SA57-S')  )[0]
+        i1,i2=match.match(data['APOGEE_ID'][jn], data['APOGEE_ID'][js])
+        jc=jn[i1]
+        mklinks(data,jc,dir+'/ns')
+        all.extend(jc)
+        pdb.set_trace()
 
     if hrdata is not None:
         i1, i2 = hrsample(data,hrdata)
@@ -237,12 +256,12 @@ def symlink(data,out,idir) :
     outfile='{:s}{:03d}/{:s}.{:s}.fits'.format(
             out,idir,os.path.splitext(os.path.basename(data['FILE']))[0],data['FIELD'])
     if data['TELESCOPE'] == 'apo25m' or data['TELESCOPE'] == 'lco25m' :
-        infile='../../{:s}/{:s}/{:s}'.format(data['TELESCOPE'],data['FIELD'],data['FILE'])
+        infile='{:s}/{:s}/{:s}'.format(data['TELESCOPE'],data['FIELD'],data['FILE'])
         if not os.path.exists(infile) :
-            infile='../../{:s}/{:d}/{:s}'.format(data['TELESCOPE'],data['LOCATION_ID'],data['FILE'])
+            infile='{:s}/{:d}/{:s}'.format(data['TELESCOPE'],data['LOCATION_ID'],data['FILE'])
     else :
-        infile='../../{:s}/calibration/{:s}'.format(data['TELESCOPE'],data['FILE'])
-    os.symlink(infile,outfile)
+        infile='{:s}/calibration/{:s}'.format(data['TELESCOPE'],data['FILE'])
+    os.symlink('../../'+infile,outfile)
 
 def docal(vers,clobber=False,allstar=True,hr=True,teff=True,logg=True,vmicro=True,vmacro=True,elemcal=True,out=None,stp=False,cal='dr14',calib=False) :
     '''

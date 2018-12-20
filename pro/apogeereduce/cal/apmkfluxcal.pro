@@ -324,13 +324,16 @@ CASE exptype of
       ;refspec0[*,i] = smmaxspec 
     end
 
-    ; Now fit a polynomial to the spectra, all chips together!
+    ; we want to take out spectral structure of the median to 
+    ; remove any spectral structure in the lamp, e.g. at LCO
+
+    ; Before Dec 2018, we fit a polynomial to the spectra, all chips together
     x = [ [findgen(npix)-1023.5-2048-150], [findgen(npix)-1023.5], [findgen(npix)-1023.5+2048+150] ]
     ;coef = robust_poly_fit(x,refspec0,4)
     ;; We're using the polynomial fit
     ;refspec = poly(x,coef)
 
-    ; chip by chip fit
+    ; chip by chip fit used to remove small scale structure
     refspec=refspec0*0.
     mask=intarr(2048)
     mask[20:2028]=1
@@ -422,7 +425,7 @@ For i=0,2 do begin
 ;  end
 
   ; Smooth it a little bit
-  sm_ratio = SMOOTH(sm_ratio_med,[20,1],/edge_truncate)
+  sm_ratio = SMOOTH(sm_ratio_med,[100,1],/edge_truncate)
 
   ; Keep the flux calibration images
   ;fluxcal[*,*,i] = sm_ratio

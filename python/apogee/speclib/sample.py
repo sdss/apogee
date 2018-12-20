@@ -113,6 +113,17 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         dmh=0.5
         dam=0.5
         rot=True
+    elif gridclass == 'rv' :
+        tefflim=[3500,8000]
+        logglim=[0.5,5. ]
+        cmlim=[-0.5,0.5]
+        nmlim=[-0.5,1.5]
+        dtlo=200.
+        dthi=250.
+        dlogg=1.0
+        dmh=0.5
+        dam=0.5
+        rot=False
     if gridclass is not None : name = name+'_'+gridclass
     grid=[]
 

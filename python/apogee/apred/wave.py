@@ -38,7 +38,8 @@ chips=['a','b','c']
 colors=['r','g','b','c','m','y']
 xlim=[[16400,17000],[15900,16500],[15100,15800]]
 
-def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=4,reject=3,plot=False,hard=True,verbose=False,clobber=False,init=False,nofit=False,test=False) :
+def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],npoly=4,reject=3,
+            plot=False,hard=True,verbose=False,clobber=False,init=False,nofit=False,test=False) :
     """ APOGEE wavelength calibration
 
     Solves for wavelength calibration given input frameid(s) allowing for a single polynomial
@@ -46,10 +47,18 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
 
     Args:
         nums (list of ints): list of input frame ids
+        name (int) : name for output ID (default = first frame from list of nums)
+        vers (str) : apred version (defaut='current')
+        inst (str) : instrument (default='apogee-n')
         rows (list of ints): list of rows to get solutions at
+        npoly (int) : order of polynomial fit (default=4)
+        reject (float) : factor for line rejection
         plot verbose (bool)  plot fits (default=False)
         verbose (bool) :  plot fits (default=False)
         clobber (bool) : forces remeasuring lines
+        init (bool) : if true, use simple quadratic estimate for first guess (default=False)
+        nofit (bool) : only find lines, skip fit (default=False)
+        test (bool) : if True, use polynomial from first set, only let centers shift for all other sets
     """
     load=apload.ApLoad(apred=vers,instrument=inst)
 
@@ -165,7 +174,7 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
             pars = copy.copy(initpars)
         # initial residuals
         res = y-func_multi_poly(x,*pars)
-            # iterate to allow outlier rejection
+        # iterate to allow outlier rejection
         if irow == 0 : maxiter=7
         else : maxiter=7
         for niter in range(maxiter) :
@@ -233,7 +242,7 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
         if verbose : print(row,pars)
         allpars[0:npoly,row] = popt[0:npoly]
         ref=allpars[npoly+1,row]
-        # save final fits in allpars. For chip locations, transform to chip gaps
+        # save final fits in allpars. For chip locations, transform to chip offsets
         for jgroup in range(ngroup) :
             igroup=groups[jgroup]
             for ichip in range(3) : allpars[npoly+igroup*3+ichip,row] = popt[npoly+jgroup*3+ichip]
@@ -245,37 +254,11 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
             rms[row,igroup] = res[gd[j]].std()
             sig[row,igroup] = np.median(np.abs(res[gd[j]]))
 
-    # output the apWavecal files with correct format
-    out=load.filename('Wave',num=name,chips=True).replace('Wave','PWave')
-    x = np.zeros([3,2048])
-    for ichip,chip in enumerate(chips) :
-        hdu=fits.HDUList()
-        x[0,:] = pixels
-        x[1,:] = ichip+1
-        x[2,:] = 0
-        chippars=np.zeros([14,300])
-        chipwaves=np.zeros([300,2048])
-        for row in rows :
-            pow=npoly-1-np.arange(npoly)
-            polypars=allpars[0:npoly,row]*3000**pow
-            chippars[:,row] = np.append([ -1023.5+(ichip-1)*2048 + allpars[npoly+ichip,row],0., 0., 1., 0., 0.], 
-                              np.flip( np.append(np.zeros(8-npoly),polypars)))
-            # since we only are feeding one group, need to reduce allpars so that correct npoly is deduced!
-            chipwaves[row,:] = func_multi_poly(x,*allpars[0:npoly+3,row])
-        hdu.append(fits.PrimaryHDU())
-        hdu[0].header['NFRAMES']=len(frames)
-        for i in range(len(frames)) : hdu[0].header['FRAME{:d}'.format(i)] = frames[i]
-        hdu[0].header['NGROUP']=ngroup
-        hdu[0].header['MEDRMS']=np.nanmedian(rms)
-        hdu[0].header['MEDSIG']=np.nanmedian(sig)
-        hdu.append(fits.ImageHDU(chippars))
-        hdu.append(fits.ImageHDU(chipwaves))
-        hdu.append(fits.ImageHDU(allpars))
-        hdu.append(fits.ImageHDU(rms))
-        hdu.append(fits.ImageHDU(sig))
-        hdu.writeto(out.replace('Wave','Wave-'+chip),overwrite=True)
+    # save results in apWave fies
+    out=load.filename('Wave',num=name,chips=True)   #.replace('Wave','PWave')
+    write_apWave(out,allpars,npoly=npoly,rows=rows,frames=frames,rms=rms,sig=sig)
 
-    # plot rms/sig and chip locations if requested
+    # diagnostic plots
     if plot :
         for ichip in range(3) : 
             for igroup in range(ngroup) :
@@ -334,6 +317,45 @@ def wavecal(nums=[2420038],name=None,vers='t9',inst='apogee-n',rows=[150],npoly=
         else: pdb.set_trace()
 
     return pars
+
+def write_apWave(out,allpars,group=0,rows=np.arange(300),npoly=4,frames=[],rms=None,sig=None) :
+    """ Write the apWave files in standard format given the wavecal parameters
+    """
+    x = np.zeros([3,2048])
+    ngroup = (allpars.shape[0]-npoly)/3
+    for ichip,chip in enumerate(chips) :
+        hdu=fits.HDUList()
+        x[0,:] = np.arange(2048)
+        x[1,:] = ichip+1
+        x[2,:] = group
+        chippars=np.zeros([14,300])
+        chipwaves=np.zeros([300,2048])
+        for row in rows :
+            pow=npoly-1-np.arange(npoly)
+            polypars=allpars[0:npoly,row]*3000**pow
+            chippars[:,row] = np.append([ -1023.5+(ichip-1)*2048 + allpars[npoly+ichip,row],0., 0., 1., 0., 0.], 
+                              np.flip( np.append(np.zeros(8-npoly),polypars)))
+            # since we only are feeding one group, need to reduce allpars so that correct npoly is deduced! not with npoly keyword
+            chipwaves[row,:] = func_multi_poly(x,*allpars[:,row],npoly=npoly)
+        hdu.append(fits.PrimaryHDU())
+        hdu[0].header['NFRAMES']=(len(frames),'number of frames in fit')
+        for i in range(len(frames)) : hdu[0].header['FRAME{:d}'.format(i)] = frames[i]
+        hdu[0].header['NGROUP']=(ngroup,'number of groups in fit')
+        hdu[0].header['COMMENT']='HDU#1 : wavelength calibration parameters [14,300]'
+        hdu[0].header['COMMENT']='HDU#2 : wavelength calibration array [300,2048]'
+        hdu[0].header['COMMENT']='HDU#3 : wavecal fit parameter array [npoly+3*ngroup,300]'
+        hdu[0].header['COMMENT']='HDU#4 : rms from fit [300,ngroup]'
+        hdu[0].header['COMMENT']='HDU#e : sig from fit [300,ngroup]'
+        hdu.append(fits.ImageHDU(chippars))
+        hdu.append(fits.ImageHDU(chipwaves))
+        hdu.append(fits.ImageHDU(allpars))
+        if rms is not None :
+            hdu[0].header['MEDRMS']=(np.nanmedian(rms),'median rms')
+            hdu.append(fits.ImageHDU(rms))
+        if sig is not None :
+            hdu[0].header['MEDSIG']=(np.nanmedian(sig),'median sig')
+            hdu.append(fits.ImageHDU(sig))
+        hdu.writeto(out.replace('Wave','Wave-'+chip),overwrite=True)
 
 def findlines(frame,rows,waves,lines,out=None,verbose=False,estsig=2) :
     """ Determine positions of lines from input file in input frame for specified rows
@@ -461,7 +483,7 @@ def test() :
     pdb.set_trace()
     peakfit(spec,[95,99,102,107])
 
-def func_multi_poly(x,*pars) :
+def func_multi_poly(x,*pars, **kwargs) :
     """ Convert pixel to wavelength using wavecal parameters
           w = poly(x + offset(group,chip))
           pars = [npoly coefficients, ngroup*3 chip offsets]
@@ -475,7 +497,8 @@ def func_multi_poly(x,*pars) :
     wave=np.zeros(x.shape[1])
     ngroup = int(round(x[2,:].max()))+1
     nchip = 3
-    npoly = len(pars)-ngroup*nchip
+    npoly=kwargs.get('npoly',None)
+    if npoly is None : npoly = len(pars)-ngroup*nchip
     coef = pars[0:npoly]
     # loop over all chip/group combinations
     for ichip in range(nchip) :
@@ -503,6 +526,8 @@ def visit(planfile,out=None,lco=False,waveid=True,skyfile='airglow_oct18a',vers=
     if out is not None : f=open(out,'a')
     else : f=None
     p=yanny.yanny(planfile)
+    dirname=os.path.dirname(planfile)
+    if dirname == '' : dirname = '.'
 
     if lco : inst='apogee-s'
     else : inst='apogee-n'
@@ -524,27 +549,46 @@ def visit(planfile,out=None,lco=False,waveid=True,skyfile='airglow_oct18a',vers=
     if p['platetype'].strip("'") == 'sky' : skyrows = np.arange(300)
     skylines=ascii.read(os.environ['APOGEE_DIR']+'/data/skylines/'+skyfile+'.txt')
 
+    try: os.mkdir('plots')
+    except: pass
     # loop over all frames in the planfile and assess skylines in each
     for iframe,name in enumerate(p['APEXP']['name']) :
         frame = load.ap1D(int(name))
-        waves=[]
+        waves={}
         if waveid :
-            # use wavelength solution from specified wavecal
+            # usname wavelength solution from specified wavecal
             waveframe=load.apWave(waveid)
             for chip in chips : waves[chip] = waveframe[chip][2].data
-            plot = os.path.dirname(planfile)+'/plots/skypixshift-'+frame+'-'+skyfile
+            plot = dirname+'/plots/skypixshift-'+name+'-'+skyfile
         else :
             # use existing wavelength solution from ap1D file after ap1dwavecal has been run
             for chip in chips : waves[chip] = frame[chip][4].data
-            plot = os.path.dirname(planfile)+'/plots/skydeltapixshift-'+frame+'-'+skyfile
-        linestr = findlines(frame,skyrows,waves,skylines,out=f,plot=plot)
+            plot = dirname+'/plots/skydeltapixshift-'+name+'-'+skyfile
+        linestr = findlines(frame,skyrows,waves,skylines,out=f)
         if plot is not None :
             # plot the pixel shift for each chip derived from the airglow lines
             fig,ax = plots.multi(1,1)
             wfig,wax = plots.multi(1,3)
-            for ichip in range(3) :
-                gd=np.where(linestr['chip'] == ichip+1)[0]
-                med=np.median(linestr['dpixel'][gd])
+        # solve for 4 parameter fit to dpixel, with linear trend with row, plus 2 chip offsets
+        design=np.zeros([len(linestr),4])
+        design[:,0] = linestr['row']
+        design[:,1] = 1.
+        gd = np.where(linestr['chip'] == 1)[0]
+        design[gd,2] = 1.
+        gd = np.where(linestr['chip'] == 3)[0]
+        design[gd,3] = 1.
+        y=linestr['dpixel']
+        med=np.median(linestr['dpixel'])
+        gd=np.where(np.abs(y-med) < 2.5)[0]
+        design=design[gd,:]
+        y=y[gd]
+        try : w = np.linalg.solve(np.dot(design.T,design), np.dot(design.T, y))
+        except : pdb.set_trace()
+        print(w)
+        for ichip in range(3) :
+            gd=np.where(linestr['chip'] == ichip+1)[0]
+            med=np.median(linestr['dpixel'][gd])
+            if plot is not None :
                 x = linestr['row'][gd]
                 y = linestr['dpixel'][gd]
                 plots.plotp(ax,x,y,color=colors[ichip],xr=[0,300],yr=[med-0.5,med+0.5],
@@ -552,27 +596,34 @@ def visit(planfile,out=None,lco=False,waveid=True,skyfile='airglow_oct18a',vers=
                 plots.plotc(wax[ichip],linestr['wave'][gd],y,linestr['row'][gd],zr=[0,300],yr=[med-0.5,med+0.5],
                             xr=xlim[ichip],size=12,xt='Wavelength',yt='Pixel shift')
                 gdfit=np.where(np.abs(y-med) < 0.5)[0]
-                if len(gdfit) > 1 :
-                    p=np.polyfit(x[gdfit],y[gdfit],1)
-                    xx=np.arange(300)
-                    plots.plotl(ax,xx,p[0]*xx+p[1],color=colors[ichip])
-                if waveid : label = 'Frame: {:8d}  Waveid: {:8d}'.format(num,waveid)
-                else : label = 'Frame: {:8d}  Delta from ap1dwavecal'.format(num)
+                xx=np.arange(300)
+                #if len(gdfit) > 1 :
+                #    p=np.polyfit(x[gdfit],y[gdfit],1)
+                #    xx=np.arange(300)
+                #    plots.plotl(ax,xx,p[0]*xx+p[1],color=colors[ichip])
+                yy=w[0]*xx+w[1]
+                if ichip == 0 : yy+=w[2]
+                elif ichip == 2 : yy+=w[3]
+                plots.plotl(ax,xx,yy,color=colors[ichip])
+                if waveid : label = 'Frame: {:s}  Waveid: {:8d}'.format(name,waveid)
+                else : label = 'Frame: {:s}  Delta from ap1dwavecal'.format(name)
                 ax.text(0.1,0.9,label,transform=ax.transAxes)
-            if type(plot) is str or type(plot) is unicode: 
-                wfig.tight_layout()
-                wfig.savefig(plot+'_wave.jpg')
-                fig.savefig(plot+'.jpg')
-            else : 
-                plt.show()
-                plt.draw()
-                pdb.set_trace()
-            plt.close('all')
+                if type(plot) is str or type(plot) is unicode: 
+                    wfig.tight_layout()
+                    wfig.savefig(plot+'_wave.jpg')
+                    fig.savefig(plot+'.jpg')
+                else : 
+                    plt.show()
+                    plt.draw()
+                    pdb.set_trace()
+        plt.show()
+        pdb.set_trace()
+        plt.close('all')
 
         # Get shifts relative to first frame for each line/fiber
         if iframe == 0 : 
             linestr0 = copy.copy(linestr)
-            refnum = int(frame)
+            refnum = int(name)
         for line in linestr :
             ref = np.where((linestr0['chip'] == line['chip']) & 
                            (linestr0['row'] == line['row']) &
@@ -594,9 +645,9 @@ def visit(planfile,out=None,lco=False,waveid=True,skyfile='airglow_oct18a',vers=
                 pfit=np.polyfit(x[gdfit],y[gdfit],1)
                 xx=np.arange(300)
                 plots.plotl(ax,xx,pfit[0]*xx+pfit[1],color=colors[ichip])
-            label = 'Frame: {:8d}  Waveid: {:8d}'.format(int(frame),refnum)
+            label = 'Frame: {:8d}  Waveid: {:8d}'.format(int(name),refnum)
             ax.text(0.1,0.9,label,transform=ax.transAxes)
-        fig.savefig(os.path.dirname(planfile)+'/plots/skydithershift-'+frame+'.jpg')
+        fig.savefig(dirname+'/plots/skydithershift-'+name+'.jpg')
         plt.close()
         
 
@@ -669,11 +720,11 @@ def pix2wave(pix,wave0) :
 def compare(npoly=4,lco=False) :
 
     if lco :
-        files=glob.glob('asPWave-b-*.fits')
+        files=glob.glob('asWave-b-*.fits')
         out='apogee-s'
         root='lco'
     else :
-        files=glob.glob('apPWave-b-*0000.fits')
+        files=glob.glob('apWave-b-*0000.fits')
         out='apogee-n'
         root='apo'
     files.sort()
@@ -801,9 +852,9 @@ def allplots() :
     ytit=[]
     for ical,cal in enumerate([2380000,5680000,9500000,13140000,16680000,20380000,24040000,22670000,24040000]) :
         if ical<7 :
-            root='apPWave-{:08d}'.format(cal)
+            root='apWave-{:08d}'.format(cal)
         else :
-            root='asPWave-{:08d}'.format(cal)
+            root='asWave-{:08d}'.format(cal)
 
         # read the fit parameters
         a = fits.open(root.replace('-','-b-')+'.fits'.format(cal))[3].data

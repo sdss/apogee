@@ -8,7 +8,10 @@ pro mkmultiwave,waveid,name=name,clobber=clobber,nowait=nowait,file=calfile
   file=dirs.prefix+string(format='("Wave-",i8.8)',name)
   ;if another process is alreadying make this file, wait!
   while file_test(caldir+'wave/'+file+'.lock') do begin
-    if keyword_set(nowait) then return
+    if keyword_set(nowait) then begin
+      print,' Wavecal file: ', file, ' already being made (.lock file exists)'
+      return
+    endif
     apwait,file,10
   endwhile
   ; does product already exist?
@@ -22,17 +25,11 @@ pro mkmultiwave,waveid,name=name,clobber=clobber,nowait=nowait,file=calfile
   openw,lock,/get_lun,caldir+'wave/'+file+'.lock'
   free_lun,lock
 
-  ; make the individual wavecals if not already made; find lines only, really just needed for reduction, with PSFID
-  ;for i=0,n_elements(waveid)-1 do makecal,wave=waveid[i],file=calfile,clobber=clobber,/nofit
+  ; process the frames and find lines
+  for i=0,n_elements(waveid)-1,2 do makecal,wave=waveid[i],file=getenv('APOGEE_DIR')+'/data/cal/'+dirs.instrument+'-wave.par',/nofit
 
   ; new Python version!
-  ;cmd=['apmultiwavecal','--plot','--hard','--inst',dirs.instrument] ;,'--verbose']
-  ;; do the pairs individually, assuming all of the 1D frames have been made
-  ;for i=0,n_elements(waveid)-1,2 do begin
-  ;  cmd1=[cmd,string(waveid[i]),string(waveid[i+1])]
-  ;  spawn,cmd1,/noshell
-  ;endfor
-  cmd=['apmultiwavecal','--name',name,'--plot','--hard','--inst',dirs.instrument] ;,'--verbose']
+  cmd=['apmultiwavecal','--name',name,'--vers',dirs.apred,'--plot','--hard','--inst',dirs.instrument] ;,'--verbose']
   for i=0,n_elements(waveid)-1 do cmd=[cmd,string(waveid[i])]
   spawn,cmd,/noshell
   openw,1,caldir+'/wave/'+file+'py.dat'

@@ -286,8 +286,10 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
       endif
       ims=getnums(wavestr[i[0]].frames)
       cmjd=getcmjd(ims[0],mjd=mjd)
-      getcal,mjd,calfile,darkid=darkid,flatid=flatid
-      mkwave,ims,name=wavestr[i[0]].name,darkid=darkid,flatid=flatid,psfid=wavestr[i[0]].psfid,clobber=clobber,nofit=nofit
+      getcal,mjd,calfile,darkid=darkid,flatid=flatid,bpmid=bpmid,fiberid=fiberid
+      makecal,bpm=bpmid
+      makecal,fiber=fiberid
+      mkwave,ims,name=wavestr[i[0]].name,darkid=darkid,flatid=flatid,psfid=wavestr[i[0]].psfid,fiberid=fiberid,clobber=clobber,nofit=nofit
     endif else begin
       if keyword_set(mjd) then  begin
         num=getnum(mjd) 
@@ -297,8 +299,10 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
        for i=0,n_elements(red)-1,nskip do begin
         ims=getnums(wavestr[red[i]].frames)
         cmjd=getcmjd(ims[0],mjd=mjd)
-        getcal,mjd,calfile,darkid=darkid,flatid=flatid
-        mkwave,ims,name=wavestr[red[i]].name,darkid=darkid,flatid=flatid,psfid=wavestr[red[i]].psfid,clobber=clobber,/nowait,nofit=nofit
+        getcal,mjd,calfile,darkid=darkid,flatid=flatid,bpmid=bpmid,fiberid=fiberid
+        makecal,bpm=bpmid
+        makecal,fiber=fiberid
+        mkwave,ims,name=wavestr[red[i]].name,darkid=darkid,flatid=flatid,psfid=wavestr[red[i]].psfid,fiberid=fiberid,clobber=clobber,/nowait,nofit=nofit
        endfor
       endif
     endelse
@@ -308,7 +312,7 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
     if multiwave gt 1 then begin
       i=where(multiwavestr.name eq multiwave,nwave)
       if nwave le 0 then begin
-        print,'No matching calibration line for ', wave
+        print,'No matching calibration line for ', multiwave
         stop
       endif
       ims=getnums(multiwavestr[i[0]].frames)
@@ -336,7 +340,7 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
       endif
       ims=getnums(lsfstr[i[0]].frames)
       cmjd=getcmjd(ims[0],mjd=mjd)
-      getcal,mjd,calfile,darkid=darkid,flatid=flatid,waveid=waveid
+      getcal,mjd,calfile,darkid=darkid,flatid=flatid,multiwaveid=waveid
       mklsf,ims,waveid,darkid=darkid,flatid=flatid,psfid=lsfstr[i[0]].psfid,full=full,newwave=newwave,clobber=clobber
     endif else begin
       if keyword_set(mjd) then  begin

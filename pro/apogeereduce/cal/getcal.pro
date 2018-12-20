@@ -50,10 +50,10 @@ end
 
 ;======================================================================
 
-pro getcal,mjd,file,darkid=darkid,flatid=flatid,sparseid=sparseid,bpmid=bpmid,waveid=waveid,lsfid=lsfid,fluxid=fluxid,detid=detid,fiberid=fiberid,badfiberid=badfiberid,fixfiberid=fixfiberid,littrowid=littrowid,persistid=persistid,persistmodelid=persistmodelid,responseid=responseid
+pro getcal,mjd,file,darkid=darkid,flatid=flatid,sparseid=sparseid,bpmid=bpmid,waveid=waveid,multiwaveid=multiwaveid,lsfid=lsfid,fluxid=fluxid,detid=detid,fiberid=fiberid,badfiberid=badfiberid,fixfiberid=fixfiberid,littrowid=littrowid,persistid=persistid,persistmodelid=persistmodelid,responseid=responseid
 
   ; get the calibration files for desired date (mjd) from master calibration index (file)
-  readcal,file,darkstr,flatstr,sparsestr,fiberstr,badfiberstr,fixfiberstr,wavestr,lsfstr,bpmstr,fluxstr,detstr,littrowstr,persiststr,persistmodelstr,responsestr
+  readcal,file,darkstr,flatstr,sparsestr,fiberstr,badfiberstr,fixfiberstr,wavestr,lsfstr,bpmstr,fluxstr,detstr,littrowstr,persiststr,persistmodelstr,responsestr,multiwavestr
   darkid=readcalstr(darkstr,mjd)
   flatid=readcalstr(flatstr,mjd)
   sparseid=readcalstr(sparsestr,mjd)
@@ -62,6 +62,7 @@ pro getcal,mjd,file,darkid=darkid,flatid=flatid,sparseid=sparseid,bpmid=bpmid,wa
   fixfiberid=getnums(readcalstr(fixfiberstr,mjd))
   bpmid=readcalstr(bpmstr,mjd)
   waveid=readcalstr(wavestr,mjd)
+  multiwaveid=readcalstr(multiwavestr,mjd)
   lsfid=readcalstr(lsfstr,mjd)
   fluxid=readcalstr(fluxstr,mjd)
   detid=readcalstr(detstr,mjd)
@@ -77,6 +78,7 @@ pro getcal,mjd,file,darkid=darkid,flatid=flatid,sparseid=sparseid,bpmid=bpmid,wa
   print,'badfiber: ', badfiberid
   print,'fixfiber: ', fixfiberid
   print,'wave: ', waveid
+  print,'multiwave: ', multiwaveid
   print,'lsf: ', lsfid
   print,'flux: ', fluxid
   print,'det: ', detid

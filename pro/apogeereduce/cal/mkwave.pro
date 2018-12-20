@@ -1,8 +1,7 @@
 ;======================================================================
-pro mkwave,waveid,name=name,darkid=darkid,flatid=flatid,psfid=psfid,clobber=clobber,nowait=nowait,nofit=nofit
+pro mkwave,waveid,name=name,darkid=darkid,flatid=flatid,psfid=psfid,fiberid=fiberid,clobber=clobber,nowait=nowait,nofit=nofit
 
   if ~keyword_set(name) then name=string(waveid[0])
-
   dirs=getdir(apodir,caldir,spectrodir,vers)
   caldir=dirs.caldir
   file=dirs.prefix+string(format='("Wave-",i8.8)',name)
@@ -22,15 +21,18 @@ pro mkwave,waveid,name=name,darkid=darkid,flatid=flatid,psfid=psfid,clobber=clob
   openw,lock,/get_lun,caldir+'wave/'+file+'.lock'
   free_lun,lock
 
+  ; process the frames
   cmjd=getcmjd(psfid)
-  mkpsf,psfid,darkid=darkid,flatid=flatid
+  mkpsf,psfid,darkid=darkid,flatid=flatid,fiberid=fiberid
   w=approcess(waveid,dark=darkid,flat=flatid,psf=psfid,flux=0,/doproc)
 
   ; new Python version! 
   if keyword_set(nofit) then nofit='--nofit' else nofit=''
-  cmd=['apmultiwavecal','--name',name,nofit,'--plot','--hard','--inst',dirs.instrument,'--verbose']
+  cmd=['apmultiwavecal','--name',name,'--vers',dirs.apred,nofit,'--plot','--hard','--inst',dirs.instrument,'--verbose']
   for i=0,n_elements(waveid)-1 do cmd=[cmd,string(waveid[i])]
   spawn,cmd,/noshell
+  openw,lock,/get_lun,caldir+'wave/'+file+'.dat'
+  free_lun,lock
 
   ;psffile = caldir+'psf/'+string(format='(i8.8)',psfid)
   ;wavefile = dirs.expdir+cmjd+'/'+string(format='(i8.8)',waveid)

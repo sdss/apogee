@@ -240,23 +240,27 @@ def elemmask(el,maskdir='filters_26112015',plot=None,yr=[0,1]) :
         plots.plotl(plot,wave,mask,yr=yr)
     return wave,mask
 
-def intplot(a,param='FPARAM') :
+def intplot(a,param='FPARAM',indir='cal') :
     """ Given input structure, plot HR diagram, and enter event loop to mark stars to plot spectra
     """
 
     fig,ax = hr(a,param=param)
     plots.event(fig)
     sf,sa=plots.multi(1,1)
+    hf,ha=plots.multi(1,11,figsize=(8.5,11),hspace=0.2)
     while (1) :
         ret=plots.mark(fig)
         if ret[2] == 'q' : break
-        f=glob.glob('cal/*/*'+a['APOGEE_ID'][plots._index[0]]+'*')
+        f=glob.glob(indir+'/*/*'+a['APOGEE_ID'][plots._index[0]]+'*')
         print(f)
         dir=f[0].split('/')[1]
-        f=fits.open('cal/'+dir+'/aspcapField-'+dir+'.fits')
+        f=fits.open(indir+'/'+dir+'/aspcapField-'+dir+'.fits')
         data=f[1].data
         j=np.where(data['APOGEE_ID'] == a['APOGEE_ID'][plots._index[0]])[0][0]
         sa.cla()
+        for i in range(11) : ha[i].cla()
+        plot(10.**f[3].data['WAVE'][0],f[2].data['SPEC'][j,:],ax=ha,sum=True)
+        plot(10.**f[3].data['WAVE'][0],f[2].data['SPEC_BESTFIT'][j,:],ax=ha,sum=True)
         plots.plotl(sa,10.**f[3].data['WAVE'][0],f[2].data['SPEC'][j,:])
         plots.plotl(sa,10.**f[3].data['WAVE'][0],f[2].data['SPEC_BESTFIT'][j,:])
         text=r'ID: {:s} FIELD: {:s} SNR: {:6.1f} $\chi^2$: {:6.1f}'.format(

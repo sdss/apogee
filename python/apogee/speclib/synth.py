@@ -125,7 +125,7 @@ def marcs2turbo(infile,outfile,trim=0,fill=True) :
 
 def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
     els=None,atmod=None,kurucz=True,atmosroot=None,atmosdir=None,nskip=0,fill=True,
-    linelist='20150714',h2o=None,linelistdir=None,
+    linelist='20150714',h2o=None,linelistdir=None,atoms=True,molec=True,
     save=False,run=True) :
     """ Runs Turbospectrum for specified input parameters
 
@@ -343,16 +343,18 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
               h2o=2
           else :
               h2o=0
-        nlists=3
-        # if no HI lines, don't use that list: it takes a while to read
+        nlists=0
+        # if no HI lines, don't use that list: it takes a while to read/process
         n_HI = len(open(linelistdir+'/turbospec.'+linelist+'.Hlinedata').readlines())
-        if n_HI < 3 : nlists-=1
+        if n_HI > 2 : nlists+=1
+        if atoms : nlists+=1
+        if molec : nlists+=1
         # if we are using H2O, add that list
         if h2o > 0 : nlists+=1
         fout.write("'NFILES:'  '{:4d}'\n".format(nlists))
         if n_HI >= 3 : fout.write(linelistdir+'/turbospec.'+linelist+'.Hlinedata\n')
-        fout.write(linelistdir+'/turbospec.'+linelist+'.atoms\n')
-        fout.write(linelistdir+'/turbospec.'+linelist+'.molec\n')
+        if atoms: fout.write(linelistdir+'/turbospec.'+linelist+'.atoms\n')
+        if molec: fout.write(linelistdir+'/turbospec.'+linelist+'.molec\n')
         if h2o == 1 :
             fout.write(linelistdir+'/turbospec.h2o-BC8.5V'+'.molec\n')
         elif h2o == 2 :
@@ -481,6 +483,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
     marcsdir = p['marcsdir'] if p.get('marcsdir') else None
     solarisotopes = int(p['solarisotopes']) if p.get('solarisotopes') else 0
     solarisotopes = True if abs(solarisotopes) == 1 else False
+    enhanced_o = p['enhanced_o'] if p.get('enhanced_o') else 0
     elem = p['elem'] if p.get('elem') else ''
     maskdir = p['maskdir'] if p.get('maskdir') else None
     vmicrofit = int(p['vmicrofit']) if p.get('vmicrofit') else 0
@@ -520,6 +523,8 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
 
     # make the grid(s)
     for am in prange(p['am0'],p['dam'],p['nam']) :
+      if enhanced_o : oam = [('O',2*am)]
+      else : oam = None
       for cm in prange(p['cm0'],p['dcm'],p['ncm']) :
         for nm in prange(p['nm0'],p['dnm'],p['nnm']) :
           specdata=np.zeros([nelem,int(p['nmh']),int(p['nlogg']),int(p['nteff']),nspec],dtype=np.float32)
@@ -554,7 +559,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
                 dskip = 1 if kurucz else 2
                 vout = get_vmicro(vmicrofit,vmicro)
                 while nskip >= 0 and nskip < 10 :
-                  spec,specnorm=mkturbospec(int(teff),logg,mh,am,cm,nm,
+                  spec,specnorm=mkturbospec(int(teff),logg,mh,am,cm,nm,els=oam,
                     wrange=wrange,dw=dw,atmosdir=marcsdir,
                     elemgrid=elem,linelistdir=linelistdir+'/'+elem+'/',linelist=linelist,vmicro=vout,
                     solarisotopes=solarisotopes,
@@ -575,8 +580,10 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
                     print(specdata.shape)
                     specdata[:,imh,ilogg,iteff,:]=0.
                     specnormdata[:,imh,ilogg,iteff,:]=-32767
+                    try: lspec=len(spec)
+                    except: lspec=1
                     fail('error loading specdata: {:8d} {:8.2f} {:8.2f} {:8.2f}  {:8.2f} {:8.2f} {:8.2f} {:d}'.format(
-                               int(teff),logg,mh,am,cm,nm,vout,len(spec)))
+                               int(teff),logg,mh,am,cm,nm,vout,lspec))
 
             # FITS header and output after each metallicity subgrid
             # for minigrids, each section is output in a separate HDU
@@ -869,7 +876,7 @@ def complsf(name) :
           plt.draw()
           pdb.set_trace()
 
-def mkspec(pars) :
+def mkspec(input) :
     """ Makes a single spectrum given input pars
         Used by mksynth for multi-processor calculations
 
@@ -880,12 +887,16 @@ def mkspec(pars) :
         pars : input parameters
         spec : synthetic spectrum
     """
+    pars=input[0]
+    indata=input[1]
+
     teff=pars[0].astype('int')
     logg=pars[1]
     mh=pars[2]
     am=round(pars[3]/0.25)*0.25
     cm=round(pars[4]/0.25)*0.25
-    nm=round(pars[5]/0.5)*0.5
+    #nm=round(pars[5]/0.5)*0.5
+    nm=pars[5]
     vmicro=pars[6]
     vrot=pars[7]
     elems=[]
@@ -893,56 +904,13 @@ def mkspec(pars) :
     for j,el in enumerate(els) :
         elems.append([el,pars[8+j]])
     print(teff,logg,mh,vmicro,am,cm,nm)
-    spec,specnorm=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=False,fill=False,linelist='20180901',wrange=[15100.,17000.],save=False)
-    return pars,spec
+    spec,specnorm=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=indata['kurucz'],fill=False,
+                              linelist=indata['linelist'],wrange=[15100.,17000.],h2o=indata['h2o'],atoms=indata['atoms'],save=False)
+    #spec,specnorm=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=False,fill=False,linelist='20180901.OH',h2o=0,atoms=False,wrange=[15100.,17000.],save=False)
+    return pars,specnorm
     
 
-def elemsens(outfile='elemsens.fits',highres=9,waveid=2420038,lsfid=5440020,apred='r10',fiber='combo',plot=True,calc=False) :
-    """ Create spectra at a range of paramters with individual abundances varied independently
-    """
-    files=sample.elemsens()
-    hdu=fits.HDUList()
-    if calc: x,ls=lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred)
-    grid=[]
-    ytit=[]
-    for i,name in enumerate(files) :
-        print(name)
-        if name == 'C.dat' or name == 'N.dat' : continue
-        if calc : out=mksynth(name,threads=16,ls=(x,ls))
-        else : out=name+'.fits'
-        ehdu=fits.open(out)[2]
-        ehdu.header['ELEM'] = name.replace('.dat','')
-        ehdu.header['CRVAL1'] = aspcap.logw0
-        ehdu.header['CDELT1'] = aspcap.dlogw
-        ehdu.header['CTYPE1'] = 'LOG(WAVELENGTH)'
-        hdu.append(ehdu)
-        if plot :
-            if i==0 :
-                ref=ehdu.data
-            else :
-                fig,ax=plots.multi(3,3,hspace=0.001,wspace=0.001,xtickrot=60,figsize=(12,8))
-                nspec = ehdu.data.shape[0]
-                ispec=0
-                for ix in range(3) :
-                    te=3500+ix*1000
-                    for iy in range(3) :
-                        logg=1.+iy*2.
-                        x=10.**spectra.fits2vector(ehdu.header,1)
-                        y=ehdu.data[ispec,:]/ref[ispec,:]
-                        plots.plotl(ax[iy,ix],x,y,yr=[0.9,1.1],xr=[15100,16950])
-                        ax[iy,ix].text(0.05,0.9,'Teff:{:6.0f} logg:{:6.1f}'.format(te,logg),transform=ax[iy,ix].transAxes)
-                        j=np.where(y < 0.99)[0]
-                        ispec+=1
-                figname = ehdu.header['ELEM'].strip()+'.png'
-                fig.savefig(figname)
-                plt.close()
-                grid.append([figname])
-                ytit.append(ehdu.header['ELEM'])
-    # output single file
-    if outfile is not None: hdu.writeto(outfile,overwrite=True)
-    html.htmltab(grid,ytitle=ytit,file='elemsens.html')
-
-def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fiber='combo',plot=False,lines=None,ls=None) :
+def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fiber='combo',linelist='20180901',kurucz=False,h2o=None,atoms=True,plot=False,lines=None,ls=None) :
     """ Make a series of spectra from parameters in an input file, with parallel processing for turbospec
         Outputs to FITS file {file}.fits
 
@@ -964,8 +932,18 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fi
     else :
         suffix = ''
 
+    indata={}
+    indata['linelist']=linelist
+    indata['kurucz']=kurucz
+    indata['h2o']=h2o
+    indata['atoms']=atoms
+    inputs=[]
+    for par in pars :
+        inputs.append((par,indata))
+
     pool = mp.Pool(threads)
-    specs = pool.map_async(mkspec, pars).get()
+    #specs = pool.map_async(mkspec, pars).get()
+    specs = pool.map_async(mkspec, inputs).get()
     pool.close()
     pool.join()
 
@@ -973,7 +951,16 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fi
     wa=aspcap.apStarWave()
     if ls is None :
         print('getting lsf...')
-        x,ls=lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred)
+        lsfile = 'lsf_{:08d}_{:08d}.fits'.format(lsfid,waveid)
+        if os.path.isfile(lsfile) :
+            x=fits.open(lsfile)[0].data
+            ls=fits.open(lsfile)[1].data
+        else :
+            x,ls=lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred)
+            hdu=fits.HDUList()
+            hdu.append(fits.ImageHDU(x))
+            hdu.append(fits.ImageHDU(ls))
+            hdu.writeto(lsfile,overwrite=True)
     else :
         x=ls[0]
         ls=ls[1]
@@ -1010,6 +997,54 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fi
     hdu.writeto(file+suffix+'.fits',overwrite=True)
     return file+suffix+'.fits' 
    
+def elemsens(files=None,outfile='elemsens.fits',highres=9,waveid=2420038,lsfid=5440020,apred='r10',fiber='combo',plot=True,calc=False,htmlfile='elemsens.html',filt=None,filtdir=None) :
+    """ Create spectra at a range of paramters with individual abundances varied independently
+    """
+    if files==None : files=sample.elemsens()
+    hdu=fits.HDUList()
+    if calc: x,ls=lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred)
+    grid=[]
+    ytit=[]
+    for i,name in enumerate(files) :
+        print(name)
+        if name == 'C.dat' or name == 'N.dat' : continue
+        if calc : out=mksynth(name,threads=16,ls=(x,ls))
+        else : out=name+'.fits'
+        ehdu=fits.open(out)[2]
+        ehdu.header['ELEM'] = name.replace('.dat','')
+        ehdu.header['CRVAL1'] = aspcap.logw0
+        ehdu.header['CDELT1'] = aspcap.dlogw
+        ehdu.header['CTYPE1'] = 'LOG(WAVELENGTH)'
+        hdu.append(ehdu)
+        if plot :
+            if i==0 :
+                ref=ehdu.data
+            else :
+                if filtdir is not None: 
+                    filt=aspcap.aspcap2apStar(ascii.read(filtdir+ehdu.header['ELEM']+'.mask',format='fixed_width_no_header')['col1'])
+                fig,ax=plots.multi(3,3,hspace=0.001,wspace=0.001,xtickrot=60,figsize=(12,8))
+                nspec = ehdu.data.shape[0]
+                ispec=0
+                for ix in range(3) :
+                    te=3500+ix*1000
+                    for iy in range(3) :
+                        logg=1.+iy*2.
+                        x=10.**spectra.fits2vector(ehdu.header,1)
+                        y=ehdu.data[ispec,:]/ref[ispec,:]
+                        plots.plotl(ax[iy,ix],x,y,yr=[0.9,1.1],xr=[15100,16950])
+                        ax[iy,ix].text(0.05,0.9,'Teff:{:6.0f} logg:{:6.1f}'.format(te,logg),transform=ax[iy,ix].transAxes)
+                        if filt is not None: plots.plotl(ax[iy,ix],x,filt*0.1+1.005)
+                        j=np.where(y < 0.99)[0]
+                        ispec+=1
+                figname = ehdu.header['ELEM'].strip()+'.png'
+                fig.savefig(figname)
+                plt.close()
+                grid.append([figname])
+                ytit.append(ehdu.header['ELEM'])
+    # output single file
+    if outfile is not None: hdu.writeto(outfile,overwrite=True)
+    html.htmltab(grid,ytitle=ytit,file=htmlfile)
+
 def filter_lines(infile,outfile,wind,nskip=0) :
     """ Read from input linelist file, output comments and lines falling in windows of [w1,w2] to outfile
 
@@ -1106,4 +1141,45 @@ def mini_linelist(elem,linelist,maskdir) :
     fp.close()
     os.remove(outdir+elem+'.lock') 
     return wind,wair
+
+def cross(a,val=[0,0,0],hard=None,sum=True) :
+    """ plot cross sections of input 3D grid of synthetic spectra
+
+        Args:
+            a : input HDU with synthetic spectral grid
+           val : 3 ([M/H], logg, Teff) grid indices to use when varying other dimensions (default=[0,0,0])
+    """
+    dim=a.data.shape
+    # if we have a rotation dimension, take the lowest rotation
+    if len(dim) == 5 : 
+        data=np.squeeze(a.data[0,:,:,:,:])
+        dim=data.shape
+    else : data = a.data
+    n=dim[3]
+    x=10.**spectra.fits2vector(a.header,1)
+    mh=spectra.fits2vector(a.header,4)
+    logg=spectra.fits2vector(a.header,3)
+    teff=spectra.fits2vector(a.header,2)
+    colors=['r','g','b','c','m','y','black']*3
+    for i in range(dim[0]) :
+        if i == 0 : fig,ax=aspcap.plot(x,data[i,val[1],val[2],:],color=colors[i],sum=sum)
+        else : aspcap.plot(x,data[i,val[1],val[2],:],ax=ax,color=colors[i],sum=sum)
+    fig.suptitle('[M/H] varied from {:6.2} to {:6.2f} at logg {:6.1f}, Teff {:6.0f}'.format(mh[0],mh[-1],logg[val[1]],teff[val[2]]))
+    if hard is not None : 
+        fig.savefig(hard+'_mh.pdf')
+        plt.close()
+    for i in range(dim[1]) :
+        if i == 0 : fig,ax=aspcap.plot(x,data[val[0],i,val[2],:],color=colors[i],sum=sum)
+        else : aspcap.plot(x,data[val[0],i,val[2],:],ax=ax,color=colors[i],sum=sum)
+    fig.suptitle('log g varied from {:6.1} to {:6.2f} at [M/H] {:6.2f}, Teff {:6.0f}'.format(logg[0],logg[-1],mh[val[0]],teff[val[2]]))
+    if hard is not None : 
+        fig.savefig(hard+'_logg.pdf')
+        plt.close()
+    for i in range(dim[2]) :
+        if i == 0 : fig,ax=aspcap.plot(x,data[val[0],val[1],i,:],color=colors[i],sum=sum)
+        else : aspcap.plot(x,data[val[0],val[1],i,:],ax=ax,color=colors[i],sum=sum)
+    fig.suptitle('Teff varied from {:6.0f} to {:6.0f} at logg {:6.1f}, [M/H] {:6.2f}'.format(teff[0],teff[-1],logg[val[1]],mh[val[0]]))
+    if hard is not None : 
+        fig.savefig(hard+'_teff.pdf')
+        plt.close()
 

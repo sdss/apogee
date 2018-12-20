@@ -176,7 +176,9 @@ FOR i=0L,nplanfiles-1 do begin
   ; Process each frame
   ;-------------------
   shiftstr = REPLICATE({index:-1L,framenum:'',$
-               shift:999999.0,shifterr:999999.0,pixshift:0.,sn:-1.},nframes)
+               shift:999999.0,shifterr:999999.0,$
+               shiftfit:fltarr(2),chipshift:fltarr(3,2),chipfit:fltarr(4),$
+               pixshift:0.,sn:-1.},nframes)
 
   ; assume no dithering until we see that a dither has been commanded from the
   ;   header cards
@@ -312,7 +314,7 @@ FOR i=0L,nplanfiles-1 do begin
         endif
            
         if planstr.platetype eq 'single' then nofit=1 else nofit=0
-        APDITHERSHIFT,ref_frame,frame,shift,shifterr,/xcorr,pfile=pfile,plot=plot,plugmap=plugmap,nofit=nofit,mjd=planstr.mjd
+        shiftout=APDITHERSHIFT(ref_frame,frame,shift,shifterr,/xcorr,pfile=pfile,plot=plot,plugmap=plugmap,nofit=nofit,mjd=planstr.mjd)
         if keyword_set(stp) then stop
         print,'Measured dither shift: ',ashift,shift
 
@@ -324,6 +326,7 @@ FOR i=0L,nplanfiles-1 do begin
         shifterr = 0.0 & ashifterr=0.0
         if dither_commanded ne 0 then ref_dither_commanded = dither_commanded
         print,'Shift = 0.0'
+        shiftout = {shiftfit:fltarr(2),chipshift:fltarr(3,2),chipfit:fltarr(4)}
       endelse
       apaddpar,frame,'APDITHERSHIFT: Measuring the dither shift',/history
       if shift[0] eq 0.0 then apaddpar,frame,'APDITHERSHIFT: This is the REFERENCE FRAME',/history
@@ -332,6 +335,7 @@ FOR i=0L,nplanfiles-1 do begin
       apaddpar,frame,'EDITHSH',shifterr,' Dither shift error (pixels)'
       ;apaddpar,frame,'ADITHSH',ashift,' Measured dither shift (pixels)'
       ;apaddpar,frame,'AEDITHSH',ashifterr,' Dither shift error (pixels)'
+      ADD_TAG,frame,'SHIFT',shiftout,frame_shift
       
       writelog,logfile,'  dithershift '+string(format='(f8.2)',systime(1)-t1)+string(format='(f8.2)',systime(1)-t0)
 
@@ -347,14 +351,14 @@ FOR i=0L,nplanfiles-1 do begin
       if keyword_set(dithonly) then AP1DWAVECAL_REFIT,frame,frame_wave,plugmap=plugmap,/verbose,/plot,pfile=plotfile
       plotfile = plate_dir+'/plots/pixshift-'+framenum 
       if planstr.platetype eq 'twilight' then $
-      AP1DWAVECAL,frame,frame_wave,/verbose,/plot,pfile=plotfile else $
-      AP1DWAVECAL,frame,frame_wave,plugmap=plugmap,/verbose,/plot,pfile=plotfile
+      AP1DWAVECAL,frame_shift,frame_wave,/verbose,/plot,pfile=plotfile else $
+      AP1DWAVECAL,frame_shift,frame_wave,plugmap=plugmap,/verbose,/plot,pfile=plotfile
 
       apgundef,frame  ; free up memory
       writelog,logfile,'  wavecal '+string(format='(f8.2)',systime(1)-t1)+string(format='(f8.2)',systime(1)-t0)
 
       if keyword_set(dithonly) then goto, BOMB1
-      ;stop
+      if keyword_set(stp) then stop
 
       ;----------------------------------
       ; STEP 3:  Airglow Subtraction
@@ -411,6 +415,7 @@ FOR i=0L,nplanfiles-1 do begin
       ;-----------------------
       print,'Writing output apCframe files'
       outfiles = apogee_filename('Cframe',chip=chiptag,num=framenum,plate=planstr.plateid,mjd=planstr.mjd)
+      if keyword_set(stp) then stop
       APVISIT_OUTCFRAME,frame_telluric,plugmap,outfiles,/silent
 
     endif  ; correcting and calibrating ap1D files
@@ -457,6 +462,9 @@ FOR i=0L,nplanfiles-1 do begin
     shiftstr[j].shift = shift
     shiftstr[j].shifterr = shifterr
     shiftstr[j].pixshift = pixshift
+    shiftstr[j].shiftfit = frame_telluric.shift.shiftfit
+    shiftstr[j].chipshift = frame_telluric.shift.chipshift
+    shiftstr[j].chipfit = frame_telluric.shift.chipfit
     ; get S/N of brightest non-saturated object, just for sorting by S/N
     if planstr.platetype eq 'single' then obj=where(plugmap.fiberdata.objtype ne 'SKY' and plugmap.fiberdata.spectrographid eq 2) else $
     obj=where(plugmap.fiberdata.objtype ne 'SKY' and plugmap.fiberdata.spectrographid eq 2 and plugmap.fiberdata.mag[1] gt 7.5 and plugmap.fiberdata.fiberid ne 195)

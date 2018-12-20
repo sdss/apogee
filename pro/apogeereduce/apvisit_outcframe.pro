@@ -37,7 +37,7 @@ endif
 
 ; Checking the tags of the input structure
 tags = tag_names(frame)
-needtags1 = ['CHIPA','CHIPB','CHIPC','TELLSTAR']
+needtags1 = ['CHIPA','CHIPB','CHIPC','SHIFT','TELLSTAR']
 for i=0,n_elements(needtags1)-1 do begin
   if (where(tags eq needtags1[i]))[0] eq -1 then begin
     print,'TAG ',needtags1[i],' NOT FOUND in input structure'
@@ -77,6 +77,7 @@ if id8 eq '' then id8=info.suffix
 ;    * HDU #11 = Plug-map structure from plPlugMapM file [BINARY FITS TABLE]
 ;    * HDU #12 = Plugmap header
 ;    * HDU #13 = Telluric scaling table
+;    * HDU #14 = Shift information table
 ;
 ; There is a separate file for each chip - [abc]
 
@@ -121,6 +122,7 @@ For i=0,2 do begin
   sxaddhist,leadstr+' HDU11 - Plugmap structure',header
   sxaddhist,leadstr+' HDU12 - Plugmap header',header
   sxaddhist,leadstr+' HDU13 - Telluric structure',header
+  sxaddhist,leadstr+' HDU14 - Shift structure',header
 
 
   ; Create filename
@@ -276,6 +278,9 @@ For i=0,2 do begin
 
   ; HDU # 13 = Telluric table
   MWRFITS,frame.tellstar,outfile,/silent
+
+  ; HDU # 14 = Telluric table
+  MWRFITS,frame.shift,outfile,/silent
 
   ;; Now modify the header
   ;header11 = HEADFITS(outfile,exten=11)

@@ -100,7 +100,7 @@ FOR i=0L,nplanfiles-1 do begin
   waveid=planstr.waveid
   if tag_exist(planstr,'platetype') then if planstr.platetype eq 'cal' then waveid=0
   if waveid gt 0 then begin
-    makecal,wave=waveid
+    makecal,multiwave=waveid
     wavefiles = apogee_filename('Wave',chip=chiptag,num=waveid)
     wavefile = file_dirname(wavefiles[0])+'/'+string(format='(i8.8)',waveid)
     wavetest = FILE_TEST(wavefiles)

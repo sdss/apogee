@@ -47,9 +47,9 @@ endelse
 if n_elements(init) gt 0 then printf,nml,' init='+strcompress(string(init),/remove_all)
 
 if keyword_set(indini) then begin
-  printf,nml,format='(A,'+string(ndim)+'(I2))',' INDINI =',indini 
+  printf,nml,format='(A,'+string(ndim)+'(I3))',' INDINI =',indini 
   nruns=1
-  for i=0,n_elements(indini)-1 do nruns*=indini[i]
+  for i=0,n_elements(indini)-1 do nruns*=abs(indini[i])
   if nruns lt 1 then begin
     print,'Error in INDINI array!'
     stop

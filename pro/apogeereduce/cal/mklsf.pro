@@ -1,5 +1,6 @@
 ;======================================================================
-pro mklsf,lsfid,waveid,darkid=darkid,flatid=flatid,psfid=psfid,clobber=clobber,full=full,newwave=newwave,pl=pl,fibers=fibers
+pro mklsf,lsfid,waveid,darkid=darkid,flatid=flatid,psfid=psfid,fiberid=fiberid,clobber=clobber,full=full,newwave=newwave,$
+          pl=pl,fibers=fibers,nowait=nowait
 
   if not keyword_set(newwave) then newwave=0
 
@@ -9,7 +10,13 @@ pro mklsf,lsfid,waveid,darkid=darkid,flatid=flatid,psfid=psfid,clobber=clobber,f
   file=file_dirname(file)+'/'+file_basename(file,'.fits')
 
   ;if another process is alreadying make this file, wait!
-  while file_test(file+'.lock') do apwait,file,10
+  while file_test(file+'.lock') do begin
+    if keyword_set(nowait) then begin
+      print,' LSF file: ', file, ' already being made (.lock file exists)'
+      return
+    endif
+    apwait,file,10
+  endwhile
 
   ; does product already exist?
   if file_test(file+'.sav') and not keyword_set(clobber) then begin
@@ -25,10 +32,10 @@ pro mklsf,lsfid,waveid,darkid=darkid,flatid=flatid,psfid=psfid,clobber=clobber,f
 
   lsffile = apogee_filename('1D',num=lsfid[0],chip='c')
 ;  if file_test(lsffile) then begin
-    mkpsf,psfid,darkid=darkid,flatid=flatid
+    mkpsf,psfid,darkid=darkid,flatid=flatid,fiberid=fiberid,/clobber
     ;cmjd=getcmjd(lsfid)
     ;;w=approcess(lsfid,dark=darkid,flat=flatid,psf=psfid,flux=0,/clobber,/doproc)
-    w=approcess(lsfid,dark=darkid,flat=flatid,psf=psfid,flux=0,wave=waveid,/doproc,/skywave)
+    w=approcess(lsfid,dark=darkid,flat=flatid,psf=psfid,flux=0,wave=waveid,/doproc,/skywave,/clobber)
 
     lsffile = file_dirname(lsffile)+'/'+string(format='(i8.8)',lsfid)
     if size(waveid,/type) eq 7 then wavefile = caldir+'wave/'+waveid else $

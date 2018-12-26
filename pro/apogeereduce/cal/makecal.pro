@@ -340,8 +340,9 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
       endif
       ims=getnums(lsfstr[i[0]].frames)
       cmjd=getcmjd(ims[0],mjd=mjd)
-      getcal,mjd,calfile,darkid=darkid,flatid=flatid,multiwaveid=waveid
-      mklsf,ims,waveid,darkid=darkid,flatid=flatid,psfid=lsfstr[i[0]].psfid,full=full,newwave=newwave,clobber=clobber
+      getcal,mjd,calfile,darkid=darkid,flatid=flatid,multiwaveid=waveid,fiberid=fiberid
+      makecal,multiwave=waveid
+      mklsf,ims,waveid,darkid=darkid,flatid=flatid,psfid=lsfstr[i[0]].psfid,fiberid=fiberid,full=full,newwave=newwave,clobber=clobber
     endif else begin
       if keyword_set(mjd) then  begin
         num=getnum(mjd) 
@@ -351,8 +352,9 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
        for i=0,n_elements(red)-1,nskip do begin
         ims=getnums(lsfstr[red[i]].frames)
         cmjd=getcmjd(ims[0],mjd=mjd)
-        getcal,mjd,calfile,darkid=darkid,flatid=flatid,waveid=waveid
-        mklsf,ims,waveid,darkid=darkid,flatid=flatid,psfid=lsfstr[i].psfid,full=full,newwave=newwave,clobber=clobber
+        getcal,mjd,calfile,darkid=darkid,flatid=flatid,multiwaveid=waveid,fiberid=fiberid
+        makecal,multiwave=waveid
+        mklsf,ims,waveid,darkid=darkid,flatid=flatid,psfid=lsfstr[i].psfid,fiberid=fiberid,full=full,newwave=newwave,clobber=clobber,/nowait
        endfor
       endif
     endelse

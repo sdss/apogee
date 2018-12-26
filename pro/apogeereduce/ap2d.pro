@@ -101,13 +101,14 @@ FOR i=0L,nplanfiles-1 do begin
   if tag_exist(planstr,'platetype') then if planstr.platetype eq 'cal' then waveid=0
   if waveid gt 0 then begin
     makecal,multiwave=waveid
-    wavefiles = apogee_filename('Wave',chip=chiptag,num=waveid)
-    wavefile = file_dirname(wavefiles[0])+'/'+string(format='(i8.8)',waveid)
-    wavetest = FILE_TEST(wavefiles)
-    if min(wavetest) eq 0 then begin
-      bd1 = where(wavetest eq 0,nbd1)
-      if nbd1 gt 0 then stop,'halt: ',wavefiles[bd1],' NOT FOUND'
-    endif
+  ; move 1dwavecal to new skycal below
+  ;  wavefiles = apogee_filename('Wave',chip=chiptag,num=waveid)
+  ;  wavefile = file_dirname(wavefiles[0])+'/'+string(format='(i8.8)',waveid)
+  ;  wavetest = FILE_TEST(wavefiles)
+  ;  if min(wavetest) eq 0 then begin
+  ;    bd1 = where(wavetest eq 0,nbd1)
+  ;    if nbd1 gt 0 then stop,'halt: ',wavefiles[bd1],' NOT FOUND'
+  ;  endif
   endif
 
   ; apFlux files : since individual frames are usually made per plate,
@@ -198,6 +199,12 @@ FOR i=0L,nplanfiles-1 do begin
     BOMB1:
 
   Endfor ; frame loop
+  
+  ; now add in wavelength calibration information, with shift from skylines
+  if waveid gt 0 then begin
+      if skywave then spawn,['apskywavecal',planfile],/noshell $
+      else  spawn,['apskycal',planfile,'--nosky'],/noshell
+  endif
 
   BOMB:
 

@@ -1629,9 +1629,12 @@ skiptohere:
 ; Fit the parameters as a function of YPOS
 ;------------------------------------------
 print,'Fitting parameters as functions of YPOS'
-ypos = fltarr(nfibers)
-for i=0,nfibers-1 do ypos[i]=poly(npix/2,tstr2[i].coef)
+;ypos = fltarr(nfibers)
+;for i=0,nfibers-1 do ypos[i]=poly(npix/2,tstr2[i].coef)
 
+; since we may not have all fibers in the PSF, just use row number to interpolate 
+;  we could instead get these from a PSF that has all fibers, i.e., the fiberid frame
+ypos=indgen(nfibers)
 
 ;fitind = [0,1,2,3,4,5,6,7,8,9,10,11,12,13]
 npar = n_elements(fitstr[0].par)

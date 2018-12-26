@@ -24,6 +24,7 @@ from astropy.io import ascii
 #from holtz.tools import struct
 from tools import plots
 from apogee.utils import apload
+from apogee.speclib import isochrones
 try: from apogee.aspcap import ferre
 except: pass
 
@@ -247,7 +248,10 @@ def intplot(a,param='FPARAM',indir='cal') :
     fig,ax = hr(a,param=param)
     plots.event(fig)
     sf,sa=plots.multi(1,1)
-    hf,ha=plots.multi(1,11,figsize=(8.5,11),hspace=0.2)
+    nplot = 11
+    hf,ha=plots.multi(1,nplot,figsize=(8.5,11),hspace=0.2)
+    ha2=[]
+    for i in range(nplot) : ha2.append(ha[i].twinx())
     while (1) :
         ret=plots.mark(fig)
         if ret[2] == 'q' : break
@@ -258,23 +262,33 @@ def intplot(a,param='FPARAM',indir='cal') :
         data=f[1].data
         j=np.where(data['APOGEE_ID'] == a['APOGEE_ID'][plots._index[0]])[0][0]
         sa.cla()
-        for i in range(11) : ha[i].cla()
-        plot(10.**f[3].data['WAVE'][0],f[2].data['SPEC'][j,:],ax=ha,sum=True)
-        plot(10.**f[3].data['WAVE'][0],f[2].data['SPEC_BESTFIT'][j,:],ax=ha,sum=True)
+        for i in range(11) : 
+            ha[i].cla()
+            ha2[i].cla()
+            ha[i].set_ylabel('Flux')
+            ha2[i].set_ylabel(r'$\chi^2$')
+            ha[i].set_ylim(0.5,1.3)
+            ha2[i].set_ylim(0.,20.)
+        plot(10.**f[3].data['WAVE'][0],f[2].data['SPEC'][j,:],ax=ha,sum=True,color='k')
+        plot(10.**f[3].data['WAVE'][0],f[2].data['SPEC_BESTFIT'][j,:],ax=ha,sum=True,color='b')
+        chi2 = (f[2].data['SPEC'][j,:]-f[2].data['SPEC_BESTFIT'][j,:])**2/f[2].data['ERR'][j,:]**2
+        plot(10.**f[3].data['WAVE'][0],chi2,ax=ha2,sum=True,alpha=0.4)
         plots.plotl(sa,10.**f[3].data['WAVE'][0],f[2].data['SPEC'][j,:])
         plots.plotl(sa,10.**f[3].data['WAVE'][0],f[2].data['SPEC_BESTFIT'][j,:])
-        text=r'ID: {:s} FIELD: {:s} SNR: {:6.1f} $\chi^2$: {:6.1f}'.format(
+        text1=r'ID: {:s} FIELD: {:s} SNR: {:6.1f} $\chi^2$: {:6.1f}'.format(
              data['APOGEE_ID'][j],data['FIELD'][j],data['SNR'][j],data['PARAM_CHI2'][j])
-        sa.text(0.05,0.95,text,transform=sa.transAxes)
-        text=r'Teff: {:5.0f} logg: {:5.1f} [M/H]: {:5.2f} [$\alpha$/M]: {:5.2f} [C/M]: {:5.2f} [N/M]: {:5.2f}'.format(
+        #sa.text(0.02,0.95,text1,transform=sa.transAxes)
+        text2=r'Teff: {:5.0f} logg: {:5.1f} [M/H]: {:5.2f} [$\alpha$/M]: {:5.2f} [C/M]: {:5.2f} [N/M]: {:5.2f}'.format(
              data[param][j,0],data[param][j,1],data[param][j,3],data[param][j,6],data[param][j,4],data[param][j,5])
-        sa.text(0.05,0.90,text,transform=sa.transAxes)
+        #sa.text(0.02,0.90,text2,transform=sa.transAxes)
+        sf.suptitle(text1+'\n'+text2)
+        hf.suptitle(text1+'\n'+text2)
         plt.draw()
         plt.show()
     plt.close(sf)
     plt.close(fig)
 
-def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None) :
+def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=False, hard=None, grid=None) :
     """ Plot an HR diagram from input structure
 
         Args:
@@ -283,31 +297,110 @@ def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None) :
             colorbar : show colorbar? (default= False)
     """
     fig,ax = plots.multi(1,1)
+    if grid is None :
+        teff=a[param][:,0]
+        logg=a[param][:,1]
+    else :
+        teff=a['FPARAM_CLASS'][:,grid,0]
+        logg=a['FPARAM_CLASS'][:,grid,1]
     if zt == '[M/H]' : 
         z=a[param][:,3]
         if zr is None : zr=[-2,0.5]
     elif zt == 'chi2' : 
         z=a['PARAM_CHI2']
         if zr is None : zr=[0,10]
-    plots.plotc(ax,a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+    plots.plotc(ax,teff,logg,z,xr=[8000,3000],yr=[6,-1],zr=zr,
                 xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
     plots._data = a
+    if iso:
+        colors=['b','g','k','r']
+        for i,z in enumerate(['zm20','zm10','zp00','zp05']) :
+            isodata=isochrones.read(os.environ['ISOCHRONE_DIR']+'/'+z+'.dat',agerange=[8.99,9.01])
+            isochrones.plot(ax,isodata,'teff','logg',color=colors[i],alpha=0.3)
+            isodata=isochrones.read(os.environ['ISOCHRONE_DIR']+'/'+z+'.dat',agerange=[9.99,10.01])
+            isochrones.plot(ax,isodata,'teff','logg',color=colors[i],alpha=0.3)
+    if hard is not None: fig.savefig(hard)
     return fig,ax
 
-def plot(wave,spec,color=None,ax=None,hard=None,sum=False,title=None) :
+def multihr(a,param='FPARAM',colorbar=False,hard=None) :
+    fig,ax = plots.multi(2,4,hspace=0.001,wspace=0.001,figsize=(8,12))
+
+    z=a[param][:,3]
+    zr=[-2,0.5]
+    zt='[M/H]'
+    plots.plotc(ax[0,0],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+                xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
+    ax[0,0].text(0.05,0.9,zt,transform=ax[0,0].transAxes)
+
+    z=a['PARAM_CHI2']
+    zr=[0,10]
+    zt='CHI2'
+    plots.plotc(ax[0,1],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+                xt='Teff',zt=zt,colorbar=colorbar)
+    ax[0,1].text(0.05,0.9,zt,transform=ax[0,1].transAxes)
+
+    z=a[param][:,4]
+    zr=[-1,1.0]
+    zt='[C/M]'
+    plots.plotc(ax[1,0],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+                xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
+    ax[1,0].text(0.05,0.9,zt,transform=ax[1,0].transAxes)
+
+    z=a[param][:,5]
+    zr=[-1,1.0]
+    zt='[N/M]'
+    plots.plotc(ax[1,1],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+                xt='Teff',zt=zt,colorbar=colorbar)
+    ax[1,1].text(0.05,0.9,zt,transform=ax[1,1].transAxes)
+
+    z=a[param][:,6]
+    zr=[-1,1.0]
+    zt=r'[$\alpha$/M]'
+    plots.plotc(ax[2,0],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+                xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
+    ax[2,0].text(0.05,0.9,zt,transform=ax[2,0].transAxes)
+
+    z=a[param][:,4]-a[param][:,5]
+    zr=[-1,1.0]
+    zt='[C/N]'
+    plots.plotc(ax[2,1],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+                xt='Teff',zt=zt,colorbar=colorbar)
+    ax[2,1].text(0.05,0.9,zt,transform=ax[2,1].transAxes)
+
+    z=10.**a[param][:,2]
+    zr=[0.3,4]
+    zt='vmicro'
+    plots.plotc(ax[3,0],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+                xt='Teff',zt=zt,colorbar=colorbar)
+    ax[3,0].text(0.05,0.9,zt,transform=ax[3,0].transAxes)
+
+    z=10.**a[param][:,7]
+    zr=[0,10]
+    zt='vrot'
+    plots.plotc(ax[3,1],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+                xt='Teff',zt=zt,colorbar=colorbar)
+    ax[3,1].text(0.05,0.9,zt,transform=ax[3,1].transAxes)
+
+    if hard is not None: fig.savefig(hard)
+
+#def hrclass(a) :
+#    fig,ax=plots.multi(2,3)
+#    for class in ['GKg','GKg_O','Mg','Md','GKd','Fd'] :
+
+def plot(wave,spec,color=None,ax=None,hard=None,sum=False,title=None,alpha=None) :
     """  Multipanel plots of APOGEE spectra
     """
     if sum : ny=11
     else : ny=10
     if ax is None : fig,ax=plots.multi(1,ny,figsize=(8.5,11),hspace=0.2)
     for i in range(10) :
-        plots.plotl(ax[i],wave,spec,xr=[15000+i*200,15200+i*200],yr=[0,1.5],color=color,linewidth=0.3)
+        plots.plotl(ax[i],wave,spec,xr=[15000+i*200,15200+i*200],color=color,linewidth=0.3,alpha=alpha)
         ax[i].xaxis.label.set_size(6)
         ax[i].yaxis.label.set_size(6)
         ax[i].tick_params(axis = 'both', which = 'major', labelsize = 6)
         ax[i].xaxis.set_minor_locator(plt.MultipleLocator(10.))
     if sum :
-        plots.plotl(ax[10],wave,spec,xr=[15100,17000],yr=[0,1.5],color=color,linewidth=0.3)
+        plots.plotl(ax[10],wave,spec,xr=[15100,17000],color=color,linewidth=0.3,alpha=alpha)
         ax[10].xaxis.label.set_size(6)
         ax[10].yaxis.label.set_size(6)
         ax[10].tick_params(axis = 'both', which = 'major', labelsize = 6)

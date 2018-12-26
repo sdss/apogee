@@ -109,7 +109,8 @@ def hrsample(indata,hrdata,maxbin=50,raw=True) :
                 gd.extend(x)
     return i1[gd],i2[gd]
 
-def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v3.6.0',cal1m=True,coolstars=True,dir='cal',hrdata=None,optical=True,ns=True) :
+def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v3.6.0',
+              cal1m=True,coolstars=True,dir='cal',hrdata=None,optical=True,ns=True,snmin=75) :
     '''
     selects a calibration subsample from an input apField structure, including several calibration sub-classes: 
         cluster, APOKASC stars, 1m calibration stars. Creates cluster web pages/plots if requested
@@ -117,9 +118,8 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
 
     if indata is None :
         indata=allField(files=['apo25m/*/apField-*.fits','lco25m/*/apField-*.fits','apo1m/calibration/apField-*.fits'],out=None,verbose=True)
-        return indata
 
-    j=np.where(indata['COMMISS'] == 0)[0]
+    j=np.where((indata['COMMISS'] == 0) & (indata['SNR'] > 75) )[0]
     data=indata[j]
 
     try: os.mkdir(dir)
@@ -130,6 +130,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         clusts=apselect.clustdata()
         f=html.head(file=dir+'/'+file)
         f.write('<TABLE BORDER=2>\n')
+        f.write('<TR><TD>NAME<TD>RA<TD>DEC<TD>Radius<TD>RV<TD>Delta RV<TD>Position criterion<TD>RV criterion<TD>PM criterion<TD>Parallax criterion<TD> CMD')
         clust=apselect.clustdata()
         for ic in range(len(clust.name)) :
             j=apselect.clustmember(data,clust[ic].name,plot=plot,hard=dir)
@@ -138,11 +139,13 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
             f.write('<TR><TD>'+clust[ic].name+'<TD>{:12.6f}<TD>{:12.6f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
                     clust[ic].ra,clust[ic].dec,clust[ic].rad,clust[ic].rv,clust[ic].drv))
             f.write('<TD><A HREF='+clust[ic].name+'_pos.jpg><IMG SRC='+clust[ic].name+'_pos.jpg width=300></A>\n')
-            f.write('<TD><A HREF='+clust[ic].name+'_pos.jpg><IMG SRC='+clust[ic].name+'_rv.jpg width=300></A>\n')
-            f.write('<TD><A HREF='+clust[ic].name+'_pos.jpg><IMG SRC='+clust[ic].name+'_cmd.jpg width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_rv.jpg><IMG SRC='+clust[ic].name+'_rv.jpg width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_pm.jpg><IMG SRC='+clust[ic].name+'_pm.jpg width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_parallax.jpg><IMG SRC='+clust[ic].name+'_parallax.jpg width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_cmd.jpg><IMG SRC='+clust[ic].name+'_cmd.jpg width=300></A>\n')
         html.tail(f)
         print('Number of cluster stars: ',len(jc))
-        mklinks(data,jc,dir+'/clust')
+        mklinks(data,jc,dir+'_clust')
         all.extend(jc)
     
     if apokasc is not None :
@@ -170,7 +173,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         lowz=np.where((apokasc['FE_H_ADOP_COR'][i2] < -1.) & (apokasc['FE_H_ADOP_COR'][i2] > -90.))[0]
         print('Number of APOKASC low [Fe/H] stars: ',len(lowz))
         jc.extend(i1[lowz])
-        mklinks(data,jc,dir+'/apokasc')
+        mklinks(data,jc,dir+'_apokasc')
         all.extend(jc)
     
     if coolstars :
@@ -182,24 +185,24 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         i1,i2=match.match(data['APOGEE_ID'],stars['id'])
         print('Number of cool stars: ',len(i1))
         jc.extend(i1)
-        mklinks(data,jc,dir+'/galcen')
+        mklinks(data,jc,dir+'_galcen')
         all.extend(jc)
 
     if cal1m :
         j=np.where(data['FIELD'] == 'calibration')[0]
         print('Number of 1m calibration stars: ',len(j))
-        mklinks(data,j,dir+'/cal')
         all.extend(j)
         j=np.where(data['FIELD'] == 'RCB')[0]
         print('Number of 1m RCB stars: ',len(j))
         all.extend(j)
+        mklinks(data,j,dir+'_cal1m')
 
     if optical :
         #stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/validation_stars_DR16.txt',names=['id'],format='fixed_width_no_header')
         stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/all_comparisons.txt',names=['id'],format='fixed_width_no_header')
         i1,i2=match.match(data['APOGEE_ID'],stars['id'])
         print('Number of optical validation stars: ',len(i1))
-        mklinks(data,i1,dir+'/optical')
+        mklinks(data,i1,dir+'_optical')
         all.extend(i1)
 
     if ns :
@@ -210,18 +213,17 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
                     (data['FIELD'] == '300+75-S') | (data['FIELD'] == 'M12-S') | (data['FIELD'] == 'SA57-S')  )[0]
         i1,i2=match.match(data['APOGEE_ID'][jn], data['APOGEE_ID'][js])
         jc=jn[i1]
-        mklinks(data,jc,dir+'/ns')
+        mklinks(data,jc,dir+'_ns')
         all.extend(jc)
-        pdb.set_trace()
 
     if hrdata is not None:
         i1, i2 = hrsample(data,hrdata)
         print('Number of HR sample stars: ',len(i1))
-        mklinks(data,i1,dir+'/hr')
+        mklinks(data,i1,dir+'_hr')
         all.extend(i1)
 
     # create "all" directories with all stars, removing duplicates
-    mklinks(data,list(set(all)),dir+'/all')
+    mklinks(data,list(set(all)),dir+'_all')
 
     return indata
 
@@ -229,12 +231,15 @@ def mklinks(data,j,out,n=48) :
     """ Create links in n different output directories for requested indices
     """
 
-    # remove existing output directories, create new ones
-    cleandir(out,n)
-    # create symbolic links in output directories
-    nsplit=len(j)//n+1
-    for i in range(len(j)) :
-        symlink(data[j[i]],out,i//nsplit)
+    for tel in ['apo1m','apo25m','lco25m'] :
+        # create symbolic links in output directories, separate for each instrument
+        outdir=tel+'/'+out
+        # remove existing output directories, create new ones
+        cleandir(outdir,n)
+        gd=np.where((data['TELESCOPE'][j] == tel) | (data['TELESCOPE'][j] == tel2) )[0]
+        nsplit=len(gd)//n+1
+        for i in range(len(gd)) :
+            symlink(data[j[gd[i]]],outdir,i//nsplit)
 
 
 def cleandir(out,n) :
@@ -246,7 +251,7 @@ def cleandir(out,n) :
             shutil.rmtree('{:s}{:03d}'.format(out,i))
         except : pass
         try:
-            os.mkdir('{:s}{:03d}'.format(out,i))
+            os.makedirs('{:s}{:03d}'.format(out,i))
         except : pass
 
 def symlink(data,out,idir) :

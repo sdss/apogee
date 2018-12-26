@@ -264,7 +264,7 @@ def dopca(pars) :
                    atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
             # read file and pack into ASPCAP grid size
             sap=fits.open(indir+prefix+file)[0].data
-            sap.reshape((int(p['nrot']),int(p['nmh']),int(p['nlogg']),int(p['nteff']),sap.shape[-1]))
+            sap=sap.reshape((int(p['nrot']),int(p['nmh']),int(p['nlogg']),int(p['nteff']),sap.shape[-1]))
             s=np.zeros([int(p['nrot']),int(p['nmh']),int(p['nlogg']),int(p['nteff']),nwave])
             for pasp,pap in zip(pix_aspcap,pix_apstar) :
                 s[:,:,:,:,pasp[0]:pasp[1]]=sap[:,:,:,:,pap[0]:pap[1]]

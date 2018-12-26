@@ -32,7 +32,7 @@ def showtime(string) :
     print(string+' {:8.2f}'.format(time.time()))
     sys.stdout.flush()
 
-def get(lsfid,waveid,fiber,highres=9,apred=None) :
+def get(lsfid,waveid,fiber,highres=9,apred=None,telescope=None) :
     """  Return standard sparsified LSF
 
     Args:
@@ -47,6 +47,7 @@ def get(lsfid,waveid,fiber,highres=9,apred=None) :
 
     """
     if apred is not None: load.apred = apred
+    if telescope is not None: load.settelescope(telescope)
     x=numpy.arange(-15.,15.01,1./highres)
     x=numpy.arange(-7.,7.01,1./highres)
     l=eval(x,fiber=fiber,waveid=waveid,lsfid=lsfid)

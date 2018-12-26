@@ -66,8 +66,11 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
     """ Generate a test sample of parameters and abundances from isochrones
     """
 
+    # set range around isochrones
+    isorange = [-1,0,1]
     # set output limits
     dthi=250
+    dthot=250
     dlogg=0.5
     dmh=0.25
     dam=0.25
@@ -114,16 +117,20 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         dam=0.5
         rot=True
     elif gridclass == 'rv' :
-        tefflim=[3500,8000]
+        tefflim=[3000,20000]
         logglim=[0.5,5. ]
-        cmlim=[-0.5,0.5]
-        nmlim=[-0.5,1.5]
+        cmlim=[0.,0.]
+        nmlim=[0.,0.]
+        emlim=[0.,0.]
         dtlo=200.
         dthi=250.
+        dthot=500.
+        dtvhot=1000.
         dlogg=1.0
         dmh=0.5
         dam=0.5
         rot=False
+        isorange=[0]
     if gridclass is not None : name = name+'_'+gridclass
     grid=[]
 
@@ -136,8 +143,10 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         print(file)
         for i in range(len(a)) :
             if a['teff'][i] < 4000 : dt=dtlo
+            if a['teff'][i] > 5500 : dt=dthot
+            if a['teff'][i] > 8000 : dt=dtvhot
             else : dt = dthi
-            for j in range(-1,2) :
+            for j in isorange :
               teff = (int(round(a['teff'][i]/dt))+j)*int(dt)
               logg = (int(round(a['logg'][i]/dlogg))+j)*dlogg
               mh = (int(round(a['feh'][i]/dmh))+j)*dmh
@@ -173,6 +182,10 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         mh=x[2]
         vmicro=10.**(0.226-0.0228*logg+0.0297*logg**2-0.0113*logg**3)+np.random.normal(0.,0.3)
         vmicro=clip(vmicro,vmicrolim)
+        if (gridclass == 'rv') : 
+            vmicro=0.226-0.0228*logg+0.0297*logg**2-0.0113*logg**3
+            vmicro=10.**(int(round(vmicro/0.30103))*0.30103 - 0.522878)
+
         vrot=0.
         if (logg < 3) & (teff<6000) :
             # for giants, use vmacro relation + small rotation
@@ -192,6 +205,9 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
             nm=np.random.normal(0.,0.3)
         cm=clip(cm,cmlim)
         nm=clip(nm,nmlim)
+        # for RV grid, enhance N for giants
+        if (gridclass == 'rv') & (logg < 3) & (teff<6000) : nm=0.25
+        # draw a random alpha/M
         am=np.random.uniform(-0.25,0.5)
         am = (round(am/dam))*dam
         am=clip(am,amlim)
@@ -214,6 +230,15 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
           out = out + '{:7.2f}'.format(e)      # other elements
         print(out)
         f.write(out+'\n')
+        if gridclass == 'rv' :
+            # add some alpha-enhanced and carbon-enhanced models
+            if (mh < -0.5) & (teff < 5000) :
+                out = '{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}'.format(teff,logg,mh,am+0.25,cm,nm,vmicro,vrot)      
+            elif (mh > -0.5) & (teff < 3500) :
+                out = '{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}'.format(teff,logg,mh,am+0.25,cm+0.5,nm,vmicro,vrot)      
+            for e in el : out = out + '{:7.2f}'.format(e)      # other elements
+            print(out)
+            f.write(out+'\n')
 
         # clip to adjust slightly off grid edges for FERRE input file
         teff=clip(teff,tefflim,eps=eps)

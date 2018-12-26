@@ -727,7 +727,7 @@ def getindex(header,axes,vals) :
         out.append(int(round(i)))
     return out
 
-def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None) :
+def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,telescope=None) :
     """ Create a grid of LSF-convolved spectra given specifications in input parameter file and existing raw syntheses
 
     Args :
@@ -749,6 +749,7 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None) :
     if fiber is None : fiber=np.array(p.get('lsffiber').split()).astype(int).tolist()
     if isinstance(fiber,int): fiber= [fiber]
     if apred is None :apred = p['apred'] if p.get('apred') else 'r10'
+    if telescope is None : telescope = p['telescope'] if p.get('telescope') else 'apo25m'
     lsfid=int(p.get('lsfid'))
     waveid=int(p.get('waveid'))
 
@@ -764,7 +765,7 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None) :
         else :
             fp = open(lsfile+'.lock','w')
             fp.close()
-            x,ls = lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred)
+            x,ls = lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred,telescope=telescope)
             hdu=fits.HDUList()
             hdu.append(fits.PrimaryHDU())
             hdu[0].header['APRED'] = apred

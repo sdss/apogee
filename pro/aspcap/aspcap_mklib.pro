@@ -3,7 +3,8 @@
 ;    makes an ASPCAP configuration directory and file, given a set of libraries, etc.
 ;    assumes library order is vmicro,[C/M],[N/M],[alpha/M],[M/H],logg,Teff unless carlos option is given
 ;-
-pro aspcap_mklib,config,suffix=suffix,prefix=prefix,libdir=libdir,classes=classes,elem=elem,vpar=vpar,carlos=carlos,maskdir=maskdir,femin=femin,rotpar=rotpar,opar=opar,vlock=vlock,vmlock=vmlock,outdir=outdir
+pro aspcap_mklib,config,suffix=suffix,prefix=prefix,libdir=libdir,classes=classes,elem=elem,vpar=vpar,carlos=carlos,maskdir=maskdir,$
+    femin=femin,rotpar=rotpar,opar=opar,vlock=vlock,vmlock=vmlock,outdir=outdir,nmlock=nmlock,cmlock=cmlock
 
 ;if ~keyword_set(elem) then elem=['C','Al','Ca','Fe','K','Mg','Mn','Na','Ni','N','O','Si','S','Ti','V']
 ;if ~keyword_set(maskdir) then maskdir='filters_05062014'
@@ -70,7 +71,7 @@ for i=0,nclasses-1 do begin
       endelse
     endfor
     printf,out,'indv '+string(indv+1,format='(9i2)')
-    printf,out,'indini '+string(indini,format='(9i2)')
+    printf,out,'indini '+string(indini,format='(9i3)')
     printf,out,'initpar '+string(initpar,format='(9f12.4)')
     printf,out,'coarse 1 '
     printf,out,'noplot 1 '
@@ -87,15 +88,19 @@ for i=0,nclasses-1 do begin
         initpar[ipar]=alog10(vlock)
       endif else if strtrim(libhead0.label[ipar],2) eq 'LGVSINI' and n_elements(vmlock) gt 0 and n_elements(libhead0.n_p) eq 7 then begin
         initpar[ipar]=alog10(vmlock)
+      endif else if strtrim(libhead0.label[ipar],2) eq 'C' and n_elements(cmlock) gt 0 then begin
+        initpar[ipar]=alog10(cmlock)
+      endif else if strtrim(libhead0.label[ipar],2) eq 'N' and n_elements(nmlock) gt 0 then begin
+        initpar[ipar]=alog10(nmlock)
       endif else begin
         indv=[indv,ipar]
-        tmp=1
+        tmp=-1
         ;if strtrim(libhead0.label[ipar],2) eq 'TEFF' then tmp=3
         ;if strtrim(libhead0.label[ipar],2) eq 'LOGG' then tmp=2
         ;if strtrim(libhead0.label[ipar],2) eq 'METALS' then tmp=2
-        if strtrim(libhead0.label[ipar],2) eq 'C' then tmp=2
-        if strtrim(libhead0.label[ipar],2) eq 'N' then tmp=2
-        if strtrim(libhead0.label[ipar],2) eq 'O Mg Si S Ca Ti' then tmp=2
+        ;if strtrim(libhead0.label[ipar],2) eq 'C' then tmp=2
+        ;if strtrim(libhead0.label[ipar],2) eq 'N' then tmp=2
+        ;if strtrim(libhead0.label[ipar],2) eq 'O Mg Si S Ca Ti' then tmp=2
         indini=[indini,tmp]
         if strtrim(libhead0.label[ipar],2) eq 'TEFF' then begin
           amin=temin[i] & amax=temax[i]
@@ -112,7 +117,7 @@ for i=0,nclasses-1 do begin
     endfor
     printf,out,'indv '+string(indv+1,format='(9i2)')
     printf,out,'init  1 '
-    printf,out,'indini '+string(indini,format='(9i2)')
+    printf,out,'indini '+string(indini,format='(9i3)')
     printf,out,'initpar '+string(initpar,format='(9f12.4)')
     printf,out,'pmin '+string(pmin,format='(9f12.2)')
     printf,out,'pmax '+string(pmax,format='(9f12.2)')

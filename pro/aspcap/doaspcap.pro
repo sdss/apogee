@@ -371,15 +371,13 @@ for idir=0,n_elements(datadir)-1 do begin
            if tag_exist(libpar,'fibermax') then $
              if meanfib gt libpar.fibermax then skip=1
            if ~skip then begin
-             if init eq 0 then begin
-               for ipar=0,n_elements(par)-1 do begin
-                 ; make sure starting value is within grid
-                 if par[ipar] lt libhead0.llimits[ipar] then $
-                   par[ipar] = libhead0.llimits[ipar]+libhead0.steps[ipar]/2.
-                 if par[ipar] gt libhead0.llimits[ipar]+(libhead0.n_p[ipar]-1)*libhead0.steps[ipar] then  $
-                   par[ipar] =libhead0.llimits[ipar]+(libhead0.n_p[ipar]-1)*libhead0.steps[ipar]-libhead0.steps[ipar]/2.
-               endfor
-             endif
+             for ipar=0,n_elements(par)-1 do begin
+               ; make sure starting value is within grid
+               if par[ipar] lt libhead0.llimits[ipar] then $
+                 par[ipar] = libhead0.llimits[ipar]+libhead0.steps[ipar]/2.
+               if par[ipar] gt libhead0.llimits[ipar]+(libhead0.n_p[ipar]-1)*libhead0.steps[ipar] then  $
+                 par[ipar] =libhead0.llimits[ipar]+(libhead0.n_p[ipar]-1)*libhead0.steps[ipar]-libhead0.steps[ipar]/2.
+             endfor
              ; write the FERRE data files 
              printf,cfile,pseudo,format=cformat
              printf,frd,new,format=fformat

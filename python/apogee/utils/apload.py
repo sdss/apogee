@@ -578,7 +578,7 @@ class ApLoad :
         Uses sdss_access to create filenames and download files if necessary
         '''
 
-        if self.verbose: print('allfile...')
+        if self.verbose: print('allfile... chips=',chips)
         if self.instrument == 'apogee-n' : prefix='ap'
         else : prefix='as'
 
@@ -614,11 +614,12 @@ class ApLoad :
             if os.path.exists(filePath) is False and download: 
                 downloadPath = self.sdss_path.url(sdssroot,
                                       apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
-                                      location=location,obj=obj,plate=plate,mjd=mjd,num=num,
+                                      field=field,location=location,obj=obj,plate=plate,mjd=mjd,num=num,
                                       telescope=self.telescope,fiber=fiber,prefix=prefix,instrument=self.instrument)
+                if self.verbose: print('downloadPath',downloadPath)
                 self.http_access.get(sdssroot,
                                 apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
-                                location=location,obj=obj,plate=plate,mjd=mjd,num=num,
+                                field=field,location=location,obj=obj,plate=plate,mjd=mjd,num=num,
                                 telescope=self.telescope,fiber=fiber,prefix=prefix,instrument=self.instrument)
             return filePath
         else :

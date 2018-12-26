@@ -191,7 +191,12 @@ def clustdata() :
         'M2','M13','M3','M5','M12','M107',
         'M71','N2243','Be29', 'N2158','M35','N2420',
         'N188','M67','N7789','Pleiades','N6819',
-        'N6791']
+        'N6791',
+        'N5053','M68','N6397','M55','N5634','M22','M79','N3201','M10',
+        'N6752','Omegacen','M54','N6229','Pal5','N6544','N6522','N288','N362','N1851',
+        'M4','N2808','Pal6','47TUC','Pal1','N6539','N6388','Terzan12','N6441','N6316',
+        'N6760','Terzan5','N6553','N6528']
+
     out = np.recarray(len(clust),dtype=[
                        ('name','U24'),
                        ('field','U24'),
@@ -210,58 +215,108 @@ def clustdata() :
                 0.06,0.02,0.01,0.03,0.19,0.33,
                 0.25,0.051,0.157,0.36,0.262,0.05,
                 0.08,0.04,0.217,0.03,0.16,
-                0.122]
+                0.122,
+                0.01,0.05,0.18,0.08,0.05,0.34,0.01,0.24,0.28,
+                0.04,0.12,0.15,0.01,0.03,0.76,0.48,0.03,0.05,0.02,
+                0.35,0.22,1.46,0.04,0.15,1.02,0.37,2.06,0.47,0.54,
+                0.77,2.28,0.63,0.54]
+
     out['name']=clust
     out['field']=['M92','M15','M53','N5466','N4147',
                 'M2','M13','M3','M5PAL5','M12','M107',
                 'M71','N2243','198+08', 'M35N2158','M35N2158','N2420',
                 'N188','M67','N7789','Pleiades','N6819',
-                'N6791']
+                'N6791',
+                'N5053','M68','N6397','M55','N5634','M22','M79','N3201','M10',
+                'N6752','Omegacen','M54','N6229','Pal5','N6544','N6522','N288','N362','N1851',
+                'M4','N2808','Pal6','47TUC','Pal1','N6539','N6388','Terzan12','N6441','N6316',
+                'N6760','Terzan5','N6553','N6528']
+
     out['rv']=[ -118.517, -107.508, -61.5988, 106.883, 183., 
               -3.74874, -246.589, -145.525, 54.8727, -41.4000, -35.2638,
               -23.5504, 60., 25., 26.6529, -7.02990, 74.3025, 
               -42.1051, 34.0525, -55.0546, 5.59228, 2.55553, 
-              -47.4558]
+              -47.4558,
+               44.00,-94.70,18.80,174.70,-45.10,-146.30,205.80,494.00,75.20,
+              -26.70,232.10,141.30,-154.20,-58.70,-27.30,-21.10,-45.40,223.50,320.50,
+               70.70,101.60,181.00,-18.00,-82.80,31.00,80.10,94.10,16.50,71.40,
+               -27.50,-93.00,-3.20,206.60]
     out['drv']=[ 10., 10., 10., 10., 10., 
                10., 10., 10., 10., 10., 8., 
                8., 10., 10., 10., 10., 10., 
                6., 6., 6., 10., 6., 
-               6.]
+               6.,
+               10.00,10.00,10.0,4.00,10.00,7.80,5.30,10.00,10.00,
+               10.00,16.80,10.50,10.00,1.10,0.00,6.70,2.90,6.40,10.40,
+               10.00,13.40,10.00,11.00,10.00,10.00,18.90,10.00,18.00,10.00,
+               10.00,10.00, 10.00,10.00]
     out['mh']=[-2.35,-2.33,-2.06,-2.01,-1.78,
              -1.66,-1.58,-1.50,-1.33,-1.37,-1.03,
              -0.82,-0.35,-0.44,-0.21,-0.14,-0.13,
               0.04, 0.06,0.09,0.03,0.16,
-              0.37]
+              0.37,
+             -2.27,-2.23,-2.02,-1.94,-1.88,-1.70,-1.60,-1.59,-1.56,
+             -1.54,-1.53,-1.49,-1.47,-1.41,-1.40,-1.34,-1.32,-1.26,-1.18,
+             -1.16,-1.14,-0.91,-0.72,-0.65,-0.63,-0.55,-0.50,-0.46,-0.45,
+             -0.40,-0.23,-0.18,-0.11]
     out['dist']=[8.3, 10.4, 17.9, 16.0, 19.3, 
                12.59, 7.1, 10.2, 7.5, 6.33, 6.4, 
                4.0, 4.45, 14.87, 5.06, 0., 2.44, 
                2.04, 0.907, 2.33, 0., 2.36, 
-               4.09]
+               4.09,
+               17.40,10.30,2.30,5.40,25.20,3.20,12.90,4.90,4.40,
+               4.00,5.20,26.50,30.50,23.20,3.00,7.70,12.00,9.40,12.10,
+               2.20,9.60,5.80,4.50,11.10, 7.80,9.90,4.80,11.60,10.40,
+               7.40,6.90,6.00,7.90]
     out['age']=[12., 12., 12., 12., 12., 
                12., 12., 12., 12., 12., 12., 
                10.0, 4.5, 1.1, 1.0, 0.5, 1.1, 
                4.26, 6., 1.7, 0.5, 1.5, 
-               4.4]
+               4.4,
+               12., 12., 12., 12., 12., 12., 12., 12., 12., 
+               12., 12., 12., 12., 12., 12., 12., 12., 12., 12., 
+               12., 12., 12., 12., 12., 12., 12., 12., 12., 12., 
+               12., 12., 12., 12.]
     out['giant_mass'] = [ 0.85, 0.85, 0.85, 0.85, 0.85,
                           0.85, 0.85, 0.85, 0.85, 0.85, 0.85,
                           0.85, -9999.,  -9999.,  -9999., -9999., 1.6,
                           -9999., 1.36, -9999., -9999., 1.63,
-                          1.15 ]
+                          1.15,
+                          0.85, 0.85,0.85,0.85, 0.85,0.85, 0.85,0.85, 0.85,
+                          0.85, 0.85,0.85, 0.85,0.85, 0.85,0.85, 0.85,0.85, 0.85,
+                          0.85, 0.85,0.85, 0.85,0.85, 0.85,0.85, 0.85,0.85, 0.85,
+                          0.85, 0.85,0.85, 0.85]
     out['ra']=[259.27917,322.4929,198.2292,211.3625,182.5262,
              323.3625,250.42083,205.55,229.6375,251.80908,248.1333,
              298.4438,97.3917,103.325,91.8542,91.854,114.5958,
              12.1083,132.825,359.35,56.75,295.325,
-             290.22083]
+             290.22083,
+             199.11288 , 189.86658 , 265.17537 , 294.99879 , 217.40541 ,
+             279.09975 ,  81.046215, 154.403415, 254.28771 , 287.71713 ,
+             201.69684 , 283.76388 , 251.744955, 229.021875, 271.835745,
+             270.89175 ,  13.188495,  15.809415,  78.528165, 245.896755,
+             138.012915, 265.925835,   6.023625,  53.333505, 271.207005,
+             264.07179 , 273.065835, 267.554415, 259.15542 , 287.800035,
+             267.019995, 272.323335, 271.20684 ]
+
     out['dec']=[43.1358,12.1669,18.1806,28.5344,18.5425,
               -0.82325,36.4611,28.3772,2.0811,-1.94853,-13.05361,
               18.7792,-31.2833,16.9167,24.0967,24.097,21.5733,
               85.255,11.8,56.7083,24.11667,40.1867,
-              37.77167]
+              37.77167,
+              17.700250,-26.744056, -53.674333,-30.964750, -5.976389,-23.904750,-24.524722,-46.412472, -4.100306,
+             -59.984556,-47.479583,-30.479861, 47.527750, -0.111611,-24.997333,-30.033972,-26.582611,-70.848778,-40.046556,
+             -26.525750,-64.863500,-26.222500,-72.081278, 79.581056, -7.585861,-44.735500,-22.741944,-37.051444,-28.140111,
+              1.030472,-24.779167,-25.908694,-30.056278]
     out['rad']=[20.,18.,13.,11.,4.,
              16.,20.,24.,23.,16.,13.,
              7.,5.,5.,5.,10.,6.,
              16.,45.,16.,110.,12.,
-             16.]
+             16.,
+             11.80,13.70,15.80,16.30,8.40,29.00,8.30,28.50,21.50,
+             55.30,57.00,7.50,5.40,16.30,2.05,16.40,12.90,16.10,11.70,
+             32.50,15.60,8.40,42.90,9.00,21.50,6.20,5.00,8.00,5.90,
+             13.00,13.30,8.20,16.60]
 
     return out.view(np.recarray)
 
@@ -274,6 +329,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
         print('no cluster found: ',cluster)
         return []
     print('cluster: ', cluster)
+    ic=ic[0]
 
     # adjust ra for wraparound if needed
     ra=copy.copy(data['RA'])
@@ -294,16 +350,21 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
     else :
         jc=[]
     print('{:d} stars after location criterion'.format(len(jc)))
+    if len(jc) == 0 : return jc
     if plot :
         jf=np.where((np.abs(ra-clust[ic].ra)*np.cos(clust[ic].dec*np.pi/180.) < 1.5) & 
                 (np.abs(data['DEC']-clust[ic].dec) < 1.5))[0]
         fig,ax=plots.multi(1,1)
-        fig.suptitle(cluster)
+        fig.suptitle('{:s} Radius: {:4.2f} arcmin'.format(cluster,clust[ic].rad))
         plots.plotp(ax,ra[jf],data['DEC'][jf],color='k',size=20,draw=False,xt='RA',yt='DEC')
         plots.plotp(ax,ra[jc],data['DEC'][jc],color='g',size=20,draw=False)
+        circle = plt.Circle((clust[ic].ra,clust[ic].dec), clust[ic].rad/60., color='g', fill=False)
+        ax.add_artist(circle)
+
         if hard is not None :
-            print(hard+'/'+clust[ic].name[0]+'_pos.jpg')
-            fig.savefig(hard+'/'+clust[ic].name[0]+'_pos.jpg')
+            print(hard+'/'+clust[ic].name+'_pos.jpg')
+            fig.savefig(hard+'/'+clust[ic].name+'_pos.jpg')
+            plt.close()
         else :
             pdb.set_trace()
 
@@ -315,12 +376,20 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
     j=np.where(np.abs(vhelio[jc]-clust[ic].rv) < clust[ic].drv)[0]
     if plot :
         ax.cla() 
-        ax.hist(vhelio[jf],color='k',bins=np.arange(clust[ic].rv-100,clust[ic].rv+100,1.),histtype='step')
-        ax.hist(vhelio[jc],color='r',bins=np.arange(clust[ic].rv-100,clust[ic].rv+100,1.),histtype='step')
-        ax.hist(vhelio[jc[j]],color='g',bins=np.arange(clust[ic].rv-100,clust[ic].rv+100,1.),histtype='step',linewidth=3)
+        try :
+            if len(jf) > 0 : ax.hist(vhelio[jf],color='k',bins=np.arange(clust[ic].rv-100,clust[ic].rv+100,1.),histtype='step')
+            if len(jc) > 0 : ax.hist(vhelio[jc],color='r',bins=np.arange(clust[ic].rv-100,clust[ic].rv+100,1.),histtype='step')
+            if len(j) > 0 : ax.hist(vhelio[jc[j]],color='g',bins=np.arange(clust[ic].rv-100,clust[ic].rv+100,1.),histtype='step',linewidth=3)
+        except : pass
+        ymax=ax.get_ylim()[1]
+        ax.plot([clust[ic].rv,clust[ic].rv],[0,ymax],color='g')
+        ax.plot([clust[ic].rv+clust[ic].drv,clust[ic].rv+clust[ic].drv],[0,ymax],color='r',ls=':')
+        ax.plot([clust[ic].rv-clust[ic].drv,clust[ic].rv-clust[ic].drv],[0,ymax],color='r',ls=':')
+        fig.suptitle('{:s} RV: {:4.2f} +/- {:4.2f}'.format(cluster,clust[ic].rv,clust[ic].drv))
         ax.set_xlabel('RV')
         if hard is not None :
-            fig.savefig(hard+'/'+clust[ic].name[0]+'_rv.jpg')
+            fig.savefig(hard+'/'+clust[ic].name+'_rv.jpg')
+            plt.close()
         else :
             plt.draw()
             pdb.set_trace()
@@ -339,8 +408,8 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
                                "FROM gaiadr2.gaia_source AS gaia, gaiadr2.tmass_best_neighbour AS xm "+
                                "WHERE gaia.source_id = xm.source_id AND "+
                                   "CONTAINS(POINT('ICRS',gaia.ra,gaia.dec),CIRCLE('ICRS',{:12.6f},{:12.6f},{:12.6f}))=1;".format(
-                                                                                  clust[ic].ra[0],clust[ic].dec[0],clust[ic].rad[0]/60.))
-      # convert to velocities (note mas and kpc cancel out) and get median
+                                                                                  clust[ic].ra,clust[ic].dec,clust[ic].rad/60.))
+      # convert to velocities (note mas and kpc cancel out factors of 1000) and get median
       gaia=job.get_results()
       i1, i2 = match.match(np.core.defchararray.replace(data['APOGEE_ID'][jc],'2M',''),gaia['original_ext_source_id'])
       vra=4.74*gaia['pmra']*clust[ic].dist
@@ -354,10 +423,12 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
         plots.plotp(ax,vra,vdec,color='k',
                     xr=[med_vra-100,med_vra+200],xt='PMRA (km/sec at cluster dist)',
                     yr=[med_vdec-100,med_vdec+100],yt='PMDEC (km/sec at cluster dist)')
-        plots.plotp(ax,vra[i2],vdec[i2],color='r',size=50)
-        plots.plotp(ax,vra[i2[j]],vdec[i2[j]],color='g',size=50)
+        plots.plotp(ax,vra[i2],vdec[i2],color='r',size=30)
+        plots.plotp(ax,vra[i2[j]],vdec[i2[j]],color='g',size=30)
+        fig.suptitle('{:s} PM (km/s): {:4.2f} +/- {:4.2f}  {:4.2f} +/ {:4.2f}'.format(cluster,med_vra,clust[ic].drv, med_vdec,clust[ic].drv))
         if hard is not None :
-            fig.savefig(hard+'/'+clust[ic].name[0]+'_pm.jpg')
+            fig.savefig(hard+'/'+clust[ic].name+'_pm.jpg')
+            plt.close()
         else :
             pdb.set_trace()
       if len(j) > 0 :
@@ -382,8 +453,10 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
         ax.hist(par[i2],color='r',bins=np.arange(par.min(),par.max(),0.01),histtype='step',range=(0,2))
         ax.hist(par[i2[j]],color='g',bins=np.arange(par.min(),par.max(),0.01),histtype='step',range=(0,2))
         ax.set_xlabel('Parallax')
+        fig.suptitle('{:s} Parallax : {:4.2f} +/- {:4.2f} '.format(cluster,med_par, 3*med_par_error))
         if hard is not None :
-            fig.savefig(hard+'/'+clust[ic].name[0]+'_parallax.jpg')
+            fig.savefig(hard+'/'+clust[ic].name+'_parallax.jpg')
+            plt.close()
         else :
             plt.draw()
             pdb.set_trace()
@@ -437,7 +510,8 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
     if plot :
         plots.plotp(ax,data['J'][jc]-data['K'][jc],data['K'][jc],color='b',size=30,draw=False)
         if hard is not None :
-            fig.savefig(hard+'/'+clust[ic].name[0]+'_cmd.jpg')
+            fig.savefig(hard+'/'+clust[ic].name+'_cmd.jpg')
+            plt.close()
         else :
             plt.draw()
             pdb.set_trace()

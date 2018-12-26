@@ -32,13 +32,18 @@ qgroup='apogee'
 iplate=0
 if not keyword_set(apvisit) then begin
   for i=0,n_elements(files)-1 do begin
-    telescope=file_basename(file_dirname(files[i]))
+    dirname=file_basename(file_dirname(files[i]))
+    if strpos(dirname,'apo1m') ge 0 then telescope='apo1m' $
+    else if strpos(dirname,'apo25m') ge 0 then telescope='apo25m' $
+    else if strpos(dirname,'lco25m') ge 0 then telescope='lco25m' $
+    else stop,'No telescope name in directory name!'
+
     apsetver,vers=apred_vers,telescope=telescope
     dirs=getdir()
     field=file_basename(files[i])
     print,field
-    file_mkdir,outdir+'/'+telescope+'/plan'
-    if not keyword_set(single) then openw,out,/get_lun,outdir+'/'+telescope+'/plan/'+aspcapstar+'-'+field+'.par'
+    file_mkdir,outdir+'/'+dirname+'/plan'
+    if not keyword_set(single) then openw,out,/get_lun,outdir+'/'+dirname+'/plan/'+aspcapstar+'-'+field+'.par'
     if not keyword_set(single) or iplate eq 0 then begin
       ;printf,out,'idlwrap_version  ',idlwrap_version()
       ;printf,out,'speclib_version  ',speclib_version()
@@ -71,7 +76,7 @@ if not keyword_set(apvisit) then begin
       printf,out,'  char outfield[24];'
       printf,out,'} ASPCAP;'
     endif
-    printf,out,'ASPCAP '+telescope+'/'+field+' '+telescope+'/'+field
+    printf,out,'ASPCAP '+dirname+'/'+field+' '+dirname+'/'+field
     if not keyword_set(single) then free_lun,out
     iplate+=1
   endfor

@@ -87,6 +87,8 @@ def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',color
       aximage
 
     """
+    global _data_x, _data_y
+
     set_limits_ticks(ax,xr,yr,nxtick,nytick)
     if xt is not None : ax.set_xlabel(xt) 
     if yt is not None : ax.set_ylabel(yt)
@@ -175,6 +177,8 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
         labelcolor=  : color for label
        
     '''
+    global _data_x, _data_y
+
     set_limits_ticks(ax,xr,yr,nxtick,nytick)
     if xt is not None : ax.set_xlabel(xt) 
     if yt is not None : ax.set_ylabel(yt)
@@ -250,7 +254,7 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
 
 
 
-def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None,ls=None,semilogy=False,linewidth=1.,tit=None,nxtick=None,nytick=None) :
+def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None,ls=None,semilogy=False,linewidth=1.,tit=None,nxtick=None,nytick=None,linestyle='-',alpha=None) :
     '''
     Plot connected points
     '''
@@ -260,9 +264,9 @@ def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None
     if tit is not None : ax.set_title(tit)
     if ls is None : ls='-'
     if semilogy :
-        line = ax.semilogy(x,y,color=color,label=label,ls=ls,linewidth=linewidth)
+        line = ax.semilogy(x,y,color=color,label=label,ls=ls,linewidth=linewidth,linestyle=linestyle,alpha=alpha)
     else :
-        line = ax.plot(x,y,color=color,label=label,ls=ls,linewidth=linewidth)
+        line = ax.plot(x,y,color=color,label=label,ls=ls,linewidth=linewidth,linestyle=linestyle,alpha=alpha)
     if draw : plt.draw()
     return line
     

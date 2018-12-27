@@ -150,7 +150,7 @@ def append(a,b) :
     # unforutantely, broadcasting of the ND array in np.append doesn't seem to work!
     return np.append(a.astype(dt),b.astype(dt)), dt
 
-def concat(files,hdu=1,verbose=False) :
+def concat(files,hdu=1,verbose=False,fixfield=False) :
     '''
     Create concatenation of structures from an input list of files files; structures must have identical tags
 
@@ -178,6 +178,10 @@ def concat(files,hdu=1,verbose=False) :
     for file in allfiles :
         if verbose: print(file)
         a=fits.open(file)[hdu].data
+        if fixfield : 
+            a = add_cols(a,np.zeros(len(a),dtype=[('ALTFIELD','S24')]))
+            a['ALTFIELD'] = os.path.basename(os.path.dirname(file))
+
         if file == allfiles[0] :
             app=a
         else :
@@ -193,6 +197,9 @@ def concat(files,hdu=1,verbose=False) :
     for file in allfiles :
         if verbose: print(file)
         a=fits.open(file)[hdu].data
+        if fixfield : 
+            a = add_cols(a,np.zeros(len(a),dtype=[('ALTFIELD','S24')]))
+            a['ALTFIELD'] = os.path.basename(os.path.dirname(file))
         for i in range(len(a)) :
           for name in all.dtype.names :
             # strings and chararrays need to behandled properly
@@ -201,7 +208,7 @@ def concat(files,hdu=1,verbose=False) :
             except:
               all[name][j] = a[name][i][0]
           j+=1
-        if verbose: print len(all), len(a)
+        if verbose: print(len(all), len(a))
 
     return all
 

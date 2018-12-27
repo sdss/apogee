@@ -1,0 +1,57 @@
+config    'l33'
+synthcode 'turbospec'
+linelist '20180901'
+wrange   15100. 17000.
+continuum    4.00 1.00 0.00 0.00
+npart     12
+npca      75
+maskdir   filters_CeNdYbC13
+apred     r10
+enhanced_o 1
+
+typedef struct {
+ char atmos[30];
+ char specdir[30];
+ float r0;
+ char smooth[30];
+ char vmsuffix[30];
+ char lsfid[8];
+ char waveid[8];
+ int lsffiber[5];
+ float dw;
+ int solarisotopes;
+ float teff0;
+ float dteff;
+ int nteff;
+ float logg0;
+ float dlogg;
+ int nlogg;
+ float mh0;
+ float dmh;
+ int nmh;
+ float am0;
+ float dam;
+ int nam;
+ float cm0;
+ float dcm;
+ int ncm;
+ float nm0;
+ float dnm;
+ int nnm;
+ float vt0;
+ float dvt;
+ int nvt;
+ float rot0;
+ float drot;
+ int nrot;
+ char kernel[16];
+ int vmacrofit;
+ float vmacro[4];
+ int vmicrofit;
+ float vmicro[5];
+ char elem[1][4];
+} GRID ;
+#     atmos  specdir  r0   smooth         suff lsfid    waveid    lsffiber           dw iso teff0  dteff nt  lg0 dlg nlg  mh0 dmh  nm   am0 dam nam  cm0  dcm ncm  nm0 dnm nnm   vt0      dvt   nvt    rot0  drot  nrot kern vmacrofit  vmacro       vmicrofit vmicro             elems
+#
+# GK giantgrids
+GRID marcs tgGK_O_180901 1.0 lsfcombo5_l33  l33  05440020 02420038 { 50 100 150 200 250 }  0.05 2 3500.0 250.0 11  0.0 0.5 10  -2.5 0.25 15  -0.75 0.25 8  -1.50 0.25 11  -0.5 0.5 6 -0.522878 0.301030 5 0.176091 0.301030 1 gauss 1 {0.470794 0. 0. -0.254120} 0 {  0.372160 -0.090531 -0.000802  0.001263 -0.027321} { Ce }

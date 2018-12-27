@@ -10,6 +10,7 @@ maskdir   filters_CeNdYbC13
 typedef struct {
  char atmos[30];
  char specdir[30];
+ float r0;
  char smooth[30];
  char vmsuffix[30];
  char lsfid[8];
@@ -51,7 +52,7 @@ typedef struct {
 #     atmos  specdir     smooth         suff lsfid    waveid    lsffiber           dw iso teff0  dteff nt  lg0 dlg nlg  mh0 dmh  nm   am0 dam nam  cm0  dcm ncm  nm0 dnm nnm   vt0      dvt   nvt    rot0  drot  nrot kern vmacrofit  vmacro       vmicrofit vmicro             elems
 #
 # F giant grid to allow coarse grid construction
-#GRID marcs tgF_180901 lsfcombo5_l33   l33  05440020 02420038 { 50 100 150 200 250 }   0.05 2 5500.0 250.0 11  0.0 1.0 3   -2.5 0.50  8  -0.5 0.50 4  -1.00 0.5  5  -0.5 0.5 5 -0.522878 0.301030 5 0.176091 0.301030 7 rot 0 {0.00 0. 0. 0.}  0 {  0.372160 -0.090531 -0.000802  0.001263 -0.027321} { Ce }
+GRID marcs tgF_180901 -1.0 lsfcombo5_l33   l33  05440020 02420038 { 50 100 150 200 250 }   0.05 2 5500.0 250.0 11  0.0 1.0 3   -2.5 0.50  8  -0.5 0.50 4  -0.50 0.25  5  -0.5 0.5 5 -0.522878 0.301030 5 0.176091 0.301030 7 rot 0 {0.00 0. 0. 0.}  0 {  0.372160 -0.090531 -0.000802  0.001263 -0.027321} { Ce } 
 #
 # coarse grid
-GRID marcs tFGKM_180901 lsfcombo5_l33  l33  05440020 02420038 { 50 100 150 200 250 }  0.05 2 3000.0 500.0 11  0.0 1.0  6  -2.5 0.50  8  -0.5 0.50 4  -0.50 0.5  4  -0.5 0.5 5 -0.522878 0.301030 5 0.176091 0.301030 7 rot 0 {0.470794 0. 0. -0.254120} 0 {  0.372160 -0.090531 -0.000802  0.001263 -0.027321} { Ce }
+#GRID marcs tFGKM_180901 lsfcombo5_l33  l33  05440020 02420038 { 50 100 150 200 250 }  0.05 2 3000.0 500.0 11  0.0 1.0  6  -2.5 0.50  8  -0.5 0.50 4  -0.50 0.5  4  -0.5 0.5 5 -0.522878 0.301030 5 0.176091 0.301030 7 rot 0 {0.470794 0. 0. -0.254120} 0 {  0.372160 -0.090531 -0.000802  0.001263 -0.027321} { Ce }

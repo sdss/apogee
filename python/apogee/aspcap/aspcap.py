@@ -255,6 +255,7 @@ def intplot(param='FPARAM',indir='cal',apred='r10',aspcap='t33b') :
     hf,ha=plots.multi(1,nplot,figsize=(8.5,11),hspace=0.2)
     ha2=[]
     for i in range(nplot) : ha2.append(ha[i].twinx())
+    print('hit any key near object to plot in HR diagram, q to quit')
     while (1) :
         ret=plots.mark(fig)
         if ret[2] == 'q' : break

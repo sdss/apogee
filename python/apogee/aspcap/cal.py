@@ -3,6 +3,7 @@ from apogee.utils import apselect
 from apogee.aspcap import elem
 from apogee.aspcap import teffcomp
 from apogee.aspcap import loggcomp
+from apogee.aspcap import aspcap
 from tools import html
 from tools import match
 from tools import struct
@@ -39,7 +40,7 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
     Concatenate aspcapField files, adding ELEM tags if not there
     '''
     # concatenate the structures
-    all=struct.concat(files,verbose=True)
+    all=struct.concat(files,verbose=True,fixfield=True)
 
     # add elements tags if we don't have them
     try :
@@ -64,6 +65,11 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
     if out is not None:
         print('writing',out)
         struct.wrfits(all,out)
+
+    aspcap.hr(all,hard='hr.png')
+    aspcap.multihr(all,hard='multihr.png')
+    teffcomp.ghb(all,ebvmax=0.02,glatmin=10,out='giant_teffcomp',yr=[-750,750],dwarf=False,calib=False)
+    loggcomp.apokasc(all,plotcal=False,out='loggcomp',calib=False)
 
     return all
 
@@ -236,7 +242,7 @@ def mklinks(data,j,out,n=48) :
         outdir=tel+'/'+out
         # remove existing output directories, create new ones
         cleandir(outdir,n)
-        gd=np.where((data['TELESCOPE'][j] == tel) | (data['TELESCOPE'][j] == tel2) )[0]
+        gd=np.where(data['TELESCOPE'][j] == tel )[0]
         nsplit=len(gd)//n+1
         for i in range(len(gd)) :
             symlink(data[j[gd[i]]],outdir,i//nsplit)

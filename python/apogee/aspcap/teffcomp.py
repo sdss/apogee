@@ -96,7 +96,7 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,dwarf=False,trange=[3750,5500],mhrange=[
     tefit = fit.fit1d(bins+binsize/2.,mean,degree=2,reject=0)
     # 1D quadratic fit as a function of metallicity
     allfit = fit.fit1d(allstar[param][:,3],allstar[param][:,0]-ghb,ydata=allstar[param][:,0],degree=2,reject=0)
-    ejk=np.clip(np.sqrt(allstar['J_ERR']**2+allstar['K_ERR']**2),0.,0.02)
+    #ejk=np.clip(np.sqrt(allstar['J_ERR']**2+allstar['K_ERR']**2),0.,0.02)
     #errpar = err.errfit(allstar[param][:,0],allstar['SNR'],allstar[param][:,3],allstar[param][:,0]-tefit(allstar[param][:,3])-ghb,title='Teff',out=out+'_phot',zr=[0,250],meanerr=abs(dtdjk)*ejk)
     errpar = err.errfit(allstar[param][:,0],allstar['SNR'],allstar[param][:,3],allstar[param][:,0]-tefit(allstar[param][:,3])-ghb,title='Teff',out=out,zr=[0,150])
 

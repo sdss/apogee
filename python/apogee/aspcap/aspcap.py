@@ -241,7 +241,7 @@ def elemmask(el,maskdir='filters_26112015',plot=None,yr=[0,1]) :
         plots.plotl(plot,wave,mask,yr=yr)
     return wave,mask
 
-def intplot(a,param='FPARAM',indir='cal') :
+def intplot(a,param='FPARAM',indir='cal',apred='r10',aspcap='t33b') :
     """ Given input structure, plot HR diagram, and enter event loop to mark stars to plot spectra
     """
 
@@ -252,13 +252,23 @@ def intplot(a,param='FPARAM',indir='cal') :
     hf,ha=plots.multi(1,nplot,figsize=(8.5,11),hspace=0.2)
     ha2=[]
     for i in range(nplot) : ha2.append(ha[i].twinx())
+    load=apload.ApLoad(apred=apred,aspcap=aspcap)
     while (1) :
         ret=plots.mark(fig)
         if ret[2] == 'q' : break
-        f=glob.glob(indir+'/*/*'+a['APOGEE_ID'][plots._index[0]]+'*')
-        print(f)
-        dir=f[0].split('/')[1]
-        f=fits.open(indir+'/'+dir+'/aspcapField-'+dir+'.fits')
+        ind=plots._index[0]
+        try :
+            load.settelescope='apo25m'
+            try : f=load.aspcapField(a['ALTFIELD'][ind])
+            except : f=load.aspcapField(a['FIELD'][ind])
+        except :
+            load.settelescope='lco25m'
+            try : f=load.aspcapField(a['ALTFIELD'][ind])
+            except : f=load.aspcapField(a['FIELD'][ind])
+        #f=glob.glob(indir+'/*/*'+a['APOGEE_ID'][plots._index[0]]+'*')
+        print('f: ',f)
+        #dir=f[0].split('/')[1]
+        #f=fits.open(indir+'/'+dir+'/aspcapField-'+dir+'.fits')
         data=f[1].data
         j=np.where(data['APOGEE_ID'] == a['APOGEE_ID'][plots._index[0]])[0][0]
         sa.cla()

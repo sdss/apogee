@@ -241,11 +241,11 @@ def elemmask(el,maskdir='filters_26112015',plot=None,yr=[0,1]) :
         plots.plotl(plot,wave,mask,yr=yr)
     return wave,mask
 
-def intplot(param='FPARAM',indir='cal',apred='r10',aspcap='t33b') :
+def intplot(param='FPARAM',indir='cal',apred='r10',aspcap='t33b',verbose=False) :
     """ Given input structure, plot HR diagram, and enter event loop to mark stars to plot spectra
     """
 
-    load=apload.ApLoad(apred=apred,aspcap=aspcap)
+    load=apload.ApLoad(apred=apred,aspcap=aspcap,verbose=verbose)
     a=load.allCal()[1].data
 
     fig,ax = hr(a,param=param)
@@ -269,9 +269,9 @@ def intplot(param='FPARAM',indir='cal',apred='r10',aspcap='t33b') :
             try : f=load.aspcapField(a['ALTFIELD'][ind])
             except : f=load.aspcapField(a['FIELD'][ind])
         #f=glob.glob(indir+'/*/*'+a['APOGEE_ID'][plots._index[0]]+'*')
-        print('f: ',f)
         #dir=f[0].split('/')[1]
         #f=fits.open(indir+'/'+dir+'/aspcapField-'+dir+'.fits')
+        print('f: ',f)
         data=f[1].data
         j=np.where(data['APOGEE_ID'] == a['APOGEE_ID'][plots._index[0]])[0][0]
         sa.cla()
@@ -290,14 +290,13 @@ def intplot(param='FPARAM',indir='cal',apred='r10',aspcap='t33b') :
         plots.plotl(sa,10.**f[3].data['WAVE'][0],f[2].data['SPEC_BESTFIT'][j,:])
         text1=r'ID: {:s} FIELD: {:s} SNR: {:6.1f} $\chi^2$: {:6.1f}'.format(
              data['APOGEE_ID'][j],data['FIELD'][j],data['SNR'][j],data['PARAM_CHI2'][j])
-        #sa.text(0.02,0.95,text1,transform=sa.transAxes)
         text2=r'Teff: {:5.0f} logg: {:5.1f} [M/H]: {:5.2f} [$\alpha$/M]: {:5.2f} [C/M]: {:5.2f} [N/M]: {:5.2f}'.format(
              data[param][j,0],data[param][j,1],data[param][j,3],data[param][j,6],data[param][j,4],data[param][j,5])
-        #sa.text(0.02,0.90,text2,transform=sa.transAxes)
         sf.suptitle(text1+'\n'+text2)
         hf.suptitle(text1+'\n'+text2)
         plt.draw()
         plt.show()
+    plt.close(hf)
     plt.close(sf)
     plt.close(fig)
 

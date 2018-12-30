@@ -12,8 +12,8 @@ mkvers $apred_vers
 cd $apred_vers
 
 mkslurm "apred visit/*/*/*/*/a?Plan*.par" --maxrun=8 --idlthreads=4
-mkslurm "mkwave-n $apred_vers" --norunplans --idlthreads 4
-mkslurm "mkwave-s $apred_vers" --norunplans --idlthreads 4
+mkslurm "mkcal $apred_vers apo25m" --name mkcal-n --norunplans --idlthreads 4
+mkslurm "mkcal $apred_vers lco25m" --name mkcal-s --norunplans --idlthreads 4
 
 idl  << endidl
   apmkallplan,$mjdstart,$mjdend,vers='$apred_vers'

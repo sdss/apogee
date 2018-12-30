@@ -239,7 +239,7 @@ def mklinks(data,j,out,n=48) :
 
     for tel in ['apo1m','apo25m','lco25m'] :
         # create symbolic links in output directories, separate for each instrument
-        outdir=tel+'/'+out
+        outdir=tel+'/'+out+'_'+tel
         # remove existing output directories, create new ones
         cleandir(outdir,n)
         gd=np.where(data['TELESCOPE'][j] == tel )[0]

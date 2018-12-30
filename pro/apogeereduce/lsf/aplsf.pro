@@ -55,7 +55,6 @@ pro aplsf,lampframes,waveid,lsfim,fitmethod=fitmethod,nsigfit=nsigfit,gauss=gaus
 
 t0_0 = systime(1)
 
-
 ; Get APOGEE directories
 dirs=getdir(apogee_dir,cal_dir,spectro_dir,apogee_vers,lib_dir)
 lsf_dir = cal_dir+'/lsf/'

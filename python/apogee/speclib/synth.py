@@ -754,30 +754,7 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,teles
     waveid=int(p.get('waveid'))
 
     if ls is None :
-        lsfile = 'lsf_{:08d}_{:08d}.fits'.format(lsfid,waveid)
-        while os.path.isfile(lsfile+'.lock') : 
-            print('waiting for lock: ',lsfile+'.lock')
-            time.sleep(10)
-
-        if os.path.isfile(lsfile) :
-            x=fits.open(lsfile)[1].data
-            ls=fits.open(lsfile)[2].data
-        else :
-            fp = open(lsfile+'.lock','w')
-            fp.close()
-            x,ls = lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred,telescope=telescope)
-            hdu=fits.HDUList()
-            hdu.append(fits.PrimaryHDU())
-            hdu[0].header['APRED'] = apred
-            hdu[0].header['LSFID'] = lsfid
-            hdu[0].header['WAVEID'] = waveid
-            hdu[0].header['HIGHRES'] = highres
-            for i,f in enumerate(fiber) :
-                hdu[0].header['FIBER{:d}'.format(i)] = f
-            hdu.append(fits.ImageHDU(x))
-            hdu.append(fits.ImageHDU(ls))
-            hdu.writeto(lsfile,overwrite=True)
-            os.remove(lsfile+'.lock') 
+        x, ls = getlsf(lsfid,waveid,apred=apred,telescope=telescope,fiber=fiber,highres=highres)
     else :
         x = ls[0]
         ls = ls[1]
@@ -906,12 +883,13 @@ def mkspec(input) :
         elems.append([el,pars[8+j]])
     print(teff,logg,mh,vmicro,am,cm,nm)
     spec,specnorm=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=indata['kurucz'],fill=False,
-                              linelist=indata['linelist'],wrange=[15100.,17000.],h2o=indata['h2o'],atoms=indata['atoms'],save=False)
+                              linelist=indata['linelist'],wrange=indata['wrange'],dw=indata['dw'],h2o=indata['h2o'],atoms=indata['atoms'],save=False)
     #spec,specnorm=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=False,fill=False,linelist='20180901.OH',h2o=0,atoms=False,wrange=[15100.,17000.],save=False)
     return pars,specnorm
     
 
-def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fiber='combo',linelist='20180901',kurucz=False,h2o=None,atoms=True,plot=False,lines=None,ls=None) :
+def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',telescope='apo25m',
+            fiber='combo',linelist='20180901',kurucz=False,h2o=None,atoms=True,plot=False,lines=None,ls=None) :
     """ Make a series of spectra from parameters in an input file, with parallel processing for turbospec
         Outputs to FITS file {file}.fits
 
@@ -938,6 +916,9 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fi
     indata['kurucz']=kurucz
     indata['h2o']=h2o
     indata['atoms']=atoms
+    indata['wrange']=[15100.,17000.]
+    indata['dw']=0.05
+    nspec=38001
     inputs=[]
     for par in pars :
         inputs.append((par,indata))
@@ -950,18 +931,9 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fi
 
     # convolved and bundle output spectra into output fits file
     wa=aspcap.apStarWave()
+    prefix='lsf_'
     if ls is None :
-        print('getting lsf...')
-        lsfile = 'lsf_{:08d}_{:08d}.fits'.format(lsfid,waveid)
-        if os.path.isfile(lsfile) :
-            x=fits.open(lsfile)[0].data
-            ls=fits.open(lsfile)[1].data
-        else :
-            x,ls=lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred)
-            hdu=fits.HDUList()
-            hdu.append(fits.ImageHDU(x))
-            hdu.append(fits.ImageHDU(ls))
-            hdu.writeto(lsfile,overwrite=True)
+        x, ls = getlsf(lsfid,waveid,prefix=prefix,apred=apred,telescope=telescope,fiber=fiber,highres=highres)
     else :
         x=ls[0]
         ls=ls[1]
@@ -970,7 +942,7 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fi
     conv=[]
     outpar=[]
     if plot : plt.clf()
-    ws=np.linspace(15100.,17000., len(specs[0][1]))
+    ws=np.linspace(15100.,17000., nspec)
     # synthesis is in air, we want vacuum
     ws=spectra.airtovac(ws)
     print('convolving...')
@@ -994,9 +966,45 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fi
     hdu.append(fits.ImageHDU(outpar))
     hdu.append(fits.ImageHDU(out))
     h=fits.ImageHDU(conv)
-    hdu.append(fits.ImageHDU(conv))
+    h.header['CRVAL1'] = np.log10(wa[0])
+    h.header['CDELT1'] = np.log10(wa[1])-np.log10(wa[0])
+    h.header['CTYPE1'] = 'LOG(WAVELENGTH)'
+    hdu.append(h)
     hdu.writeto(file+suffix+'.fits',overwrite=True)
     return file+suffix+'.fits' 
+
+def getlsf(lsfid,waveid,apred='r10',telescope='apo25m',highres=9,prefix='lsf_',fiber='combo',clobber=False) :
+    """ Create LSF FITS file or read if already created
+    """
+    lsfile = prefix+'{:08d}_{:08d}.fits'.format(lsfid,waveid)
+    while os.path.isfile(lsfile+'.lock') :
+        # if another process is creating LSF wait until done
+        print('waiting for lock: ',lsfile+'.lock')
+        time.sleep(10)
+
+    if os.path.isfile(lsfile) and not clobber :
+        # if file exists, read it
+        x=fits.open(lsfile)[1].data
+        ls=fits.open(lsfile)[2].data
+    else :
+        fp = open(lsfile+'.lock','w')
+        fp.close()
+        # lsf.get does the real work
+        x,ls = lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred,telescope=telescope)
+        hdu=fits.HDUList()
+        hdu.append(fits.PrimaryHDU())
+        hdu[0].header['APRED'] = apred
+        hdu[0].header['LSFID'] = lsfid
+        hdu[0].header['WAVEID'] = waveid
+        hdu[0].header['HIGHRES'] = highres
+        for i,f in enumerate(fiber) :
+            hdu[0].header['FIBER{:d}'.format(i)] = f
+        hdu.append(fits.ImageHDU(x))
+        hdu.append(fits.ImageHDU(ls))
+        hdu.writeto(lsfile,overwrite=True)
+        os.remove(lsfile+'.lock')
+    return x, ls
+
    
 def elemsens(files=None,outfile='elemsens.fits',highres=9,waveid=2420038,lsfid=5440020,apred='r10',fiber='combo',plot=True,calc=False,htmlfile='elemsens.html',filt=None,filtdir=None) :
     """ Create spectra at a range of paramters with individual abundances varied independently
@@ -1143,7 +1151,7 @@ def mini_linelist(elem,linelist,maskdir) :
     os.remove(outdir+elem+'.lock') 
     return wind,wair
 
-def cross(a,val=[0,0,0],hard=None,sum=True) :
+def plotcross(a,val=[0,0,0],hard=None,sum=True) :
     """ plot cross sections of input 3D grid of synthetic spectra
 
         Args:

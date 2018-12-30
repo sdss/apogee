@@ -25,16 +25,15 @@ use share, only: dp,nov,indini,uu
 implicit none
 
 integer	    ::	i,j,k,nr,nrd,c1,c2
-
-allocate (uu(nov,product(indini(1:nov))))
+allocate (uu(nov,product(abs(indini(1:nov)))))
 
 do i=1,nov
 	c1=1
-    nr=product(indini(i:nov))
+    nr=product(abs(indini(i:nov)))
 	!write(*,*)'nr=',nr
-	do k=1,product(indini(1:nov))/nr
+	do k=1,product(abs(indini(1:nov)))/nr
 		c2=1
-		nrd=nr/indini(i)
+		nrd=nr/abs(indini(i))
 		do j=1,nr
 			uu(i,c1)=(c2-1)/nrd
 			!write(*,*)'i,c1,uu(i,c1),c2',i,c1,uu(i,c1),c2

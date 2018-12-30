@@ -36,7 +36,7 @@
 pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,lsf=lsf,bpm=bpm,$
     psf=psf,flux=flux,sparse=sparse,fiber=fiber,$
     littrow=littrow,persist=persist,modelpersist=modelpersist,response=response,mjd=mjd,full=full,$
-    newwave=newwave,nskip=nskip,average=average,clobber=clobber,vers=vers,telescope=telescope,nofit=nofit
+    newwave=newwave,nskip=nskip,average=average,clobber=clobber,vers=vers,telescope=telescope,nofit=nofit,pl=pl
 
   if keyword_set(vers) and keyword_set(telescope) then apsetver,vers=vers,telescope=telescope
   dirs=getdir(apo_dir,cal_dir,spectro_dir,apo_vers,lib_dir)
@@ -342,7 +342,7 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
       cmjd=getcmjd(ims[0],mjd=mjd)
       getcal,mjd,calfile,darkid=darkid,flatid=flatid,multiwaveid=waveid,fiberid=fiberid
       makecal,multiwave=waveid
-      mklsf,ims,waveid,darkid=darkid,flatid=flatid,psfid=lsfstr[i[0]].psfid,fiberid=fiberid,full=full,newwave=newwave,clobber=clobber
+      mklsf,ims,waveid,darkid=darkid,flatid=flatid,psfid=lsfstr[i[0]].psfid,fiberid=fiberid,full=full,newwave=newwave,clobber=clobber,pl=pl
     endif else begin
       if keyword_set(mjd) then  begin
         num=getnum(mjd) 
@@ -354,7 +354,8 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
         cmjd=getcmjd(ims[0],mjd=mjd)
         getcal,mjd,calfile,darkid=darkid,flatid=flatid,multiwaveid=waveid,fiberid=fiberid
         makecal,multiwave=waveid
-        mklsf,ims,waveid,darkid=darkid,flatid=flatid,psfid=lsfstr[i].psfid,fiberid=fiberid,full=full,newwave=newwave,clobber=clobber,/nowait
+        print,'caling mklsf'
+        mklsf,ims,waveid,darkid=darkid,flatid=flatid,psfid=lsfstr[i].psfid,fiberid=fiberid,full=full,newwave=newwave,clobber=clobber,pl=pl,/nowait
        endfor
       endif
     endelse

@@ -420,7 +420,8 @@ def findlines(frame,rows,waves,lines,out=None,verbose=False,estsig=2) :
                               ichip+1,row,wave,pars[0],pars[1],pars[1]-pix0,num))
                 except :
                     if verbose : print('failed: ',num,row,chip,pix0)
-            if len(dpixel) > 10 : dpixel_median = np.median(dpixel)
+            use=np.where(lines['USEWAVE'][j] == 1)[0]
+            if len(use) > 10 : dpixel_median = np.median(np.array(dpixel)[use])
             if verbose: print('median offset: ',row,chip,dpixel_median)
 
     return linestr[0:nline]
@@ -525,12 +526,16 @@ def getgroup(groups) :
     return out,group
 
 
-def skycal(planfile,out=None,inst=None,waveid=None,skyfile='airglow',vers=None,nosky=False) :
+def skycal(planfile,out=None,inst=None,waveid=None,group=0,skyfile='airglow',vers=None,nosky=False) :
     """ Determine positions of skylines for all frames in input planfile
     """
     # read planfile
-    p=yanny.yanny(planfile)
-    dirname=os.path.dirname(planfile)
+    if type(planfile) is dict :
+        p=planfile
+        dirname='.'
+    else :
+        p=yanny.yanny(planfile)
+        dirname=os.path.dirname(planfile)
     if dirname == '' : dirname = '.'
     if inst is None : inst = p['instrument'].strip("'") if p.get('instrument') else 'apogee-n'
     if vers is None : vers = p['apred_vers'].strip("'") if p.get('apred_vers') else 'current'
@@ -544,19 +549,21 @@ def skycal(planfile,out=None,inst=None,waveid=None,skyfile='airglow',vers=None,n
     else : f=None
 
     # get the plugmap to get the sky fibers
-    plugmjd=p['plugmap'].split('-')[1]
-    if inst == 'apogee-s' : 
-        plugmap=yanny.yanny(
-                os.environ['MAPPER_DATA_2S']+'/'+plugmjd+'/plPlugMapM-'+p['plugmap'].strip("'")+'.par')
+    if p['platetype'].strip("'") == 'sky' : 
+        skyrows = np.arange(300)
     else :
-        plugmap=yanny.yanny(
-                os.environ['MAPPER_DATA']+'/'+plugmjd+'/plPlugMapM-'+p['plugmap'].strip("'")+'.par')
-    skyind=np.where((np.array(plugmap['PLUGMAPOBJ']['objType']) == 'SKY') & 
-                   (np.array(plugmap['PLUGMAPOBJ']['holeType']) == 'OBJECT') &
-                   (np.array(plugmap['PLUGMAPOBJ']['spectrographId']) == 2) )[0]
-    skyfibers = np.array(plugmap['PLUGMAPOBJ']['fiberId'])[skyind]
-    skyrows = np.sort(300-skyfibers)
-    if p['platetype'].strip("'") == 'sky' : skyrows = np.arange(300)
+        plugmjd=p['plugmap'].split('-')[1]
+        if inst == 'apogee-s' : 
+            plugmap=yanny.yanny(
+                    os.environ['MAPPER_DATA_2S']+'/'+plugmjd+'/plPlugMapM-'+p['plugmap'].strip("'")+'.par')
+        else :
+            plugmap=yanny.yanny(
+                    os.environ['MAPPER_DATA']+'/'+plugmjd+'/plPlugMapM-'+p['plugmap'].strip("'")+'.par')
+        skyind=np.where((np.array(plugmap['PLUGMAPOBJ']['objType']) == 'SKY') & 
+                       (np.array(plugmap['PLUGMAPOBJ']['holeType']) == 'OBJECT') &
+                       (np.array(plugmap['PLUGMAPOBJ']['spectrographId']) == 2) )[0]
+        skyfibers = np.array(plugmap['PLUGMAPOBJ']['fiberId'])[skyind]
+        skyrows = np.sort(300-skyfibers)
     if not nosky :
         skylines=ascii.read(os.environ['APOGEE_DIR']+'/data/skylines/'+skyfile+'.txt')
 
@@ -571,8 +578,19 @@ def skycal(planfile,out=None,inst=None,waveid=None,skyfile='airglow',vers=None,n
             # usname wavelength solution from specified wavecal
             print('loading waveid: ', waveid)
             waveframe=load.apWave(waveid)
-            for chip in chips : waves[chip] = waveframe[chip][2].data
             if not nosky : plot = dirname+'/plots/skypixshift-'+name+'-'+skyfile
+            if group == 0 :
+                for chip in chips : waves[chip] = waveframe[chip][2].data
+            else :
+                allpars=waveframe['a'][3].data
+                x = np.zeros([3,2048])
+                for ichip,chip in enumerate(chips) :
+                    x[0,:] = np.arange(2048)
+                    x[1,:] = ichip+1
+                    x[2,:] = group
+                    waves[chip]=np.zeros([300,2048])
+                    for row in np.arange(300) :
+                        waves[chip][row,:] = func_multi_poly(x,*allpars[:,row],npoly=4)
         else :
             # use existing wavelength solution from ap1D file after ap1dwavecal has been run
             for chip in chips : waves[chip] = frame[chip][4].data
@@ -581,24 +599,28 @@ def skycal(planfile,out=None,inst=None,waveid=None,skyfile='airglow',vers=None,n
         if nosky :
             w = np.zeros(4)
         else :
-            linestr = findlines(frame,skyrows,waves,skylines,out=f)
+            linestr = findlines(frame,skyrows,waves,skylines,out=f,estsig=1)
 
-            # derived wavelengths for sky lines (for adjusting airglow file initially)
-            for line in skylines['WAVE'] :
+            # only use USEWAVE=1 lines for fit (can output others to derive wavelengths)
+            gd = np.where(skylines['USEWAVE'] == 1)[0]
+            use=[]
+            for line in skylines['WAVE'][gd] :
                 j=np.where(linestr['wave'] == line)[0]
                 print(line,len(j),linestr['wave_found'][j].mean(),linestr['wave_found'][j].std())
+                use.extend(j)
+            use=np.array(use)
 
             # solve for 4 parameter fit to dpixel, with linear trend with row, plus 2 chip offsets
-            design=np.zeros([len(linestr),4])
+            design=np.zeros([len(use),4])
             # global slope with rows
-            design[:,0] = linestr['row']
+            design[:,0] = linestr['row'][use]
             # offset of each chip
             for ichip in range(3) :
-                gd = np.where(linestr['chip'] == ichip+1)[0]
+                gd = np.where(linestr['chip'][use] == ichip+1)[0]
                 design[gd,ichip+1] = 1.
-            y=linestr['dpixel']
+            y=linestr['dpixel'][use]
             # reject outliers
-            med=np.median(linestr['dpixel'])
+            med=np.median(y)
             gd=np.where(np.abs(y-med) < 2.5)[0]
             design=design[gd,:]
             y=y[gd]
@@ -607,6 +629,7 @@ def skycal(planfile,out=None,inst=None,waveid=None,skyfile='airglow',vers=None,n
             except : 
                 print('fit failed ....')
                 pdb.set_trace()
+            print('fit parameters: ', w)
 
         if waveid > 0 :
             # get original wavelength solution parameters and adjust based on skyline fit
@@ -630,19 +653,19 @@ def skycal(planfile,out=None,inst=None,waveid=None,skyfile='airglow',vers=None,n
 
         # plots
         if plot is not None :
-            try: os.mkdir(dirname+'plots')
+            try: os.mkdir(dirname+'/plots')
             except: pass
             # plot the pixel shift for each chip derived from the airglow lines
             fig,ax = plots.multi(1,1)
             wfig,wax = plots.multi(1,3)
             for ichip in range(3) :
-                gd=np.where(linestr['chip'] == ichip+1)[0]
-                med=np.median(linestr['dpixel'][gd])
-                x = linestr['row'][gd]
-                y = linestr['dpixel'][gd]
+                gd=np.where(linestr['chip'][use] == ichip+1)[0]
+                med=np.median(linestr['dpixel'][use[gd]])
+                x = linestr['row'][use[gd]]
+                y = linestr['dpixel'][use[gd]]
                 plots.plotp(ax,x,y,color=colors[ichip],xr=[0,300],yr=[med-0.5,med+0.5],
                             size=12,xt='Row',yt='Pixel shift')
-                plots.plotc(wax[ichip],linestr['wave'][gd],y,linestr['row'][gd],zr=[0,300],yr=[med-0.5,med+0.5],
+                plots.plotc(wax[ichip],linestr['wave'][use[gd]],y,linestr['row'][use[gd]],zr=[0,300],yr=[med-0.5,med+0.5],
                             xr=xlim[ichip],size=12,xt='Wavelength',yt='Pixel shift')
                 gdfit=np.where(np.abs(y-med) < 0.5)[0]
                 xx=np.arange(300)
@@ -699,9 +722,40 @@ def skycal(planfile,out=None,inst=None,waveid=None,skyfile='airglow',vers=None,n
             fig.savefig(dirname+'/plots/skydithershift-'+name+'.jpg')
             plt.close()
     if plot is not None : 
-        try: os.mkdir(dirname+'html')
+        try: os.mkdir(dirname+'/html')
         except: pass
         html.htmltab(grid,file=dirname+'/html/skywavecal.html',ytitle=ytit)
+    return linestr
+
+def getskywave(frame,waveid,group,vers='test',inst='apogee-n',plugmap=None) :
+    """ Given input frame and waveid/group for frame taken without dither move to waveid,
+        return skyline wavelengths
+    """
+    p={}
+    p['APEXP']={}
+    p['APEXP']['name']=[str(frame)]
+    p['waveid'] = str(waveid)
+    p['instrument'] = inst
+    if plugmap is None :
+        p['platetype'] = 'sky'
+    else :
+        p['platetype'] = 'object'
+        p['plugmap'] = plugmap
+    p['instrument'] = inst
+    p['apred_vers'] = vers
+    return skycal(p,group=group)
+    
+def skywaves() :
+    """ get skyline wavelengths from some particular frames, 16390029 and 22430033
+    """
+    linestr1 = getskywave(16930029,16680000,0,plugmap='8615-57255-02')
+    pdb.set_trace()
+    linestr2 = getskywave(22430033,20380000,18,plugmap='9050-57804-01')
+    linestr=np.append(linestr1,linestr2)
+    # derived wavelengths for sky lines (for adjusting airglow file initially)
+    for line in set(linestr['wave']) :
+        j=np.where(linestr['wave'] == line)[0]
+        print(line,len(j),linestr['wave_found'][j].mean(),linestr['wave_found'][j].std())
         
 def scalarDecorator(func):
     """Decorator to return scalar outputs for wave2pix and pix2wave

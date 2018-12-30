@@ -134,7 +134,7 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
     if gridclass is not None : name = name+'_'+gridclass
     grid=[]
 
-    # loop through isochrone data and take grid points nearest and +/- 1
+    # loop through isochrone data and take grid points nearest and +/- 1 (isorange)
     # accumulate unique set of these
     files = glob.glob(os.environ['ISOCHRONE_DIR']+'/z*.dat')
     if niso is None : niso = len(files)
@@ -143,8 +143,8 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         print(file)
         for i in range(len(a)) :
             if a['teff'][i] < 4000 : dt=dtlo
-            if a['teff'][i] > 5500 : dt=dthot
-            if a['teff'][i] > 8000 : dt=dtvhot
+            elif a['teff'][i] > 8000 : dt=dtvhot
+            elif a['teff'][i] > 5500 : dt=dthot
             else : dt = dthi
             for j in isorange :
               teff = (int(round(a['teff'][i]/dt))+j)*int(dt)
@@ -232,13 +232,14 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         f.write(out+'\n')
         if gridclass == 'rv' :
             # add some alpha-enhanced and carbon-enhanced models
+            out = None
             if (mh < -0.5) & (teff < 5000) :
                 out = '{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}'.format(teff,logg,mh,am+0.25,cm,nm,vmicro,vrot)      
             elif (mh > -0.5) & (teff < 3500) :
                 out = '{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}'.format(teff,logg,mh,am+0.25,cm+0.5,nm,vmicro,vrot)      
-            for e in el : out = out + '{:7.2f}'.format(e)      # other elements
-            print(out)
-            f.write(out+'\n')
+            if out is not None :
+                for e in el : out = out + '{:7.2f}'.format(e)      # other elements
+                f.write(out+'\n')
 
         # clip to adjust slightly off grid edges for FERRE input file
         teff=clip(teff,tefflim,eps=eps)

@@ -20,6 +20,7 @@ pro apgetgrid,synthfile,grid=grid,wave=wave,error=error,stp=stp,pl=pl,normalize=
 ;  IDL>apgetgrid,grid=grid,wave=wave
 ;
 ; By D.Nidever  July 2010
+;    Holtz      Dec 2018
 ;-
 
 ; Not enough inputs
@@ -46,11 +47,12 @@ if n_elements(grid) eq 0 then begin
                               data=mrdfits(synth_dir+synthfile,3,headspec) 
   logwave=sxpar(headspec,'CRVAL1')+indgen(sxpar(headspec,'NAXIS1'))*sxpar(headspec,'CDELT1')
   logdw=sxpar(headspec,'CDELT1')
-  outwave=10.**logwave
-  grid = {file:synth_dir+synthfile,
-              data:transpose(data),ndata:transpose(ndata),$
+  outwave=10.^logwave
+  res=22500.
+  grid = {file:synth_dir+synthfile,$
+              data:transpose(data),ndata:transpose(data),$
               head:head,metals:stepar.mh,teff:stepar.teff,logg:stepar.logg,$
-              wave:outwave,logwave:logwave,logdw:dw,res:res}
+              wave:outwave,logwave:logwave,logdw:logdw,res:res}
 endif
 return
 

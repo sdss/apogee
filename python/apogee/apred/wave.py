@@ -642,6 +642,8 @@ def skycal(planfile,out=None,inst=None,waveid=None,group=0,skyfile='airglow',ver
             outname=load.filename('1D',num=int(name),mjd=load.cmjd(int(name)),chips=True)
             for ichip,chip in enumerate(chips) :
                 hdu=fits.HDUList()
+                frame[chip][0].header['HISTORY'] = 'Added wavelengths from SKYCAL, waveid: {:08d}'.format(waveid)
+                frame[chip][0].header['HISTORY'] = 'Wavelength shift parameters {:12.5e} {:8.3f} {:8.3f} {:8.3f}'.format(w[0],w[1],w[2],w[3])
                 hdu.append(frame[chip][0])
                 hdu.append(frame[chip][1])
                 hdu.append(frame[chip][2])

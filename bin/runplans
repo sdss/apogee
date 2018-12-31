@@ -20,8 +20,10 @@ end
 echo apogee_localdir: $APOGEE_LOCALDIR
 
 set clobber=`printenv APOGEE_CLOBBER`
-if ( $clobber == "") then
-  set clobber = 0
+if ( $?APOGEE_CLOBBER ) then
+  set clobber='--clobber'
+else
+  set clobber = ''
 endif
 echo clobber: $clobber
 
@@ -88,10 +90,10 @@ foreach plan ( $plans )
          if ( $n == 0 ) set usenode = $node
        end
        touch log/$base.$usenode.$host
-       taskset $usenode $cmd $plan --host $usenode.$host --flag $flag --done log/$base >& log/$base.$host.log &
+       taskset $usenode $cmd $plan --host $usenode.$host --flag $flag $clobber --done log/$base >& log/$base.$host.log &
      else
        touch log/$base.$host
-       $cmd $plan --host $host --flag $flag --done log/$base >& log/$base.$host.log &
+       $cmd $plan --host $host --flag $flag $clobber --done log/$base >& log/$base.$host.log &
      endif
 
 

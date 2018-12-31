@@ -28,7 +28,6 @@ if __name__ == '__main__' :
     parser.add_argument('planfile', type=str, help='Plan file')
     parser.add_argument("--done")
     parser.add_argument("--host")
-    #parser.add_argument("--clobber")
     parser.add_argument('--clobber', help='Overwrite files?',action="store_true")
     parser.add_argument("--flag",default='11111')
     args=parser.parse_args()

@@ -96,7 +96,8 @@ visitstr.BC = str.bc
 ; STEP 2:  Cross-Correlate with rough synthetic spectral grid
 ;-------------------------------------------------------------
 print,'STEP 2: Cross-correlate with rough synthetic spectral grid'
-apgetgrid,'apg_rvsynthgrid.fits',grid=grid
+;apgetgrid,'apg_rvsynthgrid.fits',grid=grid
+apgetgrid,'apg_synthgrid.fits',grid=grid
 ;NEW 9/1: Trim grid for color 
 IF keyword_set(trimgrid) THEN grid = aptrimgrid(grid, visitstr)
 

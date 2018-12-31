@@ -36,6 +36,28 @@ if FILE_TEST(synth_dir,/directory) eq 0 then begin
   return
 endif
 
+; read synthetic grid, which should be in vacuum waveengths and continuum normalized
+; HDU1 has parameter table, HDU2 spectra on apStar grid, HDU3 spectra on higher sampling for visit spectra
+; data arrays have wavelength in axis 0 
+if n_elements(grid) eq 0 then begin
+  head=mrdfits(synth_dir+synthfile,0)
+  stepar=mrdfits(synth_dir+synthfile,1)
+  if keyword_set(apstar) then data=mrdfits(synth_dir+synthfile,2,headspec) else $
+                              data=mrdfits(synth_dir+synthfile,3,headspec) 
+  logwave=sxpar(headspec,'CRVAL1')+indgen(sxpar(headspec,'NAXIS1'))*sxpar(headspec,'CDELT1')
+  logdw=sxpar(headspec,'CDELT1')
+  outwave=10.**logwave
+  grid = {file:synth_dir+synthfile,
+              data:transpose(data),ndata:transpose(ndata),$
+              head:head,metals:stepar.mh,teff:stepar.teff,logg:stepar.logg,$
+              wave:outwave,logwave:logwave,logdw:dw,res:res}
+endif
+return
+
+; =======================================
+;  EVERYTHING BELOW HERE FOR OLD RV GRIDS
+; =======================================
+
 ; Load the grid file if not input
 if n_elements(grid) eq 0 then begin
 

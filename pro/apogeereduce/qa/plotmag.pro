@@ -739,7 +739,7 @@ printf,htmlsum,'</TABLE>'
 
 if keyword_set(onem) then begin
   file=cmjd+'-'+starnames[0]
-  printf,htmlsum,'<a href=../plots/apVisit-'+apred_vers+'-'+file+'.gif><IMG src='+'../plots/apVisit-'+apred_vers+'-'+file+'.gif></A>'
+  printf,htmlsum,'<a href=../plots/apVisit-'+apred_vers+'-'+file+'.jpg><IMG src='+'../plots/apVisit-'+apred_vers+'-'+file+'.jpg></A>'
 endif
 printf,htmlsum,'</BODY></HTML>'
 free_lun,html

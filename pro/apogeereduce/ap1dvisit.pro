@@ -345,20 +345,20 @@ FOR i=0L,nplanfiles-1 do begin
       ;----------------------------------
       ; STEP 2:  Wavelength Calibrate
       ;----------------------------------
-      ; THIS IS NOW DONE AS PART OF AP2DPROC, CAN RERUN AS A TEST OR NEEDED IF NEWWAVE IS SPECIFIED...
-      print,'STEP 2: Wavelength Calibrating with AP1DWAVECAL'
-      plotfile = plate_dir+'/plots/pixshift_chip-'+framenum 
-      if keyword_set(dithonly) then AP1DWAVECAL_REFIT,frame,frame_wave,plugmap=plugmap,/verbose,/plot,pfile=plotfile
-      plotfile = plate_dir+'/plots/pixshift-'+framenum 
-      if planstr.platetype eq 'twilight' then $
-      AP1DWAVECAL,frame_shift,frame_wave,/verbose,/plot,pfile=plotfile else $
-      AP1DWAVECAL,frame_shift,frame_wave,plugmap=plugmap,/verbose,/plot,pfile=plotfile
+      ; THIS IS NOW DONE AS PART OF AP2DPROC, USING PYTHON ROUTINES
+      ;print,'STEP 2: Wavelength Calibrating with AP1DWAVECAL'
+      ;plotfile = plate_dir+'/plots/pixshift_chip-'+framenum 
+      ;if keyword_set(dithonly) then AP1DWAVECAL_REFIT,frame,frame_wave,plugmap=plugmap,/verbose,/plot,pfile=plotfile
+      ;plotfile = plate_dir+'/plots/pixshift-'+framenum 
+      ;if planstr.platetype eq 'twilight' then $
+      ;AP1DWAVECAL,frame_shift,frame_wave,/verbose,/plot,pfile=plotfile else $
+      ;AP1DWAVECAL,frame_shift,frame_wave,plugmap=plugmap,/verbose,/plot,pfile=plotfile
 
-      apgundef,frame  ; free up memory
-      writelog,logfile,'  wavecal '+string(format='(f8.2)',systime(1)-t1)+string(format='(f8.2)',systime(1)-t0)
+      ;apgundef,frame  ; free up memory
+      ;writelog,logfile,'  wavecal '+string(format='(f8.2)',systime(1)-t1)+string(format='(f8.2)',systime(1)-t0)
 
-      if keyword_set(dithonly) then goto, BOMB1
-      if keyword_set(stp) then stop
+      ;if keyword_set(dithonly) then goto, BOMB1
+      ;if keyword_set(stp) then stop
 
       ;----------------------------------
       ; STEP 3:  Airglow Subtraction

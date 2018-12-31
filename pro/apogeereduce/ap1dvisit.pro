@@ -364,7 +364,7 @@ FOR i=0L,nplanfiles-1 do begin
       ; STEP 3:  Airglow Subtraction
       ;----------------------------------
       print,'STEP 3: Airglow Subtraction with APSKYSUB'
-      APSKYSUB,frame_wave,plugmap,frame_skysub,subopt=1,error=skyerror 
+      APSKYSUB,frame_shift,plugmap,frame_skysub,subopt=1,error=skyerror 
       if n_elements(skyerror) gt 0 and planstr.platetype ne 'twilight' then begin
         stop,'halt: APSKYSUB Error: ',skyerror
         apgundef,frame_wave,frame_skysub,skyerror

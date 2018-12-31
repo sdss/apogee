@@ -164,7 +164,7 @@ writing of this document that is combine_airglow_linelists.txt.
 ------------------------
 October 2018 revisit
 -------------------------
-Here are the results from 6 nights.
+David Nidever: Here are the results from 6 nights of end of night, from individual wavecals?
 
 Here's the information that I'm using:
 daynum = [2231, 2239, 2244, 2245, 2247, 2255]
@@ -302,6 +302,8 @@ skycal written to correct frames based on sky lines, using 4 parameter model: gl
 plus chip offsets. Use with two frames to refine positions of airglow lines, which needed to be adjusted for green
 chip, from end of night frames 16930029 and 22430033 (because these nights were included in the annual group
 solutions). This was done by writing temporary wavelength solution for the group save_Wavecal(group=) and then
-runing skycal, but looking at output wavelengths.
+runing skycal, but looking at output wavelengths. See wave.getskywaves
 
+airglow.txt taken from previous version, with some lines adjusted using skywaves. Found that many lines were 
+needed to get reasonable LSF -- just a few isolated lines gave a poor fit
 

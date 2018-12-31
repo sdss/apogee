@@ -280,8 +280,8 @@ if keyword_set(pl) or keyword_set(save) then begin
     if keyword_set(save) and not keyword_set(noupdate) then begin
       psfile1 = dir_plots+file_basename(visitfile,'.fits')
       ;visitstr.psfile = psfile1
-      loadct,39,/silent
       ps_open,psfile1,thick=3,/color,/encap
+      loadct,39,/silent
       device,/inches,xsize=14,ysize=7
       charsize = 1.3
       co = 0

@@ -1,3 +1,16 @@
+December 2018
+
+New RV grids made using Turbospect 20180901 synthesis + synphot grids for hot stars
+See $APOGEE_SPECLIB/synth/rvgrid and $APOGEE_DIR/python/apogee/apred/rvgrid.py
+
+all spectra in single file apg_synthgrid.fits with
+HDU1 : table with parameters
+HDU2 : LSF smoothed spectra at apStar sampling
+HDU3 : LSF smoothed spectra at higher sampling (4.75e-6) for apVisit spedcdtra
+
+===
+OLD
+===
 1) Reading mini grid for coarse characterization
 
 IDL>read_synth,'f_apg5coarse.dat',g=g

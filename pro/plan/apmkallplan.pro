@@ -31,7 +31,7 @@ for itele=0,2 do begin
     endif
   endif else begin
    ; skip LCO commissioning
-   if itele eq 1 and mjd lt 55829 then goto, next
+   if itele eq 1 and mjd lt 57829 then goto, next
    if file_test(plandir+telescope[itele]+'/'+telescope[itele]+'_'+cmjd+'.pro') then begin
     printf,all,'@'+telescope[itele]+'_'+cmjd
     file_mkdir,'exposures/'+inst[itele]+'/'+cmjd+'/plan'

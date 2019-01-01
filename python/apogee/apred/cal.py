@@ -114,13 +114,13 @@ def mkallpars(apo=True,lco=True) :
     if lco :
         try : os.remove('apogee-s-wave.par')
         except : pass
-        mjds= [57829, 57966, 58335]
+        mjds= [57829, 57966, 58360]
         for i in range(len(mjds)-1) :
             mkpar(mjds[i],mjds[i+1],out='apogee-s-wave.par',lco=True,yearout='apogee-s-multiwave.par', append=True)
     if apo :
         try : os.remove('apogee-n-wave.par')
         except : pass
-        mjds= [55800, 56130, 56512, 56876, 57230, 57600, 57966, 58335]
+        mjds= [55800, 56130, 56512, 56876, 57230, 57600, 57966, 58360]
         for i in range(len(mjds)-1) :
             mkpar(mjds[i],mjds[i+1],out='apogee-n-wave.par',yearout='apogee-n-multiwave.par', append=True)
         

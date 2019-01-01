@@ -22,7 +22,8 @@ import numpy as np
 
 class ApLoad :
 
-    def __init__(self,dr=None,apred='r8',apstar='stars',aspcap='l31c',results='l31c.2',telescope='apo25m',instrument=None,verbose=False) :
+    def __init__(self,dr=None,apred='r8',apstar='stars',aspcap='l31c',results='l31c.2',
+                 telescope='apo25m',instrument=None,verbose=False,pathfile=None) :
         self.apred=apred
         self.apstar=apstar
         self.aspcap=aspcap

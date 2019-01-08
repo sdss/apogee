@@ -12,6 +12,7 @@ module load apogee/$apogee_ver
 cd $APOGEE_REDUX/$apred_vers
 mkdir $apstar_vers
 
+
 idl  << endidl
   fields='$*'
   field=strsplit(fields,' ',/ext)
@@ -23,3 +24,5 @@ idl  << endidl
 
 endidl
 
+cd $apstar_vers
+mkslurm "apred plan/a?Star*.par" --maxrun=32 --idlthreads=1'

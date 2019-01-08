@@ -25,7 +25,7 @@ wait
 # make LSFs in parallel
 set n = 0
 while ( $n < 10 ) 
-  idl -e "makecal,lsf=1,/full,vers='$vers',telescope='$telescope'" >& log/mklsf-$telescope"$n".$host.log &
+  idl -e "makecal,lsf=1,/full,/pl,vers='$vers',telescope='$telescope'" >& log/mklsf-$telescope"$n".$host.log &
   sleep 20
   @ n = $n + 1
 end

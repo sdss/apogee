@@ -9,6 +9,7 @@ set nored = 0
 set npar = 0
 set caldir = 0
 set renorm = 0
+set maxwind = 0
 
 # set parameters from configuration file
 set cmd = `awk '{printf("set %s = %s\n",$1,$2)}' $configfile`
@@ -37,10 +38,13 @@ idl << endidl
   print,'$apstar_vers'
   print,'$aspcap_vers'
   print,'$results_vers'
-  aspcap_mkplan,field,apred_vers='$apred_vers',apstar_vers='$apstar_vers',aspcap_vers='$aspcap_vers',aspcap_config='$aspcap_config',ncpus='$ncpus',queue='$queue',noplot='$noplot',noelem='$noelem',nstars='$nstars',commiss=$commiss,nored=$nored,visits='$visits',caldir='$caldir',npar='$npar',renorm='$renorm'
-  aspcap_mkplan,field,apred_vers='$apred_vers',apstar_vers='$apstar_vers',aspcap_vers='$aspcap_vers',aspcap_config='$aspcap_config',ncpus='$ncpus',queue='$queue',noplot='$noplot',noelem='$noelem',nstars='$nstars',commiss=$commiss,nored=$nored,visits='$visits',caldir='$caldir',npar='$npar',renorm='$renorm',/single
+  aspcap_mkplan,field,apred_vers='$apred_vers',apstar_vers='$apstar_vers',aspcap_vers='$aspcap_vers',aspcap_config='$aspcap_config',ncpus='$ncpus',queue='$queue',noplot='$noplot',noelem='$noelem',nstars='$nstars',commiss=$commiss,nored=$nored,visits='$visits',caldir='$caldir',npar='$npar',renorm='$renorm',maxwind='$maxwind'
+  aspcap_mkplan,field,apred_vers='$apred_vers',apstar_vers='$apstar_vers',aspcap_vers='$aspcap_vers',aspcap_config='$aspcap_config',ncpus='$ncpus',queue='$queue',noplot='$noplot',noelem='$noelem',nstars='$nstars',commiss=$commiss,nored=$nored,visits='$visits',caldir='$caldir',npar='$npar',renorm='$renorm',maxwind='$maxwind',/single
 endidl
 
+
+cd $APOGEE_ASPCAP/$apred_vers/$aspcap_vers
+mkslurm "aspcap apo*/plan/aspcapStar*.par lco*/plan/aspcapStar*.par" --maxrun=2 --idlthreads=16 --queryport=1051
 
 echo "\n\nREMEMBER to modify the aspcapStar*.par files if non-default options,"
 echo "  e.g., noplot, noelem, fits, are desired"

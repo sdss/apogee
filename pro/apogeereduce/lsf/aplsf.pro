@@ -174,44 +174,44 @@ lamptype = strupcase(lamptype)
 
 ; Wavelength information
 ;-----------------------
-if tag_exist(frame1.(0),'WAVE') eq 0 then begin
-
-
-  ; Wavelength calibration file not input
-  if n_elements(waveid) eq 0 then begin
-    print,'Need a wavelength calibration file.  Wavelengths not in the ap1D file'
-    return
-  endif
-
-  ; Get the Wave file
-  ;wavefiles = wave_dir+dirs.prefix+'Wave-'+['a','b','c']+'-'+wavemjd5[0]+'.fits'
-  wavefiles = file_dirname(waveid)+'/'+dirs.prefix+'Wave-'+['a','b','c']+'-'+file_basename(waveid)+'.fits'
-  waveinfo = APFILEINFO(wavefiles,/silent)
-  okay = (waveinfo.exists)
-  if total(okay) ne 3 then begin
-    print,'Wave File not okay'
-    return
-  endif
-
-  ; Get the wavelength information
-  ;APLOADFRAME,wavefiles,waveframe
-  fits_read,wavefiles[0],wcoef1,head1,exten=1
-  fits_read,wavefiles[0],wim1,exten=2
-  fits_read,wavefiles[1],wcoef2,head2,exten=1
-  fits_read,wavefiles[1],wim2,exten=2
-  fits_read,wavefiles[2],wcoef3,head3,exten=1
-  fits_read,wavefiles[2],wim3,exten=2
-  waveframe = {chipa:{header:head1,coef:wcoef1,wave:wim1, wave2:0.*wim1},$
-               chipb:{header:head2,coef:wcoef2,wave:wim2, wave2:0.*wim2},$
-               chipc:{header:head3,coef:wcoef3,wave:wim3, wave2:0.*wim3}}
-  ; It looks like we only need these for the chip offsets/gaps
-
-; Use wavelengths from the ap1D file
-endif else begin
-  waveframe = {chipa:{coef:frame1.(0).wcoef,wave:frame1.(0).wave, wave2:0.*frame1.(0).wave},$
-               chipb:{coef:frame1.(1).wcoef,wave:frame1.(1).wave, wave2:0.*frame1.(1).wave},$
-               chipc:{coef:frame1.(2).wcoef,wave:frame1.(2).wave, wave2:0.*frame1.(2).wave}}
-endelse
+;if tag_exist(frame1.(0),'WAVE') eq 0 then begin
+;
+;
+;  ; Wavelength calibration file not input
+;  if n_elements(waveid) eq 0 then begin
+;    print,'Need a wavelength calibration file.  Wavelengths not in the ap1D file'
+;    return
+;  endif
+;
+;  ; Get the Wave file
+;  ;wavefiles = wave_dir+dirs.prefix+'Wave-'+['a','b','c']+'-'+wavemjd5[0]+'.fits'
+;  wavefiles = file_dirname(waveid)+'/'+dirs.prefix+'Wave-'+['a','b','c']+'-'+file_basename(waveid)+'.fits'
+;  waveinfo = APFILEINFO(wavefiles,/silent)
+;  okay = (waveinfo.exists)
+;  if total(okay) ne 3 then begin
+;    print,'Wave File not okay'
+;    return
+;  endif
+;
+;  ; Get the wavelength information
+;  ;APLOADFRAME,wavefiles,waveframe
+;  fits_read,wavefiles[0],wcoef1,head1,exten=1
+;  fits_read,wavefiles[0],wim1,exten=2
+;  fits_read,wavefiles[1],wcoef2,head2,exten=1
+;  fits_read,wavefiles[1],wim2,exten=2
+;  fits_read,wavefiles[2],wcoef3,head3,exten=1
+;  fits_read,wavefiles[2],wim3,exten=2
+;  waveframe = {chipa:{header:head1,coef:wcoef1,wave:wim1, wave2:0.*wim1},$
+;               chipb:{header:head2,coef:wcoef2,wave:wim2, wave2:0.*wim2},$
+;               chipc:{header:head3,coef:wcoef3,wave:wim3, wave2:0.*wim3}}
+;  ; It looks like we only need these for the chip offsets/gaps
+;
+;; Use wavelengths from the ap1D file
+;endif else begin
+  waveframe = {chipa:{coef:frame1.(0).wcoef,wave:frame1.(0).wavelength, wave2:0.*frame1.(0).wavelength},$
+               chipb:{coef:frame1.(1).wcoef,wave:frame1.(1).wavelength, wave2:0.*frame1.(1).wavelength},$
+               chipc:{coef:frame1.(2).wcoef,wave:frame1.(2).wavelength, wave2:0.*frame1.(2).wavelength}}
+;endelse
 
 
 
@@ -269,6 +269,7 @@ print,'WPorder = ',strtrim(wporder,2)
 print,'Wproftype = ',strtrim(wproftype,2)
 print,'Fitmethod = ',strtrim(fitmethod,2),'  ',fitmethod_str
 
+lsfid=file_basename(lampframes[0])
 
 ; DITHER COMBINING
 ;----------------------
@@ -449,7 +450,11 @@ if keyword_set(gauss) then begin
     end
   endif
   ; Remove BAD lines using a polynomial fit to the SIGMA values
-  if keyword_set(pl) then plot,linestr.x,linestr.gpar[2],ps=1,xtit='X',ytit='Gaussian Sigma (pixels)',tit='Removing Bad Lines'
+  if keyword_set(pl) then begin
+    set_plot,'PS'
+    device,file='aplsf.eps',/encap,/color
+    plot,linestr.x,linestr.gpar[2],ps=1,xtit='X',ytit='Gaussian Sigma (pixels)',tit='Removing Bad Lines'
+  endif
 
   if keyword_set(gauss) then begin
     if keyword_set(pl) then smcolor
@@ -814,6 +819,9 @@ for ii=0,n_elements(ifibers)-1 do begin
       ;return
     endif
 
+    set_plot,'ps'
+    file_mkdir,outdir+'/html'
+    file_mkdir,outdir+'/plots'
     ; Loop through the Chips
     For j=0,2 do begin
 
@@ -1193,6 +1201,8 @@ for ii=0,n_elements(ifibers)-1 do begin
 
       ; Plotting
       if keyword_set(pl) then begin
+        plotfile=outdir+'/plots/'+dirs.prefix+string(format='("LSF-",a,"_",i1,"_",i3.3)',lsfid,j,i) 
+        device,file=plotfile+'.eps',/color,/encap
         loadct,39
         !p.multi=[0,1,3]
         xr = [0,n_elements(xin)-1]
@@ -1226,7 +1236,8 @@ for ii=0,n_elements(ifibers)-1 do begin
         oplot,xin,specin
         oplot,xin,fyfit,co=250,linestyle=2
         oplot,xin,specin-fyfit-200
-        stop
+        device,/close
+        ps2jpg,plotfile+'.eps',/eps,chmod='664'o,/delete
         !p.multi=[0,0,0]
       endif
 
@@ -1306,7 +1317,6 @@ for ii=0,n_elements(ifibers)-1 do begin
     End ; chip loop
 
   END ; all lines in a chip fit together
-
 
 
   ;========================================================================
@@ -1599,6 +1609,21 @@ for ii=0,n_elements(ifibers)-1 do begin
   ;stop
 
 End ; fiber loop
+
+
+htmlfile=outdir+'/html/'+dirs.prefix+string(format='("LSF-",a)',lsfid)
+openw,html,htmlfile+'.html',/get_lun
+printf,html,'<HTML><BODY><TABLE BORDER=2>'
+for ii=0,n_elements(ifibers)-1 do begin
+  i=ifibers[ii]
+  printf,html,'<TR>'
+  for j=0,2 do begin
+      plotfile='../plots/'+dirs.prefix+string(format='("LSF-",a,"_",i1,"_",i3.3)',lsfid,j,i) 
+      printf,html,'<TD><IMG SRC='+plotfile+'.jpg>'
+  endfor
+endfor
+  free_lun,html
+
 
 if keyword_set(verbose) then $
   print,'------------------------------------------------------------'

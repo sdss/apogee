@@ -458,6 +458,7 @@ For i=0,2 do begin
   login_info = GET_LOGIN_INFO()
   sxaddhist,leadstr+login_info.user_name+' on '+login_info.machine_name,head
   sxaddhist,leadstr+'IDL '+!version.release+' '+!version.os+' '+!version.arch,head
+  sxaddhist,leadstr+' APOGEE Reduction Pipeline Version: '+getvers(),head
   sxaddhist,leadstr+'Output File:',head
   sxaddhist,leadstr+' HDU1 - Relative Flux Calibration [Npix,Nfibers,3]',head
   sxaddhist,leadstr+' HDU2 - Throughput [Nfibers,3]',head

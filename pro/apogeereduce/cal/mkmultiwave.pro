@@ -2,7 +2,6 @@
 pro mkmultiwave,waveid,name=name,clobber=clobber,nowait=nowait,file=calfile
 
   if ~keyword_set(name) then name=string(waveid[0])
-
   dirs=getdir(apodir,caldir,spectrodir,vers)
   caldir=dirs.caldir
   file=dirs.prefix+string(format='("Wave-",i8.8)',name)

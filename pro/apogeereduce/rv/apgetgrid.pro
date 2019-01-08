@@ -1,4 +1,4 @@
-pro apgetgrid,synthfile,grid=grid,wave=wave,error=error,stp=stp,pl=pl,normalize=normalize
+pro apgetgrid,synthfile,grid=grid,wave=wave,error=error,stp=stp,pl=pl,normalize=normalize,apstar=apstar
 
 ;+
 ;
@@ -45,14 +45,18 @@ if n_elements(grid) eq 0 then begin
   stepar=mrdfits(synth_dir+synthfile,1)
   if keyword_set(apstar) then data=mrdfits(synth_dir+synthfile,2,headspec) else $
                               data=mrdfits(synth_dir+synthfile,3,headspec) 
-  logwave=sxpar(headspec,'CRVAL1')+indgen(sxpar(headspec,'NAXIS1'))*sxpar(headspec,'CDELT1')
+  if sxpar(headspec,'CRVAL1') eq 4.179 then w0=4.179d0 else w0=sxpar(headspec,'CRVAL1')
+  if sxpar(headspec,'CDELT1') eq 6.e-6 then logdw=6.d-6 else logdw=sxpar(headspec,'CDELT1')
+  logwave=w0+indgen(sxpar(headspec,'NAXIS1'))*logdw
   logdw=sxpar(headspec,'CDELT1')
   outwave=10.^logwave
   res=22500.
+  pixlim=[[ 322, 3241], [3648, 6047], [6412, 8305]]
   grid = {file:synth_dir+synthfile,$
+              origdata:transpose(data),$
               data:transpose(data),ndata:transpose(data),$
-              head:head,metals:stepar.mh,teff:stepar.teff,logg:stepar.logg,$
-              wave:outwave,logwave:logwave,logdw:logdw,res:res}
+              head:head,metals:stepar.mh,teff:stepar.teff,logg:stepar.logg,alpha:stepar.am,carbon:stepar.cm,$
+              wave:outwave,logwave:logwave,logdw:logdw,res:res,pixlim:pixlim}
 endif
 return
 

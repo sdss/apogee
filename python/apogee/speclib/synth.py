@@ -441,7 +441,7 @@ def prange(start,delta,n) :
 
 def get_vmicro(vmicrofit,vmicro) :
     """ NOT YET IMPLEMENTED: placeholder routine to return vmicro given a fit type
-        CURRENTLY returns vmicro
+        CURRENTLY returns vmicro for vmicrofit=0
    
     Args :
         vmicrofit (int) : input vmicro code to set fitting function
@@ -752,6 +752,9 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,teles
     if telescope is None : telescope = p['telescope'] if p.get('telescope') else 'apo25m'
     lsfid=int(p.get('lsfid'))
     waveid=int(p.get('waveid'))
+    vmacrofit = int(p['vmacrofit']) if p.get('vmacrofit') else 0
+    vmacro_arr=np.array(p['vmacro'].split()).astype(float)
+    kernel=p['kernel'] if p.get('kernel') else 'rot'
 
     if ls is None :
         x, ls = getlsf(lsfid,waveid,apred=apred,telescope=telescope,fiber=fiber,highres=highres)
@@ -785,8 +788,12 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,teles
     for k,mh in enumerate(prange(p['mh0'],p['dmh'],p['nmh'])) :
       for j,logg in enumerate(prange(p['logg0'],p['dlogg'],p['nlogg'])) :
         for i,teff in enumerate(prange(p['teff0'],p['dteff'],p['nteff'])) :
-            vm = 10.**(0.470794-0.254*mh)
-            vm = vm if vm<15 else 15.
+            if vmacrofit == 1 :
+                vm = 10.**(0.470794-0.254*mh)
+                vm = 10.**(vmacro_arr[0]+vmacro_arr[1]*teff+vmacro_arr[2]*logg+vmacro_arr[3]*mh)
+                vm = vm if vm<15 else 15.
+            elif vmacrofit == 0 :
+                vm = 0.
             vmacro.append(vm)
     vmacro=np.array(vmacro)
 
@@ -807,7 +814,13 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,teles
     else :
         smoothdata=np.zeros([nrot,nelem,nmh,nlogg,nteff,nout],dtype=np.float32)
         for irot,vrot in enumerate(prange(p['rot0'],p['drot'],p['nrot'])) :
-            smooth=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=10.**vrot,vmacro=vmacro)
+            if kernel == 'rot' :
+                smooth=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=10.**vrot,vmacro=vmacro)
+            elif kernel == 'gauss' :
+                smooth=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vmacro=10.**vrot)
+            else :
+                print('Unknown kernel!')
+                pdb.set_trace()
             smoothdata[irot,:,:,:,:,:]=np.reshape(smooth,(nelem,nmh,nlogg,nteff,nout)).astype(np.float32)
 
     specdata.data=np.reshape(specdata.data,(nelem,nmh,nlogg,nteff,npix))

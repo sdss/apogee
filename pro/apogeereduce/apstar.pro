@@ -461,7 +461,12 @@ for iloc=0,n_elements(locations)-1 do begin
     printf,html,'<br> H='+string(format='(f8.2)',apstr.h)
     printf,html,'<br>'+targflag(apstr.apogee_target1,apstr.apogee_target2,apstr.apogee_target3,survey=survey)+'<BR>'+starflag(apstr.starflag)
     printf,html,'<br> SNR='+string(format='(f8.2)',apstr.snr)
+    printf,html,'<br> VSCATTER='+string(format='(f8.2)',apstr.vscatter)
+    printf,html,'<br> RV_TEFF='+string(format='(f8.2)',apstr.rv_teff),$
+                    ' RV_LOGG='+string(format='(f8.2)',apstr.rv_logg),$
+                    ' RV_FEH='+string(format='(f8.2)',apstr.rv_feh)
     printf,html,' <TABLE BORDER=2>'
+    printf,html,'<TR><TD>Plate<TD>MJD<TD>VHELIO<TD>S/N'
     for ivisit=0,n_elements(mjd)-1 do begin
       printf,html,'<TR><TD>',apstr.rv.plate[ivisit],'<TD>',apstr.rv.mjd[ivisit],'<TD>',apstr.rv.vhelio[ivisit],'<TD>',allvisits[obj[ivisit]].snr
     endfor

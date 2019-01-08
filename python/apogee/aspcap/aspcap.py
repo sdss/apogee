@@ -241,12 +241,12 @@ def elemmask(el,maskdir='filters_26112015',plot=None,yr=[0,1]) :
         plots.plotl(plot,wave,mask,yr=yr)
     return wave,mask
 
-def intplot(param='FPARAM',indir='cal',apred='r10',aspcap='t33b',verbose=False) :
+def intplot(a=None,param='FPARAM',indir='cal',apred='r10',aspcap='t33b',verbose=False) :
     """ Given input structure, plot HR diagram, and enter event loop to mark stars to plot spectra
     """
 
     load=apload.ApLoad(apred=apred,aspcap=aspcap,verbose=verbose)
-    a=load.allCal()[1].data
+    if a is None : a=load.allCal()[1].data
 
     fig,ax = hr(a,param=param)
     plots.event(fig)
@@ -268,9 +268,11 @@ def intplot(param='FPARAM',indir='cal',apred='r10',aspcap='t33b',verbose=False) 
             load.settelescope='lco25m'
             try : f=load.aspcapField(a['ALTFIELD'][ind])
             except : f=load.aspcapField(a['FIELD'][ind])
-        #f=glob.glob(indir+'/*/*'+a['APOGEE_ID'][plots._index[0]]+'*')
-        #dir=f[0].split('/')[1]
-        #f=fits.open(indir+'/'+dir+'/aspcapField-'+dir+'.fits')
+        if f is None :
+            f=glob.glob(indir+'/*'+a['APOGEE_ID'][plots._index[0]]+'*')
+            dir=os.path.dirname(f[0])
+            f=glob.glob(dir+'/*aspcapField*.fits')
+            f=fits.open(f[0])
         print('f: ',f)
         data=f[1].data
         j=np.where(data['APOGEE_ID'] == a['APOGEE_ID'][plots._index[0]])[0][0]

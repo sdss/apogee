@@ -21,7 +21,7 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from astropy.io import fits
 from astropy.io import ascii
 
-def allField(files=['apo*/*/apField-*.fits','apo*/*/apFieldC-*.fits'],out='allField.fits',verbose=False) :
+def allField(files=['apo*/*/apField-*.fits','apo*/*/apFieldC-*.fits','lco*/*/apField-*.fits'],out='allField.fits',verbose=False) :
     '''
     Concatenate set of apField files
     '''

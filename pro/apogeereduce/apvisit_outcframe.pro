@@ -103,6 +103,7 @@ For i=0,2 do begin
   info = GET_LOGIN_INFO()
   sxaddhist,leadstr+info.user_name+' on '+info.machine_name,header
   sxaddhist,leadstr+'IDL '+!version.release+' '+!version.os+' '+!version.arch,header
+  sxaddhist,leadstr+' APOGEE Reduction Pipeline Version: '+getvers(),header
   sxaddhist,leadstr+'Output File:',header
   sxaddhist,leadstr+' HDU0 - Header only',header
   sxaddhist,leadstr+' HDU1 - Flux (ADU)',header

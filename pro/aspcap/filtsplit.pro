@@ -35,7 +35,7 @@ endfor
 sz=size(wall,/dim)
 if n_elements(sz) eq 2 then nwind=sz[1] else if sz eq 0 then nwind=0 else nwind=1
 print,'nwind:',nwind,maxwind
-if nwind gt 0 and (nwind le maxwind or maxwind eq 0) then begin
+if nwind gt 1 and (nwind le maxwind or maxwind eq 0) then begin
   ; open output file
   openw,sum,outdir+el+'.wind',/get_lun
 

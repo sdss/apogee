@@ -66,6 +66,7 @@ if n_elements(noplot) eq 0 then noplot=apsetpar(planstr,'noplot',0)
 if not keyword_set(doelemplot) then doelemplot=apsetpar(planstr,'doelemplot',0)
 if keyword_set(altmaskdir) then altmaskdir=getenev('APOGEE_DIR')+'/data/windows/'+altmaskdir else undefine,altmaskdir
 if not keyword_set(noelem) then noelem=apsetpar(planstr,'noelem',0)
+if not keyword_set(maxwind) then maxwind=apsetpar(planstr,'maxwind',0)
 if not keyword_set(caldir) then caldir=apsetpar(planstr,'caldir',0)
 ; directories
 ;apsetver,apogee_vers
@@ -204,7 +205,7 @@ for idir=0,n_elements(datadir)-1 do begin
     ; write the FERRE control file, and open the FERRE input files
     if tag_exist(libpar,'indi') then indi=libpar.indi else undefine,indi
     if tag_exist(libpar,'mask') then filterfile=configdir+'/'+libpar.mask else undefine,filterfile
-    writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.indv,indini=indini,interord=libpar.inter,findi=indi,errbar=errbar,init=init,renorm=renorm,$
+    writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.indv,indini=indini,interord=libpar.inter,findi=indi,errbar=errbar,init=init,renorm=abs(renorm),$
             filterfile=filterfile
     openw,ipf,workdir+outname+'.ipf',/get_lun
     openw,labl,workdir+outname+'.labl',/get_lun
@@ -257,7 +258,7 @@ for idir=0,n_elements(datadir)-1 do begin
             outerr=interpol(sqrt(1./obs.invar[*,ispec]),alog10(wave0),alog10(libwave))
             cpars=libhead[ichip].continuum
             if keyword_set(renorm) then begin
-              cpars[0]=renorm
+              cpars[0]=abs(renorm)
               cpars[1]=1
               cpars[2]=0.
               cpars[3]=0.
@@ -359,7 +360,7 @@ for idir=0,n_elements(datadir)-1 do begin
              coarsename=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/class_'+class[0]+'/'+class[0]+'-'+oname[idir]
              aspcap_load,coarsename+'.norm',data
              normspec=float(data)
-             new/=normspec[*,best]
+             if renorm lt 0 then new/=normspec[*,best]
            endif
            ; determine whether we should skip the star for this grid, depending on parameters and mean fiber
            skip=0
@@ -531,7 +532,7 @@ TOC
          writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.indv[iclass],$
             indini=indini,interord=libpar.inter[iclass],$
             filterfile=configdir+'/'+libpar.mask[iclass]+suffix+'.mask',$
-            findi=indi,errbar=errbar,renorm=renorm
+            findi=indi,errbar=errbar,renorm=abs(renorm)
          openw,ipf,workdir+outname+'.ipf',/get_lun
          if tag_exist(libpar,'minigrid') then minigrid=libpar.minigrid[iclass] else minigrid=''
          if minigrid ne '' then begin

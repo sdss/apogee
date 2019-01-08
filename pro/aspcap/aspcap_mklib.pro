@@ -98,9 +98,9 @@ for i=0,nclasses-1 do begin
         ;if strtrim(libhead0.label[ipar],2) eq 'TEFF' then tmp=3
         ;if strtrim(libhead0.label[ipar],2) eq 'LOGG' then tmp=2
         ;if strtrim(libhead0.label[ipar],2) eq 'METALS' then tmp=2
-        ;if strtrim(libhead0.label[ipar],2) eq 'C' then tmp=2
-        ;if strtrim(libhead0.label[ipar],2) eq 'N' then tmp=2
-        ;if strtrim(libhead0.label[ipar],2) eq 'O Mg Si S Ca Ti' then tmp=2
+        if strtrim(libhead0.label[ipar],2) eq 'C' then tmp=2
+        if strtrim(libhead0.label[ipar],2) eq 'N' then tmp=2
+        if strtrim(libhead0.label[ipar],2) eq 'O Mg Si S Ca Ti' then tmp=2
         indini=[indini,tmp]
         if strtrim(libhead0.label[ipar],2) eq 'TEFF' then begin
           amin=temin[i] & amax=temax[i]

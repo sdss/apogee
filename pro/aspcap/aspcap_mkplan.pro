@@ -1,4 +1,4 @@
-pro aspcap_mkplan,files,apvisit=apvisit,single=single,aspcap_vers=aspcap_vers,apogee_vers=apogee_vers,queue=queue,apred_vers=apred_vers,apstar_vers=apstar_vers,aspcap_config=aspcap_config,results_vers=results_vers,nstars=nstars,ncpus=ncpus,noplot=noplot,noelem=noelem,commiss=commiss,nored=nored,visits=visits,caldir=caldir,npar=npar,renorm=renorm
+pro aspcap_mkplan,files,apvisit=apvisit,single=single,aspcap_vers=aspcap_vers,apogee_vers=apogee_vers,queue=queue,apred_vers=apred_vers,apstar_vers=apstar_vers,aspcap_config=aspcap_config,results_vers=results_vers,nstars=nstars,ncpus=ncpus,noplot=noplot,noelem=noelem,commiss=commiss,nored=nored,visits=visits,caldir=caldir,npar=npar,renorm=renorm,maxwind=maxwind
 
 ; this routine makes the input parameter files for running ASPCAP
 
@@ -71,6 +71,7 @@ if not keyword_set(apvisit) then begin
       if keyword_set(nored) then printf,out,'nored      ',nored
       if keyword_set(npar) then printf,out,'npar      ',npar
       if keyword_set(renorm) then printf,out,'renorm      ',renorm
+      if keyword_set(maxwind) then printf,out,'maxwind      ',maxwind
       printf,out,'typedef struct {'
       printf,out,'  char field[24];'
       printf,out,'  char outfield[24];'

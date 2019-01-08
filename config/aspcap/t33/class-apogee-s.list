@@ -1,9 +1,9 @@
-coarse     0 100000 -10  10 -10  10 -1 301 turbospec/marcs/giantisotopes/tFGKM_180901_lsfcombo5s_l33/p_apstgGK_180901_lsfcombo5s_l33_w123 marcs/KURUCZ_GK_holefile.fits
-GKg         3000   6000 -10   4 -10  10   1  38 turbospec/marcs/giantisotopes/tgGK_180901_lsfcombo5s_l33/p_apstgGK_180901_lsfcombo5s_l33_w123 marcs/KURUCZ_GK_holefile.fits
-GKd         3000   6000 3.5  10 -10  10   1  38 turbospec/marcs/solarisotopes/tsGK_180901_lsfcombo5s_l33/p_apstsGK_180901_lsfcombo5s_l33_w123 marcs/KURUCZ_GK_holefile.fits
-Fd         5000   8500 -10  10 -10  10   1  38 turbospec/marcs/solarisotopes/tsF_180901_lsfcombo5s_l33/p_apstsF_180901_lsfcombo5s_w123 marcs/KURUCZ_F_holefile.fits
-Mg      2000   4000 -10   4 -10  10   1  38 turbospec/marcs/giantisotopes/tgM_180901_lsfcombo5s_l33/p_apstgM_180901_lsfcombo5s_l33_l31c_w123 marcs/edvarsson/MARCS_M_holefile.fits
-Md      2000   4000 3.5  10 -10  10   1  38 turbospec/marcs/solarisotopes/tdM_180901_lsfcombo5s_l33/p_apstdM_180901_lsfcombo5s_l33_w123 marcs/edvarsson/MARCS_M_holefile.fits
+coarse     0 100000 -10  10 -10  10 -1 301 turbospec/marcs/giantisotopes/tFGKM_180901_lsfcombo5s_l33/p_apstFGKM_180901_lsfcombo5s_l33_012_075 None
+GKg         3000   6000 -10   4 -10  10  -1  301 turbospec/marcs/giantisotopes/tgGK_180901_lsfcombo5s_l33/p_apstgGK_180901_lsfcombo5s_l33_012_075  marcs/MARCS_v3_2016/MARCS_GK_holefile.fits
+GKd         3000   6000 3.5  10 -10  10  -1  301 turbospec/marcs/solarisotopes/tdGK_180901_lsfcombo5s_l33/p_apstdGK_180901_lsfcombo5s_l33_012_075  marcs/MARCS_v3_2016/MARCS_GK_holefile.fits
+Fd         5000   8500 -10  10 -10  10   -1  301 turbospec/marcs/solarisotopes/tdF_180901_lsfcombo5s_l33/p_apstdF_180901_lsfcombo5s_l33_012_075  marcs/MARCS_v3_2016/MARCS_F_holefile.fits
+Mg      2000   4000 -10   4 -10  10   -1  301 turbospec/marcs/giantisotopes/tgM_180901_lsfcombo5s_l33/p_apstgM_180901_lsfcombo5s_l33_012_075  marcs/MARCS_v3_2016/MARCS_M_holefile.fits
+Md      2000   4000 3.5  10 -10  10   -1  301 turbospec/marcs/solarisotopes/tdM_180901_lsfcombo5s_l33/p_apstdM_180901_lsfcombo5s_l33_012_075  marcs/MARCS_v3_2016/MARCS_M_holefile.fits
 
 #GKg_a         3000   6000 -10   4 -10  10   1  38 turbospec/kurucz/giantisotopes/tgGK_150714_lsfa_l31c/p_apstgGK_150714_lsfa_l31c_w123 kurucz/KURUCZ_GK_holefile.fits
 #GKg_b         3000   6000 -10   4 -10  10  38 150 turbospec/kurucz/giantisotopes/tgGK_150714_lsfb_l31c/p_apstgGK_150714_lsfb_l31c_w123 kurucz/KURUCZ_GK_holefile.fits

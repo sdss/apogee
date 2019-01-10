@@ -32,14 +32,13 @@ pro mklsf,lsfid,waveid,darkid=darkid,flatid=flatid,psfid=psfid,fiberid=fiberid,c
 
   lsffile = apogee_filename('1D',num=lsfid[0],chip='c')
 
-;  mkpsf,psfid,darkid=darkid,flatid=flatid,fiberid=fiberid,/clobber
-;  w=approcess(lsfid,dark=darkid,flat=flatid,psf=psfid,flux=0,wave=waveid,/doproc,/skywave,/clobber)
+  mkpsf,psfid,darkid=darkid,flatid=flatid,fiberid=fiberid,/clobber
+  w=approcess(lsfid,dark=darkid,flat=flatid,psf=psfid,flux=0,wave=waveid,/doproc,/skywave,/clobber)
 
   lsffile = file_dirname(lsffile)+'/'+string(format='(i8.8)',lsfid)
   if size(waveid,/type) eq 7 then wavefile = caldir+'wave/'+waveid else $
     wavefile = caldir+'wave/'+string(format='(i8.8)',waveid)
   psffile = caldir+'/psf/'+string(format='(i8.8)',psfid)
-  print,'wavefile: ', wavefile
   aplsf,lsffile,wavefile,psf=psffile,/gauss,pl=pl
   if keyword_set(full) then aplsf,lsffile,wavefile,psf=psffile,/clobber,pl=pl,fibers=fibers ;,porder=[1,1,1,1,1,0],/pl
 

@@ -10,7 +10,7 @@ pro aspcap_mklib,config,suffix=suffix,prefix=prefix,libdir=libdir,classes=classe
 ;if ~keyword_set(maskdir) then maskdir='filters_05062014'
 ;if ~keyword_set(elem) then elem=['C','CI','Al','Ca','CI','Co','Cr','Cu','Fe','Ge','K','Mg','Mn','Na','Nd','Ni','N','O','P','Rb','Si','S','Ti','V','Y']
 if ~keyword_set(elem) then elem=aspcap_elems()
-if ~keyword_set(maskdir) then stop,'Must specify a maskdir!'
+;if ~keyword_set(maskdir) then stop,'Must specify a maskdir!'
 if n_elements(npar) eq 0 then npar = 0.
 if n_elements(opar) eq 0 then opar = 0.
 if n_elements(cpar) eq 0 then cpar = 0.
@@ -22,8 +22,28 @@ dirs=getdir()
 indir=getenv('APOGEE_DIR')+'/config/aspcap/'+config+'/'
 if ~keyword_set(outdir) then outdir=getenv('APOGEE_DIR')+'/config/aspcap/'+config+'/'
 file_mkdir,outdir
-if ~file_test(indir+'class-'+dirs.instrument+'.list') then stop,'no class-'+dirs.instrument+'.list file in '+indir
-readcol,indir+'class-'+dirs.instrument+'.list',classes,temin,temax,loggmin,loggmax,femin,femax,fibermin,fibermax,libs,holefile,format='(a,f,f,f,f,f,f,i,i,a,a)',comment='#'
+;if ~file_test(indir+'class-'+dirs.instrument+'.list') then stop,'no class-'+dirs.instrument+'.list file in '+indir
+;readcol,indir+'class-'+dirs.instrument+'.list',classes,temin,temax,loggmin,loggmax,femin,femax,fibermin,fibermax,libs,holefile,format='(a,f,f,f,f,f,f,i,i,a,a)',comment='#'
+;mask='global.mask'
+aploadplan,indir+'class-'+dirs.instrument+'.par',p,str='CLASS'
+mask=p.mask
+maskdir=getenv('APOGEE_DIR')+'/data/windows/'+p.maskdir+'/'
+classes=p.class.class
+libs=p.class.lib
+temin=p.class.temin
+temax=p.class.temax
+loggmin=p.class.loggmin
+loggmax=p.class.loggmax
+femin=p.class.femin
+femax=p.class.femax
+fibermin=p.class.fibermin
+fibermax=p.class.fibermax
+holefile=p.class.holefile
+vmacrofit=p.class.vmacrofit
+rotpar=p.class.vmacro
+renorm=p.class.renorm
+inter=p.class.inter
+
 nclasses=n_elements(classes)
 cfit=intarr(nclasses)-1
 nfit=intarr(nclasses)-1
@@ -76,6 +96,7 @@ for i=0,nclasses-1 do begin
     printf,out,'coarse 1 '
     printf,out,'noplot 1 '
   endif else begin
+    params=aspcap_params()
     ;printf,out,'indv '+string(indgen(libhead0.n_of_dim)+1,format='(7i2)')
     pmin=[]
     pmax=[]
@@ -94,13 +115,15 @@ for i=0,nclasses-1 do begin
         initpar[ipar]=alog10(nmlock)
       endif else begin
         indv=[indv,ipar]
-        tmp=-1
+        ;tmp=-1
         ;if strtrim(libhead0.label[ipar],2) eq 'TEFF' then tmp=3
         ;if strtrim(libhead0.label[ipar],2) eq 'LOGG' then tmp=2
         ;if strtrim(libhead0.label[ipar],2) eq 'METALS' then tmp=2
-        if strtrim(libhead0.label[ipar],2) eq 'C' then tmp=2
-        if strtrim(libhead0.label[ipar],2) eq 'N' then tmp=2
-        if strtrim(libhead0.label[ipar],2) eq 'O Mg Si S Ca Ti' then tmp=2
+        ;if strtrim(libhead0.label[ipar],2) eq 'C' then tmp=2
+        ;if strtrim(libhead0.label[ipar],2) eq 'N' then tmp=2
+        ;if strtrim(libhead0.label[ipar],2) eq 'O Mg Si S Ca Ti' then tmp=2
+        j=where(params eq strtrim(libhead0.label[ipar],2))
+        tmp=p.class[i].indini[j]
         indini=[indini,tmp]
         if strtrim(libhead0.label[ipar],2) eq 'TEFF' then begin
           amin=temin[i] & amax=temax[i]
@@ -125,12 +148,13 @@ for i=0,nclasses-1 do begin
     printf,out,'fibermax '+string(fibermax[i],format='(i12)')
     if havecoarse eq 0 then printf,out,'coarse  -1 '
   endelse
-  printf,out,'inter 3'
-  if file_test(maskdir+'/global.mask') then begin
-    printf,out,'mask   global.mask'
-    file_delete,outdir+'global.mask',/allow
-    file_copy,maskdir+'/global.mask',outdir+'global.mask'
-  endif else stop, 'No global mask, OK?'
+  printf,out,'inter '+string(inter[i],format='(i12)')
+  printf,out,'renorm '+string(renorm[i],format='(i12)')
+  if file_test(maskdir+'/'+mask) then begin
+    printf,out,'mask  '+mask
+    file_delete,outdir+mask,/allow
+    file_copy,maskdir+mask,outdir+mask
+  endif else stop, 'No global mask, OK?',maskdir+mask
   ; information about locked parameters. If these are changed, must be in conjunction with changes in aspcap_loadferre
   printf,out,'typedef struct {'
   printf,out,'  char lock[16];'
@@ -278,8 +302,11 @@ for i=0,n_elements(elem)-1 do begin
   for j=0,n_elements(classes)-1 do line=line+string(1)+' '
   printf,out,'indini '+line
   line=''
-  for j=0,n_elements(classes)-1 do line=line+string(3)+' '
+  for j=0,n_elements(classes)-1 do line=line+string(inter[j])+' '
   printf,out,'inter '+line
+  line=''
+  for j=0,n_elements(classes)-1 do line=line+string(renorm[j])+' '
+  printf,out,'renorm '+line
   line=''
   for j=0,n_elements(classes)-1 do line=line+el+' '
   printf,out,'mask '+line

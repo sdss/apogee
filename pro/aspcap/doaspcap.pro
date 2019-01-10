@@ -190,6 +190,7 @@ for idir=0,n_elements(datadir)-1 do begin
   if tag_exist(libpar,'init') then init=libpar.init else init=1
   if coarse eq 0 then beststr=aspcap_bestclass(allparam,allspec,alllib)
   if tag_exist(libpar,'indini') then indini=libpar.indini else indini=0
+  if tag_exist(libpar,'renorm') then renorm=libpar.renorm
 
   ; output directory for this class
   specdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/spectra/'
@@ -205,7 +206,8 @@ for idir=0,n_elements(datadir)-1 do begin
     ; write the FERRE control file, and open the FERRE input files
     if tag_exist(libpar,'indi') then indi=libpar.indi else undefine,indi
     if tag_exist(libpar,'mask') then filterfile=configdir+'/'+libpar.mask else undefine,filterfile
-    writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.indv,indini=indini,interord=libpar.inter,findi=indi,errbar=errbar,init=init,renorm=abs(renorm),$
+    writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.indv,indini=indini,$
+            interord=libpar.inter,findi=indi,errbar=errbar,init=init,renorm=abs(renorm),$
             filterfile=filterfile
     openw,ipf,workdir+outname+'.ipf',/get_lun
     openw,labl,workdir+outname+'.labl',/get_lun
@@ -529,6 +531,7 @@ TOC
          file_mkdir,workdir
          if tag_exist(libpar,'indi') then indi=libpar.indi else undefine,indi
          if tag_exist(libpar,'indini') then indini=libpar.indini[iclass] else undefine,indini
+         if tag_exist(libpar,'renorm') then renorm=libpar.renorm[iclass]
          writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.indv[iclass],$
             indini=indini,interord=libpar.inter[iclass],$
             filterfile=configdir+'/'+libpar.mask[iclass]+suffix+'.mask',$

@@ -96,6 +96,7 @@ def comp(a,b,domatch=True,out=None) :
         if out is not None : 
             fig.savefig(out+'_2.png')
             plt.close()
+    return a,b
 
 def all() :
     grid=[]

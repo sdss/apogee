@@ -313,7 +313,11 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
         fig.colorbar(aximage,cax=cb_ax2,orientation='vertical')
         if hard : fig.savefig(root+'_rms.jpg')
         grid.append([rootname+'.jpg',rootname+'_chiploc.jpg',rootname+'_sum.jpg',rootname+'_rms.jpg'])
-        if hard : html.htmltab(grid,file=root+'.html')
+        if hard :
+            root = os.path.dirname(out)+'/html/'+os.path.basename(out).replace('.fits','')
+            try : os.mkdir(os.path.dirname(root))
+            except : pass
+            html.htmltab(grid,file=root+'.html')
         else: pdb.set_trace()
 
     return pars

@@ -25,6 +25,7 @@ if __name__ == '__main__' :
         description='Makes a set of grid directories')
 
     parser.add_argument('grid', type=str, help='Master grid configuration file')
+    parser.add_argument('--nosynth', help='Skip synthesis directory file creation',action="store_true")
     args=parser.parse_args()
 
-    mkplan.mkgriddirs(args.grid)
+    mkplan.mkgriddirs(args.grid,nosynth=args.nosynth)

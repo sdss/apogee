@@ -76,11 +76,11 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
     if dir is None :
         if int(p['solarisotopes']) == 1 : isodir = 'solarisotopes'
         else : isodir = 'giantisotopes'
-        dir = p['atmos'] + '/' + isodir + '/' + p['name']+'/' if p.get('name') else './'
+        dir = p['synthcode'] + '/' + p['atmos'] + '/' + isodir + '/' + p['name']+'/' if p.get('name') else './'
 
     showtime('start:')
     # input directory 
-    indir=os.environ['APOGEE_SPECLIB']+'/synth/turbospec/'+dir+'/'
+    indir=os.environ['APOGEE_SPECLIB']+'/synth/'+dir+'/'
     print('indir: ', indir)
 
     outfile=os.path.basename(p['name'])

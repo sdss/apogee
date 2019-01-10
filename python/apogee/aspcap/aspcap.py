@@ -23,6 +23,7 @@ from astropy.io import fits
 from astropy.io import ascii
 #from holtz.tools import struct
 from tools import plots
+from tools import match
 from apogee.utils import apload
 from apogee.speclib import isochrones
 try: from apogee.aspcap import ferre
@@ -337,7 +338,7 @@ def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=False, hard=None, 
     return fig,ax
 
 def multihr(a,param='FPARAM',colorbar=False,hard=None) :
-    fig,ax = plots.multi(2,4,hspace=0.001,wspace=0.001,figsize=(8,12))
+    fig,ax = plots.multi(3,3,hspace=0.001,wspace=0.001,figsize=(8,12))
 
     z=a[param][:,3]
     zr=[-2,0.5]
@@ -346,12 +347,19 @@ def multihr(a,param='FPARAM',colorbar=False,hard=None) :
                 xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
     ax[0,0].text(0.05,0.9,zt,transform=ax[0,0].transAxes)
 
-    z=a['PARAM_CHI2']
-    zr=[0,10]
-    zt='CHI2'
+    z=10.**a[param][:,2]
+    zr=[0.3,4]
+    zt='vmicro'
     plots.plotc(ax[0,1],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[0,1].text(0.05,0.9,zt,transform=ax[0,1].transAxes)
+
+    z=10.**a[param][:,7]
+    zr=[0,10]
+    zt='vrot'
+    plots.plotc(ax[0,2],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+                xt='Teff',zt=zt,colorbar=colorbar)
+    ax[0,2].text(0.05,0.9,zt,transform=ax[0,2].transAxes)
 
     z=a[param][:,4]
     zr=[-1,1.0]
@@ -367,6 +375,13 @@ def multihr(a,param='FPARAM',colorbar=False,hard=None) :
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[1,1].text(0.05,0.9,zt,transform=ax[1,1].transAxes)
 
+    z=a[param][:,4]-a[param][:,5]
+    zr=[-1,1.0]
+    zt='[C/N]'
+    plots.plotc(ax[1,2],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+                xt='Teff',zt=zt,colorbar=colorbar)
+    ax[1,2].text(0.05,0.9,zt,transform=ax[1,2].transAxes)
+
     z=a[param][:,6]
     zr=[-1,1.0]
     zt=r'[$\alpha$/M]'
@@ -374,26 +389,19 @@ def multihr(a,param='FPARAM',colorbar=False,hard=None) :
                 xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
     ax[2,0].text(0.05,0.9,zt,transform=ax[2,0].transAxes)
 
-    z=a[param][:,4]-a[param][:,5]
-    zr=[-1,1.0]
-    zt='[C/N]'
+    z=a['PARAM_CHI2']
+    zr=[0,10]
+    zt='CHI2'
     plots.plotc(ax[2,1],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[2,1].text(0.05,0.9,zt,transform=ax[2,1].transAxes)
 
-    z=10.**a[param][:,2]
-    zr=[0.3,4]
-    zt='vmicro'
-    plots.plotc(ax[3,0],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+    z=a['MEANFIB']
+    zr=[0,300]
+    zt='MEANFIB'
+    plots.plotc(ax[2,2],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
-    ax[3,0].text(0.05,0.9,zt,transform=ax[3,0].transAxes)
-
-    z=10.**a[param][:,7]
-    zr=[0,10]
-    zt='vrot'
-    plots.plotc(ax[3,1],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
-                xt='Teff',zt=zt,colorbar=colorbar)
-    ax[3,1].text(0.05,0.9,zt,transform=ax[3,1].transAxes)
+    ax[2,2].text(0.05,0.9,zt,transform=ax[2,2].transAxes)
 
     if hard is not None: fig.savefig(hard)
 
@@ -401,20 +409,20 @@ def multihr(a,param='FPARAM',colorbar=False,hard=None) :
 #    fig,ax=plots.multi(2,3)
 #    for class in ['GKg','GKg_O','Mg','Md','GKd','Fd'] :
 
-def plot(wave,spec,color=None,ax=None,hard=None,sum=False,title=None,alpha=None) :
+def plot(wave,spec,color=None,ax=None,hard=None,sum=False,title=None,alpha=None,yr=None) :
     """  Multipanel plots of APOGEE spectra
     """
     if sum : ny=11
     else : ny=10
     if ax is None : fig,ax=plots.multi(1,ny,figsize=(8.5,11),hspace=0.2)
     for i in range(10) :
-        plots.plotl(ax[i],wave,spec,xr=[15000+i*200,15200+i*200],color=color,linewidth=0.3,alpha=alpha)
+        plots.plotl(ax[i],wave,spec,xr=[15000+i*200,15200+i*200],color=color,linewidth=0.3,alpha=alpha,yr=yr)
         ax[i].xaxis.label.set_size(6)
         ax[i].yaxis.label.set_size(6)
         ax[i].tick_params(axis = 'both', which = 'major', labelsize = 6)
         ax[i].xaxis.set_minor_locator(plt.MultipleLocator(10.))
     if sum :
-        plots.plotl(ax[10],wave,spec,xr=[15100,17000],color=color,linewidth=0.3,alpha=alpha)
+        plots.plotl(ax[10],wave,spec,xr=[15100,17000],color=color,linewidth=0.3,alpha=alpha,yr=yr)
         ax[10].xaxis.label.set_size(6)
         ax[10].yaxis.label.set_size(6)
         ax[10].tick_params(axis = 'both', which = 'major', labelsize = 6)
@@ -426,3 +434,31 @@ def plot(wave,spec,color=None,ax=None,hard=None,sum=False,title=None,alpha=None)
 
     try: return fig,ax
     except: return
+
+def plotparams(a,title=None,hard=None) :
+    fig,ax=plots.multi(1,8,hspace=0.001)
+
+    paramnames,tagnames,flagnames = params()
+
+    for i in range(8) :
+        plots.plotc(ax[i],a['FPARAM'][:,0],a['FPARAM'][:,i],a['FPARAM'][:,3],yt=tagnames[i],xt='Teff')
+    if title is not None : fig.suptitle(title)
+    if hard is not None : fig.savefig(hard)
+
+def plotparamdiffs(a,b,title=None,hard=None,logg=None) :
+    fig,ax=plots.multi(1,9,hspace=0.001,sharex=True)
+
+    paramnames,tagnames,flagnames = params()
+    i1,i2=match.match(a['APOGEE_ID'],b['APOGEE_ID'])
+
+    if logg is not None :
+        j=np.where((a['FPARAM'][i1,1] >= logg[0]) & (a['FPARAM'][i1,1] < logg[1])) [0]
+        i1=i1[j]
+        i2=i2[j]
+
+    for i in range(8) :
+        plots.plotc(ax[i],a['FPARAM'][i1,0],b['FPARAM'][i2,i]-a['FPARAM'][i1,i],a['FPARAM'][i1,3],yt=r'$\Delta$'+tagnames[i],xt='Teff')
+
+    plots.plotc(ax[8],a['FPARAM'][i1,0],b['PARAM_CHI2'][i2]-a['PARAM_CHI2'][i1],a['FPARAM'][i1,3],yt=r'$\Delta\chi^2$',xt='Teff',yr=[-1,1])
+    if title is not None : fig.suptitle(title)
+    if hard is not None : fig.savefig(hard)

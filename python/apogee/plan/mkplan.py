@@ -9,7 +9,7 @@ from apogee.utils import spectra
 from apogee.plan import mkslurm
 
 
-def mkgriddirs(configfile) :
+def mkgriddirs(configfile,nosynth=False) :
     """ Script to create output directories and plan and batch queue files for all grids listed in master grid configuration file
         Calls IDL routine to make the individual subplan files
     """
@@ -24,7 +24,9 @@ def mkgriddirs(configfile) :
     for i in range(len(p['GRID']['specdir'])) :
 
       # do both "raw" directory and final directory: former may be repeated!
-      for igrid,name in enumerate([ p['GRID']['specdir'][i]+'_'+p['GRID']['smooth'][i], p['GRID']['specdir'][i] ]) :
+      if nosynth : names = [ p['GRID']['specdir'][i]+'_'+p['GRID']['smooth'][i] ]
+      else : names = [ p['GRID']['specdir'][i]+'_'+p['GRID']['smooth'][i], p['GRID']['specdir'][i] ]
+      for igrid,name in enumerate(names) :
         # construct name and create output directory
         #name = p['GRID']['specdir'][i]+'_'+p['GRID']['smooth'][i]
 
@@ -34,7 +36,7 @@ def mkgriddirs(configfile) :
             iso = 'giantisotopes'
         elif p['GRID']['solarisotopes'][i] < 0 :
             iso = 'tests/'+iso
-        dir = os.getenv('APOGEE_SPECLIB')+'/synth/'+p['synthcode'].strip("'")+'/'+p['GRID']['atmos'][i]+'/'+iso+'/'+name+'/plan/'
+        dir = os.getenv('APOGEE_SPECLIB')+'/synth/'+p['GRID']['synthcode'][i].strip("'")+'/'+p['GRID']['atmos'][i]+'/'+iso+'/'+name+'/plan/'
         print(dir)
         try: os.makedirs(dir)
         except: pass
@@ -65,7 +67,7 @@ def mkgriddirs(configfile) :
 
         # make pbs scripts
         os.chdir('..')
-        specdir = p['synthcode'].strip("'")+'/'+p['GRID']['atmos'][i]+'/'+iso+'/'+name
+        specdir = p['GRID']['synthcode'][i].strip("'")+'/'+p['GRID']['atmos'][i]+'/'+iso+'/'+name
         #os.environ['NO_NODES'] = 'yes'
         #subprocess.call(['mkslurm.csh','mkgrid','"plan/'+name+'_a[mp]*vp20.par"','"plan/'+name+'_a[mp]*vp48.par"','"plan/'+name+'_a[mp]*vp??.par"'],shell=False)
         #subprocess.call(['mkslurm.csh','mkrbf','"plan/'+name+'_c[mp]*vp??.par"'],shell=False)
@@ -81,6 +83,8 @@ def mkgriddirs(configfile) :
             mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=12,time='24:00:00')
             #mkslurm.write('bundle plan/'+name+'_??.par',queryhost=os.uname()[1],queryport=1052,maxrun=32)
             mkslurm.write('pca --pcas 12 75 --incremental --threads 0 --writeraw plan/'+name+'.par',runplans=False,time='72:00:00')
+            mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=12,time='72:00:00',
+                          postcmd='pca --pcas 12 75 --incremental --threads 0 --writeraw plan/'+name+'.par',name='mkgridlsf_pca')
 
 def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,vtsplit=True,el='') :
     """ Make a bunch of individual plan files from master, splitting [alpha/M],[C/M],[N/M],vt

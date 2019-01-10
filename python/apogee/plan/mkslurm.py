@@ -3,7 +3,8 @@ import sys
 import os
 import argparse
 
-def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None,idlthreads=1,runplans=True,time='240:00:00',name=None,fast=False,tacc=False) :
+def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None,idlthreads=1,runplans=True,
+          time='240:00:00',name=None,fast=False,tacc=False, postcmd=None) :
     """ Routine to write a slurm file with specified input command and parameteres
     """
 
@@ -44,6 +45,7 @@ def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None
     else : 
         f.write(cmd+'\n' )
     f.write('wait\n' )
+    if postcmd is not None : f.write(postcmd+'\n')
     f.write('echo DONE\n' )
     f.close()
     os.chmod(file,0o770)
@@ -63,7 +65,8 @@ def main(args) :
     parser.add_argument('--maxrun', type=int, help='maximum jobs to run at a time',default=1)
     parser.add_argument('--time', type=str, help='maximum wall clock time',default='240:00:00')
     parser.add_argument('--idlthreads', type=int, help='maximum IDL threads',default=1)
+    parser.add_argument('--postcmd', type=str, help='post cmd command',default=None)
     args=parser.parse_args(args)
 
-    write(args.cmd,outdir=args.outdir,name=args.name,queryhost=args.queryhost,queryport=args.queryport,maxrun=args.maxrun,idlthreads=args.idlthreads,runplans=args.norunplans,time=args.time)
+    write(args.cmd,outdir=args.outdir,name=args.name,queryhost=args.queryhost,queryport=args.queryport,maxrun=args.maxrun,idlthreads=args.idlthreads,runplans=args.norunplans,time=args.time,postcmd=args.postcmd)
 

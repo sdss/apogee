@@ -269,6 +269,8 @@ for i=0,2047 do begin
 endfor
 ;print,systime(/seconds)-time0
 file=apogee_filename('EPSF',chip=chip[ichip],num=im)
+sxdelpar,head,'NAXIS1'
+sxdelpar,head,'NAXIS2'
 mwrfits,0,file,head,/create
 
 ; Put the PSFs in the output structure

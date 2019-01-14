@@ -312,7 +312,7 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
         aximage=ax[1].imshow(sig,vmin=0.,vmax=0.05,cmap='viridis',interpolation='nearest',aspect='auto')
         fig.colorbar(aximage,cax=cb_ax2,orientation='vertical')
         if hard : fig.savefig(root+'_rms.jpg')
-        grid.append([rootname+'.jpg',rootname+'_chiploc.jpg',rootname+'_sum.jpg',rootname+'_rms.jpg'])
+        grid.append(['../plots/'+rootname+'.jpg','../plots/'+rootname+'_chiploc.jpg','../plots/'+rootname+'_sum.jpg','../plots/'+rootname+'_rms.jpg'])
         if hard :
             root = os.path.dirname(out)+'/html/'+os.path.basename(out).replace('.fits','')
             try : os.mkdir(os.path.dirname(root))

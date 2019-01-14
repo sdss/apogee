@@ -254,56 +254,70 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
     out=load.filename('Wave',num=name,chips=True)   #.replace('Wave','PWave')
     save_apWave(allpars,out=out,npoly=npoly,rows=rows,frames=frames,rms=rms,sig=sig)
 
+    if plot : plot_apWave(allpars, ngroup, out, hard=hard, npoly=npoly, rms=rms, sig=sig)
+
+    return pars
+
+def plot_apWave(allpars, ngroup, out, hard=False, npoly=4, rms=None, sig=None) :
+
+    """ Diagnostic lots of wavecal
+    """
+    name=os.path.basename(out)
+    fig,ax=plots.multi(1,3,hspace=0.001,wspace=0.001)
+    fig2,ax2=plots.multi(1,3,hspace=0.001,wspace=0.001)
     # diagnostic plots
-    if plot :
-        # for plots, transform absolute chip location to relative to middle chip
-        for jgroup in range(ngroup) :
-            igroup=groups[jgroup]
-            for ichip in [0,2] : allpars[npoly+igroup*3+ichip,row] -= allpars[npoly+igroup*3+1,row]
-        for ichip in range(3) : 
-            for igroup in range(ngroup) :
-                y=allpars[npoly+igroup*3+ichip,:]
-                gdlim=np.where(np.abs(y) > 0.0001)[0] 
-                plots.plotc(ax2[ichip],np.arange(300),y,np.zeros(300)+igroup,yr=[np.median(y[gdlim])-5,np.median(y[gdlim])+5],
-                            zr=[0,ngroup], size=10,yt='chip location')
-        fig.suptitle(name)
-        fig2.suptitle(name)
-        grid=[]
-        root = os.path.dirname(out)+'/plots/'+os.path.basename(out).replace('.fits','')
-        rootname = os.path.basename(root)
-        if hard :
-            try : os.mkdir(os.path.dirname(root))
-            except : pass
-            fig.savefig(root+'.jpg')
-            fig2.savefig(root+'_chiploc.jpg')
+    # for plots, transform absolute chip location to relative to middle chip
+    for jgroup in range(ngroup) :
+        #igroup=groups[jgroup]
+        igroup=jgroup
+        for ichip in [0,2] : 
+          for row in np.arange(300) : 
+              allpars[npoly+igroup*3+ichip,row] -= allpars[npoly+igroup*3+1,row]
+    for ichip in range(3) : 
+        for igroup in range(ngroup) :
+            y=allpars[npoly+igroup*3+ichip,:]
+            gdlim=np.where(np.abs(y) > 0.0001)[0] 
+            plots.plotc(ax2[ichip],np.arange(300),y,np.zeros(300)+igroup,yr=[np.median(y[gdlim])-5,np.median(y[gdlim])+5],
+                        zr=[0,ngroup], size=10,yt='chip location')
+    fig.suptitle(name)
+    fig2.suptitle(name)
+    grid=[]
+    root = os.path.dirname(out)+'/plots/'+os.path.basename(out).replace('.fits','')
+    rootname = os.path.basename(root)
+    if hard :
+        try : os.mkdir(os.path.dirname(root))
+        except : pass
+        fig.savefig(root+'.jpg')
+        fig2.savefig(root+'_chiploc.jpg')
 
-        # summary figure of chip locations
-        fig,ax=plots.multi(1,4,hspace=0.001)
-        cb_ax=fig.add_axes((0.9,0.72,0.03,0.15))
-        cb_ax2=fig.add_axes((0.9,0.15,0.03,0.4))
-        # get chip positions relative to median postion across all groups
-        chipa=allpars[4:200:3,:]-np.median(allpars[4:200:3,:],axis=0)
-        chipc=allpars[6:200:3,:]-np.median(allpars[6:200:3,:],axis=0)
-        chipb=allpars[5:200:3,:]-np.median(allpars[5:200:3,:],axis=0)
-        # image of chip b shifts
-        aximage=ax[0].imshow(chipb,vmin=-2,vmax=2,cmap='viridis',interpolation='nearest',aspect='auto')
-        ax[0].set_ylabel('chip loc')
-        fig.colorbar(aximage,cax=cb_ax,orientation='vertical')
+    # summary figure of chip locations
+    fig,ax=plots.multi(1,4,hspace=0.001)
+    cb_ax=fig.add_axes((0.9,0.72,0.03,0.15))
+    cb_ax2=fig.add_axes((0.9,0.15,0.03,0.4))
+    # get chip positions relative to median postion across all groups
+    chipa=allpars[4:200:3,:]-np.median(allpars[4:200:3,:],axis=0)
+    chipc=allpars[6:200:3,:]-np.median(allpars[6:200:3,:],axis=0)
+    chipb=allpars[5:200:3,:]-np.median(allpars[5:200:3,:],axis=0)
+    # image of chip b shifts
+    aximage=ax[0].imshow(chipb,vmin=-2,vmax=2,cmap='viridis',interpolation='nearest',aspect='auto')
+    ax[0].set_ylabel('chip loc')
+    fig.colorbar(aximage,cax=cb_ax,orientation='vertical')
 
-        # get chip b shift relative to median across all rows
-        chipb=(chipb.T-np.median(chipb,axis=1)).T
-        ax[1].imshow(chipb,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
-        ax[1].set_ylabel('rel chip loc')
-        # chip gaps 
-        ax[2].imshow(chipa,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
-        ax[2].set_ylabel('g-r gap')
-        aximage=ax[3].imshow(chipc,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
-        ax[3].set_xlabel('Row')
-        ax[3].set_ylabel('b-g gap')
-        fig.suptitle(rootname)
-        fig.colorbar(aximage,cax=cb_ax2,orientation='vertical')
-        if hard: fig.savefig(root+'_sum.jpg')
+    # get chip b shift relative to median across all rows
+    chipb=(chipb.T-np.median(chipb,axis=1)).T
+    ax[1].imshow(chipb,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
+    ax[1].set_ylabel('rel chip loc')
+    # chip gaps 
+    ax[2].imshow(chipa,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
+    ax[2].set_ylabel('g-r gap')
+    aximage=ax[3].imshow(chipc,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
+    ax[3].set_xlabel('Row')
+    ax[3].set_ylabel('b-g gap')
+    fig.suptitle(rootname)
+    fig.colorbar(aximage,cax=cb_ax2,orientation='vertical')
+    if hard: fig.savefig(root+'_sum.jpg')
 
+    if rms is not None :
         fig,ax=plots.multi(1,2,hspace=0.5)
         cb_ax=fig.add_axes((0.9,0.6,0.03,0.3))
         cb_ax2=fig.add_axes((0.9,0.1,0.03,0.3))
@@ -312,21 +326,20 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
         aximage=ax[1].imshow(sig,vmin=0.,vmax=0.05,cmap='viridis',interpolation='nearest',aspect='auto')
         fig.colorbar(aximage,cax=cb_ax2,orientation='vertical')
         if hard : fig.savefig(root+'_rms.jpg')
-        grid.append(['../plots/'+rootname+'.jpg','../plots/'+rootname+'_chiploc.jpg','../plots/'+rootname+'_sum.jpg','../plots/'+rootname+'_rms.jpg'])
-        if hard :
-            root = os.path.dirname(out)+'/html/'+os.path.basename(out).replace('.fits','')
-            try : os.mkdir(os.path.dirname(root))
-            except : pass
-            html.htmltab(grid,file=root+'.html')
-        else: pdb.set_trace()
+    grid.append(['../plots/'+rootname+'.jpg','../plots/'+rootname+'_chiploc.jpg','../plots/'+rootname+'_sum.jpg','../plots/'+rootname+'_rms.jpg'])
+    if hard :
+        root = os.path.dirname(out)+'/html/'+os.path.basename(out).replace('.fits','')
+        try : os.mkdir(os.path.dirname(root))
+        except : pass
+        html.htmltab(grid,file=root+'.html')
+    else: pdb.set_trace()
 
-    return pars
 
 def save_apWave(allpars,out=None,group=0,rows=np.arange(300),npoly=4,frames=[],rms=None,sig=None) :
     """ Write the apWave files in standard format given the wavecal parameters
     """
     x = np.zeros([3,2048])
-    ngroup = (allpars.shape[0]-npoly)/3
+    ngroup = int(round((allpars.shape[0]-npoly)/3))
     allhdu=[]
     for ichip,chip in enumerate(chips) :
         hdu=fits.HDUList()

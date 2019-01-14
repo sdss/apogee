@@ -254,7 +254,13 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
     out=load.filename('Wave',num=name,chips=True)   #.replace('Wave','PWave')
     save_apWave(allpars,out=out,npoly=npoly,rows=rows,frames=frames,rms=rms,sig=sig)
 
-    if plot : plot_apWave(allpars, ngroup, out, hard=hard, npoly=npoly, rms=rms, sig=sig)
+    if plot : 
+        plot_apWave(allpars, ngroup, out, hard=hard, npoly=npoly, rms=rms, sig=sig)
+        # individual lines from last row
+        if hard :
+            try : os.mkdir(os.path.dirname(root))
+            except : pass
+            fig.savefig(root+'.jpg')
 
     return pars
 
@@ -263,7 +269,6 @@ def plot_apWave(allpars, ngroup, out, hard=False, npoly=4, rms=None, sig=None) :
     """ Diagnostic lots of wavecal
     """
     name=os.path.basename(out)
-    fig,ax=plots.multi(1,3,hspace=0.001,wspace=0.001)
     fig2,ax2=plots.multi(1,3,hspace=0.001,wspace=0.001)
     # diagnostic plots
     # for plots, transform absolute chip location to relative to middle chip
@@ -279,16 +284,16 @@ def plot_apWave(allpars, ngroup, out, hard=False, npoly=4, rms=None, sig=None) :
             gdlim=np.where(np.abs(y) > 0.0001)[0] 
             plots.plotc(ax2[ichip],np.arange(300),y,np.zeros(300)+igroup,yr=[np.median(y[gdlim])-5,np.median(y[gdlim])+5],
                         zr=[0,ngroup], size=10,yt='chip location')
-    fig.suptitle(name)
     fig2.suptitle(name)
     grid=[]
+    xtit=['Individual lines','chip locations','chip locations','rms  and sig']
     root = os.path.dirname(out)+'/plots/'+os.path.basename(out).replace('.fits','')
     rootname = os.path.basename(root)
     if hard :
         try : os.mkdir(os.path.dirname(root))
         except : pass
-        fig.savefig(root+'.jpg')
         fig2.savefig(root+'_chiploc.jpg')
+        plt.close()
 
     # summary figure of chip locations
     fig,ax=plots.multi(1,4,hspace=0.001)
@@ -315,7 +320,9 @@ def plot_apWave(allpars, ngroup, out, hard=False, npoly=4, rms=None, sig=None) :
     ax[3].set_ylabel('b-g gap')
     fig.suptitle(rootname)
     fig.colorbar(aximage,cax=cb_ax2,orientation='vertical')
-    if hard: fig.savefig(root+'_sum.jpg')
+    if hard: 
+        fig.savefig(root+'_sum.jpg')
+        plt.close()
 
     if rms is not None :
         fig,ax=plots.multi(1,2,hspace=0.5)
@@ -325,13 +332,15 @@ def plot_apWave(allpars, ngroup, out, hard=False, npoly=4, rms=None, sig=None) :
         fig.colorbar(aximage,cax=cb_ax,orientation='vertical')
         aximage=ax[1].imshow(sig,vmin=0.,vmax=0.05,cmap='viridis',interpolation='nearest',aspect='auto')
         fig.colorbar(aximage,cax=cb_ax2,orientation='vertical')
-        if hard : fig.savefig(root+'_rms.jpg')
+        if hard : 
+            fig.savefig(root+'_rms.jpg')
+            plt.close()
     grid.append(['../plots/'+rootname+'.jpg','../plots/'+rootname+'_chiploc.jpg','../plots/'+rootname+'_sum.jpg','../plots/'+rootname+'_rms.jpg'])
     if hard :
         root = os.path.dirname(out)+'/html/'+os.path.basename(out).replace('.fits','')
         try : os.mkdir(os.path.dirname(root))
         except : pass
-        html.htmltab(grid,file=root+'.html')
+        html.htmltab(grid,file=root+'.html',xtitle=xtit)
     else: pdb.set_trace()
 
 

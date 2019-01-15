@@ -71,6 +71,7 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
     # set output limits
     dthi=250
     dthot=250
+    dtvhot=250
     dlogg=0.5
     dmh=0.25
     dam=0.25

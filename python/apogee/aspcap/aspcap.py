@@ -24,6 +24,7 @@ from astropy.io import ascii
 #from holtz.tools import struct
 from tools import plots
 from tools import match
+from tools import html
 from apogee.utils import apload
 from apogee.speclib import isochrones
 try: from apogee.aspcap import ferre
@@ -462,3 +463,27 @@ def plotparamdiffs(a,b,title=None,hard=None,logg=None) :
     plots.plotc(ax[8],a['FPARAM'][i1,0],b['PARAM_CHI2'][i2]-a['PARAM_CHI2'][i1],a['FPARAM'][i1,3],yt=r'$\Delta\chi^2$',xt='Teff',yr=[-1,1])
     if title is not None : fig.suptitle(title)
     if hard is not None : fig.savefig(hard)
+
+def multiwind(data,apred='r10',aspcap='t33w') :
+
+    #load=apload.ApLoad(apred=apred,aspcap=aspcap)
+    #data=load.allCal()
+    els=data[3].data['ELEM_SYMBOL'][0]
+    grid=[]
+    ytit=[]
+    for iel,el in enumerate(els) :
+        if os.path.exists(os.environ['APOGEE_ASPCAP']+'/'+apred+'/'+aspcap+'/config/apogee-n/'+el+'.wind') :
+            w=np.loadtxt(os.environ['APOGEE_ASPCAP']+'/'+apred+'/'+aspcap+'/config/apogee-n/'+el+'.wind') 
+            nwind=w.shape[0]
+            fig,ax=plots.multi(1,nwind,hspace=0.001,figsize=(6,nwind))
+            fig.suptitle(el)
+            for i in range(1,nwind+1) : 
+                plots.plotc(ax[i-1],data[1].data['FPARAM'][:,0],data[1].data['FELEM'][:,i,iel]-data[1].data['FELEM'][:,0,iel],
+                            data[1].data['FPARAM'][:,3],xr=[3000,6000],yr=[-1,1],zr=[-2,0.5],xt='Teff',size=20,yt=r'$\Delta$(line-global)')
+                ax[i-1].text(0.05,0.8,'{:8.2f}-{:8.2f}   {:8.2f}'.format(w[i-1,0],w[i-1,1],w[i-1,2]),transform=ax[i-1].transAxes,fontsize=10)
+                ax[i-1].yaxis.label.set_size(6)
+            fig.savefig(el+'.png')
+            grid.append([el+'.png'])
+            ytit.append(el)
+            plt.close()
+    html.htmltab(grid,ytitle=ytit,file='wind.html')

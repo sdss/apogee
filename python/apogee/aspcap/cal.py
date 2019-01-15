@@ -64,7 +64,16 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
     # write out the file
     if out is not None:
         print('writing',out)
-        struct.wrfits(all,out)
+        #struct.wrfits(all,out)
+        hdulist=fits.HDUList()
+        hdu=fits.BinTableHDU.from_columns(all)
+        hdulist.append(hdu)
+        filelist=glob.glob(files[0])
+        hdu=fits.open(filelist[0])[3]
+        hdulist.append(hdu)
+        hdu=fits.open(filelist[0])[3]
+        hdulist.append(hdu)
+        hdulist.writeto(out,overwrite=True)
 
     aspcap.hr(all,hard='hr.png')
     aspcap.multihr(all,hard='multihr.png')

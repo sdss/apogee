@@ -255,7 +255,7 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
     save_apWave(allpars,out=out,npoly=npoly,rows=rows,frames=frames,rms=rms,sig=sig)
 
     if plot : 
-        plot_apWave(allpars, ngroup, out, hard=hard, npoly=npoly, rms=rms, sig=sig)
+        plot_apWave(name,apred=apred,inst=inst,hard=hard)
         # individual lines from last row
         if hard :
             try : os.mkdir(os.path.dirname(root))
@@ -264,10 +264,19 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
 
     return pars
 
-def plot_apWave(allpars, ngroup, out, hard=False, npoly=4, rms=None, sig=None) :
+def plot_apWave(num,apred='current',inst='apogee-n',hard=False) :
 
     """ Diagnostic lots of wavecal
     """
+    load=apload.ApLoad(apred=apred,instrument=inst)
+    wave=load.apWave(num)
+    out=load.filename('Wave',num=num,chips=True)
+    allpars=wave['a'][3].data
+    rms=wave['a'][4].data
+    sig=wave['a'][5].data
+    ngroup=int(wave['a'][0].header['NGROUP'])
+    npoly=wave['a'][0].header['NPOLY']
+
     name=os.path.basename(out)
     fig2,ax2=plots.multi(1,3,hspace=0.001,wspace=0.001)
     # diagnostic plots
@@ -310,12 +319,14 @@ def plot_apWave(allpars, ngroup, out, hard=False, npoly=4, rms=None, sig=None) :
 
     # get chip b shift relative to median across all rows
     chipb=(chipb.T-np.median(chipb,axis=1)).T
-    ax[1].imshow(chipb,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
+    vmin=-0.07
+    vmax=0.07
+    ax[1].imshow(chipb,vmin=vmin,vmax=vmax,cmap='viridis',interpolation='nearest',aspect='auto')
     ax[1].set_ylabel('rel chip loc')
     # chip gaps 
-    ax[2].imshow(chipa,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
+    ax[2].imshow(chipa,vmin=vmin,vmax=vmax,cmap='viridis',interpolation='nearest',aspect='auto')
     ax[2].set_ylabel('g-r gap')
-    aximage=ax[3].imshow(chipc,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
+    aximage=ax[3].imshow(chipc,vmin=vmin,vmax=vmax,cmap='viridis',interpolation='nearest',aspect='auto')
     ax[3].set_xlabel('Row')
     ax[3].set_ylabel('b-g gap')
     fig.suptitle(rootname)
@@ -341,7 +352,9 @@ def plot_apWave(allpars, ngroup, out, hard=False, npoly=4, rms=None, sig=None) :
         try : os.mkdir(os.path.dirname(root))
         except : pass
         html.htmltab(grid,file=root+'.html',xtitle=xtit)
-    else: pdb.set_trace()
+    else: 
+        pdb.set_trace()
+        for i in range(3) : plt.close()
 
 
 def save_apWave(allpars,out=None,group=0,rows=np.arange(300),npoly=4,frames=[],rms=None,sig=None) :

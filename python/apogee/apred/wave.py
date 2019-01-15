@@ -764,6 +764,29 @@ def skywaves() :
     for line in set(linestr['wave']) :
         j=np.where(linestr['wave'] == line)[0]
         print(line,len(j),linestr['wave_found'][j].mean(),linestr['wave_found'][j].std())
+
+def plotskywave(apred='r11',inst='apogee-n') :
+
+    os.chdir(os.environ['APOGEE_REDUX']+'/'+apred+'/exposures/') 
+    files = glob.glob(inst+'/*/a?1D-a*.fits')
+    wfit=[]
+    mjd=[]
+    for file in files :
+        print(file)
+        a=fits.open(file)[0].header
+        hist=a['HISTORY']
+        for line in hist :
+            if line.split()[0] == 'Wavelength' :
+                wfit.append(line.split()[3:])
+                mjd.append(a['JD-MID']-2400000.5)
+    mjd=np.array(mjd)
+    wfit=np.array(wfit).astype(float)
+    fig,ax=plots.multi(1,4,hspace=0.001)
+    plots.plotp(ax[0],mjd,wfit[:,0],yr=[-1.e-3,1.e-3],yt='slope')
+    plots.plotp(ax[1],mjd,wfit[:,2],yr=[-5,5],yt='g')
+    plots.plotp(ax[2],mjd,wfit[:,1]-wfit[:,2],yr=[-0.2,0.2],yt='r-g')
+    plots.plotp(ax[3],mjd,wfit[:,3]-wfit[:,2],yr=[-0.2,0.2],yt='b-g')
+    fig.savefig(inst+'.png')
         
 def scalarDecorator(func):
     """Decorator to return scalar outputs for wave2pix and pix2wave

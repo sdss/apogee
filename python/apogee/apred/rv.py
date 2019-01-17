@@ -13,9 +13,8 @@ colors=['r','g','b','c','m','y','k']
 
 
 def allField(files=['apo*/*/apField-*.fits','apo*/*/apFieldC-*.fits','lco*/*/apField-*.fits'],out='allField.fits',verbose=False) :
-    '''
-    Concatenate set of apField files
-    '''
+    """ Concatenate set of apField files
+    """
     # concatenate the structures
     all=struct.concat(files,verbose=verbose)
 
@@ -27,9 +26,8 @@ def allField(files=['apo*/*/apField-*.fits','apo*/*/apFieldC-*.fits','lco*/*/apF
     return all
 
 def allFieldVisits(files=['apo*/*/apFieldVisits-*.fits','apo*/*/apFieldC-*.fits','lco*/*/apFieldVisits-*.fits'],out='allFieldVisits.fits',verbose=False) :
-    '''
-    Concatenate set of apField files
-    '''
+    """ Concatenate set of apField files
+    """
     # concatenate the structures
     all=struct.concat(files,verbose=verbose)
 
@@ -42,6 +40,8 @@ def allFieldVisits(files=['apo*/*/apFieldVisits-*.fits','apo*/*/apFieldC-*.fits'
 
 
 def vscat(a,fig=None,ls=None,marker='o') :
+    """ Make histograms of VSCATTER for different Teff and min NVISITS
+    """
     if fig == None : fig,ax=plots.multi(3,6,hspace=0.001,wspace=0.4)
     else : fig,ax=fig
     tbins=[3000,3500,4000,4500,5500,8000,30000] 
@@ -65,6 +65,8 @@ def vscat(a,fig=None,ls=None,marker='o') :
     return fig,ax
 
 def apolco(a,minfeh=-3,out=None) :
+    """  VSCATTER histograms for APO vs LCO
+    """
     gd=np.where((a['TELESCOPE'] == 'apo25m') & (a['RV_FEH']>minfeh) )[0]
     fig=vscat(a[gd],marker='o')
     gd=np.where((a['TELESCOPE'] == 'lco25m') & (a['RV_FEH']>minfeh) )[0]
@@ -74,7 +76,8 @@ def apolco(a,minfeh=-3,out=None) :
         plt.close()
 
 def comp(a,b,domatch=True,out=None) :
-
+    """ VSCATTER comparison of two different data sets
+    """
     if domatch :
         i1,i2=match.match(a['APOGEE_ID'],b['APOGEE_ID'])
         gd = np.where(a['NVISITS'][i1] == b['NVISITS'][i2])[0]
@@ -99,6 +102,8 @@ def comp(a,b,domatch=True,out=None) :
     return a,b
 
 def all() :
+    """ Do a series of RV comparisons for DR14 and proto DR16
+    """
     grid=[]
     xtit=[]
     a=fits.open('allField.fits')[1].data

@@ -424,7 +424,7 @@ for idir=0,n_elements(datadir)-1 do begin
   ; with queue=2, put FERRE job in background and move on
   cd,workdir,current=cwd
   ; only run FERRE if .spm file doesn't already exist, or clobber set
-  if not file_test(workdir+outname+'.spm') or clobber ne 0 then begin
+  if nfit gt 0 and (not file_test(workdir+outname+'.spm') or clobber ne 0) then begin
     file_delete,workdir+outname+'.spm',/allow_nonexistent    
     aspcap_wrpbsscript,outname,exec_path,ncpus,jobsid,libsize,queue=queue,qname=qname,workdir=workdir
     spawn,['./'+outname+'.pbs'],/noshell

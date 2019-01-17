@@ -363,21 +363,21 @@ def multihr(a,param='FPARAM',colorbar=False,hard=None) :
     ax[0,2].text(0.05,0.9,zt,transform=ax[0,2].transAxes)
 
     z=a[param][:,4]
-    zr=[-1,1.0]
+    zr=[-0.5,0.5]
     zt='[C/M]'
     plots.plotc(ax[1,0],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
                 xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
     ax[1,0].text(0.05,0.9,zt,transform=ax[1,0].transAxes)
 
     z=a[param][:,5]
-    zr=[-1,1.0]
+    zr=[-0.5,0.5]
     zt='[N/M]'
     plots.plotc(ax[1,1],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[1,1].text(0.05,0.9,zt,transform=ax[1,1].transAxes)
 
     z=a[param][:,4]-a[param][:,5]
-    zr=[-1,1.0]
+    zr=[-0.5,0.5]
     zt='[C/N]'
     plots.plotc(ax[1,2],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)

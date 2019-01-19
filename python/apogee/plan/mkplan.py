@@ -132,6 +132,7 @@ def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,oasplit=True,v
         except :
             oasplit=False
             oarange=[0.]
+        p['noa'] = 1
     else :
         oarange = [0]
     if int(p['vmicrofit']) == 0 :

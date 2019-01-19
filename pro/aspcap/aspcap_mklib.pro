@@ -4,8 +4,10 @@
 ;    assumes library order is vmicro,[C/M],[N/M],[alpha/M],[M/H],logg,Teff unless carlos option is given
 ;-
 pro aspcap_mklib,config,suffix=suffix,prefix=prefix,libdir=libdir,classes=classes,elem=elem,vpar=vpar,carlos=carlos,maskdir=maskdir,$
-    femin=femin,rotpar=rotpar,opar=opar,vlock=vlock,vmlock=vmlock,outdir=outdir,nmlock=nmlock,cmlock=cmlock
+    femin=femin,rotpar=rotpar,opar=opar,vlock=vlock,vmlock=vmlock,outdir=outdir,nmlock=nmlock,cmlock=cmlock,apred=apred,inst=inst,$
+    renorm=renorm,maxwind=maxwind
 
+if n_elements(apred) gt 0 then apsetver,vers=apred,instrument=inst
 ;if ~keyword_set(elem) then elem=['C','Al','Ca','Fe','K','Mg','Mn','Na','Ni','N','O','Si','S','Ti','V']
 ;if ~keyword_set(maskdir) then maskdir='filters_05062014'
 ;if ~keyword_set(elem) then elem=['C','CI','Al','Ca','CI','Co','Cr','Cu','Fe','Ge','K','Mg','Mn','Na','Nd','Ni','N','O','P','Rb','Si','S','Ti','V','Y']
@@ -29,6 +31,7 @@ aploadplan,indir+'class-'+dirs.instrument+'.par',p,str='CLASS'
 mask=p.mask
 maskdir=getenv('APOGEE_DIR')+'/data/windows/'+p.maskdir+'/'
 classes=p.class.class
+nclasses=n_elements(classes)
 libs=p.class.lib
 temin=p.class.temin
 temax=p.class.temax
@@ -41,8 +44,9 @@ fibermax=p.class.fibermax
 holefile=p.class.holefile
 vmacrofit=p.class.vmacrofit
 rotpar=p.class.vmacro
-renorm=p.class.renorm
 inter=p.class.inter
+if keyword_set(renorm) then renorm=intarr(nclasses)+renorm else renorm=p.class[i].renorm
+if keyword_set(maxwind) then maxwind=intarr(nclasses)+maxwind else maxwind=p.class[i].maxwind
 
 nclasses=n_elements(classes)
 cfit=intarr(nclasses)-1

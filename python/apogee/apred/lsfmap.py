@@ -167,32 +167,54 @@ def group(lsf,wave=None,hard=None,groups=None) :
     """ Plot the FWHM from gaussian fits to the LSF of the 3 chips at column 1024
     """
     fibers=np.arange(1,301)
-    fwhm,r=modelmap(lsf,waveframe=wave,cols=[1024],fibers=fibers,smooth=0)
+    fwhm,r=modelmap(lsf,waveframe=wave,cols=[512,1024,1536],fibers=fibers,smooth=0)
     plt.close()
     plt.close()
-    fig,ax=plots.multi(2,2,figsize=(8,4),wspace=0.001,hspace=0.001)
-    plots.plotc(ax[0,0],fwhm[:,0,0],fwhm[:,0,1],fibers,xr=[2.3,3.8],yr=[1.8,3.0],xt='red fwhm, col 1024',yt='green fwhm, col 1024')
-    plots.plotc(ax[0,1],fwhm[:,0,1],fwhm[:,0,2],fibers,xr=[2.0,3.5],yr=[1.8,3.0],xt='green fwhm, col 1024',yt='blue fwhm, col 1024')
-
-    # do a Kmeans analysis to split into LSF groups and plot
-    X = np.squeeze(fwhm)
-    km = KMeans(n_clusters=4)
-    labels = km.fit_predict(X)
-    plots.plotc(ax[1,0],fwhm[:,0,0],fwhm[:,0,1],labels,xr=[2.3,3.8],yr=[1.8,3.0],xt='red fwhm, col 1024',yt='green fwhm, col 1024')
-    plots.plotc(ax[1,1],fwhm[:,0,1],fwhm[:,0,2],labels,xr=[2.0,3.5],yr=[1.8,3.0],xt='green fwhm, col 1024',yt='blue fwhm, col 1024')
-    gfig,gax=plots.multi(1,1)
-    plots.plotp(gax,fibers,labels)
-    if groups is not None :
-        # show default groups if input
-        for start in groups : gax.plot([start-0.5,start-0.5],[-1,5])
-
+    fig,ax=plots.multi(2,2,figsize=(8,6))
+    plots.plotc(ax[0,0],fwhm[:,1,0],fwhm[:,1,1],fibers,xr=[2.3,3.8],yr=[1.8,3.0],xt='red fwhm, col 1024',yt='green fwhm, col 1024')
+    ax[0,0].set_title('Color coded by fiber')
+    plots.plotc(ax[0,1],fwhm[:,1,1],fwhm[:,1,2],fibers,xr=[2.0,3.5],yr=[1.8,3.0],xt='green fwhm, col 1024',yt='blue fwhm, col 1024')
+    ax[0,1].set_title('Color coded by fiber')
     ax[0,0].grid()
     ax[0,1].grid()
     ax[1,0].grid()
     ax[1,1].grid()
+    rfig,rax=plots.multi(2,2,figsize=(8,6))
+    plots.plotc(rax[0,0],r[:,1,0],r[:,1,1],fibers,xr=[18000,28000],yr=[18000,28000],xt='red R, col 1024',yt='green R, col 1024')
+    rax[0,0].set_title('Color coded by fiber')
+    plots.plotc(rax[0,1],r[:,1,1],r[:,1,2],fibers,xr=[18000,28000],yr=[18000,28000],xt='green R, col 1024',yt='blue R, col 1024')
+    rax[0,1].set_title('Color coded by fiber')
+    rax[0,0].grid()
+    rax[0,1].grid()
+    rax[1,0].grid()
+    rax[1,1].grid()
+
+    # do a Kmeans analysis to split into LSF groups and plot
+    X = np.squeeze(fwhm[:,1,:])
+    km = KMeans(n_clusters=4)
+    labels = km.fit_predict(X)
+    for j in range(3) :
+      plots.plotc(ax[1,0],fwhm[:,j,0],fwhm[:,j,1],labels,xr=[2.3,3.8],yr=[1.8,3.0],xt='red fwhm, col 1024',yt='green fwhm, col 1024')
+      plots.plotc(ax[1,1],fwhm[:,j,1],fwhm[:,j,2],labels,xr=[2.0,3.5],yr=[1.8,3.0],xt='green fwhm, col 1024',yt='blue fwhm, col 1024')
+      plots.plotc(rax[1,0],r[:,j,0],r[:,j,1],labels,xr=[18000,28000],yr=[18000,28000],xt='red R, col 1024',yt='green R, col 1024')
+      plots.plotc(rax[1,1],r[:,j,1],r[:,j,2],labels,xr=[18000,28000],yr=[18000,28000],xt='green R, col 1024',yt='blue R, col 1024')
+    ax[1,0].set_title('Color coded by group')
+    ax[1,1].set_title('Color coded by group')
+    rax[1,0].set_title('Color coded by group')
+    rax[1,1].set_title('Color coded by group')
+    gfig,gax=plots.multi(1,1)
+    plots.plotp(gax,fibers,labels)
+    if groups is not None :
+        # show default groups if input
+        for start in groups : gax.plot([start-0.5,start-0.5],[-1,5],color='k')
+
     if hard is not None : 
+        fig.tight_layout()
         fig.savefig(hard+'.png')
+        rfig.tight_layout()
+        rfig.savefig(hard+'_r.png')
         gfig.savefig(hard+'_group.png')
+        plt.close()
         plt.close()
         plt.close()
 
@@ -215,10 +237,14 @@ def parplot(lsf,hard=None) :
         fig.savefig(hard+'.png')
         plt.close()
 
-def sum(apred='r11',telescope='apo25m',lsfs=[3430016,7510018,11130063,14600018,18430026,22330043,25560065],out='apogee-n' ,verbose=False,groups=None) :
+def sum(apred='r11',telescope='apo25m',lsfs=[3430016,7510018,11130063,14600018,18430026,22330043,25560065],waveid=None,out='apogee-n' ,verbose=False,groups=None) :
     """ Make plots for a series of LSFs and a summary web page
     """
     load=apload.ApLoad(apred=apred,telescope=telescope,verbose=verbose)
+    if telescope == 'apo25m' : prefix = 'ap'
+    else : prefix = 'as'
+    if waveid is not None : wave=load.apWave(waveid)
+    else : wave=None
 
     grid=[]
     ytit=[]
@@ -227,11 +253,11 @@ def sum(apred='r11',telescope='apo25m',lsfs=[3430016,7510018,11130063,14600018,1
         name1='pars_{:08d}'.format(lsfid)
         parplot(lsf,hard=name1) 
         name2='fwhm_{:08d}'.format(lsfid)
-        group(lsf,hard=name2,groups=groups) 
-        grid.append([name1+'.png',name2+'.png',name2+'_group.png'])
-        ytit.append('{:08d}'.format(lsfid))
+        group(lsf,wave=wave,hard=name2,groups=groups) 
+        grid.append([name1+'.png',name2+'.png',name2+'_r.png',name2+'_group.png'])
+        ytit.append('<A HREF={:s}LSF-{:08d}.html>{:08d}</A>'.format(prefix,lsfid,lsfid))
 
-    xt=['LSF parameters','LSF FWHM','LSF groups']
+    xt=['LSF parameters','LSF FWHM','LSF R','LSF groups']
 
     html.htmltab(grid,xtitle=xt,ytitle=ytit,file=out+'.html')
 
@@ -246,8 +272,8 @@ def dr16() :
     """
     groups=[1,50,146,246,301]
     fibergroups(groups)
-    sum(apred='r11',telescope='apo25m',lsfs=[3430016,7510018,11130063,14600018,18430026,22330043,25560065],out='apogee-n',groups=groups)
+    sum(apred='r11',telescope='apo25m',lsfs=[3430016,7510018,11130063,14600018,18430026,22330043,25560065],waveid=24040000,out='apogee-n',groups=groups)
     groups=[1,32,89,151,301]
     fibergroups(groups)
-    sum(apred='r11',telescope='lco25m',lsfs=[22670019,22940020,26990075],out='apogee-s', groups=groups)
+    sum(apred='r11',telescope='lco25m',lsfs=[22940020,26990075],out='apogee-s', waveid=24040000,groups=groups)
 

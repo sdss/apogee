@@ -75,7 +75,7 @@ if not keyword_set(aspcap_root) then aspcap_root=apsetpar(planstr,'aspcap_root',
 if not keyword_set(redux_root) then redux_root=apsetpar(planstr,'redux_root',dirs.redux)
 if not keyword_set(red_vers) then red_vers=apsetpar(planstr,'red_vers',apogee_vers)
 if not keyword_set(liblist_path) then liblist_path=apsetpar(planstr,'liblist_path',getenv('APOGEE_DIR')+'/config/aspcap/')
-if not keyword_set(libr_path) then libr_path=apsetpar(planstr,'libr_path',dirs.speclib+'/')
+if not keyword_set(libr_path) then libr_path=apsetpar(planstr,'libr_path',dirs.speclib+'/synth/')
 src_path=getenv('APOGEE_DIR') 
 exec_path=src_path+'/bin/'
 
@@ -115,7 +115,9 @@ endelse
 params=aspcap_params(npar=npar)
 
 ; get library name(s) 
-readcol,liblist_path+aspcap_config+'/class-'+dirs.instrument+'.list',format='(a)',class,stringskip='#'
+;readcol,liblist_path+aspcap_config+'/class-'+dirs.instrument+'.list',format='(a)',class,stringskip='#'
+aploadplan,liblist_path+aspcap_config+'/class-'+dirs.instrument+'.par',classplan,str='CLASS'
+class=classplan.class.class
 
 ; create configuration files
 configdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/config/'+dirs.instrument+'/'
@@ -171,6 +173,7 @@ for idir=0,n_elements(datadir)-1 do begin
 
  nclass=n_elements(class)
  for iclass=0,nclass-1 do begin
+  clock=TIC(class[iclass])
   print,iclass,class[iclass]
   aploadplan,configdir+'/'+class[iclass]+'.par',libpar,str='PLOCK'
   libfile=libr_path+libpar.lib
@@ -191,6 +194,7 @@ for idir=0,n_elements(datadir)-1 do begin
   if coarse eq 0 then beststr=aspcap_bestclass(allparam,allspec,alllib)
   if tag_exist(libpar,'indini') then indini=libpar.indini else indini=0
   if tag_exist(libpar,'renorm') then renorm=libpar.renorm
+  if keyword_set(renorm) then frdsuffix='.obs' else frdsuffix='.frd'
 
   ; output directory for this class
   specdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/spectra/'
@@ -201,6 +205,8 @@ for idir=0,n_elements(datadir)-1 do begin
 
   ; loop through the requested directory and construct input FERRE files
   print,workdir+outname+'.ipf  ',file_test(workdir+outname+'.ipf')
+  nfit=0
+  nobj=0
   if not file_test(workdir+outname+'.ipf') or keyword_set(clobber) then begin
    
     ; write the FERRE control file, and open the FERRE input files
@@ -243,7 +249,7 @@ for idir=0,n_elements(datadir)-1 do begin
         for ispec=0,nspec-1 do begin
          ; make sure visit spectrum doesn't have too many bad pixels
          jbad=where(obs.flag[*,ispec] and badmask(),nbad)
-         print,ispec,nbad
+         print,ispec,nbad,size(obs.flag[*,ispec],/dim)
          if ispec eq 0 or float(nbad)/n_elements(obs.flux[*,ispec]) lt 0.4 then begin
            if nbad gt 0 then obs.invar[jbad] = 0.01
            if keyword_set(mask_telluric) then begin
@@ -292,7 +298,6 @@ for idir=0,n_elements(datadir)-1 do begin
               if nbad gt 0 then mask[bad]=0
             endif
             bad=where(mask eq 0,nbad)
-            print,ispec,nbad,n_elements(out)
             if float(nbad)/n_elements(out) gt 0.4 then begin
               print,'badfrac 2 rejected: ', ichip,indir+files[i]
               goto,badfrac
@@ -367,12 +372,22 @@ for idir=0,n_elements(datadir)-1 do begin
            ; determine whether we should skip the star for this grid, depending on parameters and mean fiber
            skip=0
            if tag_exist(libpar,'pmin') then $
-             for ipar=0,n_elements(par)-1 do if par[ipar] lt libpar.pmin[ipar] or par[ipar] gt libpar.pmax[ipar] then skip=1
+             for ipar=0,n_elements(par)-1 do $
+               if par[ipar] lt libpar.pmin[ipar] or par[ipar] gt libpar.pmax[ipar] then begin
+                 skip=1
+                 reason='parameter '+string(ipar)+' out of range'
+               endif
            if sxpar(obs.head,'MEANFIB') gt 0 then meanfib=sxpar(obs.head,'MEANFIB') else meanfib=150
            if tag_exist(libpar,'fibermin') then $
-             if meanfib lt libpar.fibermin then skip=1
+             if meanfib lt libpar.fibermin then begin
+               skip=1
+               reason='fiber out of range'
+             endif
            if tag_exist(libpar,'fibermax') then $
-             if meanfib gt libpar.fibermax then skip=1
+             if meanfib gt libpar.fibermax then begin
+               skip=1
+               reason='fiber out of range'
+             endif
            if ~skip then begin
              for ipar=0,n_elements(par)-1 do begin
                ; make sure starting value is within grid
@@ -388,11 +403,12 @@ for idir=0,n_elements(datadir)-1 do begin
              printf,wav,libwaveall,format=wformat
              printf,ipf,starname,format=iformat,par,parerr
              printf,labl,libhead.label,format=lformat
-           endif else print,'skipping (meanfib) ...', indir+files[i]
+             nfit+=1
+           endif else print,'  skipping : ', reason
           badfrac: 
-         endif ; fraction of bad pixels too high
+         endif else print,'  skipping (too many bad pixels): ' ; fraction of bad pixels too high
         endfor   ; loop over visit spectra
-      endif else print,'skip star (pmin/pmax, bad RV, or persist option): ', indir+files[i]
+      endif else print,'skipping (bad RV, STARFLAG, S/N or persist option): ', sxpar(obs.head,'STARFLAGS'), sxpar(obs.head,'VHELIO')
      endif else print,'missing: ', indir+files[i]
     endfor   ; loop over objects
     free_lun,ipf
@@ -402,19 +418,20 @@ for idir=0,n_elements(datadir)-1 do begin
     free_lun,err
     free_lun,wav
   endif
-TOC
   ; run FERRE !  
   ; with queue=0, wait for FERRE to be done, and run in foreground
   ; with queue=1, wait for FERRE to be done, but run through PBS
   ; with queue=2, put FERRE job in background and move on
   cd,workdir,current=cwd
   ; only run FERRE if .spm file doesn't already exist, or clobber set
-  if not file_test(workdir+outname+'.spm') or clobber ne 0 then begin
+  if nfit gt 0 and (not file_test(workdir+outname+'.spm') or clobber ne 0) then begin
     file_delete,workdir+outname+'.spm',/allow_nonexistent    
     aspcap_wrpbsscript,outname,exec_path,ncpus,jobsid,libsize,queue=queue,qname=qname,workdir=workdir
     spawn,['./'+outname+'.pbs'],/noshell
   endif
-TOC
+  dt=TOC(clock)
+  print,'class:',class[iclass],dt,nobj,nfit,dt/nfit
+  TOC
   ; create output plots and output FITS file
   resultsdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/param/class_'+class[iclass]+'/'
   file_mkdir,resultsdir
@@ -486,6 +503,8 @@ TOC
    newlib=struct_rename_tags(finalstr.lib,'','',addtag='ELEM_SYMBOL',addval=elem_order)
    newlib=struct_rename_tags(newlib,'','',addtag='ELEM_VALUE',addval=elem_fitnames)
    newlib=struct_rename_tags(newlib,'','',addtag='ELEMTOH',addval=elemtoh)
+   if keyword_set(maxwind) then $
+     newlib=struct_rename_tags(newlib,'','',addtag='FELEM_WIND',addval=fltarr(nelem,maxwind,3)-9999.)
    firstelem=1
    for ielem=0,n_elements(elem)-1 do begin
      jelem=where(strtrim(elem_order,2) eq strtrim(elem[ielem],2),norder)
@@ -518,7 +537,7 @@ TOC
 
        ; with maxwind keyword, we will loop over the full set of windows plus each individual window
        if keyword_set(maxwind) and file_test(configdir+elem[ielem]+'.wind') and ~tag_exist(libpar,'minigrid') then begin
-         readcol,configdir+elem[ielem]+'.wind',w1,w2
+         readcol,configdir+elem[ielem]+'.wind',w1,w2,w3
          nwind=n_elements(w1)
        endif else nwind=0
        for iwind=0,nwind do begin
@@ -600,11 +619,11 @@ TOC
               file_delete,workdir+outname+'.spm',/allow_nonexistent    
               cd,workdir,current=cwd
               aspcap_wrpbsscript,outname,exec_path,ncpus,jobsid,libsize,queue=queue,qname=qname,workdir=workdir
-TOC
+              TOC
               spawn,['./'+outname+'.pbs'],/noshell
               cd,cwd
            endif
-TOC
+           TOC
            if minigrid ne '' then $
            outindex=where(aspcap_params(extra=elem[ielem]) eq libhead0.label[libpar.indv[iclass]-1]) else $
            outindex=where(aspcap_params() eq libhead0.label[libpar.indv[iclass]-1])
@@ -622,6 +641,7 @@ TOC
               j=where(newparam.apogee_id eq str.param[istar].apogee_id,nj)
               if nj gt 0 then begin
                 if keyword_set(maxwind) then begin 
+                  if iwind gt 0 then newlib.felem_wind[jelem,iwind-1,*] = [w1[iwind-1],w2[iwind-1],w3[iwind-1]]
                   newparam[j].felem[jelem,iwind] = str.param[istar].fparam[outindex]
                   if str.param[istar].fparam_cov[outindex,outindex] gt 0 then $
                     newparam[j].felem_err[jelem,iwind] = sqrt(str.param[istar].fparam_cov[outindex,outindex])
@@ -674,7 +694,7 @@ TOC
    endif
  endif  ; elem
  aspcap_writefits,finalstr,resultsdir+'/'+ofile+'-'+strcompress(oname[idir],/remove_all)+'.fits',mjddir=mjddir
-TOC
+ TOC
 
  ; add information from apStar file
  aspcap_data,finalstr,indir+files,/getobject

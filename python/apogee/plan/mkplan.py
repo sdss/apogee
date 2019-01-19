@@ -9,7 +9,7 @@ from apogee.utils import spectra
 from apogee.plan import mkslurm
 
 
-def mkgriddirs(configfile,nosynth=False) :
+def mkgriddirs(configfile,nosynth=False,writeraw=False,queryport=1052) :
     """ Script to create output directories and plan and batch queue files for all grids listed in master grid configuration file
         Calls IDL routine to make the individual subplan files
     """
@@ -76,17 +76,19 @@ def mkgriddirs(configfile,nosynth=False) :
 
         if name == p['GRID']['specdir'][i] :
             speclib_split(dir+name,amsplit=False)
-            mkslurm.write('mkgrid plan/'+name+'_a[mp]*vp20.par plan/'+name+'_a[mp]*vp48.par plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=32)
-            mkslurm.write('mkrbf plan/'+name+'_c[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=1,time='72:00:00')
+            mkslurm.write('mkgrid plan/'+name+'_a[mp]*vp20.par plan/'+name+'_a[mp]*vp48.par plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=queryport,maxrun=32)
+            mkslurm.write('mkrbf plan/'+name+'_c[mp]*vp??.par',queryhost=os.uname()[1],queryport=queryport,maxrun=1,time='72:00:00')
             mkslurm.write('mkrbf --nofill plan/'+name+'.par',name='mkrbfholes',runplans=False,time='72:00:00')
         else :
-            mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=12,time='24:00:00')
-            #mkslurm.write('bundle plan/'+name+'_??.par',queryhost=os.uname()[1],queryport=1052,maxrun=32)
-            mkslurm.write('pca --pcas 12 75 --incremental --threads 0 --writeraw plan/'+name+'.par',runplans=False,time='72:00:00')
-            mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=1052,maxrun=12,time='72:00:00',
-                          postcmd='pca --pcas 12 75 --incremental --threads 0 --writeraw plan/'+name+'.par',name='mkgridlsf_pca')
+            if writeraw : raw = '--writeraw'
+            else : raw = ''
+            mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=queryport,maxrun=12,time='24:00:00')
+            #mkslurm.write('bundle plan/'+name+'_??.par',queryhost=os.uname()[1],queryport=queryport,maxrun=32)
+            mkslurm.write('pca --pcas 12 75 --incremental --threads 0 '+raw+' plan/'+name+'.par',runplans=False,time='72:00:00')
+            mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=queryport,maxrun=12,time='72:00:00',
+                          postcmd='pca --pcas 12 75 --incremental --threads 0 '+raw+' plan/'+name+'.par',name='mkgridlsf_pca')
 
-def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,vtsplit=True,el='') :
+def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,oasplit=True,vtsplit=True,el='') :
     """ Make a bunch of individual plan files from master, splitting [alpha/M],[C/M],[N/M],vt
     """
     # read master plan file
@@ -124,13 +126,23 @@ def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,vtsplit=True,e
         p['nnm'] = 1
     else :
         nmrange = [0]
-    if vtsplit :
+    if oasplit :
+        try :
+            oarange=spectra.vector(p['oa0'],p['doa'],p['noa'])
+        except :
+            oasplit=False
+            oarange=[0.]
+        p['noa'] = 1
+    else :
+        oarange = [0]
+    if int(p['vmicrofit']) == 0 :
         vtrange=spectra.vector(p['vt0'],p['dvt'],p['nvt'])
         p.pop('vt0') 
         p.pop('dvt') 
         p.pop('nvt')
     else :
         vtrange = [0]
+        vtsplit = False
 
     # loop through all and make individual plan files
     dw = float(p['dw'])
@@ -140,21 +152,23 @@ def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,vtsplit=True,e
             if cmsplit : p['cm0'] = cm
             for nm in nmrange :
                 if nmsplit : p['nm0'] = nm
-                for vt in vtrange :
-                    # vmicro handled differently
-                    if vtsplit : 
-                        p['vmicrofit'] = 0
-                        p['vmicro'] = 10.**vt
-                        # special handling for dw
-                        if np.isclose(dw,-1.) :
-                            if p['vmicro'] < 3.99 : p['dw'] = 0.05
-                            else : p['dw'] = 0.10   
+                for oa in oarange :
+                    if oasplit : p['oa0'] = oa
+                    for vt in vtrange :
+                        # vmicro handled differently
+                        if int(p['vmicrofit']) == 0 : 
+                            p['vmicro'] = 10.**vt
+                            # special handling for dw
+                            if np.isclose(dw,-1.) :
+                                if p['vmicro'] < 3.99 : p['dw'] = 0.05
+                                else : p['dw'] = 0.10   
     
-                    suffix=''
-                    if amsplit : suffix+='a'+atmos.cval(am)
-                    if cmsplit : suffix+='c'+atmos.cval(cm)
-                    if nmsplit : suffix+='n'+atmos.cval(nm)
-                    if vtsplit : suffix+='v'+atmos.cval(10.**vt)
-                    p['name'] = suffix
-                    p.write(planfile+'_'+suffix+el+'.par')
+                        suffix=''
+                        if amsplit : suffix+='a'+atmos.cval(am)
+                        if cmsplit : suffix+='c'+atmos.cval(cm)
+                        if nmsplit : suffix+='n'+atmos.cval(nm)
+                        if oasplit : suffix+='o'+atmos.cval(oa)
+                        if vtsplit : suffix+='v'+atmos.cval(10.**vt)
+                        p['name'] = suffix
+                        p.write(planfile+'_'+suffix+el+'.par')
 

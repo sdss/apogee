@@ -439,9 +439,8 @@ def prange(start,delta,n) :
     """
     return float(start)+np.arange(int(n))*float(delta)
 
-def get_vmicro(vmicrofit,vmicro) :
-    """ NOT YET IMPLEMENTED: placeholder routine to return vmicro given a fit type
-        CURRENTLY returns vmicro for vmicrofit=0
+def get_vmicro(vmicrofit,vmicro,teff=None,logg=None,mh=None) :
+    """ Return vmicro from input functional type and coefficients
    
     Args :
         vmicrofit (int) : input vmicro code to set fitting function
@@ -452,11 +451,17 @@ def get_vmicro(vmicrofit,vmicro) :
 
     """ 
     if vmicrofit == 0 :
-        return float(vmicro)
+        vm = vmicro[0]
+    elif vmicrofit == 1 :
+        #cubic in logg
+        vm = 10.**(vmicro[0]+vmicro[1]*logg+vmicro[2]*logg**2+vmicro[3]*logg**3)
+    elif vmicrofit == 2 :
+        #linear with terms in  teff, logg, mh
+        vm = 10.**(vmicro[0]+vmicro[1]*teff+vmicro[2]*logg+vmicro[3]*mh)
     else :
         print('need to implement vmicrofit: ', vmicrofit)
         pdb.set_trace()
-    return  float(vmicro)
+    return vm
 
 def mkgrid(planfile,clobber=False,save=False,run=True) :
     """ Create a grid of synthetic spectra using Turbospectrum given specifications in  input parameter file
@@ -487,12 +492,15 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
     elem = p['elem'] if p.get('elem') else ''
     maskdir = p['maskdir'] if p.get('maskdir') else None
     vmicrofit = int(p['vmicrofit']) if p.get('vmicrofit') else 0
-    vmicro = p['vmicro'] if p.get('vmicro') else 0
+    vmicro = np.array(p['vmicro'].split()).astype(float) if p.get('vmicro') else 0.
     vmacrofit = int(p['vmacrofit']) if p.get('vmacrofit') else 0
     vmacro = p['vmacro'] if p.get('vmacro') else 0
     specdir = os.environ['APOGEE_SPECLIB']+'/synth/'+p['specdir'] if p.get('specdir') else './'
     linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/' 
     linelist = p['linelist'] if p.get('linelist') else None
+    oa0 = p['oa0'] if p.get('oa0') else 0.
+    doa = p['doa'] if p.get('doa') else 0.
+    noa = p['noa'] if p.get('noa') else 1
 
     # wavelength array
     nspec=int((wrange[1]-wrange[0])/dw)+1
@@ -522,9 +530,10 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
         #pixels=[[0,nspec]]
 
     # make the grid(s)
-    for am in prange(p['am0'],p['dam'],p['nam']) :
-      if enhanced_o : oam = [('O',2*am)]
-      else : oam = None
+    for oa in prange(oa0,doa,noa) :
+     for am in prange(p['am0'],p['dam'],p['nam']) :
+      if enhanced_o : oa = [('O',2*am)]
+      else : oa = [('O',oa+am)]
       for cm in prange(p['cm0'],p['dcm'],p['ncm']) :
         for nm in prange(p['nm0'],p['dnm'],p['nnm']) :
           specdata=np.zeros([nelem,int(p['nmh']),int(p['nlogg']),int(p['nteff']),nspec],dtype=np.float32)
@@ -557,9 +566,10 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
                 sys.stdout.flush()
                 nskip=0 
                 dskip = 1 if kurucz else 2
-                vout = get_vmicro(vmicrofit,vmicro)
+                vout = get_vmicro(vmicrofit,vmicro,teff=teff,logg=logg,mh=mh)
+                print(teff,logg,mh,am,cm,nm,oa,vout)
                 while nskip >= 0 and nskip < 10 :
-                  spec,specnorm=mkturbospec(int(teff),logg,mh,am,cm,nm,els=oam,
+                  spec,specnorm=mkturbospec(int(teff),logg,mh,am,cm,nm,els=oa,
                     wrange=wrange,dw=dw,atmosdir=marcsdir,
                     elemgrid=elem,linelistdir=linelistdir+'/'+elem+'/',linelist=linelist,vmicro=vout,
                     solarisotopes=solarisotopes,

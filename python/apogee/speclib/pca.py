@@ -388,10 +388,10 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
     try: os.remove('test/raw/test.ipf')
     except: pass
     os.symlink(prefix+'test/test_'+grid+'.ipf','test/raw/test.ipf')
-    l=ferre.rdlibhead('f_aps'+outfile+'.hdr')[0]
-    ferre.writenml('test/raw/input.nml','test',l,nov=0,ncpus=1,f_access=1)
-    mkslurm.write('ferre.x',outdir='test/raw/',runplans=False,cwd=os.getcwd()+'/test/raw',fast=fast)
     if runraw : 
+        l=ferre.rdlibhead('f_aps'+outfile+'.hdr')[0]
+        ferre.writenml('test/raw/input.nml','test',l,nov=0,ncpus=1,f_access=1)
+        mkslurm.write('ferre.x',outdir='test/raw/',runplans=False,cwd=os.getcwd()+'/test/raw',fast=fast)
         print('running ferre in raw to create spectra')
         subprocess.call(['test/raw/ferre.x'],shell=False)
         # create uncertainty spectra
@@ -467,7 +467,7 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
 
     # produce PCA version of test spectra
     if runpca : 
-        print('running ferre in 12_75 to create spectra')
+        print('running ferre in {:d}_{_d} to create spectra'.format(npiece,npca))
         subprocess.call([root+'/ferre.x'],shell=False)
     pca=np.loadtxt(root+'/test.mdl')
     # histogram of ratio of pca to true
@@ -477,6 +477,7 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
     plots.plotl(ax[0],np.linspace(0.8005,1.2,4000),hist/hist.sum(),semilogy=True,xt='pca/true')
     ax[1].hist(np.abs((pca-true).flatten()),bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='k')
     ax[1].set_xlim(0.,0.01)
+    ax[1].set_ylim(0.,1.0)
     ax[1].set_xlabel('|pca-true|')
     ax[1].set_ylabel('Cumulative fraction')
     fig.tight_layout()

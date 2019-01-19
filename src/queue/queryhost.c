@@ -14,7 +14,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <errno.h>
-#define MAXPROC 30000
+#define MAXPROC 35000
 int main(int argc, char *argv[])
 {
   char done[MAXPROC][64], running[MAXPROC][64], id[64];

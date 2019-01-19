@@ -255,7 +255,7 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
     save_apWave(allpars,out=out,npoly=npoly,rows=rows,frames=frames,rms=rms,sig=sig)
 
     if plot : 
-        plot_apWave(allpars, ngroup, out, hard=hard, npoly=npoly, rms=rms, sig=sig)
+        plot_apWave(name,apred=apred,inst=inst,hard=hard)
         # individual lines from last row
         if hard :
             try : os.mkdir(os.path.dirname(root))
@@ -264,11 +264,25 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
 
     return pars
 
-def plot_apWave(allpars, ngroup, out, hard=False, npoly=4, rms=None, sig=None) :
+def plot_apWave(nums,apred='current',inst='apogee-n',out=None,hard=False) :
 
-    """ Diagnostic lots of wavecal
-    """
-    name=os.path.basename(out)
+  """ Diagnostic lots of wavecal
+  """
+  mjd=[]
+  wfit=[]
+  grid=[]
+  yt=[]
+  for num in nums :
+    load=apload.ApLoad(apred=apred,instrument=inst)
+    wave=load.apWave(num)
+    outname=load.filename('Wave',num=num,chips=True)
+    allpars=wave['a'][3].data
+    rms=wave['a'][4].data
+    sig=wave['a'][5].data
+    ngroup=int(wave['a'][0].header['NGROUP'])
+    npoly=wave['a'][0].header['NPOLY']
+
+    name=os.path.basename(outname)
     fig2,ax2=plots.multi(1,3,hspace=0.001,wspace=0.001)
     # diagnostic plots
     # for plots, transform absolute chip location to relative to middle chip
@@ -285,9 +299,8 @@ def plot_apWave(allpars, ngroup, out, hard=False, npoly=4, rms=None, sig=None) :
             plots.plotc(ax2[ichip],np.arange(300),y,np.zeros(300)+igroup,yr=[np.median(y[gdlim])-5,np.median(y[gdlim])+5],
                         zr=[0,ngroup], size=10,yt='chip location')
     fig2.suptitle(name)
-    grid=[]
     xtit=['Individual lines','chip locations','chip locations','rms  and sig']
-    root = os.path.dirname(out)+'/plots/'+os.path.basename(out).replace('.fits','')
+    root = os.path.dirname(outname)+'/plots/'+os.path.basename(outname).replace('.fits','')
     rootname = os.path.basename(root)
     if hard :
         try : os.mkdir(os.path.dirname(root))
@@ -310,12 +323,14 @@ def plot_apWave(allpars, ngroup, out, hard=False, npoly=4, rms=None, sig=None) :
 
     # get chip b shift relative to median across all rows
     chipb=(chipb.T-np.median(chipb,axis=1)).T
-    ax[1].imshow(chipb,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
+    vmin=-0.07
+    vmax=0.07
+    ax[1].imshow(chipb,vmin=vmin,vmax=vmax,cmap='viridis',interpolation='nearest',aspect='auto')
     ax[1].set_ylabel('rel chip loc')
     # chip gaps 
-    ax[2].imshow(chipa,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
+    ax[2].imshow(chipa,vmin=vmin,vmax=vmax,cmap='viridis',interpolation='nearest',aspect='auto')
     ax[2].set_ylabel('g-r gap')
-    aximage=ax[3].imshow(chipc,vmin=-0.03,vmax=0.03,cmap='viridis',interpolation='nearest',aspect='auto')
+    aximage=ax[3].imshow(chipc,vmin=vmin,vmax=vmax,cmap='viridis',interpolation='nearest',aspect='auto')
     ax[3].set_xlabel('Row')
     ax[3].set_ylabel('b-g gap')
     fig.suptitle(rootname)
@@ -335,13 +350,65 @@ def plot_apWave(allpars, ngroup, out, hard=False, npoly=4, rms=None, sig=None) :
         if hard : 
             fig.savefig(root+'_rms.jpg')
             plt.close()
+
+    wgroup=[]
+    for group in range(1,ngroup ) :
+        for ichip in [0,2] : 
+            allpars[npoly+group*3+ichip,:] += allpars[npoly+group*3+1,:]
+        frame=wave['a'][0].header['FRAME{:d}'.format(group*2)]
+        # solve for 4 parameter fit to dpixel, with linear trend with row, plus 2 chip offsets
+        design=np.zeros([900,4])
+        y=np.zeros(900)
+        # offset of each chip
+        for ichip in range(3) :
+            # global slope with rows
+            design[ichip*300+np.arange(300),0] = np.arange(300)
+            design[ichip*300+np.arange(300),ichip+1] = 1.
+            y[ichip*300+np.arange(300)] = allpars[npoly+group*3+ichip,:]-allpars[npoly+ichip,:]
+        mjd.append(frame//10000+55562)
+        # reject bad fibers
+        gd=np.where(abs(y) > 1.e-5)[0]
+        design=design[gd,:]
+        y=y[gd]
+        # solve
+        try : 
+            w = np.linalg.solve(np.dot(design.T,design), np.dot(design.T, y))
+            wgroup.append(w)
+        except : 
+            print('fit failed ....')
+            pdb.set_trace()
+        print('fit parameters: ', w)
+    # subtract median parameter value for this wavecal, so we can compare across different wavecals
+    wgroup=np.array(wgroup)
+    for i in range(4) : wgroup[:,i]-=np.median(wgroup[:,i])
+    wfit.extend(wgroup)
+
     grid.append(['../plots/'+rootname+'.jpg','../plots/'+rootname+'_chiploc.jpg','../plots/'+rootname+'_sum.jpg','../plots/'+rootname+'_rms.jpg'])
-    if hard :
-        root = os.path.dirname(out)+'/html/'+os.path.basename(out).replace('.fits','')
-        try : os.mkdir(os.path.dirname(root))
-        except : pass
-        html.htmltab(grid,file=root+'.html',xtitle=xtit)
-    else: pdb.set_trace()
+    yt.append('{:08d}'.format(num))
+
+  mjd=np.array(mjd)
+  wfit=np.array(wfit)
+  fig,ax=plots.multi(1,4,hspace=0.001)
+  plots.plotp(ax[0],mjd,wfit[:,0],yr=[-1.e-3,1.e-3],yt='slope')
+  plots.plotp(ax[1],mjd,wfit[:,2],yr=[-5,5],yt='g')
+  plots.plotp(ax[2],mjd,wfit[:,1],yr=[-0.2,0.2],yt='r-g')
+  plots.plotp(ax[3],mjd,wfit[:,3],yr=[-0.2,0.2],yt='b-g')
+  if hard :
+      plt.close()
+      if out is None : root = os.path.dirname(outname)+'/plots/'+os.path.basename(outname).replace('.fits','')
+      else : root = os.path.dirname(outname)+'/plots/'+out
+      fig.savefig(root+'_history.jpg')
+      if out is None : root = os.path.dirname(outname)+'/html/'+os.path.basename(outname).replace('.fits','')
+      else : root = os.path.dirname(outname)+'/html/'+out
+      try : os.mkdir(os.path.dirname(root))
+      except : pass
+      header=('<TABLE BORDER=2> <TR><TD> Parameters from wavecals <TD>Parameters from exposures (relative to wavecal)'
+              '<TR><TD><IMG SRC=../plots/'+os.path.basename(root)+'_history.jpg>'+
+              '<TD><IMG SRC=../plots/'+os.path.basename(root)+'_exposures.png></TABLE>')
+      html.htmltab(grid,file=root+'.html',xtitle=xtit,ytitle=yt,header=header)
+  else: 
+      pdb.set_trace()
+      for i in range(4) : plt.close()
 
 
 def save_apWave(allpars,out=None,group=0,rows=np.arange(300),npoly=4,frames=[],rms=None,sig=None) :
@@ -567,7 +634,7 @@ def skycal(planfile,out=None,inst=None,waveid=None,group=0,skyfile='airglow',ver
     if waveid is None : waveid = int(p['waveid'].strip("'")) if p.get('waveid') else None
 
     # set up file reader
-    load=apload.ApLoad(apred=vers,instrument=inst,verbose=True)
+    load=apload.ApLoad(apred=vers,instrument=inst,verbose=False)
 
     # open output line data?
     if out is not None : f=open(out,'a') 
@@ -635,6 +702,13 @@ def skycal(planfile,out=None,inst=None,waveid=None,group=0,skyfile='airglow',ver
                 use.extend(j)
             use=np.array(use)
 
+            # remove persistence affected fibers
+            if int(p['mjd']) < 56860 and inst == 'apogee-n' :
+                mask = np.ones(len(use), dtype=bool) # all elements included/True.
+                bd = np.where((linestr['row'][use] > 200) & (linestr['chip'][use] == 3) )[0]
+                mask[bd] = False              # Set unwanted elements to False
+                use=use[mask]
+
             # solve for 4 parameter fit to dpixel, with linear trend with row, plus 2 chip offsets
             design=np.zeros([len(use),4])
             # global slope with rows
@@ -693,7 +767,7 @@ def skycal(planfile,out=None,inst=None,waveid=None,group=0,skyfile='airglow',ver
                 med=np.median(linestr['dpixel'][use[gd]])
                 x = linestr['row'][use[gd]]
                 y = linestr['dpixel'][use[gd]]
-                plots.plotp(ax,x,y,color=colors[ichip],xr=[0,300],yr=[med-0.5,med+0.5],
+                plots.plotp(ax,x,y,color=colors[ichip],xr=[0,300],yr=[med-0.2,med+0.2],
                             size=12,xt='Row',yt='Pixel shift')
                 plots.plotc(wax[ichip],linestr['wave'][use[gd]],y,linestr['row'][use[gd]],zr=[0,300],yr=[med-0.5,med+0.5],
                             xr=xlim[ichip],size=12,xt='Wavelength',yt='Pixel shift')
@@ -724,22 +798,25 @@ def skycal(planfile,out=None,inst=None,waveid=None,group=0,skyfile='airglow',ver
         # Get shifts relative to first frame for each line/fiber
         if iframe == 0 : 
             linestr0 = copy.copy(linestr)
+            use0 = copy.copy(use)
             refnum = int(name)
-        for line in linestr :
-            ref = np.where((linestr0['chip'] == line['chip']) & 
-                           (linestr0['row'] == line['row']) &
-                           (linestr0['wave'] == line['wave']))[0]
-            if len(ref) > 0 : line['pixel'] -= linestr0['pixel'][ref].mean()
-            else : line['pixel'] = -999
-        med = np.median(linestr['pixel'])
+        print(iframe,len(linestr0),len(linestr))
+        for line in range(len(use)) :
+            ref = np.where((linestr0['chip'][use0] == linestr['chip'][use[line]]) & 
+                           (linestr0['row'][use0] == linestr['row'][use[line]]) &
+                           (linestr0['wave'][use0] == linestr['wave'][use[line]]))[0]
+            if len(ref) > 0 : 
+                linestr['pixel'][use[line]] -= linestr0['pixel'][use0[ref]].mean()
+            else : linestr['pixel'][use[line]] = -999
+        med = np.median(linestr['pixel'][use])
 
         # plot shifts relative to first frame, i.e. dithershift via sky lines
         if plot is not None:
             fig,ax=plots.multi(1,1)
             for ichip in range(3) :
-                gd = np.where(linestr['chip'] == ichip+1)[0]   
-                x = linestr['row'][gd]
-                y = linestr['pixel'][gd]
+                gd = np.where(linestr['chip'][use] == ichip+1)[0]   
+                x = linestr['row'][use[gd]]
+                y = linestr['pixel'][use[gd]]
                 plots.plotp(ax,x,y, size=12,xr=[0,300],yr=[med-0.1,med+0.1],
                             xt='Row',yt='Pixel Shift',color=colors[ichip])
                 gdfit=np.where(np.abs(y-med) < 0.5)[0]
@@ -786,6 +863,29 @@ def skywaves() :
     for line in set(linestr['wave']) :
         j=np.where(linestr['wave'] == line)[0]
         print(line,len(j),linestr['wave_found'][j].mean(),linestr['wave_found'][j].std())
+
+def plotskywave(apred='r11',inst='apogee-n') :
+
+    os.chdir(os.environ['APOGEE_REDUX']+'/'+apred+'/exposures/') 
+    files = glob.glob(inst+'/*/a?1D-a*.fits')
+    wfit=[]
+    mjd=[]
+    for file in files :
+        print(file)
+        a=fits.open(file)[0].header
+        hist=a['HISTORY']
+        for line in hist :
+            if line.split()[0] == 'Wavelength' :
+                wfit.append(line.split()[3:])
+                mjd.append(a['JD-MID']-2400000.5)
+    mjd=np.array(mjd)
+    wfit=np.array(wfit).astype(float)
+    fig,ax=plots.multi(1,4,hspace=0.001)
+    plots.plotp(ax[0],mjd,wfit[:,0],yr=[-1.e-3,1.e-3],yt='slope')
+    plots.plotp(ax[1],mjd,wfit[:,2],yr=[-5,5],yt='g')
+    plots.plotp(ax[2],mjd,wfit[:,1]-wfit[:,2],yr=[-0.2,0.2],yt='r-g')
+    plots.plotp(ax[3],mjd,wfit[:,3]-wfit[:,2],yr=[-0.2,0.2],yt='b-g')
+    fig.savefig(inst+'.png')
         
 def scalarDecorator(func):
     """Decorator to return scalar outputs for wave2pix and pix2wave
@@ -1035,4 +1135,26 @@ def myerf(t) :
     out[neg] = erfc(abs(t[neg]))/2.
     out[pos] = 0.5+erf(abs(t[pos]))/2.
     return out
+
+
+def ditherplots(planfile,vers=None,inst=None) :
+    """ Make HTML file for dither plots for a visit
+    """
+    p=yanny.yanny(planfile)
+    dirname=os.path.dirname(planfile)
+
+    if dirname == '' : dirname = '.'
+    if inst is None : inst = p['instrument'].strip("'") if p.get('instrument') else 'apogee-n'
+    if vers is None : vers = p['apred_vers'].strip("'") if p.get('apred_vers') else 'current'
+
+    # set up file reader
+    load=apload.ApLoad(apred=vers,instrument=inst,verbose=False)
+
+    grid = []
+    for frame in p['APEXP']['name'] :
+        grid.append(['../plots/skypixshift-'+frame+'-airglow.jpg',
+                     '../plots/skypixshift-'+frame+'-airglow_wave.jpg',
+                     '../plots/skydithershift-'+frame+'.jpg',
+                     '../plots/dithershift-'+frame+'.gif'])
+    html.htmltab(grid,file=dirname+'/html/shift.html')
 

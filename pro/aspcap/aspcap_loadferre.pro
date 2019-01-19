@@ -103,6 +103,7 @@ for i=0,nlock-1 do begin
  ; if no PLOCKs, then we will have a single blank entry
  if strlen(libpar.plock[i].lock) gt 0 then begin
   j=where(strtrim(params,2) eq strtrim(libpar.plock[i].lock,2),nj)
+  if nj eq 0 then if strtrim(libpar.plock[i].lock,2) eq 'alpha' then j=where(strtrim(params,2) eq 'O Mg Si S Ca Ti',nj)
   if nj eq 0 then stop,'Unknown locked parameter ...'
   if i eq 0 then ilock=j else ilock=[ilock,j]
  endif

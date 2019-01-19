@@ -3,6 +3,7 @@ Utilities for numpy structured arrays
 """
 
 import numpy as np
+import os
 import glob
 import sys
 import pdb
@@ -96,12 +97,12 @@ def add_cols(a,b):
     for i in range(len(descrs)) :
         name= names[i]
         desc= descrs[i]
-        print(name,desc)
-        pdb.set_trace()
         if i < len(a.dtype.names) :
-            shape= a[name][0].shape
+            try : shape= a[name][0].shape
+            except :shape= a[name].shape
         else :
-            shape= b[name][0].shape
+            try :shape= b[name][0].shape
+            except :shape= b[name].shape
         if len(desc) > 2 :
             newdtype.append((desc[0],desc[1],shape))
         else :

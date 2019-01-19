@@ -1,5 +1,7 @@
 import os
 import numpy as np
+import matplotlib.pyplot as plt
+
 from tools import plots
 from tools import html
 from tools import fit
@@ -65,6 +67,7 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
             ax[iplt].text(0.98,0.98,title+' S/N={:4.0f}'.format(sn),va='top',ha='right',transform=ax[iplt].transAxes)
 
         fig.savefig(out+'_err.jpg')
+        plt.close()
         figs.append([os.path.basename(out+'_err.jpg')])
 
         if snplot :
@@ -73,11 +76,12 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
               if ix == 0 : yt=r'$\sigma$'
               else : yt=''
               for iy in range(len(mhbins)) :
-                plt=np.where((np.isclose(rmsderiv[:,1]+4500,tebins[ix]+dte/2.)) & (np.isclose(rmsderiv[:,3],mhbins[iy]+dmh/2.)))[0]
-                plots.plotc(ax[iy,ix],rmsderiv[plt,2]+100,np.exp(rmsdata[plt]),rmsderiv[plt,3],size=30,zr=[-2,0.5],
+                gdplt=np.where((np.isclose(rmsderiv[:,1]+4500,tebins[ix]+dte/2.)) & (np.isclose(rmsderiv[:,3],mhbins[iy]+dmh/2.)))[0]
+                plots.plotc(ax[iy,ix],rmsderiv[gdplt,2]+100,np.exp(rmsdata[gdplt]),rmsderiv[gdplt,3],size=30,zr=[-2,0.5],
                             yr=zr,xr=[snbins[0],snbins[-1]],xt='S/N',yt=yt)
                 ax[iy,ix].text(0.98,0.98,'{:8.0f} {:8.2f}'.format(tebins[ix]+dte/2.,mhbins[iy]+dmh/2.),ha='right',va='top',transform=ax[iy,ix].transAxes)
             fig.savefig(out+'_err_sn.jpg')
+            plt.close()
             figs.append([os.path.basename(out+'_err_sn.jpg')])
 
         html.htmltab(figs,file=out+'_err.html',header=title+' empirical uncertainties')

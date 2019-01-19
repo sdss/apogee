@@ -4,8 +4,10 @@
 ;    assumes library order is vmicro,[C/M],[N/M],[alpha/M],[M/H],logg,Teff unless carlos option is given
 ;-
 pro aspcap_mklib,config,suffix=suffix,prefix=prefix,libdir=libdir,classes=classes,elem=elem,vpar=vpar,carlos=carlos,maskdir=maskdir,$
-    femin=femin,rotpar=rotpar,opar=opar,vlock=vlock,vmlock=vmlock,outdir=outdir,nmlock=nmlock,cmlock=cmlock
+    femin=femin,rotpar=rotpar,opar=opar,vlock=vlock,vmlock=vmlock,outdir=outdir,nmlock=nmlock,cmlock=cmlock,apred=apred,inst=inst,$
+    renorm=renorm,maxwind=maxwind
 
+if n_elements(apred) gt 0 then apsetver,vers=apred,instrument=inst
 ;if ~keyword_set(elem) then elem=['C','Al','Ca','Fe','K','Mg','Mn','Na','Ni','N','O','Si','S','Ti','V']
 ;if ~keyword_set(maskdir) then maskdir='filters_05062014'
 ;if ~keyword_set(elem) then elem=['C','CI','Al','Ca','CI','Co','Cr','Cu','Fe','Ge','K','Mg','Mn','Na','Nd','Ni','N','O','P','Rb','Si','S','Ti','V','Y']
@@ -14,7 +16,7 @@ if ~keyword_set(elem) then elem=aspcap_elems()
 if n_elements(npar) eq 0 then npar = 0.
 if n_elements(opar) eq 0 then opar = 0.
 if n_elements(cpar) eq 0 then cpar = 0.
-if n_elements(npar) eq 0 then npar = 0.
+if n_elements(apar) eq 0 then apar = 0.
 if n_elements(rotpar) eq 0 then rotpar = [1., 0., 0., 0.]
 if n_elements(vpar) eq 0 then vpar = [1.,0.,0.,0.]
 
@@ -29,6 +31,7 @@ aploadplan,indir+'class-'+dirs.instrument+'.par',p,str='CLASS'
 mask=p.mask
 maskdir=getenv('APOGEE_DIR')+'/data/windows/'+p.maskdir+'/'
 classes=p.class.class
+nclasses=n_elements(classes)
 libs=p.class.lib
 temin=p.class.temin
 temax=p.class.temax
@@ -41,8 +44,9 @@ fibermax=p.class.fibermax
 holefile=p.class.holefile
 vmacrofit=p.class.vmacrofit
 rotpar=p.class.vmacro
-renorm=p.class.renorm
 inter=p.class.inter
+if keyword_set(renorm) then renorm=intarr(nclasses)+renorm else renorm=p.class[i].renorm
+if keyword_set(maxwind) then maxwind=intarr(nclasses)+maxwind else maxwind=p.class[i].maxwind
 
 nclasses=n_elements(classes)
 cfit=intarr(nclasses)-1
@@ -69,6 +73,9 @@ for i=0,nclasses-1 do begin
   if strtrim(holefile[i],2) ne 'None' then printf,out,'holefile '+holefile[i]
   printf,out,'nov '+string(libhead0.n_of_dim)
 
+  if tag_exist(p.class,'cmlock') then if p.class[i].cmlock gt -9 then cmlock=p.class[i].cmlock else undefine,cmlock
+  if tag_exist(p.class,'nmlock') then if p.class[i].nmlock gt -9 then nmlock=p.class[i].nmlock else undefine,nmlock
+
   ; if this is a coarse grid, remove C, N, and VMICRO dimensions, and adjust INDV and INDINI accordingly
   initpar=fltarr(libhead0.n_of_dim)
   if strpos(class,'coarse') ge 0 then begin
@@ -80,7 +87,10 @@ for i=0,nclasses-1 do begin
         initpar[ipar]=alog10(vlock)
       endif else if strtrim(libhead0.label[ipar],2) eq 'LGVSINI' and n_elements(vmlock) gt 0 and n_elements(libhead0.n_p) eq 7 then begin
         initpar[ipar]=alog10(vmlock)
-      ;endif else if strtrim(libhead0.label[ipar],2) ne 'C' and strtrim(libhead0.label[ipar],2) ne 'N' and strtrim(libhead0.label[ipar],2) ne 'LOG10VDOP' then begin
+      endif else if strtrim(libhead0.label[ipar],2) eq 'C' and n_elements(cmlock) gt 0 then begin
+        initpar[ipar]=cmlock
+      endif else if strtrim(libhead0.label[ipar],2) eq 'N' and n_elements(nmlock) gt 0 then begin
+        initpar[ipar]=nmlock
       endif else begin
         indv=[indv,ipar]
         tmp=1
@@ -110,9 +120,9 @@ for i=0,nclasses-1 do begin
       endif else if strtrim(libhead0.label[ipar],2) eq 'LGVSINI' and n_elements(vmlock) gt 0 and n_elements(libhead0.n_p) eq 7 then begin
         initpar[ipar]=alog10(vmlock)
       endif else if strtrim(libhead0.label[ipar],2) eq 'C' and n_elements(cmlock) gt 0 then begin
-        initpar[ipar]=alog10(cmlock)
+        initpar[ipar]=cmlock
       endif else if strtrim(libhead0.label[ipar],2) eq 'N' and n_elements(nmlock) gt 0 then begin
-        initpar[ipar]=alog10(nmlock)
+        initpar[ipar]=nmlock
       endif else begin
         indv=[indv,ipar]
         ;tmp=-1
@@ -174,15 +184,22 @@ for i=0,nclasses-1 do begin
   j=where(strtrim(libhead0.label,2) eq 'LGVSINI',nj)
   if nj eq 0 then  $
     printf,out,'PLOCK LGVSINI '+string(format='(f8.4,f8.4," {",3f8.4," } ",f8.4)',rotpar[0],rotpar[1],[rotpar[2],0.,0.],rotpar[3])+'      #  rotation/vmacro' 
+  j=where(strtrim(libhead0.label,2) eq 'O Mg Si S Ca Ti',nj)
+  if nj eq 0 then  $
+    printf,out,'PLOCK alpha '+string(format='(f8.4,f8.4," {",3f8.4," } ",f8.4)',apar[0],0.,[0.,0.,0.],0.)+'      #  alpha'
   j=where(strtrim(libhead0.label,2) eq 'O',nj)
   if nj eq 0 then  $
     printf,out,'PLOCK O '+string(format='(f8.4,f8.4," {",3f8.4," } ",f8.4)',opar[0],0.,[0.,0.,0.],0.)+'      #  oxygen'
   j=where(strtrim(libhead0.label,2) eq 'C',nj)
   if nj eq 0 then  $
-    printf,out,'PLOCK C '+string(format='(f8.4,f8.4," {",3f8.4," } ",f8.4)',cpar[0],0.,[0.,0.,0.],0.)+'      #  oxygen'
+    printf,out,'PLOCK C '+string(format='(f8.4,f8.4," {",3f8.4," } ",f8.4)',cpar[0],0.,[0.,0.,0.],0.)+'      #  carbon' 
+  ;else if n_elements(cmlock) gt 0 then $
+  ;  printf,out,'PLOCK C '+string(format='(f8.4,f8.4," {",3f8.4," } ",f8.4)',cmlock,0.,[0.,0.,0.],0.)+'      #  carbon'
   j=where(strtrim(libhead0.label,2) eq 'N',nj)
   if nj eq 0 then  $
-    printf,out,'PLOCK N '+string(format='(f8.4,f8.4," {",3f8.4," } ",f8.4)',npar[0],0.,[0.,0.,0.],0.)+'      #  oxygen'
+    printf,out,'PLOCK N '+string(format='(f8.4,f8.4," {",3f8.4," } ",f8.4)',npar[0],0.,[0.,0.,0.],0.)+'      #  nitrogen' 
+  ;else if n_elements(nmlock) gt 0 then $
+  ;  printf,out,'PLOCK N '+string(format='(f8.4,f8.4," {",3f8.4," } ",f8.4)',nmlock,0.,[0.,0.,0.],0.)+'      #  nitrogen'
   free_lun,out 
 endfor
 

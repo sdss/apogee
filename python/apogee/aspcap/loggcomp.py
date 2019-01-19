@@ -208,6 +208,7 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
     fig.tight_layout()
     if out is not None :
         fig.savefig(out+'.jpg')
+        plt.close()
 
     # set up plots
     if raw and plotcal :
@@ -279,7 +280,9 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
     fig.tight_layout()
     if out is not None :
         plt.savefig(out+'_b.jpg')
+        plt.close()
         plt.savefig(out+'_b.pdf')
+        plt.close()
 
     return {'calloggmin' : calloggrange[0], 'calloggmax' : calloggrange[1], 'loggmin' : loggrange[0], 'loggmax' : loggrange[1], 
             'mhmin' : mhrange[0], 'mhmax' : mhrange[1], 'calteffmin': teffrange[0], 'calteffmax' : teffrange[1],

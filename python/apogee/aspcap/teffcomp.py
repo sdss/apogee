@@ -149,10 +149,12 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,dwarf=False,trange=[3750,5500],mhrange=[
 
     fig.tight_layout()
     fig.savefig(out+'.jpg')
+    plt.close()
     plt.rc('font',size=14)
     plt.rc('axes',titlesize=14)
     plt.rc('axes',labelsize=14)
     fig.savefig(out+'.pdf')
+    plt.close()
 
     # auxiliary plots with different color-codings
     try:
@@ -166,6 +168,7 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,dwarf=False,trange=[3750,5500],mhrange=[
     pfit = fit.fit1d(teff,teff-ghb,ydata=mh,plot=ax[1,1],zr=[-500,200],xt='Teff',xr=trange,yr=[-2.5,0.5],colorbar=True,zt='[M/H]')
     fig.tight_layout()
     fig.savefig(out+'_b.jpg')
+    plt.close()
    
     # do some test 2D and 1D fits and plots 
     #fig,ax=plots.multi(2,2,hspace=0.5,wspace=0.001)

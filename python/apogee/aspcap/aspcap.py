@@ -10,6 +10,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import unicode_literals
+import matplotlib
+matplotlib.use('Agg')
 
 import numpy as np
 import glob
@@ -26,6 +28,7 @@ from tools import plots
 from tools import match
 from tools import html
 from apogee.utils import apload
+from apogee.utils import spectra
 from apogee.speclib import isochrones
 try: from apogee.aspcap import ferre
 except: pass
@@ -335,10 +338,14 @@ def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=False, hard=None, 
             isochrones.plot(ax,isodata,'teff','logg',color=colors[i],alpha=0.3)
             isodata=isochrones.read(os.environ['ISOCHRONE_DIR']+'/'+z+'.dat',agerange=[9.99,10.01])
             isochrones.plot(ax,isodata,'teff','logg',color=colors[i],alpha=0.3)
-    if hard is not None: fig.savefig(hard)
+    if hard is not None: 
+        fig.savefig(hard)
+        plt.close()
     return fig,ax
 
 def multihr(a,param='FPARAM',colorbar=False,hard=None) :
+    """ Series of HR diagram plots, color-coded by different quantities
+    """
     fig,ax = plots.multi(3,3,hspace=0.001,wspace=0.001,figsize=(8,12))
 
     z=a[param][:,3]
@@ -404,30 +411,64 @@ def multihr(a,param='FPARAM',colorbar=False,hard=None) :
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[2,2].text(0.05,0.9,zt,transform=ax[2,2].transAxes)
 
-    if hard is not None: fig.savefig(hard)
+    if hard is not None: 
+        fig.savefig(hard)
+        plt.close()
 
 #def hrclass(a) :
 #    fig,ax=plots.multi(2,3)
 #    for class in ['GKg','GKg_O','Mg','Md','GKd','Fd'] :
 
-def plot(wave,spec,color=None,ax=None,hard=None,sum=False,title=None,alpha=None,yr=None) :
+def plot(wave,spec,color=None,figax=None,ax=None,hard=None,sum=False,title=None,alpha=None,yr=None,lineids=None,multipage=False, refline=None) :
     """  Multipanel plots of APOGEE spectra
     """
+    # set up plots
     if sum : ny=11
     else : ny=10
-    if ax is None : fig,ax=plots.multi(1,ny,figsize=(8.5,11),hspace=0.2)
+    if figax is not None : fig,ax=figax
+    if ax is None : fig,ax=plots.multi(1,ny,figsize=figsize,hspace=0.2)
+
+    # get line labels if requested
+    if lineids is not None :
+        file = os.environ['APOGEE_DIR']+'/data/lines/atlas_line_ids_apogee.txt'
+        lines = np.loadtxt(file,delimiter=';',dtype={'names' : ('wave','label'), 'formats': ('f4','S24') } )
+        lines['wave'] = spectra.airtovac(lines['wave'])
+
+    # plot chunks of 200 A
     for i in range(10) :
         plots.plotl(ax[i],wave,spec,xr=[15000+i*200,15200+i*200],color=color,linewidth=0.3,alpha=alpha,yr=yr)
         ax[i].xaxis.label.set_size(6)
         ax[i].yaxis.label.set_size(6)
         ax[i].tick_params(axis = 'both', which = 'major', labelsize = 6)
         ax[i].xaxis.set_minor_locator(plt.MultipleLocator(10.))
+        if lineids is not None :
+            gd = np.where( (lines['wave'] > 15000+i*200) & ( lines['wave'] < 15200+i*200) ) [0]
+            for line in lines[gd] :
+                ax[i].text(line['wave'],lineids,line['label'],rotation=90,size=8,ha='center',va='bottom')
+        if refline is not None :
+            # plot a reference horizontal line
+            plots.plotl(ax[i],wave,spec*0.+refline,xr=[15000+i*200,15200+i*200],color=color,linewidth=0.3,alpha=alpha,yr=yr,ls=':')
+
+        if multipage :
+            mfig,multiax = plots.multi(1,1)
+            plots.plotl(multiax,wave,spec,xr=[15000+i*200,15200+i*200],color=color,linewidth=0.3,alpha=alpha,yr=yr)
+            multiax.xaxis.label.set_size(6)
+            multiax.yaxis.label.set_size(6)
+            multiax.tick_params(axis = 'both', which = 'major', labelsize = 6)
+            multiax.xaxis.set_minor_locator(plt.MultipleLocator(10.))
+            if lineids is not None :
+                gd = np.where( (lines['wave'] > 15000+i*200) & ( lines['wave'] < 15200+i*200) ) [0]
+                for line in lines[gd] :
+                    multiax.text(line['wave'],1.,line['label'],rotation=90,size=4,ha='left',va='bottom')
+
+    # final panel with full wavelength range if requested
     if sum :
         plots.plotl(ax[10],wave,spec,xr=[15100,17000],color=color,linewidth=0.3,alpha=alpha,yr=yr)
         ax[10].xaxis.label.set_size(6)
         ax[10].yaxis.label.set_size(6)
         ax[10].tick_params(axis = 'both', which = 'major', labelsize = 6)
         ax[10].xaxis.set_minor_locator(plt.MultipleLocator(100.))
+
     try: 
         if title is not None : fig.suptitle(title)
     except: pass
@@ -447,6 +488,8 @@ def plotparams(a,title=None,hard=None) :
     if hard is not None : fig.savefig(hard)
 
 def plotparamdiffs(a,b,title=None,hard=None,logg=None) :
+    """ Plot parameter differences between two different runs
+    """
     fig,ax=plots.multi(1,9,hspace=0.001,sharex=True)
 
     paramnames,tagnames,flagnames = params()
@@ -465,7 +508,8 @@ def plotparamdiffs(a,b,title=None,hard=None,logg=None) :
     if hard is not None : fig.savefig(hard)
 
 def multiwind(data,apred='r10',aspcap='t33w') :
-
+    """ Plot results from different windows for each element
+    """
     #load=apload.ApLoad(apred=apred,aspcap=aspcap)
     #data=load.allCal()
     els=data[3].data['ELEM_SYMBOL'][0]
@@ -487,3 +531,45 @@ def multiwind(data,apred='r10',aspcap='t33w') :
             ytit.append(el)
             plt.close()
     html.htmltab(grid,ytitle=ytit,file='wind.html')
+
+def compspec(a,b,j=0,hard=None) :
+    """ compare spectra and best fits from two different input aspcapField files for specified object
+    """
+    nplot=11
+    hf,ha=plots.multi(1,nplot,figsize=(33,44),hspace=0.2)
+    ha2=[]
+    for i in range(nplot) : ha2.append(ha[i].twinx())
+    print(hf.get_size_inches())
+    chi2_a = (a[2].data['SPEC'][j,:]-a[2].data['SPEC_BESTFIT'][j,:])**2/a[2].data['ERR'][j,:]**2
+    chi2_b = (b[2].data['SPEC'][j,:]-b[2].data['SPEC_BESTFIT'][j,:])**2/b[2].data['ERR'][j,:]**2
+    plot(10.**a[3].data['WAVE'][0],a[2].data['SPEC'][j,:] ,sum=True,color='k',figax=(hf,ha),yr=[0.8,1.3],lineids=1.1)
+    plot(10.**a[3].data['WAVE'][0],a[2].data['SPEC_BESTFIT'][j,:] ,sum=True,color='r',figax=(hf,ha),yr=[0.8,1.3])
+    plot(10.**b[3].data['WAVE'][0],b[2].data['SPEC_BESTFIT'][j,:] ,sum=True,color='b',figax=(hf,ha),yr=[0.8,1.3])
+    plot(10.**a[3].data['WAVE'][0],a[2].data['SPEC'][j,:]-b[2].data['SPEC_BESTFIT'][j,:]+0.95 ,sum=True,color='c',
+         figax=(hf,ha),yr=[0.8,1.3],refline=0.9)
+    plot(10.**a[3].data['WAVE'][0],a[2].data['SPEC_BESTFIT'][j,:]-b[2].data['SPEC_BESTFIT'][j,:]+0.9 ,sum=True,color='m',
+         figax=(hf,ha),yr=[0.8,1.3],refline=0.9)
+    plot(10.**a[3].data['WAVE'][0],chi2_a-chi2_b ,sum=True,color='g',multipage=False,figax=(hf,ha2),yr=[-10,10],refline=0.)
+    if hard is not None : hf.savefig(hard+'.pdf')
+
+    fig,ax=plots.multi(1,2,hspace=0.001)
+    plots.plotl(ax[0],10.**a[3].data['WAVE'][0],np.cumsum(chi2_a),xt='Wavelength',yt='Cumulative chi^2')
+    plots.plotl(ax[0],10.**a[3].data['WAVE'][0],np.cumsum(chi2_b))
+    plots.plotl(ax[1],10.**a[3].data['WAVE'][0],np.cumsum(chi2_a)-np.cumsum(chi2_b),yt='Difference in cumulative chi^2')
+    if hard is not None : fig.savefig(hard+'_chi2.pdf')
+    plt.close()
+    plt.close()
+
+def vesta() :
+    """ series of plots for Vesta for DR16 tests
+    """
+    l33_fit = fits.open(os.environ['APOGEE_ASPCAP']+'/r10/test/apo1m/fit/aspcapField-standards.fits')
+    l33_fixed = fits.open(os.environ['APOGEE_ASPCAP']+'/r10/test/apo1m/fixed/aspcapField-standards.fits')
+    l31c_fit = fits.open(os.environ['APOGEE_ASPCAP']+'/r10/testl31c/apo1m/fit/aspcapField-standards.fits')
+    l31c_fixed = fits.open(os.environ['APOGEE_ASPCAP']+'/r10/testl31c/apo1m/fixed/aspcapField-standards.fits')
+    l31crenorm_fit = fits.open(os.environ['APOGEE_ASPCAP']+'/r10/testl31crenorm/apo1m/fit/aspcapField-standards.fits')
+    l31crenorm_fixed = fits.open(os.environ['APOGEE_ASPCAP']+'/r10/testl31crenorm/apo1m/fixed/aspcapField-standards.fits')
+    compspec(l33_fit,l33_fixed,hard='Vesta_l33_fitvsfixed')
+    compspec(l31c_fit,l31c_fixed,hard='Vesta_l31c_fitvsfixed')
+    #compspec(l31c_fixed,l33_fixed,hard='Vesta_fixed_l31cvl33')
+    compspec(l31crenorm_fit,l31crenorm_fixed,hard='Vesta_l31crenorm_fitvsfixed')

@@ -451,18 +451,17 @@ def get_vmicro(vmicrofit,vmicro,teff=None,logg=None,mh=None) :
 
     """ 
     if vmicrofit == 0 :
-        return float(vmicro)
+        vm = vmicro[0]
     elif vmicrofit == 1 :
         #cubic in logg
         vm = 10.**(vmicro[0]+vmicro[1]*logg+vmicro[2]*logg**2+vmicro[3]*logg**3)
-        return float(vmicro)
     elif vmicrofit == 2 :
         #linear with terms in  teff, logg, mh
         vm = 10.**(vmicro[0]+vmicro[1]*teff+vmicro[2]*logg+vmicro[3]*mh)
     else :
         print('need to implement vmicrofit: ', vmicrofit)
         pdb.set_trace()
-    return  float(vmicro)
+    return vm
 
 def mkgrid(planfile,clobber=False,save=False,run=True) :
     """ Create a grid of synthetic spectra using Turbospectrum given specifications in  input parameter file
@@ -568,6 +567,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
                 nskip=0 
                 dskip = 1 if kurucz else 2
                 vout = get_vmicro(vmicrofit,vmicro,teff=teff,logg=logg,mh=mh)
+                print(teff,logg,mh,am,cm,nm,oa,vout)
                 while nskip >= 0 and nskip < 10 :
                   spec,specnorm=mkturbospec(int(teff),logg,mh,am,cm,nm,els=oa,
                     wrange=wrange,dw=dw,atmosdir=marcsdir,

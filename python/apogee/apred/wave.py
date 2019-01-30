@@ -1158,3 +1158,40 @@ def ditherplots(planfile,vers=None,inst=None) :
                      '../plots/dithershift-'+frame+'.gif'])
     html.htmltab(grid,file=dirname+'/html/shift.html')
 
+def shape(w,title=None,out=None,figax=None) :
+   
+    if figax is None : fig,ax=plots.multi(1,3,hspace=0.001)
+    else : fig,ax = figax
+    x=np.arange(300)
+    for ichip,chip in enumerate(chips) :
+        for col in [50,55,1995,2000] :
+            y=w[chip][2].data[:,col]-w[chip][2].data[:,1000]
+            plots.plotl(ax[ichip],x,y-np.median(y),yr=[-0.2,0.2])
+            plots.plotl(ax[ichip],x,y-np.median(y),yr=[-0.2,0.2])
+    if title is not None: fig.suptitle(title)
+    if out is not None :
+        fig.savefig(out)
+        plt.close()
+    return fig,ax
+
+def allshape() :
+    grid=[]
+    r11 = apload.ApLoad(apred='r11')
+    for waveid in [2380000,5680000,9500000,13140000,16680000,20380000,24040000] :
+        w=r11.apWave(waveid)
+        out='plots/shape_{:08d}.png'.format(waveid)
+        shape(w,title='{:08d}'.format(waveid),out=out)
+        grid.append(['../'+out])
+    r11.settelescope('lco25m')
+    for waveid in [22670000,24040000] :
+        w=r11.apWave(waveid)
+        out='plots/shape_{:08d}.png'.format(waveid)
+        shape(w,title='{:08d}'.format(waveid),out=out)
+        grid.append(['../'+out])
+    r8 = apload.ApLoad(apred='r8')
+    for waveid in [2420038] :
+        w=r8.apWave(waveid)
+        out='plots/shape_{:08d}.png'.format(waveid)
+        shape(w,title='{:08d}'.format(waveid),out=out)
+        grid.append(['../'+out])
+    html.htmltab(grid,file='html/shape.html')

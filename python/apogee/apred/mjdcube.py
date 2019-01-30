@@ -90,11 +90,11 @@ def mjdcube(mjd, darkid=None, write=False, apred='current', clobber=False) :
               pass
       out.append(fits.ImageHDU(cds,header))
       if write :
-        hdout.writeto(outfile,clobber=True, checksum = True, output_verify='fix')
+        hdout.writeto(outfile,overwrite=True, checksum = True, output_verify='fix')
         hd.close()
 
     # write out the CDS frame
-    out.writeto(outfile,clobber=True, checksum = True, output_verify='fix')
+    out.writeto(outfile,overwrite=True, checksum = True, output_verify='fix')
     out.close()
 
 if __name__ == "__main__" :

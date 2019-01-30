@@ -12,14 +12,14 @@ from scipy import interpolate
 
 import pdb
 
-def mkgrid(apred='r10', telescope='apo25m', lsfid=5440020, waveid=2420038) :
+def mkgrid(apred='r10', telescope='apo25m', lsfid=5440020, waveid=2420038,clobber=True) :
 
     # create parameters of sample and read in
-    sample.sample(gridclass='rv')
+    if clobber : sample.sample(gridclass='rv')
     stars=ascii.read('test_rv')
 
     # synthesize spectra and read in. Will fail on hot stars, but add those below
-    synth.mksynth('test_rv')
+    if clobber : synth.mksynth('test_rv')
     grid=fits.open('test_rv.fits')[1].data
     pars=fits.open('test_rv.fits')[0].data
 
@@ -94,7 +94,7 @@ def mkgrid(apred='r10', telescope='apo25m', lsfid=5440020, waveid=2420038) :
 
     # convolve and sample to apStar grid in vacuum
     ws=spectra.airtovac(np.linspace(15100.,17000.,38001))
-    x,ls= synth.getlsf(lsfid,waveid,apred=apred,prefix='lsf_')
+    x,ls= synth.getlsf(lsfid,waveid,apred=apred,prefix='lsf_',fill=True)
     apstardata=lsf.convolve(ws,grid,lsf=ls,xlsf=x)
     h=fits.ImageHDU(apstardata)
     h.header['CRVAL1'] = aspcap.logw0

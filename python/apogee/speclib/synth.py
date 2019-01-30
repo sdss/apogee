@@ -996,7 +996,7 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',te
     hdu.writeto(file+suffix+'.fits',overwrite=True)
     return file+suffix+'.fits' 
 
-def getlsf(lsfid,waveid,apred='r10',telescope='apo25m',highres=9,prefix='lsf_',fiber='combo',clobber=False) :
+def getlsf(lsfid,waveid,apred='r10',telescope='apo25m',highres=9,prefix='lsf_',fiber='combo',clobber=False,fill=False) :
     """ Create LSF FITS file or read if already created
     """
     lsfile = prefix+'{:08d}_{:08d}.fits'.format(lsfid,waveid)
@@ -1026,6 +1026,16 @@ def getlsf(lsfid,waveid,apred='r10',telescope='apo25m',highres=9,prefix='lsf_',f
         hdu.append(fits.ImageHDU(ls))
         hdu.writeto(lsfile,overwrite=True)
         os.remove(lsfile+'.lock')
+
+    if fill :
+        # for all non-finite pixels, fill in LSF from nearest good pixel
+        gd = np.where(np.isfinite(ls[:,0]))[0]
+        mask = np.zeros(ls.shape[0],dtype=bool)
+        mask[gd] = True
+        bd = np.where(mask == False)[0]
+        for i in bd:
+            j = np.argmin(np.abs(i-gd))
+            ls[i,:] = ls[gd[j],:]
     return x, ls
 
    

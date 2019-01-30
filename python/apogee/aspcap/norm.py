@@ -48,7 +48,7 @@ def polyfit(x,y,yerr,order) :
     """
     gd = np.where(np.isfinite(y))[0]
     # note unconventional definition in numpy.polyfit for weights!
-    p = np.poly1d(np.polyfit(x[gd],y[gd],order,w=1./yerr))
+    p = np.poly1d(np.polyfit(x[gd],y[gd],order,w=1./yerr[gd]))
     return p(x)
 
 def correct(field,libfile,plot=True,write=None,width=151) :

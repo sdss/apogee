@@ -4,7 +4,7 @@ import os
 import argparse
 
 def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None,idlthreads=1,runplans=True,
-          time='240:00:00',name=None,fast=False,tacc=False, postcmd=None) :
+          time='240:00:00',name=None,fast=False,tacc=False, postcmd=None, flag=None) :
     """ Routine to write a slurm file with specified input command and parameteres
     """
 
@@ -34,6 +34,7 @@ def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None
         f.write('setenv QUERYHOST '+queryhost+'\n' )
         f.write('setenv QUERYPORT '+str(queryport)+'\n')
         f.write('setenv APOGEE_MAXRUN '+str(maxrun)+'\n' )
+        if flag is not None :f.write('setenv APOGEE_FLAG '+flag+'\n' )
     f.write('setenv IDL_CPU_TPOOL_NTHREADS '+str(idlthreads)+'\n' )
 
     if cwd is None : cwd=os.getcwd()
@@ -63,6 +64,7 @@ def main(args) :
     parser.add_argument('--queryport', type=int, help='port to use for queue manager',default=1050)
     parser.add_argument('--queryhost', type=str, help='host to use for queue manager',default=os.uname()[1])
     parser.add_argument('--maxrun', type=int, help='maximum jobs to run at a time',default=1)
+    parser.add_argument('--flag', type=str, help='value for APOGEE_FLAG',default=1)
     parser.add_argument('--time', type=str, help='maximum wall clock time',default='240:00:00')
     parser.add_argument('--idlthreads', type=int, help='maximum IDL threads',default=1)
     parser.add_argument('--postcmd', type=str, help='post cmd command',default=None)

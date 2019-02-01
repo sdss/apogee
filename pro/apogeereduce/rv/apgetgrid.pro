@@ -40,6 +40,7 @@ endif
 ; read synthetic grid, which should be in vacuum waveengths and continuum normalized
 ; HDU1 has parameter table, HDU2 spectra on apStar grid, HDU3 spectra on higher sampling for visit spectra
 ; data arrays have wavelength in axis 0 
+if synthfile eq 'apg_synthgrid.fits' then begin
 if n_elements(grid) eq 0 then begin
   head=mrdfits(synth_dir+synthfile,0)
   stepar=mrdfits(synth_dir+synthfile,1)
@@ -57,8 +58,21 @@ if n_elements(grid) eq 0 then begin
               data:transpose(data),ndata:transpose(data),$
               head:head,metals:stepar.mh,teff:stepar.teff,logg:stepar.logg,alpha:stepar.am,carbon:stepar.cm,$
               wave:outwave,logwave:logwave,logdw:logdw,res:res,pixlim:pixlim}
+  sz=size(data,/dim)
+  nspec=sz[1]
+  for i=0,nspec-1 do begin
+    spec=grid.origdata[i,*]
+    j=where(spec lt 0)
+    spec[j] = 0.
+    temp = {spec:spec,wave:grid.wave}  ; temporary structure
+    APNORMSPEC,temp
+    grid.ndata[i,*]=temp.spec
+    ;plot,temp.spec,yr=[-0.5,1.5]
+    ;oplot,temp.nspec,color=255
+  endfor
 endif
 return
+endif
 
 ; =======================================
 ;  EVERYTHING BELOW HERE FOR OLD RV GRIDS

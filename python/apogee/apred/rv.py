@@ -149,11 +149,11 @@ def field(name,dr14=False) :
     pdb.set_trace()
 
 
-def visitcomp(plate,mjd,indiv=False) :
+def visitcomp(plate,mjd,indiv=False,apred='test') :
     """ Compare RVs for plate/mjd with DR14 RVs
     """
     plt.close('all')
-    load=apload.ApLoad(apred='r11')
+    load=apload.ApLoad(apred=apred)
     a=load.apVisitSum(plate,mjd)[1].data
 
     #dr14=apload.ApLoad(dr='dr14')

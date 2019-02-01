@@ -71,7 +71,7 @@ FUNCTION aptrimgrid, grid, visitstr
    Tmin = min(grid.Teff)
    Tmax = max(grid.Teff)
  ENDELSE
- print, 'Trimming grid to Teff = ('+string(Tmin)+','+string(Tmax)+')'
+ print, 'Trimming grid to Teff = ('+string(Tmin)+','+string(Tmax)+')',jk0,jk,ak,ejk
  
  ; Establish acceptable logg range to search based on washington photometry flags
  ; NOTE THESE MIGHT NEED TO CHANGE FOR APOGEE2 TARGFLAGS!

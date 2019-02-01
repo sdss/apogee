@@ -496,6 +496,13 @@ For i=0,2 do begin
   sxaddpar,head3,'CTYPE3','Chip'
   sxaddpar,head3,'BUNIT','Relative Flux'
   MWRFITS,refspec[*,i],outfile,head3,/silent    
+
+  ; HDU4 - reference spectrum
+  MKHDR,head4,refspec0[*,i],/image
+  sxaddpar,head4,'CTYPE1','Pixel'
+  sxaddpar,head4,'CTYPE3','Chip'
+  sxaddpar,head4,'BUNIT','Relative Flux'
+  MWRFITS,refspec0[*,i],outfile,head4,/silent    
   ;stop
 
 End ; chip loop

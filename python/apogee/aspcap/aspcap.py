@@ -419,7 +419,7 @@ def multihr(a,param='FPARAM',colorbar=False,hard=None) :
 #    fig,ax=plots.multi(2,3)
 #    for class in ['GKg','GKg_O','Mg','Md','GKd','Fd'] :
 
-def plot(wave,spec,color=None,figax=None,ax=None,hard=None,sum=False,title=None,alpha=None,yr=None,lineids=None,multipage=False, refline=None) :
+def plot(wave,spec,color=None,figax=None,ax=None,hard=None,sum=False,title=None,alpha=None,yr=None,lineids=None,multipage=False, refline=None, figsize=(8,11)) :
     """  Multipanel plots of APOGEE spectra
     """
     # set up plots

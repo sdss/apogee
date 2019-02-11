@@ -29,11 +29,13 @@
 ; Modifications J. Holtzman 2011+
 ;-
 
-pro ap1dvisit,planfiles,clobber=clobber,verbose=verbose,stp=stp,newwave=newwave,test=test,mapper_data=mapper_data,halt=halt,dithonly=dithonly
+pro ap1dvisit,planfiles,clobber=clobber,verbose=verbose,stp=stp,newwave=newwave,test=test,mapper_data=mapper_data,halt=halt,dithonly=dithonly,ap1dwavecal=ap1dwavecal
 
 common telluric,convolved_telluric
 
 undefine,convolved_telluric
+
+if keyword_set(ap1dwavecal) then newwave=1
  
 ;setdisp,/silent
 if n_elements(verbose) eq 0 then verbose=0  ; NOT verbose by default
@@ -171,7 +173,7 @@ FOR i=0L,nplanfiles-1 do begin
   if file_test(file) and not keyword_set(clobber) then begin
     print,'File already exists: ', file
     goto,dorv
-  endif
+  endif else print,'cant find file: ', file
 
   ; Process each frame
   ;-------------------
@@ -263,12 +265,13 @@ FOR i=0L,nplanfiles-1 do begin
 
         if keyword_set(newwave) then begin
           remove_tags, chstr,'WCOEF',newstr
-          chstr=newstr
+          remove_tags, newstr,'WAVELENGTH',chstr
         endif
         ; Add to the chip structure
         ; Wavelength calibration data already added by ap2dproc with ap1dwavecal
         ;if tag_exist(frame0.(0),'WCOEF') and not keyword_set(newwave) then begin
         if tag_exist(chstr,'WCOEF') and not keyword_set(newwave) then begin
+          print,'using WCOEF from 1D...'
           chstr = CREATE_STRUCT(temporary(chstr),'LSFFILE',lsffiles[k],'LSFCOEF',$
                                 lsfcoef,'WAVE_DIR',plate_dir,'WAVEFILE',wavefiles[k])
         ; Need wavelength information
@@ -346,25 +349,27 @@ FOR i=0L,nplanfiles-1 do begin
       ; STEP 2:  Wavelength Calibrate
       ;----------------------------------
       ; THIS IS NOW DONE AS PART OF AP2DPROC, USING PYTHON ROUTINES
-      ;print,'STEP 2: Wavelength Calibrating with AP1DWAVECAL'
-      ;plotfile = plate_dir+'/plots/pixshift_chip-'+framenum 
-      ;if keyword_set(dithonly) then AP1DWAVECAL_REFIT,frame,frame_wave,plugmap=plugmap,/verbose,/plot,pfile=plotfile
-      ;plotfile = plate_dir+'/plots/pixshift-'+framenum 
-      ;if planstr.platetype eq 'twilight' then $
-      ;AP1DWAVECAL,frame_shift,frame_wave,/verbose,/plot,pfile=plotfile else $
-      ;AP1DWAVECAL,frame_shift,frame_wave,plugmap=plugmap,/verbose,/plot,pfile=plotfile
+      if keyword_set(ap1dwavecal) then begin
+        print,'STEP 2: Wavelength Calibrating with AP1DWAVECAL'
+        plotfile = plate_dir+'/plots/pixshift_chip-'+framenum 
+        if keyword_set(dithonly) then AP1DWAVECAL_REFIT,frame,frame_wave,plugmap=plugmap,/verbose,/plot,pfile=plotfile
+        plotfile = plate_dir+'/plots/pixshift-'+framenum 
+        if planstr.platetype eq 'twilight' then $
+        AP1DWAVECAL,frame_shift,frame_wave,/verbose,/plot,pfile=plotfile else $
+        AP1DWAVECAL,frame_shift,frame_wave,plugmap=plugmap,/verbose,/plot,pfile=plotfile
 
-      ;apgundef,frame  ; free up memory
-      ;writelog,logfile,'  wavecal '+string(format='(f8.2)',systime(1)-t1)+string(format='(f8.2)',systime(1)-t0)
+        apgundef,frame  ; free up memory
+        writelog,logfile,'  wavecal '+string(format='(f8.2)',systime(1)-t1)+string(format='(f8.2)',systime(1)-t0)
+      endif else frame_wave = frame_shift
 
       ;if keyword_set(dithonly) then goto, BOMB1
-      ;if keyword_set(stp) then stop
+      if keyword_set(stp) then stop
 
       ;----------------------------------
       ; STEP 3:  Airglow Subtraction
       ;----------------------------------
       print,'STEP 3: Airglow Subtraction with APSKYSUB'
-      APSKYSUB,frame_shift,plugmap,frame_skysub,subopt=1,error=skyerror 
+      APSKYSUB,frame_wave,plugmap,frame_skysub,subopt=1,error=skyerror 
       if n_elements(skyerror) gt 0 and planstr.platetype ne 'twilight' then begin
         stop,'halt: APSKYSUB Error: ',skyerror
         apgundef,frame_wave,frame_skysub,skyerror
@@ -562,6 +567,9 @@ FOR i=0L,nplanfiles-1 do begin
   ; Radial velocity measurements for this visit
   ;--------------
   dorv:
+  finalframe=apread('Plate',mjd=planstr.mjd,plate=planstr.plateid)
+  header0=finalframe[0].hdr
+
   if tag_exist(planstr,'platetype') then $
     if planstr.platetype ne 'normal' and planstr.platetype ne 'single' then goto,BOMB
   print,'Radial velocity measurements'
@@ -646,15 +654,15 @@ FOR i=0L,nplanfiles-1 do begin
   MKHDR,head0,0
   sxaddpar,head0,'PLATEID',planstr.plateid
   sxaddpar,head0,'MJD',planstr.mjd
-  sxaddpar,head0,'EXPTIME',sxpar(finalframe.(0).header,'EXPTIME'),'Total visit exptime per dither pos'
-  sxaddpar,head0,'JD-MID',sxpar(finalframe.(0).header,'JD-MID'),' JD at midpoint of visit'
-  sxaddpar,head0,'UT-MID',sxpar(finalframe.(0).header,'UT-MID'),' Date at midpoint of visit'
-  ncombine = sxpar(finalframe.(0).header,'NCOMBINE',count=num_ncombine)
+  sxaddpar,head0,'EXPTIME',sxpar(header0,'EXPTIME'),'Total visit exptime per dither pos'
+  sxaddpar,head0,'JD-MID',sxpar(header0,'JD-MID'),' JD at midpoint of visit'
+  sxaddpar,head0,'UT-MID',sxpar(header0,'UT-MID'),' Date at midpoint of visit'
+  ncombine = sxpar(header0,'NCOMBINE',count=num_ncombine)
   if num_ncombine eq 0 then ncombine=1
   sxaddpar,head0,'NCOMBINE',ncombine
-  sxaddpar,head0,'ZEROPT',zero
-  for j=0,ncombine-1 do sxaddpar,header,'FRAME'+strtrim(j+1,2),sxpar(finalframe.(0).header,'FRAME'+strtrim(j+1,2)),'Constituent frame'
-  sxaddpar,head0,'NPAIRS',sxpar(finalframe.(0).header,'NPAIRS'),' Number of dither pairs combined'
+  ;sxaddpar,head0,'ZEROPT',zero
+  for j=0,ncombine-1 do sxaddpar,header,'FRAME'+strtrim(j+1,2),sxpar(header0,'FRAME'+strtrim(j+1,2)),'Constituent frame'
+  sxaddpar,head0,'NPAIRS',sxpar(header0,'NPAIRS'),' Number of dither pairs combined'
 
   leadstr = 'AP1DVISIT: '
   sxaddpar,head0,'V_APRED',getvers()

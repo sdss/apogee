@@ -216,7 +216,7 @@ FOR i=0L,nplanfiles-1 do begin
     for jj=0,n_elements(files)-1 do begin
       if file_test(files[jj]) then begin
         file_delete,files[jj]+'.fz',/allow_nonexistent
-        SPAWN,['fpack','-D','-Y',files[jj]],/noshell
+ ;       SPAWN,['fpack','-D','-Y',files[jj]],/noshell
       endif
       if file_test(modfiles[jj]) then begin
         file_delete,modfiles[jj]+'.fz',/allow_nonexistent

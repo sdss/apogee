@@ -2,7 +2,7 @@
 subroutine getuu
 
 ! generates a matrix (uu, stored in the share module) with nov columns and 
-! m=product(indini) rows which can be used to transform nov nested loops into 
+! m=product(abs(indini)) rows which can be used to transform nov nested loops into 
 ! a single loop
 !
 ! e.g. for nov=3 and indini=(2,2,4)
@@ -25,13 +25,18 @@ use share, only: dp,nov,indini,uu
 implicit none
 
 integer	    ::	i,j,k,nr,nrd,c1,c2
-allocate (uu(nov,product(abs(indini(1:nov)))))
+integer     ::  pindi ! product(abs(indini(1:nov)))
+integer	    ::  istat !allocate status var
+
+pindi=product(abs(indini(1:nov)))
+allocate (uu(nov,pindi),stat=istat)
+call checkstat(istat,'uu')
 
 do i=1,nov
 	c1=1
-    nr=product(abs(indini(i:nov)))
+        nr=pindi
 	!write(*,*)'nr=',nr
-	do k=1,product(abs(indini(1:nov)))/nr
+	do k=1,pindi/nr
 		c2=1
 		nrd=nr/abs(indini(i))
 		do j=1,nr

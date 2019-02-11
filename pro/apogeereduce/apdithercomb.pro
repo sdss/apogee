@@ -369,6 +369,8 @@ FOR p=0,npairs-1 do begin
       new_abs_shift = shift_i0 - shift_i1
       new_shift = shift_i1 - shift_i2
       print,new_shift,new_abs_shift
+      shift = new_shift
+      abs_shift = new_abs_shift
 
       ; if abs_shift is positive then we are to the RIGHT of the
       ; absolute frame and we want pixels to the LEFT

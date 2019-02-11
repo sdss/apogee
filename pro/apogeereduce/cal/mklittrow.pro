@@ -42,7 +42,7 @@ pro mklittrow,littrowid,cmjd=cmjd,darkid=darkid,flatid=flatid,sparseid=sparseid,
   litt[1250:1450,*]=tmp[50:250,*]
   file=apogee_filename('Littrow',num=littrowid,chip='b')
 
-  MKHDR,head,litt,/image
+  MKHDR,head,litt   ;,/image
   leadstr = 'APMKLITTROW: '
   sxaddhist,leadstr+systime(0),head
   info = GET_LOGIN_INFO()

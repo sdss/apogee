@@ -48,7 +48,7 @@ def polyfit(x,y,yerr,order) :
     """
     gd = np.where(np.isfinite(y))[0]
     # note unconventional definition in numpy.polyfit for weights!
-    p = np.poly1d(np.polyfit(x[gd],y[gd],order,w=1./yerr))
+    p = np.poly1d(np.polyfit(x[gd],y[gd],order,w=1./yerr[gd]))
     return p(x)
 
 def correct(field,libfile,plot=True,write=None,width=151) :
@@ -86,8 +86,9 @@ def correct(field,libfile,plot=True,write=None,width=151) :
             p1+=npix
         if plot : pdb.set_trace()
     if write is not None:  
-        bd=np.where(norm < 0.01)[0]
-        norm[bd]=1.
+        # make sure we have no zeros
+        bd=np.where(norm.flatten() < 0.01)[0]
+        norm.flatten()[bd]=1.
         ferre.writespec(write,norm)
     return norm
 

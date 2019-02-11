@@ -25,7 +25,7 @@ from astropy.io import fits
 from scipy import signal
 from scipy.optimize import curve_fit
 from scipy.special import erf, erfc
-from scipy.signal import medfilt
+from scipy.signal import medfilt, convolve, boxcar
 from scipy import interpolate
 from apogee.utils import apload
 from tools import plots
@@ -250,9 +250,13 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
             rms[row,igroup] = res[gd[j]].std()
             sig[row,igroup] = np.median(np.abs(res[gd[j]]))
 
+    # now refine the solution by averaging zeropoint across all groups and
+    # by fitting across different rows to require a smooth solution
+    newpars,newpwaves = refine(oldpars)
+
     # save results in apWave fies
     out=load.filename('Wave',num=name,chips=True)   #.replace('Wave','PWave')
-    save_apWave(allpars,out=out,npoly=npoly,rows=rows,frames=frames,rms=rms,sig=sig)
+    save_apWave(newpars,out=out,npoly=npoly,rows=rows,frames=frames,rms=rms,sig=sig,allpars=allpars)
 
     if plot : 
         plot_apWave(name,apred=apred,inst=inst,hard=hard)
@@ -266,7 +270,7 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
 
 def plot_apWave(nums,apred='current',inst='apogee-n',out=None,hard=False) :
 
-  """ Diagnostic lots of wavecal
+  """ Diagnostic plots of wavecal
   """
   mjd=[]
   wfit=[]
@@ -274,7 +278,7 @@ def plot_apWave(nums,apred='current',inst='apogee-n',out=None,hard=False) :
   yt=[]
   for num in nums :
     load=apload.ApLoad(apred=apred,instrument=inst)
-    wave=load.apWave(num)
+    wave=load.apWave(num),waves
     outname=load.filename('Wave',num=num,chips=True)
     allpars=wave['a'][3].data
     rms=wave['a'][4].data
@@ -411,11 +415,10 @@ def plot_apWave(nums,apred='current',inst='apogee-n',out=None,hard=False) :
       for i in range(4) : plt.close()
 
 
-def save_apWave(allpars,out=None,group=0,rows=np.arange(300),npoly=4,frames=[],rms=None,sig=None) :
+def save_apWave(pars,out=None,group=0,rows=np.arange(300),npoly=4,frames=[],rms=None,sig=None,allpars=None) :
     """ Write the apWave files in standard format given the wavecal parameters
     """
     x = np.zeros([3,2048])
-    ngroup = int(round((allpars.shape[0]-npoly)/3))
     allhdu=[]
     for ichip,chip in enumerate(chips) :
         hdu=fits.HDUList()
@@ -426,30 +429,34 @@ def save_apWave(allpars,out=None,group=0,rows=np.arange(300),npoly=4,frames=[],r
         chipwaves=np.zeros([300,2048])
         for row in rows :
             pow=npoly-1-np.arange(npoly)
-            polypars=allpars[0:npoly,row]*3000**pow
-            chippars[:,row] = np.append([ -1023.5+(ichip-1)*2048 + allpars[npoly+ichip,row],0., 0., 1., 0., 0.], 
+            polypars=pars[0:npoly,row]*3000**pow
+            chippars[:,row] = np.append([ -1023.5+(ichip-1)*2048 + pars[npoly+ichip,row],0., 0., 1., 0., 0.], 
                               np.flip( np.append(np.zeros(8-npoly),polypars)))
-            # since we only are feeding one group, need to reduce allpars so that correct npoly is deduced! not with npoly keyword
-            chipwaves[row,:] = func_multi_poly(x,*allpars[:,row],npoly=npoly)
+            chipwaves[row,:] = func_multi_poly(x,*pars[:,row],npoly=npoly)
         hdu.append(fits.PrimaryHDU())
         hdu[0].header['NFRAMES']=(len(frames),'number of frames in fit')
         for i in range(len(frames)) : hdu[0].header['FRAME{:d}'.format(i)] = frames[i]
         hdu[0].header['NPOLY']=(npoly,'polynomial order of fit')
-        hdu[0].header['NGROUP']=(ngroup,'number of groups in fit')
+        if allpars is not None : 
+            ngroup = int(round((allpars.shape[0]-npoly)/3))
+            hdu[0].header['NGROUP']=(ngroup,'number of groups in fit')
         hdu[0].header['COMMENT']='HDU#1 : wavelength calibration parameters [14,300]'
         hdu[0].header['COMMENT']='HDU#2 : wavelength calibration array [300,2048]'
         hdu[0].header['COMMENT']='HDU#3 : wavecal fit parameter array [npoly+3*ngroup,300]'
         hdu[0].header['COMMENT']='HDU#4 : rms from fit [300,ngroup]'
-        hdu[0].header['COMMENT']='HDU#e : sig from fit [300,ngroup]'
+        hdu[0].header['COMMENT']='HDU#5 : sig from fit [300,ngroup]'
+        if allpars is not None : hdu[0].header['COMMENT']='HDU#3 : wavecal fit parameter array [npoly+3*ngroup,300]'
         hdu.append(fits.ImageHDU(chippars))
         hdu.append(fits.ImageHDU(chipwaves))
-        hdu.append(fits.ImageHDU(allpars))
+        hdu.append(fits.ImageHDU(pars))
         if rms is not None :
             hdu[0].header['MEDRMS']=(np.nanmedian(rms),'median rms')
             hdu.append(fits.ImageHDU(rms))
         if sig is not None :
             hdu[0].header['MEDSIG']=(np.nanmedian(sig),'median sig')
             hdu.append(fits.ImageHDU(sig))
+        if allpars is not None :
+            hdu.append(fits.ImageHDU(allpars))
         if out is not None: hdu.writeto(out.replace('Wave','Wave-'+chip),overwrite=True)
         allhdu.append(hdu)
     return allhdu
@@ -618,7 +625,7 @@ def getgroup(groups) :
     return out,group
 
 
-def skycal(planfile,out=None,inst=None,waveid=None,group=0,skyfile='airglow',vers=None,nosky=False) :
+def skycal(planfile,out=None,inst=None,waveid=None,group=-1,skyfile='airglow',vers=None,nosky=False) :
     """ Determine positions of skylines for all frames in input planfile
     """
     # read planfile
@@ -659,22 +666,28 @@ def skycal(planfile,out=None,inst=None,waveid=None,group=0,skyfile='airglow',ver
     if not nosky :
         skylines=ascii.read(os.environ['APOGEE_DIR']+'/data/skylines/'+skyfile+'.txt')
 
+    # if we have a wavecal, get the wavelength array
+    if waveid > 0 :
+        #use wavelength solution from specified wavecal
+        print('loading waveid: ', waveid)
+        waveframe=load.apWave(waveid)
+        npoly=waveframe['a'][0].header['NPOLY']
+        allpars=waveframe['a'][3].data
+        #waves={}
+        #for chip in chips : waves[chip]=waveframe[chip][2].data
+        if len(waveframe['a']) == 6 : allpars,waves=refine(waveframe['a'][3].data)
+    
     # loop over all frames in the planfile and assess skylines in each
     grid=[]
     ytit=[]
     for iframe,name in enumerate(p['APEXP']['name']) :
         print('frame: ', name)
         frame = load.ap1D(int(name))
-        waves={}
         if waveid > 0 :
-            # usname wavelength solution from specified wavecal
-            print('loading waveid: ', waveid)
-            waveframe=load.apWave(waveid)
             if not nosky : plot = dirname+'/plots/skypixshift-'+name+'-'+skyfile
-            if group == 0 :
-                for chip in chips : waves[chip] = waveframe[chip][2].data
-            else :
+            if group >= 0 :
                 allpars=waveframe['a'][3].data
+                waves={}
                 x = np.zeros([3,2048])
                 for ichip,chip in enumerate(chips) :
                     x[0,:] = np.arange(2048)
@@ -731,12 +744,11 @@ def skycal(planfile,out=None,inst=None,waveid=None,group=0,skyfile='airglow',ver
             print('fit parameters: ', w)
 
         if waveid > 0 :
-            # get original wavelength solution parameters and adjust based on skyline fit
-            allpars=waveframe['a'][3].data
-            npoly=4
+            # adjust wavelength solution based on skyline fit
+            newpars=copy.copy(allpars)
             for ichip in range(3) :
-                allpars[npoly+ichip,:] -= (w[0]*np.arange(300) + w[ichip+1])
-            allhdu = save_apWave(allpars,npoly=npoly)
+                newpars[npoly+ichip,:] -= (w[0]*np.arange(300) + w[ichip+1])
+            allhdu = save_apWave(newpars,npoly=npoly)
 
             # rewrite out 1D file with adjusted wavelength information
             outname=load.filename('1D',num=int(name),mjd=load.cmjd(int(name)),chips=True)
@@ -1158,3 +1170,125 @@ def ditherplots(planfile,vers=None,inst=None) :
                      '../plots/dithershift-'+frame+'.gif'])
     html.htmltab(grid,file=dirname+'/html/shift.html')
 
+def shape(w,title=None,out=None,figax=None) :
+   
+    if figax is None : fig,ax=plots.multi(1,3,hspace=0.001)
+    else : fig,ax = figax
+    x=np.arange(300)
+    for ichip,chip in enumerate(chips) :
+        for col in [50,55,1995,2000] :
+            y=w[chip][2].data[:,col]-w[chip][2].data[:,1000]
+            plots.plotl(ax[ichip],x,y-np.median(y),yr=[-0.2,0.2])
+            plots.plotl(ax[ichip],x,y-np.median(y),yr=[-0.2,0.2])
+    if title is not None: fig.suptitle(title)
+    if out is not None :
+        fig.savefig(out)
+        plt.close()
+    return fig,ax
+
+def allshape() :
+    grid=[]
+    r11 = apload.ApLoad(apred='r11')
+    for waveid in [2380000,5680000,9500000,13140000,16680000,20380000,24040000] :
+        w=r11.apWave(waveid)
+        out='plots/shape_{:08d}.png'.format(waveid)
+        shape(w,title='{:08d}'.format(waveid),out=out)
+        grid.append(['../'+out])
+    r11.settelescope('lco25m')
+    for waveid in [22670000,24040000] :
+        w=r11.apWave(waveid)
+        out='plots/shape_{:08d}.png'.format(waveid)
+        shape(w,title='{:08d}'.format(waveid),out=out)
+        grid.append(['../'+out])
+    r8 = apload.ApLoad(apred='r8')
+    for waveid in [2420038] :
+        w=r8.apWave(waveid)
+        out='plots/shape_{:08d}.png'.format(waveid)
+        shape(w,title='{:08d}'.format(waveid),out=out)
+        grid.append(['../'+out])
+    html.htmltab(grid,file='html/shape.html')
+
+def refine(oldpars,npoly=4) :
+    ''' Refine wavelength solution by averaging over groups,and smoothing over rows
+    '''
+    # copy parameters so as not to replace
+    allpars=copy.copy(oldpars)
+
+    # average the offsets for all of the groups. To do so, we first need to remove
+    # the trends from the dither shifts, i.e. with a four-parameter fit of slope and chip offsets
+    # do this relative to first group
+    nframes=(allpars.shape[0]-npoly)//3
+    for iframe in range(1,nframes) :
+        design=np.zeros([900,4])
+        y=np.zeros(900)
+        # offset of each chip relative to first frame
+        for ichip in range(3) :
+            # global slope with rows
+            design[ichip*300+np.arange(300),0] = np.arange(300)
+            design[ichip*300+np.arange(300),ichip+1] = 1.
+            y[ichip*300+np.arange(300)] = allpars[npoly+iframe*3+ichip,:]-allpars[npoly+ichip,:]
+        # reject bad fibers
+        gd=np.where((abs(y) > 1.e-5) & (abs(y) < 200.))[0]
+        design=design[gd,:]
+        y=y[gd]
+        # solve and replace offsets with offsets adjusted to first group dither position
+        try : 
+            w = np.linalg.solve(np.dot(design.T,design), np.dot(design.T, y))
+            for ichip in range(3) : allpars[npoly+iframe*3+ichip,:] -= (w[0]*np.arange(300) + w[ichip+1])
+        except : 
+            print('fit failed ....')
+            pdb.set_trace()
+    # replace chip offsets of first group with average chip offsets
+    # then calculate wavelength array for all chips and rows with this fit
+    # also calculate smoothed wavelength array (across rows at each column). We will use this for a new fit
+    waves={}
+    swaves={}
+    newwaves={}
+    x = np.zeros([3,2048])
+    for ichip,chip in enumerate(chips) : 
+        # loop over rows so we can do outlier-rejected mean
+        x[0,:] = np.arange(2048)
+        x[1,:] = ichip+1
+        x[2,:] = 0
+        waves[chip]=np.zeros([300,2048])
+        swaves[chip]=np.zeros([300,2048])
+        newwaves[chip]=np.zeros([300,2048])
+        for row in range(300) :
+            y=allpars[4+ichip::3,row]
+            gd=np.where(abs(y-np.median(y)) < 0.1)[0]
+            allpars[4+ichip,row] = np.mean(y[gd])
+            waves[chip][row,:] = func_multi_poly(x,*allpars[:,row],npoly=npoly)
+        # to reduce noise further, fit relative wavelengths across rows and use the fit values for smoothed array
+        rows=np.arange(300)
+        for col in range(2048) :
+            pfit = np.polyfit(rows,waves[chip][:,col]-waves[chip][:,1024],3)
+            swaves[chip][:,col] = np.polyval(pfit,rows) + waves[chip][:,1024]
+
+    # now refit the full wavelength solutions using swaves as input
+    newpars=[]
+    for row in range(300) :
+        x = np.zeros([3,2048*3])
+        y = np.zeros([2048*3])
+        for ichip,chip in enumerate(chips) : 
+            x[0,ichip*2048:(ichip+1)*2048] = np.arange(2048)
+            x[1,ichip*2048:(ichip+1)*2048] = ichip+1
+            x[2,ichip*2048:(ichip+1)*2048] = 0
+            y[ichip*2048:(ichip+1)*2048] = swaves[chip][row,:]
+        # we will fix the central chip position at 0, and allow wavelength to float
+        pars = allpars[0:npoly+3,row]
+        pars[npoly+1] = 0.
+        bounds = ( np.zeros(len(pars))-np.inf, np.zeros(len(pars))+np.inf)
+        bounds[0][npoly+1] = -1.e-7
+        bounds[1][npoly+1] = 1.e-7
+        popt,pcov = curve_fit(func_multi_poly,x,y,p0=pars,bounds=bounds)
+        newpars.append(popt)
+        # calculate wavelength arrays from refined solution
+        x = np.zeros([3,2048])
+        for ichip,chip in enumerate(chips) : 
+            x[0,:] = np.arange(2048)
+            x[1,:] = ichip+1
+            x[2,:] = 0
+            newwaves[chip][row,:] = func_multi_poly(x,*popt,npoly=npoly)
+    # return new parameters and wavelength array
+    return np.array(newpars).T,newwaves
+    

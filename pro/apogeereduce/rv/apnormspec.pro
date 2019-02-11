@@ -190,7 +190,7 @@ Case normtype of
       mask = (str.(maskind[0]))(*)
       gdmask = gdmask AND ((mask and badmask()) eq 0)
 
-      gmask = gdmask AND ((mask and maskval('SIG_SKYLINE')) eq 0)
+      gdmask = gdmask AND ((mask and maskval('SIG_SKYLINE')) eq 0)
       nskyind = 0
     endif
     ; Exclude pixels with bright airglow lines

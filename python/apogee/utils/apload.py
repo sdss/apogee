@@ -292,15 +292,12 @@ class ApLoad :
                  if hdu=N : returns dictionaries (data, header) for specified HDU
                  if tuple=True : returns tuples rather than dictionaries
         """
-        fz=''
-        for key in kwargs : 
-            if key == 'fz' : fz='fz'
         if len(args) != 1 :
             print('Usage: ap2D(imagenumber)')
         else :
             try :
                 file = self.allfile(
-                   '2D'+fz,num=args[0],mjd=self.cmjd(args[0]),chips=True)
+                   '2D',num=args[0],mjd=self.cmjd(args[0]),chips=True,**kwargs)
                 print('file: ', file)
                 return self._readchip(file,'2D',**kwargs)
             except :
@@ -321,7 +318,7 @@ class ApLoad :
         else :
             try :
                 file = self.allfile(
-                   '2Dmodel',num=args[0],mjd=self.cmjd(args[0]),chips=True)
+                   '2Dmodel',num=args[0],mjd=self.cmjd(args[0]),chips=True,**kwargs)
                 return self._readchip(file,'2Dmodel',**kwargs)
             except :
                 self.printerror()
@@ -406,16 +403,16 @@ class ApLoad :
         """
         NAME: apload.apVisitSum
         PURPOSE:  read apVisitSum file (downloading if necessary)
-        USAGE:  ret = apload.apVisitSum(location,plate,mjd)
+        USAGE:  ret = apload.apVisitSum(plate,mjd)
         RETURNS: if hdu==None : ImageHDUs (all extensions)
                  if hdu=N : returns (data, header) for specified HDU
         """
-        if len(args) != 3 :
-            print('Usage: apVisitSum(location,plate,mjd)')
+        if len(args) != 2 :
+            print('Usage: apVisitSum(plate,mjd)')
         else :
             try :
                 file = self.allfile(
-                   'VisitSum',location=args[0],plate=args[1],mjd=args[2])
+                   'VisitSum',plate=args[0],mjd=args[1])
                 return self._readhdu(file,**kwargs)
             except :
                 self.printerror()
@@ -574,7 +571,7 @@ class ApLoad :
 
     def allfile(self,root,dr=None,apred=None,apstar=None,aspcap=None,results=None,
                 location=None,obj=None,plate=None,mjd=None,num=None,fiber=None,chips=False,field=None,
-                download=True) :
+                download=True,fz=False) :
         '''
         Uses sdss_access to create filenames and download files if necessary
         '''
@@ -582,6 +579,8 @@ class ApLoad :
         if self.verbose: print('allfile... chips=',chips)
         if self.instrument == 'apogee-n' : prefix='ap'
         else : prefix='as'
+        if fz : suffix = '.fz'
+        else : suffix = ''
 
         # get the sdss_access root file name appropriate for telescope and file 
         # usually just 'ap'+root, but not for "all" files, raw files, and 1m files, since
@@ -602,7 +601,7 @@ class ApLoad :
         if plate is not None :
             plateplans = yanny.yanny(os.environ['PLATELIST_DIR']+'/platePlans.par')['PLATEPLANS']
             j = np.where(np.array(plateplans['plateid']) == plate)[0][0]
-            field = plateplans['name'][j]
+            field = plateplans['name'][j].replace('APG_','')
  
         if chips == False :
             # First make sure the file doesn't exist locally
@@ -630,7 +629,7 @@ class ApLoad :
                                 apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
                                 field=field, location=location,obj=obj,plate=plate,mjd=mjd,num=num,
                                 telescope=self.telescope,fiber=fiber,
-                                chip=chip,prefix=prefix,instrument=self.instrument)
+                                chip=chip,prefix=prefix,instrument=self.instrument)+suffix
                 if self.verbose : print('filePath: ', filePath, os.path.exists(filePath))
                 if os.path.exists(filePath) is False and download : 
                   try:

@@ -69,7 +69,7 @@ if n_elements(snmax) eq 0 then snmax = apsetpar(planstr,'snmax',10) ; 0 for DR13
 if n_elements(snsig) eq 0 then snsig = apsetpar(planstr,'snsig',3)  ; 0 for DR13
    if keyword_set(snsig) then defsnmin = 1 else defsnmin = 5
 if n_elements(snmin) eq 0 then snmin=apsetpar(planstr,'snmin',defsnmin)
-if n_elements(trimgrid) eq 0 then trimgrid=apsetpar(planstr,'trimgrid',1)
+if n_elements(trimgrid) eq 0 then trimgrid=apsetpar(planstr,'trimgrid',0)
 if n_elements(nstars) eq 0 then nstars=apsetpar(planstr,'nstars',0)
 if n_elements(clobber) eq 0 then clobber=apsetpar(planstr,'clobber',0)
 if n_elements(nres) eq 0 then nres=apsetpar(planstr,'nres',0)

@@ -45,8 +45,9 @@ holefile=p.class.holefile
 vmacrofit=p.class.vmacrofit
 rotpar=p.class.vmacro
 inter=p.class.inter
-if keyword_set(renorm) then renorm=intarr(nclasses)+renorm else renorm=p.class[i].renorm
-if keyword_set(maxwind) then maxwind=intarr(nclasses)+maxwind else maxwind=p.class[i].maxwind
+print,'key: ', keyword_set(renorm)
+print,'p: ', p.class.renorm
+if keyword_set(renorm) then renorm=intarr(nclasses)+renorm else renorm=p.class.renorm 
 
 nclasses=n_elements(classes)
 cfit=intarr(nclasses)-1
@@ -75,6 +76,8 @@ for i=0,nclasses-1 do begin
 
   if tag_exist(p.class,'cmlock') then if p.class[i].cmlock gt -9 then cmlock=p.class[i].cmlock else undefine,cmlock
   if tag_exist(p.class,'nmlock') then if p.class[i].nmlock gt -9 then nmlock=p.class[i].nmlock else undefine,nmlock
+  if tag_exist(p.class,'vlock') then if p.class[i].vlock gt -9 then vlock=p.class[i].vlock else undefine,vlock
+  if ~keyword_set(maxwind) then if tag_exist(p.class,'maxwind') then maxwind=p.class[i].maxwind else maxwind=0
 
   ; if this is a coarse grid, remove C, N, and VMICRO dimensions, and adjust INDV and INDINI accordingly
   initpar=fltarr(libhead0.n_of_dim)

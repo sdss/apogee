@@ -45,7 +45,8 @@ if nf gt 0 then begin
         cname= strmid(cname, 5)
 
      ; combine LMC-,SMC- with LMC, SMC
-     cname = cname.replace('MC-','MC')
+     ;cname = cname.replace('MC-','MC')
+     cname = repstr(cname,'MC-','MC')
 
      case cname of
         'BULGE_04+00': cname='004+00'

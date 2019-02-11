@@ -94,14 +94,21 @@ pro mkflat,ims,cmjd=cmjd,darkid=darkid,clobber=clobber,kludge=kludge,nrep=nrep,d
   if nrep gt 1 then flatsum+=median(flats[*,*,*,ii:ii+nrep-1],dimension=4) $
   else flatsum+=flats[*,*,*,ii]
  endfor
- 
+
+ ; normalize the flatsums to roughly avoid discontinuities across chips
+ ; normalize center of middle chip to unity
+ norm = median(flatsum[x1norm:x2norm,y1norm:y2norm,1])
+ flatsum[*,*,1] /= norm
+ flatsum[*,*,0] /= median(flatsum[1950:2044,500:1500,0])/median(flatsum[5:100,500:1500,1])
+ flatsum[*,*,2] /= median(flatsum[5:100,500:1500,2])/median(flatsum[1950:2044,500:1500,1])
+
  ; create the superflat 
  for ichip=0,2 do begin
   flat=flatsum[*,*,ichip]
  
-   ; normalize
-  norm=median(flat[x1norm:x2norm,y1norm:y2norm])
-  flat/=norm
+   ; normalize now done above to match chips
+  ;norm=median(flat[x1norm:x2norm,y1norm:y2norm])
+  ;flat/=norm
   ; create mask
   sz=size(flat)
   mask=bytarr(sz[1],sz[2])
@@ -190,20 +197,10 @@ pro mkflat,ims,cmjd=cmjd,darkid=darkid,clobber=clobber,kludge=kludge,nrep=nrep,d
    smrows=rows##poly(x,coef)
    sflat=smrows
 
+   ; Feb 2019: polynomial fit introduces spurious signal, so just don't bother with spectral signature!
    ; divide out estimate of spectral signature
-   flat/=smrows
-
-   ;  do, however, adjust for small differences between quadrants
-   ;  that are visible in high signal images and don't seem to 
-   ;  be removed by reference pixel reduction....
    ;flat/=smrows
 
-   ; WAIT !!! Doesn't this account for small gain differences?
-   ;for i=1,3 do begin
-   ;  left=median(flat[i*512-1,*])
-   ;  right=median(flat[i*512,*])
-   ;  flat[i*512:2047,*] *= left/right
-   ;endfor
  endelse
  ; set bad values to -100 before writing to avoid NaNs in output file
  bad=where(finite(flat) eq 0,nbad)
@@ -230,9 +227,9 @@ pro mkflat,ims,cmjd=cmjd,darkid=darkid,clobber=clobber,kludge=kludge,nrep=nrep,d
  flatlog[ichip].num=i1
  flatlog[ichip].nframes=nframes
 
-; flat=0
-; time=systime(/seconds)
-; print,'done '+chip[ichip],time-time0
+	; flat=0
+	; time=systime(/seconds)
+	; print,'done '+chip[ichip],time-time0
 endfor
 
 ; write out flat summary information

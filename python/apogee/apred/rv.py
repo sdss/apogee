@@ -112,47 +112,72 @@ def comp(a,b,av=None,bv=None,domatch=True,out=None) :
 
     return a,b
 
-def field(name,dr14=False) :
+def field(name,dr14=False,dir='./') :
     """ look at a single field
     """
-    all=struct.concat(['apo25m/'+name+'/apVisitSum*.fits'])
+    all=struct.concat([dir+'/apVisitSum*.fits'])
     alldr14=struct.concat([os.environ['APOGEE_REDUX']+'/r8/fields/apo25m/4162//apVisitSum*'])
     objs = set(all['APOGEE_ID'])
+    vhelio = []
     vscat = []
     verr = []
     sigfiber = []
+    vdiff = []
     n = []
+    dr14vhelio = []
     dr14vscat = []
     dr14sigfiber = []
     dr14n = []
+    dr14vdiff = []
     for obj in objs :
         j = np.where(all['APOGEE_ID'] == obj)[0]
+        vhelio.append(all['VHELIO'][j].mean())
         vscat.append(all['VHELIO'][j].std())
         verr.append(all['VRELERR'][j].max())
         sigfiber.append(all['FIBERID'][j].std())
+        vdiff.extend(all['VHELIO'][j]-all['VHELIO'][j].mean())
         n.append(len(j))
         #print(all['MJD'][j],all['VHELIO'][j])
         j = np.where(alldr14['APOGEE_ID'] == obj)[0]
+        dr14vhelio.append(alldr14['VHELIO'][j].mean())
         dr14vscat.append(alldr14['VHELIO'][j].std())
         dr14sigfiber.append(alldr14['FIBERID'][j].std())
         dr14n.append(len(j))
-        #print(alldr14['MJD'][j],alldr14['VHELIO'][j])
+        dr14vdiff.extend(alldr14['VHELIO'][j]-alldr14['VHELIO'][j].mean())
+        #print(all['MJD'][j],all['VHELIO'][j],all['VRELERR'][j])
+        #print(alldr14['MJD'][j],alldr14['VHELIO'][j],alldr14['VRELERR'][j])
+        #pdb.set_trace()
+    vhelio=np.array(vhelio)
     vscat=np.array(vscat)
     verr=np.array(verr)
     sigfiber=np.array(sigfiber)
     n=np.array(n)
-    fig,ax=plots.multi(2,2)
-    ax[0,0].hist(vscat,bins=np.arange(0.01,1,0.01))
-    plots.plotc(ax[1,0],sigfiber,vscat,n,yr=[0,2])
-    plots.plotc(ax[0,1],sigfiber,vscat-dr14vscat,verr,zr=[0,0.15])
+    dr14vhelio=np.array(dr14vhelio)
+    dr14vscat=np.array(dr14vscat)
+    dr14sigfiber=np.array(dr14sigfiber)
+    dr14n=np.array(dr14n)
+    fig,ax=plots.multi(2,3)
+    ax[0,0].hist(vscat,bins=np.arange(0.01,1,0.01),histtype='step',cumulative=True,normed=True,color='b')
+    ax[0,0].hist(dr14vscat,bins=np.arange(0.01,1,0.01),histtype='step',cumulative=True,normed=True,color='r')
+    gd=np.where(verr < 0.2)[0]
+    ax[0,0].hist(vscat[gd],bins=np.arange(0.01,1,0.01),histtype='step',cumulative=True,normed=True,color='g')
+    ax[0,0].hist(dr14vscat[gd],bins=np.arange(0.01,1,0.01),histtype='step',cumulative=True,normed=True,color='m')
+    ax[2,1].hist(vscat[gd],bins=np.arange(0.01,1,0.01),histtype='step',color='k')
+    ax[2,1].hist(dr14vscat[gd],bins=np.arange(0.01,1,0.01),histtype='step',color='r')
+
+    plots.plotc(ax[1,0],vhelio-dr14vhelio,vscat-dr14vscat,verr,xr=[-0.5,0.5],yr=[-0.3,0.3],zr=[0,0.15])
+    plots.plotc(ax[0,1],sigfiber,vscat-dr14vscat,verr,zr=[0,0.15],yr=[-0.3,0.3])
+    plots.plotc(ax[1,1],vscat,vscat-dr14vscat,verr,zr=[0,0.15],yr=[-0.3,0.3],xr=[0,0.5])
+    ax[2,0].hist(vdiff,color='b',bins=np.arange(-1.,1,0.01),histtype='step')
+    ax[2,0].hist(dr14vdiff,color='r',bins=np.arange(-1.,1,0.01),histtype='step')
+    fig.tight_layout()
     plt.show()
-    pdb.set_trace()
 
 
 def visitcomp(plate,mjd,indiv=False,apred='test') :
     """ Compare RVs for plate/mjd with DR14 RVs
     """
-    plt.close('all')
+    #plt.close('all')
     load=apload.ApLoad(apred=apred)
     a=load.apVisitSum(plate,mjd)[1].data
 

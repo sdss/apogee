@@ -642,7 +642,7 @@ FOR i=0L,nplanfiles-1 do begin
     visitstr.ak_targ_method=plugmap.fiberdata[objind[istar]].ak_targ_method
     visitstr.ak_wise=plugmap.fiberdata[objind[istar]].ak_wise
     visitstr.sfd_ebv=plugmap.fiberdata[objind[istar]].sfd_ebv
-    aprv,visitfile,visitstr,/save,dir_plots=plots_dir
+    aprv,visitfile,visitstr,/save,dir_plots=plots_dir,/trimgrid
     MWRFITS,visitstr,visitfile,/silent
     PUSH,allvisitstr,visitstr
   endfor

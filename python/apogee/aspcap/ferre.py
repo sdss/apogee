@@ -15,6 +15,8 @@ import numpy as np
 import pdb
 from tools import match
 from apogee.aspcap import aspcap
+import glob
+import corner
 
 def writespec(name,data) :
     """ Writes FERRE 'spectrum' file with input data, one line per star
@@ -121,8 +123,27 @@ def writeipf(name,libfile,stars,param=None) :
         f.write('\n')
     f.close()
         
+def readmcmc(name,libfile,nov=None,burn=500) :
+    libhead0, libhead=rdlibhead(libfile)
+
+    files=glob.glob(name+'.chain*.dat')
+    print(files)
+    alldat=[]
+    for file in files :
+        a=np.loadtxt(file,skiprows=1)
+        alldat.extend(a[burn:,:])
+    alldat=np.array(alldat)
+    if nov is None : nov = np.arange(libhead0['N_OF_DIM'])+1
+    pdb.set_trace()
+    # transform from normalized to true parameters
+    labels=[]
+    for i,ipar in enumerate(nov) :
+        alldat[:,i+2] = libhead0['LLIMITS'][ipar-1] + alldat[:,i+2]*libhead0['STEPS'][ipar-1]*(libhead0['N_P'][ipar-1]-1)
+        labels.append(libhead0['LABEL'][ipar-1])
+    corner.corner(alldat[:,2:],labels=labels,show_titles=True)
 
 def read(name,libfile) :
+
     """ Read all of the FERRE files associated with a FERRE run
     """
     # get library headers and load wavelength array

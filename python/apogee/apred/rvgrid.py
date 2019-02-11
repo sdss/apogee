@@ -8,7 +8,7 @@ from apogee.speclib import sample
 from apogee.speclib import synth
 from apogee.speclib import lsf
 from apogee.utils import spectra
-from scipy import interpolate
+from scipy import interpolate, ndimage
 
 import pdb
 
@@ -92,36 +92,61 @@ def mkgrid(apred='r10', telescope='apo25m', lsfid=5440020, waveid=2420038,clobbe
     h.header['APRED'] = apred
     #hdu.append(h)
 
-    # convolve and sample to apStar grid in vacuum
+    # put on logarithmic wavelength scale and smooth to R=30000
+    nspec=grid.shape[0]
+    resol=30000.
     ws=spectra.airtovac(np.linspace(15100.,17000.,38001))
-    x,ls= synth.getlsf(lsfid,waveid,apred=apred,prefix='lsf_',fill=True)
-    apstardata=lsf.convolve(ws,grid,lsf=ls,xlsf=x)
+    wout=10.**(np.arange(aspcap.logw0,np.log10(17000.),aspcap.dlogw/9.))
+    smooth=np.zeros([nspec,len(wout)])
+    sig=1./(aspcap.dlogw/9.*np.log(10))/resol/2.354
+    for i in range(nspec) :
+        # Interpolate the input spectrum
+        ip= interpolate.InterpolatedUnivariateSpline(ws, grid[i,:], k=3)
+        smooth[i,:] = ndimage.gaussian_filter1d(ip(wout),sig,mode='nearest')
+
+    # now ressample to apstar and (approx) apvisit wavelenth scales
+    wapstar=10.**(aspcap.logw0+np.arange(aspcap.nw_apStar)*aspcap.dlogw)
+    apstardata=np.zeros([nspec,len(wapstar)])
+    wapvisit=10.**(np.arange(aspcap.logw0,np.log10(17000.),4.75e-6))
+    apvisitdata=np.zeros([nspec,len(wapvisit)])
+    for i in range(nspec) :
+        # Interpolate the input spectrum
+        ip= interpolate.InterpolatedUnivariateSpline(wout, smooth[i,:], k=3)
+        apstardata[i,:] = ip(wapstar)
+        apvisitdata[i,:] = ip(wapvisit)
+
+    # convolve and sample to apStar grid in vacuum
+    #ws=spectra.airtovac(np.linspace(15100.,17000.,38001))
+    #x,ls= synth.getlsf(lsfid,waveid,apred=apred,prefix='lsf_',fill=True)
+    #apstardata=lsf.convolve(ws,grid,lsf=ls,xlsf=x)
     h=fits.ImageHDU(apstardata)
     h.header['CRVAL1'] = aspcap.logw0
     h.header['CDELT1'] = aspcap.dlogw
     h.header['CTYPE1'] = 'LOG(WAVELENGTH)'
-    h.header['LSFID'] = lsfid
-    h.header['WAVEID'] = waveid
-    h.header['APRED'] = apred
+    #h.header['LSFID'] = lsfid
+    #h.header['WAVEID'] = waveid
+    #h.header['APRED'] = apred
+    h.header['RESOL'] = resol
     hdu.append(h)
 
     # convolve and sample to higher resolution for apVisit spectra
-    wout=10.**(np.arange(4.179,np.log10(17000.),4.75e-6))
-    smoothdata=lsf.convolve(ws,grid,lsf=ls,xlsf=x,highout=True)
-    nwav=smoothdata.shape[1]
-    nspec=smoothdata.shape[0]
-    tmp=np.zeros([nspec,len(wout)])
-    wav=10.**(aspcap.logw0+np.arange(nwav)*aspcap.dlogw/9.)
-    for i in range(smoothdata.shape[0]) :
-        # Interpolate the input spectrum, starting from a polynomial baseline
-        bd=np.where(np.isnan(smoothdata[i,:]))[0]
-        smoothdata[i,bd]=1.
-        ip= interpolate.InterpolatedUnivariateSpline(wav, smoothdata[i,:], k=3)
-        tmp[i,:] = ip(wout)
-    h=fits.ImageHDU(tmp)
+    #wout=10.**(np.arange(4.179,np.log10(17000.),4.75e-6))
+    #smoothdata=lsf.convolve(ws,grid,lsf=ls,xlsf=x,highout=True)
+    #nwav=smoothdata.shape[1]
+    #nspec=smoothdata.shape[0]
+    #apvisitdata=np.zeros([nspec,len(wout)])
+    #wav=10.**(aspcap.logw0+np.arange(nwav)*aspcap.dlogw/9.)
+    #for i in range(nspec) :
+    #    # Interpolate the input spectrum
+    #    bd=np.where(np.isnan(smoothdata[i,:]))[0]
+    #    smoothdata[i,bd]=1.
+    #    ip= interpolate.InterpolatedUnivariateSpline(wav, smoothdata[i,:], k=3)
+    #    apvisitdata[i,:] = ip(wout)
+    h=fits.ImageHDU(apvisitdata)
     h.header['CRVAL1'] = 4.179
     h.header['CDELT1'] = 4.75e-6
     h.header['CTYPE1'] = 'LOG(WAVELENGTH)'
+    h.header['RESOL'] = resol
     hdu.append(h)
 
     # output

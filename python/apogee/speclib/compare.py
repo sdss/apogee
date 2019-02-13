@@ -21,23 +21,24 @@ plt.plot(spectra.airtovac(w),new/old)
 plt.plot(spectra.airtovac(w),oldmarcs/old)
 
 # LSF convolved (with lsfc)
+irot=6
 olds=fits.open(os.environ['APOGEE_SPECLIB']+'/synth/turbospec/kurucz/solarisotopes/tsGK_150714_lsfc/ap00cp00np00vp10.fits')
 it=int((te-olds[1].header['CRVAL2'])/olds[1].header['CDELT2'])
 ig=int((logg-olds[1].header['CRVAL3'])/olds[1].header['CDELT3'])
 im=int((mh-olds[1].header['CRVAL4'])/olds[1].header['CDELT4'])
-spec=np.append(olds[1].data[0,0,im,ig,it,:],olds[2].data[0,0,im,ig,it,:])
-spec=np.append(spec,olds[3].data[0,0,im,ig,it,:])
+spec=np.append(olds[1].data[irot,0,im,ig,it,:],olds[2].data[irot,0,im,ig,it,:])
+spec=np.append(spec,olds[3].data[irot,0,im,ig,it,:])
 spec=aspcap.aspcap2apStar(spec)
 
 news=fits.open(os.environ['APOGEE_SPECLIB']+'/synth/turbospec/marcs/solarisotopes/tdGK_180901_lsfc_l33/ap00cp00np00vp12.fits')
 it=int((te-news[0].header['CRVAL2'])/news[0].header['CDELT2'])
 ig=int((logg-news[0].header['CRVAL3'])/news[0].header['CDELT3'])
 im=int((mh-news[0].header['CRVAL4'])/news[0].header['CDELT4'])
-newspec=news[0].data[0,im,ig,it,:]
+newspec=news[0].data[irot,im,ig,it,:]
 
 plt.plot(aspcap.apStarWave(),newspec/spec)
 
-# output ot fits
+# output to fits
 hdulist=fits.HDUList()
 hdu=fits.ImageHDU(old)
 spectra.add_dim(hdu.header,15100.,0.05,1,'Wavelength',1)

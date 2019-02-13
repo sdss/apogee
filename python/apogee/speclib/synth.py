@@ -1225,3 +1225,13 @@ def plotcross(a,val=[0,0,0],hard=None,sum=True) :
         fig.savefig(hard+'_teff.pdf')
         plt.close()
 
+    dim=a.data.shape
+    if len(dim) == 5 :
+        for i in range(dim[0]) :
+            if i == 0 : fig,ax=aspcap.plot(x,data[i,val[0],val[1],val[2],:],color=colors[i],sum=sum)
+            else : aspcap.plot(x,data[i,val[0],val[1],val[2],:],ax=ax,color=colors[i],sum=sum)
+        #fig.suptitle('vsini varied from {:6.0f} to {:6.0f} at logg {:6.1f}, [M/H] {:6.2f}'.format(teff[0],teff[-1],logg[val[1]],mh[val[0]]))
+        if hard is not None : 
+            fig.savefig(hard+'_vsini.pdf')
+            plt.close()
+

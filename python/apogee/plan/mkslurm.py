@@ -64,11 +64,11 @@ def main(args) :
     parser.add_argument('--queryport', type=int, help='port to use for queue manager',default=1050)
     parser.add_argument('--queryhost', type=str, help='host to use for queue manager',default=os.uname()[1])
     parser.add_argument('--maxrun', type=int, help='maximum jobs to run at a time',default=1)
-    parser.add_argument('--flag', type=str, help='value for APOGEE_FLAG',default=1)
+    parser.add_argument('--flag', type=str, help='value for APOGEE_FLAG',default='1111111')
     parser.add_argument('--time', type=str, help='maximum wall clock time',default='240:00:00')
     parser.add_argument('--idlthreads', type=int, help='maximum IDL threads',default=1)
     parser.add_argument('--postcmd', type=str, help='post cmd command',default=None)
     args=parser.parse_args(args)
 
-    write(args.cmd,outdir=args.outdir,name=args.name,queryhost=args.queryhost,queryport=args.queryport,maxrun=args.maxrun,idlthreads=args.idlthreads,runplans=args.norunplans,time=args.time,postcmd=args.postcmd)
+    write(args.cmd,outdir=args.outdir,name=args.name,queryhost=args.queryhost,queryport=args.queryport,maxrun=args.maxrun,idlthreads=args.idlthreads,runplans=args.norunplans,time=args.time,postcmd=args.postcmd,flag=args.flag)
 

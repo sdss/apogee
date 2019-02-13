@@ -21,13 +21,13 @@ def tail(f) :
     f.write('</HTML>\n')
     if f is not sys.stdout : f.close()
 
-def table(data, xtitle=None, ytitle=None, size=100, plots=True, formstr=':8.3f') :
+def table(data, xtitle=None, ytitle=None, size=100, plots=True, formstr=':8.3f',border=2) :
     """ Returns HTML for a table of input figures
     """
     p=np.array(data)
     nx=p.shape[1]
     ny=p.shape[0]
-    out='<TABLE>\n'
+    out='<TABLE BORDER={:d}>\n'.format(border)
     if xtitle is not None :
         out+='<TR>\n'
         if ytitle is not None :

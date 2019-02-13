@@ -87,8 +87,8 @@ def correct(field,libfile,plot=True,write=None,width=151) :
         if plot : pdb.set_trace()
     if write is not None:  
         # make sure we have no zeros
-        bd=np.where(norm.flatten() < 0.01)[0]
-        norm.flatten()[bd]=1.
+        bd=np.where(norm.ravel() < 0.01)[0]
+        norm.ravel()[bd]=1.
         ferre.writespec(write,norm)
     return norm
 

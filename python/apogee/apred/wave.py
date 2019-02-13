@@ -674,9 +674,10 @@ def skycal(planfile,out=None,inst=None,waveid=None,group=-1,skyfile='airglow',ve
         waveframe=load.apWave(waveid)
         npoly=waveframe['a'][0].header['NPOLY']
         allpars=waveframe['a'][3].data
-        #waves={}
-        #for chip in chips : waves[chip]=waveframe[chip][2].data
         if len(waveframe['a']) == 6 : allpars,waves=refine(waveframe['a'][3].data)
+        else : 
+            waves={}
+            for chip in chips : waves[chip]=waveframe[chip][2].data
     
     # loop over all frames in the planfile and assess skylines in each
     grid=[]

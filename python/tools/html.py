@@ -21,7 +21,7 @@ def tail(f) :
     f.write('</HTML>\n')
     if f is not sys.stdout : f.close()
 
-def tab(data, xtitle=None, ytitle=None, size=100, plots=True, formstr=':8.3f') :
+def table(data, xtitle=None, ytitle=None, size=100, plots=True, formstr=':8.3f') :
     """ Returns HTML for a table of input figures
     """
     p=np.array(data)
@@ -44,7 +44,7 @@ def tab(data, xtitle=None, ytitle=None, size=100, plots=True, formstr=':8.3f') :
                 out+=('<A HREF='+p[iy][ix]+'>'+
                     '<IMG SRC='+p[iy][ix]+' WIDTH='+str(size)+'%></A>\n')
             else :
-                out+='{'+formstr+'}'.format(p[iy][ix])
+                out+=('{'+formstr+'}').format(p[iy][ix])
             out+='</TD>\n'
     out+='</TABLE>\n'
     return out

@@ -5,7 +5,7 @@
 ;-
 pro aspcap_mklib,config,suffix=suffix,prefix=prefix,libdir=libdir,classes=classes,elem=elem,vpar=vpar,carlos=carlos,maskdir=maskdir,$
     femin=femin,rotpar=rotpar,opar=opar,vlock=vlock,vmlock=vmlock,outdir=outdir,nmlock=nmlock,cmlock=cmlock,apred=apred,inst=inst,$
-    renorm=renorm,maxwind=maxwind
+    renorm=renorm,obscont=obscont,maxwind=maxwind
 
 if n_elements(apred) gt 0 then apsetver,vers=apred,instrument=inst
 ;if ~keyword_set(elem) then elem=['C','Al','Ca','Fe','K','Mg','Mn','Na','Ni','N','O','Si','S','Ti','V']
@@ -30,6 +30,7 @@ file_mkdir,outdir
 aploadplan,indir+'class-'+dirs.instrument+'.par',p,str='CLASS'
 mask=p.mask
 maskdir=getenv('APOGEE_DIR')+'/data/windows/'+p.maskdir+'/'
+if tag_exist(p,'obscont') then obscont=p.obscont else obscont=0
 classes=p.class.class
 nclasses=n_elements(classes)
 libs=p.class.lib
@@ -163,6 +164,7 @@ for i=0,nclasses-1 do begin
   endelse
   printf,out,'inter '+string(inter[i],format='(i12)')
   printf,out,'renorm '+string(renorm[i],format='(i12)')
+  printf,out,'obscont '+string(obscont,format='(f8.2)')
   if file_test(maskdir+'/'+mask) then begin
     printf,out,'mask  '+mask
     file_delete,outdir+mask,/allow

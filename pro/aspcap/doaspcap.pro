@@ -1,6 +1,6 @@
 ; doaspcap is master routine for running ASPCAP pipline: pre-processing, FERRE, and post-processing
 
-pro doaspcap,planfile,mjd=mjd,nruns=nruns,queue=queue,clobber=clobber,old=old,ncpus=ncpus,errbar=errbar,renorm=renorm,aspcap_vers=aspcap_vers,results_vers=results_vers,nstars=nstars,hmask=hmask,maskfile=maskfile,obspixmask=obspixmask,pixmask=pixmask,highbad=highbad,skyerr=skyerr,starlist=starlist,lowbad=lowbad,higherr=higherr,conthighbad=conthighbad,contlowbad=contlowbad,conthigherr=conthigherr,qaspcap=qaspcap,redux_root=redux_root,red_vers=red_vers,noplot=noplot,vacuum=vacuum,commiss=commiss,nored=nored,visits=visits,aspcap_config=aspcap_config,fits=fits,symlink=symlink,doelemplot=doelemplot,noelem=noelem,maxwind=maxwind,caldir=caldir,persist=persist,npar=npar,nelem=nelem,mask_telluric=mask_telluric,altmaskdir=altmaskdir,testmjd=testmjd
+pro doaspcap,planfile,mjd=mjd,nruns=nruns,queue=queue,clobber=clobber,old=old,ncpus=ncpus,errbar=errbar,renorm=renorm,obscont=obscont,aspcap_vers=aspcap_vers,results_vers=results_vers,nstars=nstars,hmask=hmask,maskfile=maskfile,obspixmask=obspixmask,pixmask=pixmask,highbad=highbad,skyerr=skyerr,starlist=starlist,lowbad=lowbad,higherr=higherr,conthighbad=conthighbad,contlowbad=contlowbad,conthigherr=conthigherr,qaspcap=qaspcap,redux_root=redux_root,red_vers=red_vers,noplot=noplot,vacuum=vacuum,commiss=commiss,nored=nored,visits=visits,aspcap_config=aspcap_config,fits=fits,symlink=symlink,doelemplot=doelemplot,noelem=noelem,maxwind=maxwind,caldir=caldir,persist=persist,npar=npar,nelem=nelem,mask_telluric=mask_telluric,altmaskdir=altmaskdir,testmjd=testmjd
 
 TIC
 ; read plan file and required fields: apvisit and plateid/mjd or field
@@ -15,6 +15,7 @@ if not keyword_set(ncpus) then ncpus=apsetpar(planstr,'ncpus',4)
 if not keyword_set(errbar) then errbar=apsetpar(planstr,'errbar',1)
 if not keyword_set(renorm) then renorm=apsetpar(planstr,'renorm',0)
 if keyword_set(renorm) then frdsuffix='.obs' else frdsuffix='.frd'
+if not keyword_set(obscont) then obscont=apsetpar(planstr,'obscont',0)
 if not keyword_set(nruns) then nruns=apsetpar(planstr,'nruns',1)
 if n_elements(queue) eq 0 then queue=apsetpar(planstr,'queue',0)
 if not keyword_set(apogee_vers) then apogee_vers=apsetpar(planstr,'apogee_vers','unknown')
@@ -194,6 +195,7 @@ for idir=0,n_elements(datadir)-1 do begin
   if coarse eq 0 then beststr=aspcap_bestclass(allparam,allspec,alllib)
   if tag_exist(libpar,'indini') then indini=libpar.indini else indini=0
   if tag_exist(libpar,'renorm') then renorm=libpar.renorm
+  if tag_exist(libpar,'obscont') then obscont=libpar.obscont
   if keyword_set(renorm) then frdsuffix='.obs' else frdsuffix='.frd'
 
   ; output directory for this class
@@ -213,7 +215,7 @@ for idir=0,n_elements(datadir)-1 do begin
     if tag_exist(libpar,'indi') then indi=libpar.indi else undefine,indi
     if tag_exist(libpar,'mask') then filterfile=configdir+'/'+libpar.mask else undefine,filterfile
     writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.indv,indini=indini,$
-            interord=libpar.inter,findi=indi,errbar=errbar,init=init,renorm=abs(renorm),$
+            interord=libpar.inter,findi=indi,errbar=errbar,init=init,renorm=abs(renorm),obscont=obscont,$
             filterfile=filterfile
     openw,ipf,workdir+outname+'.ipf',/get_lun
     openw,labl,workdir+outname+'.labl',/get_lun
@@ -554,7 +556,7 @@ TOC
          writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.indv[iclass],$
             indini=indini,interord=libpar.inter[iclass],$
             filterfile=configdir+'/'+libpar.mask[iclass]+suffix+'.mask',$
-            findi=indi,errbar=errbar,renorm=abs(renorm)
+            findi=indi,errbar=errbar,renorm=abs(renorm),obscont=obscont
          openw,ipf,workdir+outname+'.ipf',/get_lun
          if tag_exist(libpar,'minigrid') then minigrid=libpar.minigrid[iclass] else minigrid=''
          if minigrid ne '' then begin

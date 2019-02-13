@@ -1,4 +1,4 @@
-pro writeferre,outdir,file,libhead,nruns=nruns,interord=interord,direct=direct,pca=pca,ncpus=ncpus,indv=indv,findi=findi,indini=indini,init=init,filterfile=filterfile,errbar=errbar,renorm=renorm
+pro writeferre,outdir,file,libhead,nruns=nruns,interord=interord,direct=direct,pca=pca,ncpus=ncpus,indv=indv,findi=findi,indini=indini,init=init,filterfile=filterfile,errbar=errbar,renorm=renorm,obscont=obscont
 
 ; routine to write FERRE input file
 
@@ -9,6 +9,7 @@ if n_elements(interord) eq 0 then interord=3
 if n_elements(direct) eq 0 then direct=1
 if n_elements(pca) eq 0 then pca=1
 if n_elements(errbar) eq 0 then errbar=-2
+if n_elements(obscont) eq 0 then obscont=0
 
 ; open the output file
 openw,nml,outdir+file+'.nml',/get_lun
@@ -38,7 +39,10 @@ printf,nml,' ERRBAR = '+string(errbar)
 if keyword_set(renorm) then begin
   printf,nml,' CONT = 1'
   printf,nml,' NCONT = '+string(renorm)
-  printf,nml,' OBSCONT =  0'
+  if obscont gt 0 then begin
+    printf,nml,' OBSCONT =  1'
+    printf,nml,' REJECTCONT = '+string(obscont)
+  endif else printf,nml,' OBSCONT =  0'
   printf,nml,' FFILE = '+"'./"+file+".obs'"
   printf,nml,' SFFILE = '+"'./"+file+".frd'"
 endif else begin

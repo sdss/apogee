@@ -85,7 +85,12 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
     grid=[['plots/hr.png','plots/multihr.png'],  
           ['plots/giant_teffcomp.jpg','plots/giant_teffcomp_b.jpg'], 
           ['plots/loggcomp.jpg','plots/loggcomp_b.jpg']] 
-    html.htmltab(grid,file=out.replace('.fits','.html'))
+    #html.htmltab(grid,file=out.replace('.fits','.html'))
+    f=html.head(file=out.replace('.fits','.html'))
+    f.write(html.table(grid))
+    j=np.where( (all['APOGEE_ID'] == 'VESTA') | (all['APOGEE_ID'] == 'alpha_Boo') )[0]
+    f.write(html.table(all['FPARAM'][j],plots=False,ytitle=['VESTA','alpha_Boo'],xtitle=aspcap.params()[0]))
+    html.tail(f)
     
 
     return all

@@ -88,8 +88,10 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
     #html.htmltab(grid,file=out.replace('.fits','.html'))
     f=html.head(file=out.replace('.fits','.html'))
     f.write(html.table(grid))
-    j=np.where( (all['APOGEE_ID'] == 'VESTA') | (all['APOGEE_ID'] == 'alpha_Boo') )[0]
-    f.write(html.table(all['FPARAM'][j],plots=False,ytitle=['VESTA','alpha_Boo'],xtitle=aspcap.params()[0]))
+    ids = ['VESTA','alpha_Boo']
+    j=[]
+    for id in ids: j.extend( np.where( np.core.defchararray.strip(all['APOGEE_ID']) == id) [0] )
+    f.write(html.table(all['FPARAM'][j],plots=False,ytitle=ids,xtitle=aspcap.params()[0]))
     html.tail(f)
     
 

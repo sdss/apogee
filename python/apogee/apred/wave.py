@@ -252,7 +252,8 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
 
     # now refine the solution by averaging zeropoint across all groups and
     # by fitting across different rows to require a smooth solution
-    newpars,newpwaves = refine(oldpars)
+    if ngroup > 1 : newpars,newwaves = refine(allpars)
+    else : newpars = allpars
 
     # save results in apWave fies
     out=load.filename('Wave',num=name,chips=True)   #.replace('Wave','PWave')

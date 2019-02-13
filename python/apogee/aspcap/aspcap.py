@@ -307,7 +307,7 @@ def intplot(a=None,param='FPARAM',indir='cal',apred='r10',aspcap='t33b',verbose=
     plt.close(sf)
     plt.close(fig)
 
-def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=False, hard=None, grid=None) :
+def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=False, hard=None, grid=None,xr=[8000,3000],yr=[6,1]) :
     """ Plot an HR diagram from input structure
 
         Args:
@@ -328,13 +328,13 @@ def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=False, hard=None, 
     elif zt == 'chi2' : 
         z=a['PARAM_CHI2']
         if zr is None : zr=[0,10]
-    plots.plotc(ax,teff,logg,z,xr=[8000,3000],yr=[6,-1],zr=zr,
+    plots.plotc(ax,teff,logg,z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
     plots._data = a
     if iso:
         colors=['b','g','k','r']
         for i,z in enumerate(['zm20','zm10','zp00','zp05']) :
-            isodata=isochrones.read(os.environ['ISOCHRONE_DIR']+'/'+z+'.dat',agerange=[8.99,9.01])
+            isodata=isochrones.read(os.environ['ISOCHRONE_DIR']+'/'+z+'.dat',agerange=[7.99,8.01])
             isochrones.plot(ax,isodata,'teff','logg',color=colors[i],alpha=0.3)
             isodata=isochrones.read(os.environ['ISOCHRONE_DIR']+'/'+z+'.dat',agerange=[9.99,10.01])
             isochrones.plot(ax,isodata,'teff','logg',color=colors[i],alpha=0.3)
@@ -343,7 +343,7 @@ def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=False, hard=None, 
         plt.close()
     return fig,ax
 
-def multihr(a,param='FPARAM',colorbar=False,hard=None) :
+def multihr(a,param='FPARAM',colorbar=False,hard=None,xr=[8000,3000],yr=[6,-1]) :
     """ Series of HR diagram plots, color-coded by different quantities
     """
     fig,ax = plots.multi(3,3,hspace=0.001,wspace=0.001,figsize=(8,12))
@@ -351,63 +351,63 @@ def multihr(a,param='FPARAM',colorbar=False,hard=None) :
     z=a[param][:,3]
     zr=[-2,0.5]
     zt='[M/H]'
-    plots.plotc(ax[0,0],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+    plots.plotc(ax[0,0],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
     ax[0,0].text(0.05,0.9,zt,transform=ax[0,0].transAxes)
 
     z=10.**a[param][:,2]
     zr=[0.3,4]
     zt='vmicro'
-    plots.plotc(ax[0,1],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+    plots.plotc(ax[0,1],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[0,1].text(0.05,0.9,zt,transform=ax[0,1].transAxes)
 
     z=10.**a[param][:,7]
     zr=[0,10]
     zt='vrot'
-    plots.plotc(ax[0,2],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+    plots.plotc(ax[0,2],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[0,2].text(0.05,0.9,zt,transform=ax[0,2].transAxes)
 
     z=a[param][:,4]
     zr=[-0.5,0.5]
     zt='[C/M]'
-    plots.plotc(ax[1,0],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+    plots.plotc(ax[1,0],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
     ax[1,0].text(0.05,0.9,zt,transform=ax[1,0].transAxes)
 
     z=a[param][:,5]
     zr=[-0.5,0.5]
     zt='[N/M]'
-    plots.plotc(ax[1,1],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+    plots.plotc(ax[1,1],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[1,1].text(0.05,0.9,zt,transform=ax[1,1].transAxes)
 
     z=a[param][:,4]-a[param][:,5]
     zr=[-0.5,0.5]
     zt='[C/N]'
-    plots.plotc(ax[1,2],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+    plots.plotc(ax[1,2],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[1,2].text(0.05,0.9,zt,transform=ax[1,2].transAxes)
 
     z=a[param][:,6]
     zr=[-1,1.0]
     zt=r'[$\alpha$/M]'
-    plots.plotc(ax[2,0],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+    plots.plotc(ax[2,0],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
     ax[2,0].text(0.05,0.9,zt,transform=ax[2,0].transAxes)
 
     z=a['PARAM_CHI2']
     zr=[0,10]
     zt='CHI2'
-    plots.plotc(ax[2,1],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+    plots.plotc(ax[2,1],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[2,1].text(0.05,0.9,zt,transform=ax[2,1].transAxes)
 
     z=a['MEANFIB']
     zr=[0,300]
     zt='MEANFIB'
-    plots.plotc(ax[2,2],a[param][:,0],a[param][:,1],z,xr=[8000,3000],yr=[6,-1],zr=zr,
+    plots.plotc(ax[2,2],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[2,2].text(0.05,0.9,zt,transform=ax[2,2].transAxes)
 

@@ -77,7 +77,8 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
 
     try: os.mkdir('plots/')
     except: pass
-    aspcap.hr(all,hard='plots/hr.png')
+    aspcap.hr(all,hard='plots/hr.png',xr=[8000,3000])
+    aspcap.hr(all,hard='plots/hrhot.png',xr=[20000,3000],iso=True)
     aspcap.multihr(all,hard='plots/multihr.png')
     teffcomp.ghb(all,ebvmax=0.02,glatmin=10,out='plots/giant_teffcomp',yr=[-750,750],dwarf=False,calib=False)
     loggcomp.apokasc(all,plotcal=False,out='plots/loggcomp',calib=False)

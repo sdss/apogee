@@ -332,7 +332,7 @@ CASE exptype of
       pix=indgen(2048)
       gd=where(pix lt 1200 or pix gt 1800)
       fit=robust_poly_fit(pix[gd],refspec0[gd,0],3)
-      ;refspec0[*,0] = poly(pix,fit)
+      refspec0[*,0] = poly(pix,fit)
     endif
 
     ; Before Dec 2018, we fit a polynomial to the spectra, all chips together

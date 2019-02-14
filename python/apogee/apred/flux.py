@@ -62,6 +62,21 @@ def getresp(plate,mjd,apred='r12',telescope='apo25m',plot=False) :
             plt.clf()
         file=load.filename('Plate',plate=plate,mjd=mjd,apred=apred,chips=True).replace('Plate-','Plate-'+chip+'-')
         apPlate[chip].writeto(file,overwrite=True)
+    # now do the apVisit files
+    for row in np.arange(300) :
+        try:
+            print('Row: ', row)
+            apVisit=load.apVisit(plate,mjd,300-row)
+            for ichip in range(3) :
+                print(ichip)
+                w=apVisit[4].data[ichip,:]
+                resp=norm(w,coef)
+                apVisit[1].data[ichip,:] /= resp
+            file=load.filename('Visit',plate=plate,mjd=mjd,apred=apred,fiber=300-row)
+            print(file)
+            apVisit.writeto(file,overwrite=True)
+            print('done')
+        except : pass
 
 def norm(w,coef) :
     """ Evaluate the polynomial fit

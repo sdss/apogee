@@ -40,6 +40,71 @@ if nframe eq 0 or nplugmap eq 0 then begin
   return
 endif
 
+outframe = frame   ; the format is the same
+
+; first get relative flux curve using tellurics
+j = where(plugmap.fiberdata.spectrographid eq 2 and $
+             plugmap.fiberdata.holetype eq 'OBJECT' and $
+             plugmap.fiberdata.objtype eq 'HOT_STD',nstars)
+tell=plugmap.fiberdata[j].fiberid
+
+; do polynomial fit to log(flux), with 4th order plus offset fo each star,
+; using every 10th pixel in each chip, so we have 190 pixels * 3 chips * ntelluric data points
+; and 4 + ntellurics parameters
+npix=190
+design=fltarr(3*npix*nstars,4+nstars)
+y=fltarr(3*npix*nstars)
+for ichip=0,2 do begin
+  x=outframe.(ichip).wavelength - 16000.
+  for irow=0,nstars-1 do begin
+    row=300-tell[irow]
+    design[irow*3*npix+ichip*npix:irow*3*npix+ichip*npix+npix-1,0] = x[100:1990:10,row]^4
+    design[irow*3*npix+ichip*npix:irow*3*npix+ichip*npix+npix-1,1] = x[100:1990:10,row]^3
+    design[irow*3*npix+ichip*npix:irow*3*npix+ichip*npix+npix-1,2] = x[100:1990:10,row]^2
+    design[irow*3*npix+ichip*npix:irow*3*npix+ichip*npix+npix-1,3] = x[100:1990:10,row]
+    design[irow*3*npix+ichip*npix:irow*3*npix+ichip*npix+npix-1,4+irow] = 1.
+    y[irow*3*npix+ichip*npix:irow*3*npix+ichip*npix+npix-1] = alog10(outframe.(ichip).flux[100:1990:10,row])
+  endfor
+endfor
+gd=where(finite(y) eq 1)
+design=design[gd,*]
+y=y[gd]
+; do the fit
+a=matrix_multiply(design,design,/atranspose)
+b=matrix_multiply(design,y,/atranspose)
+pars=invert(a)#b
+
+if keyword_set(pl) then begin
+ for irow=0,nstars-1 do begin
+  row=300-tell[irow]
+  for ichip=0,2 do begin
+    w=outframe.(ichip).wavelength[*,row]
+    spec=outframe.(ichip).flux[*,row]
+    x = w-16000.
+    logflux = pars[0]*x^4 + pars[1]*x^3 + pars[2]*x^2 + pars[3]*x
+    logflux += 2*alog10(w/16000.)
+    resp= 10.^logflux
+    if ichip eq 0 then plot,w,spec,xr=[15100,17000] else oplot,w,spec
+    oplot,w,spec/resp,color=255
+
+  endfor
+  stop
+ endfor
+endif
+
+; apply the fit. Note that norm adds a term so that response gives 1/lambda**-2 shape
+for ichip=0,2 do begin
+  for irow=0,299 do begin 
+    w=outframe.(ichip).wavelength[*,row]
+    spec=outframe.(ichip).flux[*,row]
+    x = w-16000.
+    logflux = pars[0]*x^4 + pars[1]*x^3 + pars[2]*x^2 + pars[3]*x
+    logflux += 2*alog10(w/16000.)
+    resp= 10.^logflux
+    outframe.(ichip).flux[*,irow] = spec/resp
+  endfor
+endfor
+
 ; simple normalization based on H magnitude, since conversion to F_lambda has already been done with response curve
 skyind = where(plugmap.fiberdata.spectrographid eq 2 and $
                plugmap.fiberdata.holetype eq 'OBJECT' and $
@@ -51,7 +116,6 @@ endif else medsky=0
 objind = where(plugmap.fiberdata.spectrographid eq 2 and $
                plugmap.fiberdata.holetype eq 'OBJECT' and $
                plugmap.fiberdata.objtype ne 'SKY',nobjind)
-outframe = frame   ; the format is the same
 zero=fltarr(n_elements(objind))
 norm=fltarr(n_elements(objind))
 print,'Fluxing: '

@@ -1,5 +1,4 @@
 pro ap1dfluxing,frame,plugmap,outframe,silent=silent,verbose=verbose,pl=pl,stp=stp
-
 ;+
 ;
 ; AP1DFLUXING
@@ -23,6 +22,7 @@ pro ap1dfluxing,frame,plugmap,outframe,silent=silent,verbose=verbose,pl=pl,stp=s
 ;  IDL>ap1dfluxing,frame,plugmap,outframe
 ;
 ; By D. Nidever  May 2010
+; mods, J. Holtzman 2013 and 2019
 ;-
 
 apgundef,outframe
@@ -74,6 +74,7 @@ a=matrix_multiply(design,design,/atranspose)
 b=matrix_multiply(design,y,/atranspose)
 pars=invert(a)#b
 
+; with plot option, show results for tellurics
 if keyword_set(pl) then begin
  for irow=0,nstars-1 do begin
   row=300-tell[irow]
@@ -92,20 +93,25 @@ if keyword_set(pl) then begin
  endfor
 endif
 
-; apply the fit. Note that norm adds a term so that response gives 1/lambda**-2 shape
+; apply the fit. Note that a term is added so that response gives 1/lambda**-4 shape
 for ichip=0,2 do begin
   for irow=0,299 do begin 
     w=outframe.(ichip).wavelength[*,row]
     spec=outframe.(ichip).flux[*,row]
     x = w-16000.
     logflux = pars[0]*x^4 + pars[1]*x^3 + pars[2]*x^2 + pars[3]*x
-    logflux += 2*alog10(w/16000.)
+    logflux += 4*alog10(w/16000.)
     resp= 10.^logflux
-    outframe.(ichip).flux[*,irow] = spec/resp
+    outframe.(ichip).flux[*,irow] /= resp
+    bderr=where(outframe.(ichip).err[*,irow] eq baderr(),nbd)
+    outframe.(ichip).err[*,irow] /= resp
+    if nbd gt 0 then outframe.(ichip).err[bderr,irow] = baderr()
+    outframe.(ichip).sky[*,irow] /= resp
+    outframe.(ichip).skyerr[*,irow] /= resp
   endfor
 endfor
 
-; simple normalization based on H magnitude, since conversion to F_lambda has already been done with response curve
+; simple absolute normalization based on H magnitude, since conversion to F_lambda has already been done with response curve
 skyind = where(plugmap.fiberdata.spectrographid eq 2 and $
                plugmap.fiberdata.holetype eq 'OBJECT' and $
                plugmap.fiberdata.objtype eq 'SKY',nskyind)
@@ -187,6 +193,9 @@ endfor
 outframe = create_struct(outframe,'FLUXCORR',fluxcorr)
 return
 
+;==========================
+; remainder is unused
+;=========================
 ; Constants
 ;h = 6.626076d-34  ; planck's constant (J s)
 hconst_cgs = 6.626076d-27          ; planck's constant (erg s)

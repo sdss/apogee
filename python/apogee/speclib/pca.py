@@ -72,6 +72,9 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
         print('{:s} does not exist'.format(planfile))
         return
     p=yanny.yanny(planfile,np=True)
+    if not p.get('oa0') : p['oa0'] = 0.
+    if not p.get('doa') : p['doa'] = 0.
+    if not p.get('noa') : p['noa'] = 1
 
     if dir is None :
         if int(p['solarisotopes']) == 1 : isodir = 'solarisotopes'
@@ -91,7 +94,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
         p['nnm'] = '1'
         outfile = 'test'+outfile
 
-    nmod = int(p['nvt'])*int(p['ncm'])*int(p['nnm'])*int(p['nam'])*int(p['nrot'])*int(p['nmh'])*int(p['nlogg'])*int(p['nteff'])
+    nmod = int(p['noa'])*int(p['nvt'])*int(p['ncm'])*int(p['nnm'])*int(p['nam'])*int(p['nrot'])*int(p['nmh'])*int(p['nlogg'])*int(p['nteff'])
 
     # loop over requested combinations of npieces and npca
     if pcas is None : pcas = (int(p['npart']),int(p['npca']))
@@ -107,7 +110,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
     indata['rawsynth'] = rawsynth
     indata['prefix'] = prefix
     indata['incremental'] = incremental
-    for key in ['am0','dam','nam','cm0','dcm','ncm','nm0','dnm','nnm','vt0','dvt','nvt','mh0','dmh','nmh','logg0','dlogg','nlogg','teff0','dteff','nteff','rot0','drot','nrot'] :
+    for key in ['oa0','doa','noa','am0','dam','nam','cm0','dcm','ncm','nm0','dnm','nnm','vt0','dvt','nvt','mh0','dmh','nmh','logg0','dlogg','nlogg','teff0','dteff','nteff','rot0','drot','nrot'] :
         indata[key] = p[key]
 
     # determine number of pixels per piece
@@ -245,7 +248,7 @@ def dopca(pars) :
         pca = PCA(n_components=npca,whiten=whiten)
 
     # load data for this piece
-    pcadata=np.zeros([int(p['nam'])*int(p['ncm'])*int(p['nnm'])*int(p['nvt'])*
+    pcadata=np.zeros([int(p['noa'])*int(p['nam'])*int(p['ncm'])*int(p['nnm'])*int(p['nvt'])*
                       int(p['nrot'])*int(p['nmh'])*int(p['nlogg'])*int(p['nteff']),npix],dtype=np.float32)
     nmod=0
     pix_apstar=aspcap.gridPix()
@@ -256,12 +259,20 @@ def dopca(pars) :
     else :
         nwave=aspcap.nw_chip.sum()
 
-    for ivm,vm in enumerate(spectra.vector(p['vt0'],p['dvt'],p['nvt'])) :
+    for ioa,oa in enumerate(spectra.vector(p['oa0'],p['doa'],p['noa'])) :
+     for ivm,vm in enumerate(spectra.vector(p['vt0'],p['dvt'],p['nvt'])) :
       for icm,cm in enumerate(spectra.vector(p['cm0'],p['dcm'],p['ncm'])) :
         for inm,nm in enumerate(spectra.vector(p['nm0'],p['dnm'],p['nnm'])) :
           for iam,am in enumerate(spectra.vector(p['am0'],p['dam'],p['nam'])) :
-            file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
-                   atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
+            if int(p['noa']) == 1 and int(p['nvt']) >= 1 :
+              file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
+                     atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
+            elif int(p['noa']) > 1 and int(p['nvt']) == 1 :
+              file=('a{:s}c{:s}n{:s}o{:s}.fits').format(
+                     atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(oa))
+            else :
+              file=('a{:s}c{:s}n{:s}.fits').format(
+                     atmos.cval(am),atmos.cval(cm),atmos.cval(nm))
             # read file and pack into ASPCAP grid size
             sap=fits.open(indir+prefix+file)[0].data
             sap=sap.reshape((int(p['nrot']),int(p['nmh']),int(p['nlogg']),int(p['nteff']),sap.shape[-1]))

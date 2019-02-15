@@ -324,22 +324,32 @@ CASE exptype of
       ;refspec0[*,i] = smmaxspec 
     end
 
+
     ; we want to take out spectral structure of the lamp, which we
     ; do by fitting a global polynomial. However, at LCO there is structure
-    ; in the red chip that is apparently from the lamp, so for that particular
-    ; chip, substitute a low order fit, masking the bad regions
-    if dirs.telescope eq 'lco25m' then begin
-      pix=indgen(2048)
-      gd=where(pix lt 1200 or pix gt 1800)
-      fit=robust_poly_fit(pix[gd],refspec0[gd,0],3)
-      refspec0[*,0] = poly(pix,fit)
-    endif
+    ; in the red chip that is apparently from the lamp/screen, so for that particular
+    ; chip, we want to preserve that feature in the reference spectrum, so it
+    ; is not propagated
 
-    ; Before Dec 2018, we fit a polynomial to the spectra, all chips together
+    ; fit a polynomial to the spectra, all chips together, avoiding LCO red dip
     x = [ [findgen(npix)-1023.5-2048-150], [findgen(npix)-1023.5], [findgen(npix)-1023.5+2048+150] ]
-    coef = robust_poly_fit(x,refspec0,4)
+    if dirs.telescope eq 'lco25m' then begin
+      pix=indgen(3*npix)
+      gd=where(pix lt 700 or pix gt 1900)
+      coef = robust_poly_fit(x[gd],refspec0[gd],4)
+    endif else coef = robust_poly_fit(x,refspec0,4)
     ;; We're using the polynomial fit
     refspec = poly(x,coef)
+
+    ; try to get the LCO dip from the ratio of red chip flux to a low order fit
+    ; and multiply that back into the reference spectrum
+    if dirs.telescope eq 'lco25m' then begin
+      pix=indgen(2048)
+      gd=where(pix lt 700 or pix gt 1900)
+      fit=robust_poly_fit(pix[gd],refspec0[gd,0],2)
+      dip = refspec0[*,0]/poly(pix,fit)
+      refspec[*,0] *= dip
+    endif
 
     ; chip by chip fit used to remove small scale structure
     ;refspec=refspec0*0.

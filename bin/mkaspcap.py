@@ -34,7 +34,7 @@ if __name__ == '__main__' :
     parser.add_argument("--npar",type=int,default=0)
     parser.add_argument("--renorm",type=int,default=0)
     parser.add_argument("--maxwind",type=int,default=0)
-    parser.add_argument("--fields",type=str,nargs='+',help='list of fields')
+    parser.add_argument("--fields",type=str,nargs='+',help='list of fields',default=[])
     args=parser.parse_args()
 
     for field in args.fields :

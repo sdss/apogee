@@ -260,7 +260,7 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
     save_apWave(newpars,out=out,npoly=npoly,rows=rows,frames=frames,rms=rms,sig=sig,allpars=allpars)
 
     if plot : 
-        plot_apWave(name,apred=apred,inst=inst,hard=hard)
+        plot_apWave(name,apred=vers,inst=inst,hard=hard)
         # individual lines from last row
         if hard :
             try : os.mkdir(os.path.dirname(root))

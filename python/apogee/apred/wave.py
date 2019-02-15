@@ -1228,7 +1228,8 @@ def refine(oldpars,npoly=4) :
             # global slope with rows
             design[ichip*300+np.arange(300),0] = np.arange(300)
             design[ichip*300+np.arange(300),ichip+1] = 1.
-            y[ichip*300+np.arange(300)] = allpars[npoly+iframe*3+ichip,:]-allpars[npoly+ichip,:]
+            gd = np.where(allpars[npoly+iframe*3+ichip,:] != 0.)[0]
+            y[ichip*300+np.arange(300)[gd]] = allpars[npoly+iframe*3+ichip,gd]-allpars[npoly+ichip,gd]
         # reject bad fibers
         gd=np.where((abs(y) > 1.e-5) & (abs(y) < 200.))[0]
         design=design[gd,:]
@@ -1236,9 +1237,11 @@ def refine(oldpars,npoly=4) :
         # solve and replace offsets with offsets adjusted to first group dither position
         try : 
             w = np.linalg.solve(np.dot(design.T,design), np.dot(design.T, y))
-            for ichip in range(3) : allpars[npoly+iframe*3+ichip,:] -= (w[0]*np.arange(300) + w[ichip+1])
+            for ichip in range(3) : 
+                gd = np.where(allpars[npoly+iframe*3+ichip,:] != 0.)[0]
+                allpars[npoly+iframe*3+ichip,gd] -= (w[0]*np.arange(300)[gd] + w[ichip+1])
         except : 
-            print('fit failed ....')
+            print('fit failed ....frame:',iframe)
             pdb.set_trace()
     # replace chip offsets of first group with average chip offsets
     # then calculate wavelength array for all chips and rows with this fit
@@ -1263,8 +1266,13 @@ def refine(oldpars,npoly=4) :
         # to reduce noise further, fit relative wavelengths across rows and use the fit values for smoothed array
         rows=np.arange(300)
         for col in range(2048) :
-            pfit = np.polyfit(rows,waves[chip][:,col]-waves[chip][:,1024],3)
-            swaves[chip][:,col] = np.polyval(pfit,rows) + waves[chip][:,1024]
+            try :
+                gd = np.where( np.isfinite(waves[chip][:,col]-waves[chip][:,1024]) )[0]
+                pfit = np.polyfit(rows[gd],waves[chip][gd,col]-waves[chip][gd,1024],3)
+                swaves[chip][:,col] = np.polyval(pfit,rows) + waves[chip][:,1024]
+            except :
+                print('fit across rows failed, col: ',col)
+                pdb.set_trace()
 
     # now refit the full wavelength solutions using swaves as input
     newpars=[]
@@ -1282,7 +1290,13 @@ def refine(oldpars,npoly=4) :
         bounds = ( np.zeros(len(pars))-np.inf, np.zeros(len(pars))+np.inf)
         bounds[0][npoly+1] = -1.e-7
         bounds[1][npoly+1] = 1.e-7
-        popt,pcov = curve_fit(func_multi_poly,x,y,p0=pars,bounds=bounds)
+        try :
+            popt,pcov = curve_fit(func_multi_poly,x,y,p0=pars,bounds=bounds)
+        except :
+            print('Solution failed for row: ', row)
+            # if this is a row without a prior solution, just set to 0 and continue, else stop
+            if allpars[4,row] != 0. : pdb.set_trace()
+            popt = pars*0.
         newpars.append(popt)
         # calculate wavelength arrays from refined solution
         x = np.zeros([3,2048])

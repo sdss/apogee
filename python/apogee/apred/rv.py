@@ -116,7 +116,10 @@ def field(name,dr14=False,dir='./') :
     """ look at a single field
     """
     all=struct.concat([dir+'/apVisitSum*.fits'])
-    alldr14=struct.concat([os.environ['APOGEE_REDUX']+'/r8/fields/apo25m/4162//apVisitSum*'])
+    if name == 'M67' : locid=[os.environ['APOGEE_REDUX']+'/r8/fields/apo25m/4162//apVisitSum*']
+    elif name == 'N188' : locid=[os.environ['APOGEE_REDUX']+'/r8/fields/apo25m/4217//apVisitSum*', 
+                                 os.environ['APOGEE_REDUX']+'/r8/fields/apo25m/5067//apVisitSum*']
+    alldr14=struct.concat(locid)
     objs = set(all['APOGEE_ID'])
     vhelio = []
     vscat = []

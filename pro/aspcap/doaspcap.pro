@@ -66,7 +66,7 @@ endif
 if n_elements(noplot) eq 0 then noplot=apsetpar(planstr,'noplot',0)
 if not keyword_set(doelemplot) then doelemplot=apsetpar(planstr,'doelemplot',0)
 if keyword_set(altmaskdir) then altmaskdir=getenev('APOGEE_DIR')+'/data/windows/'+altmaskdir else undefine,altmaskdir
-if not keyword_set(noelem) then noelem=apsetpar(planstr,'noelem',0)
+if n_elements(noelem) eq 0 then noelem=apsetpar(planstr,'noelem',0)
 if not keyword_set(maxwind) then maxwind=apsetpar(planstr,'maxwind',0)
 if not keyword_set(caldir) then caldir=apsetpar(planstr,'caldir',0)
 ; directories
@@ -467,7 +467,7 @@ for idir=0,n_elements(datadir)-1 do begin
    print,'done correct'
   endif
   cd,cwd
-TOC
+  TOC
   nextclass: 
  endfor ; nclass
 
@@ -511,16 +511,17 @@ TOC
    for ielem=0,n_elements(elem)-1 do begin
      jelem=where(strtrim(elem_order,2) eq strtrim(elem[ielem],2),norder)
      if norder eq 0 then stop,'cant match elem in aspcap_elems'
-TOC
+     clock=TIC(elem[ielem])
+     TOC
      print,'Element:', elem[ielem]
      if file_test(configdir+'/'+elem[ielem]+'.elem.par') then $
-     aploadplan,configdir+'/'+elem[ielem]+'.elem.par',libpar,str='PLOCK' else $
-     aploadplan,configdir+'/'+elem[ielem]+'.par',libpar,str='PLOCK' 
+     aploadplan,configdir+'/'+elem[ielem]+'.elem.par',libpar,str='INFO' else $
+     aploadplan,configdir+'/'+elem[ielem]+'.par',libpar,str='INFO' 
 
      ; loop over all classes for which this element can be derived (given in .par file)
-     for iclass=0,n_elements(libpar.class)-1 do begin
-       print,'  class: ', libpar.class[iclass]
-       libfile=libr_path+libpar.lib[iclass]
+     for iclass=0,n_elements(libpar.info)-1 do begin
+       print,'  class: ', libpar.info[iclass].class
+       libfile=libr_path+libpar.info[iclass].libs
        rdlibhead,libfile,libhead0,libhead
 
        index=intarr(n_elements(libhead[0].label))
@@ -528,8 +529,8 @@ TOC
             index[ipar]=where(params eq strtrim(libhead[0].label[ipar],2))
        cindex=where(libhead[0].label eq 'C')
        cfit=where(elem_order eq 'C')
-       if tag_exist(libpar,'mask') then begin
-         filterfile=configdir+'/'+libpar.mask[iclass]+'.mask'
+       if tag_exist(libpar.info[iclass],'mask') then begin
+         filterfile=configdir+'/'+libpar.info[iclass].mask+'.mask'
          readcol,filterfile,mask,/silent
          npix=n_elements(mask)
        endif else begin
@@ -538,7 +539,7 @@ TOC
        endelse
 
        ; with maxwind keyword, we will loop over the full set of windows plus each individual window
-       if keyword_set(maxwind) and file_test(configdir+elem[ielem]+'.wind') and ~tag_exist(libpar,'minigrid') then begin
+       if keyword_set(maxwind) and file_test(configdir+elem[ielem]+'.wind') and ~tag_exist(libpar.info,'minigrid') then begin
          readcol,configdir+elem[ielem]+'.wind',w1,w2,w3
          nwind=n_elements(w1)
        endif else nwind=0
@@ -548,17 +549,17 @@ TOC
          iformat="(a,"+string(2*libhead0.n_of_dim)+"(F10.3))"
          fformat="("+string(npix)+"(F12.6))"
          eformat="("+string(npix)+"(F12.6))"
-         outname=elem[ielem]+'-'+libpar.class[iclass]+'-'+oname[idir]
+         outname=elem[ielem]+'-'+libpar.info[iclass].class+'-'+oname[idir]
          file_mkdir,workdir
          if tag_exist(libpar,'indi') then indi=libpar.indi else undefine,indi
-         if tag_exist(libpar,'indini') then indini=libpar.indini[iclass] else undefine,indini
-         if tag_exist(libpar,'renorm') then renorm=libpar.renorm[iclass]
-         writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.indv[iclass],$
-            indini=indini,interord=libpar.inter[iclass],$
-            filterfile=configdir+'/'+libpar.mask[iclass]+suffix+'.mask',$
-            findi=indi,errbar=errbar,renorm=abs(renorm),obscont=obscont
+         if tag_exist(libpar.info,'indini') then indini=libpar.info[iclass].indini else undefine,indini
+         if tag_exist(libpar.info,'renorm') then renorm=libpar.info[iclass].renorm
+         writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.info[iclass].indv,$
+            indini=indini,interord=libpar.info[iclass].inter,$
+            filterfile=configdir+'/'+libpar.info[iclass].mask+suffix+'.mask',$
+            findi=indi,errbar=errbar,renorm=abs(renorm),obscont=obscont,ttie=libpar.info[iclass].ttie
          openw,ipf,workdir+outname+'.ipf',/get_lun
-         if tag_exist(libpar,'minigrid') then minigrid=libpar.minigrid[iclass] else minigrid=''
+         if tag_exist(libpar.info,'minigrid') then minigrid=libpar.info[iclass].minigrid else minigrid=''
          if minigrid ne '' then begin
            ; with minigrid, write flux and err files in workdir
            readcol,getenv('APOGEE_DIR')+'/data/windows/'+minigrid+'/'+elem[ielem]+'.wave',w1,w2,format='(d,d)'
@@ -568,14 +569,14 @@ TOC
            openw,err,workdir+outname+'.err',/get_lun
          endif else if firstelem eq 1 then begin
            ; only write spectra and uncertainties for first element, for others we will link to this
-           openw,frd,specdir+libpar.class[iclass]+'-'+oname+frdsuffix,/get_lun
-           openw,err,specdir+libpar.class[iclass]+'-'+oname+'.err',/get_lun
+           openw,frd,specdir+libpar.info[iclass].class+'-'+oname+frdsuffix,/get_lun
+           openw,err,specdir+libpar.info[iclass].class+'-'+oname+'.err',/get_lun
          endif
          if keyword_set(nstars) then nobj=nstars else nobj=n_elements(finalstr.param)
          ; get parameters for all objects whose best fit was current class
          nfit=0
          for i=0,nobj-1 do begin
-           if finalstr.param[i].class eq libpar.class[iclass] then begin
+           if finalstr.param[i].class eq libpar.info[iclass].class then begin
              init=finalstr.param[i].fparam[index]
              if minigrid ne '' then begin
                missing=where(index lt 0,nmissing)
@@ -613,8 +614,8 @@ TOC
          if minigrid eq '' then begin
            file_delete,workdir+outname+frdsuffix,/allow_non
            file_delete,workdir+outname+'.err',/allow_non
-           file_link,'../spectra/'+libpar.class[iclass]+'-'+oname+frdsuffix,workdir+outname+frdsuffix
-           file_link,'../spectra/'+libpar.class[iclass]+'-'+oname+'.err',workdir+outname+'.err'
+           file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+frdsuffix,workdir+outname+frdsuffix
+           file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+'.err',workdir+outname+'.err'
          endif
          if nfit gt 0 then begin
            if not file_test(workdir+outname+'.spm') or keyword_set(clobber) then begin
@@ -627,13 +628,13 @@ TOC
            endif
            TOC
            if minigrid ne '' then $
-           outindex=where(aspcap_params(extra=elem[ielem]) eq libhead0.label[libpar.indv[iclass]-1]) else $
-           outindex=where(aspcap_params() eq libhead0.label[libpar.indv[iclass]-1])
+           outindex=where(aspcap_params(extra=elem[ielem]) eq libhead0.label[libpar.info[iclass].indv-1]) else $
+           outindex=where(aspcap_params() eq libhead0.label[libpar.info[iclass].indv-1])
            ; to read the FERRE files, use the main class parameter file with the correct PLOCKs for this class
-           aploadplan,configdir+'/'+libpar.class[iclass]+'.par',classpar,str='PLOCK' 
+           aploadplan,configdir+'/'+libpar.info[iclass].class+'.par',classpar,str='PLOCK' 
            if minigrid eq '' then  begin
              str=aspcap_loadferre(workdir+outname,classpar,libfile,npar=npar,/elemfit) 
-             readcol,configdir+'/'+libpar.mask[iclass]+'.mask',mask,/silent
+             readcol,configdir+'/'+libpar.info[iclass].mask+'.mask',mask,/silent
              gd=where(mask gt 0.,ngd)
            endif else begin
              str=aspcap_loadferre(workdir+outname,classpar,libfile,npar=npar,extra=elem[ielem],/elemfit)
@@ -666,7 +667,7 @@ TOC
            ; clean up if we didn't do any fits
            file_delete,workdir+'input.nml',/allow_non
            file_delete,workdir+'lib',/allow_non
-           file_delete,workdir+outname+'.nml',/allow_non
+ ;          file_delete,workdir+outname+'.nml',/allow_non
            file_delete,workdir+outname+'.ipf',/allow_non
            file_delete,workdir+outname+frdsuffix,/allow_non
            file_delete,workdir+outname+'.err',/allow_non
@@ -674,6 +675,8 @@ TOC
        endfor ; nwind
      endfor  ; nclass
      ;if minigrid ne '' then stop
+     dt=TOC(clock)
+     print,'elem:',elem[ielem],dt
    endfor  ; nelem
    finalstr={param: newparam, spec: newspec, lib: newlib}
    if not keyword_set(noplot) and doelemplot gt 0 then begin

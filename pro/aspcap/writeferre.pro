@@ -1,4 +1,4 @@
-pro writeferre,outdir,file,libhead,nruns=nruns,interord=interord,direct=direct,pca=pca,ncpus=ncpus,indv=indv,findi=findi,indini=indini,init=init,filterfile=filterfile,errbar=errbar,renorm=renorm,obscont=obscont
+pro writeferre,outdir,file,libhead,nruns=nruns,interord=interord,direct=direct,pca=pca,ncpus=ncpus,indv=indv,findi=findi,indini=indini,init=init,filterfile=filterfile,errbar=errbar,renorm=renorm,obscont=obscont,ttie=ttie
 
 ; routine to write FERRE input file
 
@@ -58,6 +58,16 @@ if keyword_set(indini) then begin
     print,'Error in INDINI array!'
     stop
   endif
+endif
+if keyword_set(ttie) then begin
+  j=where(ttie gt 0,ntie)
+  printf,nml,' NTIE =',ntie
+  printf,nml,' TYPETIE = 1'
+  for i=0,ntie-1 do begin
+    printf,nml,format='(A,I1,A,I1)', ' INDTIE(',i+1,') = ',ttie[j[i]]
+    printf,nml,format='(A,I1,A)', ' TTIE0(',i+1,') = 0.'
+    printf,nml,format='(A,I1,A,I1,A)', ' TTIE(',i+1,',',indv,') = -1.'
+  endfor
 endif
 printf,nml,' nruns='+strcompress(string(nruns),/remove_all)
 printf,nml,' algor=3'

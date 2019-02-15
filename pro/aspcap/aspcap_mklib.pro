@@ -208,92 +208,7 @@ for i=0,nclasses-1 do begin
   free_lun,out 
 endfor
 
-
-;if ~keyword_set(libdir) then libdir='asset/kurucz_filled/solarisotopes'
-;if ~keyword_set(prefix) then prefix='as'
-;if ~keyword_set(suffix) then suffix='131216_lsf150'
-;; classes should be specified in a single space-delimited string
-;if ~keyword_set(classes) then classes='GK'
-;if ~keyword_set(maskdir) then maskdir='filters_05062014'
-;tmp=strsplit(classes,/ext)
-;classes=tmp
-;if ~keyword_set(elem) then elem=['C','Al','Ca','Fe','K','Mg','Mn','Na','Ni','N','O','Si','S','Ti','V']
-;
-;if keyword_set(vpar) then begin
-;  npar=6 
-;  pre='p6'
-;  if keyword_set(carlos) then begin
-;    ; [M/H],[C/M],[N/M],[alpha/M],Teff,logg
-;    indini=[2,1,1,1,3,2]
-;    cfit=2
-;    nfit=3
-;    afit=4
-;    efit=1
-;  endif else begin
-;    indini=[1,1,1,2,2,3]
-;    cfit=1
-;    nfit=2
-;    afit=3
-;    efit=4
-;  endelse
-;endif else begin
-;  npar=7
-;  pre='p'
-;  if keyword_set(carlos) then begin
-;    ; [M/H],[C/M],[N/M],[alpha/M],vmicro,Teff,logg
-;    indini=[2,1,1,1,1,3,2]
-;    cfit=2
-;    nfit=3
-;    afit=4
-;    efit=1
-;  endif else begin
-;    indini=[1,1,1,1,2,2,3]
-;    cfit=2
-;    nfit=3
-;    afit=4
-;    efit=5
-;  endelse
-;endelse
-;
-;openw,list,outdir+'class.list',/get_lun
-;printf,list,'#'
-;printf,list,'#'
-;
-;for i=0,n_elements(classes)-1 do begin
-;  class=strtrim(classes[i],2)
-;  if strpos(class,'lowz') ge 0 then shortclass = strmid(class,0,strpos(class,'lowz')) else shortclass=class
-;  printf,list,class
-;  openw,out,outdir+class+'.par',/get_lun
-;  printf,out,'class '+class
-;  printf,out,'lib '+libdir+'/'+prefix+shortclass+'_'+suffix+'/'+pre+'_aps'+prefix+shortclass+'_'+suffix+'_w123'
-;  printf,out,'nov '+string(npar)
-;  printf,out,'indv '+string(indgen(npar)+1,format='(7i2)')
-;  printf,out,'indini '+string(indini,format='(7i2)')
-;  printf,out,'inter 3'
-;  if keyword_set(femin) then printf,out,'femin ',femin[i]
-;  printf,out,'typedef struct {'
-;  ;printf,out,'  int lock;'
-;  printf,out,'  char lock[16];'
-;  printf,out,'  float c[8];'
-;  printf,out,'} PLOCK;'
-;  ;printf,out,'# lock coefficients must be in correct parameter order'
-;  ;printf,out,'PLOCK 0 0. 0. 0. 0. 0. 0. 0. 0.          #  Teff'
-;  ;printf,out,'PLOCK 0 0. 0. 0. 0. 0. 0. 0.  0.         #  log g'
-;  if n_elements(vpar) gt 0 then  $
-;    printf,out,'PLOCK LOG10VDOP '+string(format='(8f8.3)',vpar[0],0.,vpar[1],0.,0.,0.,0.,0.)+'      #  vmicro' 
-;  if n_elements(rotpar) gt 0 then  $
-;    printf,out,'PLOCK LGVSINI '+string(format='(8f8.3)',rotpar[0],0.,0.,0.,0.,0.,0.,0.)+'      # rotation'
-;  if n_elements(opar) gt 0 then  $
-;    printf,out,'PLOCK O '+string(format='(8f8.3)',opar[0],0.,0.,0.,0.,0.,0.,0.)+'      # oxygen'
-;  ;else $
-;  ;  printf,out,'PLOCK 0 0. 0. 0. 0. 0. 0. 0.  0.         #  vmicro'
-;  ;printf,out,'PLOCK 0 0. 0. 0. 0. 0. 0. 0. 0.          #  [Fe/H]       '
-;  ;printf,out,'PLOCK 0 0. 0. 0. 0. 0. 0. 0. 0.          #  [C/M]'
-;  ;printf,out,'PLOCK 0 0. 0. 0. 0. 0. 0. 0. 0.          #  [N/M]'
-;  ;printf,out,'PLOCK 0 0. 0. 0. 0. 0. 0. 0. 0.          #  [alpha/M]'
-;  free_lun,out 
-;endfor
-;free_lun,list
+;Now do the individual elements
 
 openw,list,outdir+'elem.list',/get_lun
 printf,list,'#'
@@ -302,61 +217,69 @@ for i=0,n_elements(elem)-1 do begin
  el=strtrim(elem[i])
  if file_test(maskdir+'/'+el+'.filt') then begin
   printf,list,el
-  openw,out,outdir+el+'.elem.par',/get_lun
-  printf,out,'elem '+el
-  line=''
-  for j=0,n_elements(classes)-1 do line=line+classes[j]+' '
-  printf,out,'class '+line
-  line=''
-  for j=0,n_elements(classes)-1 do line=line+libs[j]+' '
-  printf,out,'lib '+line
-  line=''
-  for j=0,n_elements(classes)-1 do line=line+string(1)+' '
-  printf,out,'nov '+line
+  file_delete,outdir+el+'.mask',/allow
+  file_copy,maskdir+'/'+el+'.filt',outdir+el+'.mask'
   fit=efit
   if el eq 'C' or el eq 'CI' then fit=cfit 
   if el eq 'N' then fit=nfit 
   if el eq 'Ca' or el eq 'Mg' or el eq 'O' or el eq 'Si' or el eq 'S' or el eq 'Ti' or el eq 'TiII' then fit=afit
-  line=''
-  for j=0,n_elements(classes)-1 do line=line+string(fit[j])+' '
-  printf,out,'indv '+line
-  line=''
-  for j=0,n_elements(classes)-1 do line=line+string(1)+' '
-  printf,out,'indini '+line
-  line=''
-  for j=0,n_elements(classes)-1 do line=line+string(inter[j])+' '
-  printf,out,'inter '+line
-  line=''
-  for j=0,n_elements(classes)-1 do line=line+string(renorm[j])+' '
-  printf,out,'renorm '+line
-  line=''
-  for j=0,n_elements(classes)-1 do line=line+el+' '
-  printf,out,'mask '+line
-  file_delete,outdir+el+'.mask',/allow
-  file_copy,maskdir+'/'+el+'.filt',outdir+el+'.mask'
-  ;printf,out,'typedef struct {'
-  ;printf,out,'  char lock[16];'
-  ;printf,out,'  float c[8];'
-  ;printf,out,'} PLOCK;'
-  ;if n_elements(vpar) gt 0 then  $
-  ;  printf,out,'PLOCK LOG10VDOP '+string(format='(8f8.3)',vpar[0],0.,vpar[1],0.,0.,0.,0.,0.)+'      #  vmicro' 
-  ;if n_elements(rotpar) gt 0 then  $
-  ;  printf,out,'PLOCK LGVSINI '+string(format='(8f8.3)',rotpar[0],0.,0.,0.,0.,0.,0.,0.)+'      # rotation'
-  ;if n_elements(opar) gt 0 then  $
-  ;  printf,out,'PLOCK O '+string(format='(8f8.3)',opar[0],0.,0.,0.,0.,0.,0.,0.)+'      # oxygen'
-  ;printf,out,'# lock coefficients must be in correct parameter order as given by aspcap_params'
-  ;printf,out,'PLOCK 0 0. 0. 0. 0. 0. 0. 0. 0.          #  Teff'
-  ;printf,out,'PLOCK 0 0. 0. 0. 0. 0. 0. 0.  0.         #  log g'
-  ;if keyword_set(vpar) then  $
-  ;  printf,out,'PLOCK 1 '+string(format='(8f8.3)',vpar[0],0.,vpar[1],0.,0.,0.,0.,0.)+'      #  vmicro' $
-  ;else $
-  ;  printf,out,'PLOCK 0 0. 0. 0. 0. 0. 0. 0.  0.         #  vmicro'
-  ;printf,out,'PLOCK 0 0. 0. 0. 0. 0. 0. 0. 0.          #  [Fe/H]       '
-  ;printf,out,'PLOCK 0 0. 0. 0. 0. 0. 0. 0. 0.          #  [C/M]'
-  ;printf,out,'PLOCK 0 0. 0. 0. 0. 0. 0. 0. 0.          #  [N/M]'
-  ;printf,out,'PLOCK 0 0. 0. 0. 0. 0. 0. 0. 0.          #  [alpha/M]'
 
-  free_lun,out
+  ; old style puts everything in header with different columns for different grids
+  ;openw,out,outdir+el+'.elem.par',/get_lun
+  ;printf,out,'elem '+el
+  ;line=''
+  ;for j=0,n_elements(classes)-1 do line=line+classes[j]+' '
+  ;printf,out,'class '+line
+  ;line=''
+  ;for j=0,n_elements(classes)-1 do line=line+libs[j]+' '
+  ;printf,out,'lib '+line
+  ;line=''
+  ;for j=0,n_elements(classes)-1 do line=line+string(1)+' '
+  ;printf,out,'nov '+line
+  ;line=''
+  ;for j=0,n_elements(classes)-1 do line=line+string(fit[j])+' '
+  ;printf,out,'indv '+line
+  ;line=''
+  ;for j=0,n_elements(classes)-1 do line=line+string(1)+' '
+  ;printf,out,'indini '+line
+  ;line=''
+  ;for j=0,n_elements(classes)-1 do line=line+string(inter[j])+' '
+  ;printf,out,'inter '+line
+  ;line=''
+  ;for j=0,n_elements(classes)-1 do line=line+string(renorm[j])+' '
+  ;printf,out,'renorm '+line
+  ;line=''
+  ;for j=0,n_elements(classes)-1 do line=line+el+' '
+  ;printf,out,'mask '+line
+  ;free_lun,out
+
+  ; new style uses an INFO structure with one line per library
+  openw,new,outdir+el+'.elem.par',/get_lun
+  printf,new,'elem '+el
+  printf,new,' typedef struct {'
+  printf,new,'char class[16];'
+  printf,new,'char libs[132];'
+  printf,new,'int nov;'
+  printf,new,'int indv;'
+  printf,new,'int ttie[3];'
+  printf,new,'int indini;'
+  printf,new,'int inter;'
+  printf,new,'int renorm;'
+  printf,new,'char mask[8];'
+  printf,new,'} INFO;'
+  print,el
+  for j=0,n_elements(classes) -1 do begin
+    ttie=intarr(3)-1
+    if fit[j] eq efit[j] then begin
+      if cfit[j] ne efit[j] then ttie[0]=cfit[j]
+      if nfit[j] ne efit[j] then ttie[1]=nfit[j]
+      if afit[j] ne efit[j] then ttie[2]=afit[j]
+    endif
+    printf,new,'INFO ',classes[j],libs[j],1,fit[j],' { ',ttie,' } ',1,inter[j],renorm[j],el,format='(a,a,1x,a,i3,i3,a,3i3,a,i,i,i,1x,a)'
+    print,j,fit[j],efit[j],cfit[j],nfit[j],afit[j],ttie
+  endfor
+
+  free_lun,new
  endif
 endfor
 free_lun,list

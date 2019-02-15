@@ -307,7 +307,7 @@ def intplot(a=None,param='FPARAM',indir='cal',apred='r10',aspcap='t33b',verbose=
     plt.close(sf)
     plt.close(fig)
 
-def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=False, hard=None, grid=None,xr=[8000,3000],yr=[6,1]) :
+def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=False, hard=None, grid=None,xr=[8000,3000],yr=[6,-1]) :
     """ Plot an HR diagram from input structure
 
         Args:

@@ -75,6 +75,7 @@ b=matrix_multiply(design,y,/atranspose)
 pars=invert(a)#b
 
 ; with plot option, show results for tellurics
+pl=0
 if keyword_set(pl) then begin
  for irow=0,nstars-1 do begin
   row=300-tell[irow]
@@ -83,9 +84,10 @@ if keyword_set(pl) then begin
     spec=outframe.(ichip).flux[*,row]
     x = w-16000.
     logflux = pars[0]*x^4 + pars[1]*x^3 + pars[2]*x^2 + pars[3]*x
-    logflux += 2*alog10(w/16000.)
+    logflux += 4*alog10(w/16000.)
     resp= 10.^logflux
-    if ichip eq 0 then plot,w,spec,xr=[15100,17000] else oplot,w,spec
+    if ichip eq 0 then plot,w,spec,xr=[15100,17000],yr=[0,10000] else oplot,w,spec
+    oplot,w,10.^(logflux+pars[4+irow]),color=128
     oplot,w,spec/resp,color=255
 
   endfor

@@ -36,6 +36,9 @@ if __name__ == '__main__' :
     parser.add_argument("--waveid", type=int, help='ID for wavecal', default=None)
     parser.add_argument("--skyfile", type=str, help='Sky lines file', default='airglow')
     parser.add_argument("--nosky", help='No sky correction', action='store_true')
+    parser.add_argument("--frameid", type=int, help='Override for single frame', default=None)
+    parser.add_argument("--apred", type=str, help='apred_vers for single frame', default='current')
+    parser.add_argument("--telescope", type=str, help='telescope for single frame', default='apo25m')
     parser.add_argument("--done")
     parser.add_argument("--host")
     parser.add_argument('--clobber', help='Overwrite files?',action="store_true")
@@ -46,7 +49,10 @@ if __name__ == '__main__' :
     now = datetime.datetime.now()
     start = time.time()
     print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
-    wave.skycal(args.planfile,waveid=args.waveid,skyfile=args.skyfile,nosky=args.nosky)
+    if args.frameid == None :
+        wave.skycal(args.planfile,waveid=args.waveid,skyfile=args.skyfile,nosky=args.nosky)
+    else :
+        wave.getskywave(args.frameid,args.waveid,vers=args.apred,telescope=args.telescope)
     now = datetime.datetime.now()
     print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     print("elapsed: ",time.time()-start)

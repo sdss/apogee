@@ -260,7 +260,7 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
     save_apWave(newpars,out=out,npoly=npoly,rows=rows,frames=frames,rms=rms,sig=sig,allpars=allpars)
 
     if plot : 
-        plot_apWave(name,apred=vers,inst=inst,hard=hard)
+        plot_apWave([name],apred=vers,inst=inst,hard=hard)
         # individual lines from last row
         if hard :
             try : os.mkdir(os.path.dirname(root))
@@ -279,9 +279,9 @@ def plot_apWave(nums,apred='current',inst='apogee-n',out=None,hard=False) :
   yt=[]
   for num in nums :
     load=apload.ApLoad(apred=apred,instrument=inst)
-    wave=load.apWave(num),waves
+    wave=load.apWave(num)
     outname=load.filename('Wave',num=num,chips=True)
-    allpars=wave['a'][3].data
+    allpars=wave['a'][6].data
     rms=wave['a'][4].data
     sig=wave['a'][5].data
     ngroup=int(wave['a'][0].header['NGROUP'])
@@ -651,6 +651,15 @@ def skycal(planfile,out=None,inst=None,waveid=None,group=-1,skyfile='airglow',ve
     # get the plugmap to get the sky fibers
     if p['platetype'].strip("'") == 'sky' : 
         skyrows = np.arange(300)
+    elif p['platetype'].strip("'") == 'single' : 
+        if p['telescope'].strip("'") == 'apo1m' : 
+            if int(p['fixfiberid']) == 1 :
+                fiberid=np.array([218,220,222,223,226,227,228,229,230,231])
+            else :
+                fiberid=np.array([218,219,221,223,226,228,230])
+            skyfibers = fiberid[np.where(fiberid != int(p['APEXP']['single'][0]))[0]]
+            skyrows = np.sort(300-skyfibers)
+            print(skyrows)
     else :
         plugmjd=p['plugmap'].split('-')[1]
         if inst == 'apogee-s' : 
@@ -712,7 +721,7 @@ def skycal(planfile,out=None,inst=None,waveid=None,group=-1,skyfile='airglow',ve
             gd = np.where(skylines['USEWAVE'] == 1)[0]
             use=[]
             for line in skylines['WAVE'][gd] :
-                j=np.where(linestr['wave'] == line)[0]
+                j=np.where((linestr['wave'] == line) & (linestr['peak'] > 500.) )[0]
                 print(line,len(j),linestr['wave_found'][j].mean(),linestr['wave_found'][j].std())
                 use.extend(j)
             use=np.array(use)
@@ -736,13 +745,17 @@ def skycal(planfile,out=None,inst=None,waveid=None,group=-1,skyfile='airglow',ve
             # reject outliers
             med=np.median(y)
             gd=np.where(np.abs(y-med) < 2.5)[0]
+            gd=np.where(np.abs(y-med) < 0.5)[0]
             design=design[gd,:]
             y=y[gd]
+            # if 1m, don't solve for a slope, not enough information
+            if p['telescope'].strip("'") == 'apo1m' : design = design[:,1:4]
             # solve
             try : w = np.linalg.solve(np.dot(design.T,design), np.dot(design.T, y))
             except : 
                 print('fit failed ....')
                 pdb.set_trace()
+            if p['telescope'].strip("'") == 'apo1m' : w=np.append([0.],w)
             print('fit parameters: ', w)
 
         if waveid > 0 :
@@ -848,30 +861,33 @@ def skycal(planfile,out=None,inst=None,waveid=None,group=-1,skyfile='airglow',ve
         html.htmltab(grid,file=dirname+'/html/skywavecal.html',ytitle=ytit)
     return linestr
 
-def getskywave(frame,waveid,group,vers='test',inst='apogee-n',plugmap=None) :
+def getskywave(frame,waveid,group=-1,vers='test',telescope='apo25m',plugmap=None) :
     """ Given input frame and waveid/group for frame taken without dither move to waveid,
         return skyline wavelengths
     """
     p={}
     p['APEXP']={}
     p['APEXP']['name']=[str(frame)]
+    p['mjd'] = frame // 10000  + 55562
     p['waveid'] = str(waveid)
-    p['instrument'] = inst
     if plugmap is None :
         p['platetype'] = 'sky'
     else :
         p['platetype'] = 'object'
         p['plugmap'] = plugmap
-    p['instrument'] = inst
+    p['telescope'] = telescope
+    if telescope == 'lco25m' : inst = 'apogee-s'
+    else : inst = 'apogee-n'
     p['apred_vers'] = vers
+    p['instrument'] = inst
     return skycal(p,group=group)
     
 def skywaves() :
     """ get skyline wavelengths from some particular frames, 16390029 and 22430033
     """
-    linestr1 = getskywave(16930029,16680000,0,plugmap='8615-57255-02')
+    linestr1 = getskywave(16930029,16680000,group=0,plugmap='8615-57255-02')
     pdb.set_trace()
-    linestr2 = getskywave(22430033,20380000,18,plugmap='9050-57804-01')
+    linestr2 = getskywave(22430033,20380000,group=18,plugmap='9050-57804-01')
     linestr=np.append(linestr1,linestr2)
     # derived wavelengths for sky lines (for adjusting airglow file initially)
     for line in set(linestr['wave']) :
@@ -1260,16 +1276,20 @@ def refine(oldpars,npoly=4) :
         newwaves[chip]=np.zeros([300,2048])
         for row in range(300) :
             y=allpars[4+ichip::3,row]
+            # skip missing groups
+            y=y[np.where(y != 0.)[0]]
+            # reject outliers
             gd=np.where(abs(y-np.median(y)) < 0.1)[0]
-            allpars[4+ichip,row] = np.mean(y[gd])
+            if len(gd) > 0 : allpars[4+ichip,row] = np.mean(y[gd])
             waves[chip][row,:] = func_multi_poly(x,*allpars[:,row],npoly=npoly)
         # to reduce noise further, fit relative wavelengths across rows and use the fit values for smoothed array
         rows=np.arange(300)
         for col in range(2048) :
             try :
-                gd = np.where( np.isfinite(waves[chip][:,col]-waves[chip][:,1024]) )[0]
+                # don't include bad rows! i.e. from missing fibers
+                gd = np.where( np.isfinite(waves[chip][:,col]-waves[chip][:,1024]) & (waves[chip][:,col] > 0.) )[0]
                 pfit = np.polyfit(rows[gd],waves[chip][gd,col]-waves[chip][gd,1024],3)
-                swaves[chip][:,col] = np.polyval(pfit,rows) + waves[chip][:,1024]
+                swaves[chip][gd,col] = np.polyval(pfit,rows[gd]) + waves[chip][gd,1024]
             except :
                 print('fit across rows failed, col: ',col)
                 pdb.set_trace()
@@ -1277,6 +1297,12 @@ def refine(oldpars,npoly=4) :
     # now refit the full wavelength solutions using swaves as input
     newpars=[]
     for row in range(300) :
+        if allpars[4,row] == 0. : 
+            # if this was a bad row before, keep it bad
+            popt = pars*0.
+            newpars.append(popt)
+            continue
+
         x = np.zeros([3,2048*3])
         y = np.zeros([2048*3])
         for ichip,chip in enumerate(chips) : 
@@ -1294,8 +1320,7 @@ def refine(oldpars,npoly=4) :
             popt,pcov = curve_fit(func_multi_poly,x,y,p0=pars,bounds=bounds)
         except :
             print('Solution failed for row: ', row)
-            # if this is a row without a prior solution, just set to 0 and continue, else stop
-            if allpars[4,row] != 0. : pdb.set_trace()
+            pdb.set_trace()
             popt = pars*0.
         newpars.append(popt)
         # calculate wavelength arrays from refined solution

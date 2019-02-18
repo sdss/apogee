@@ -4,7 +4,7 @@ wrange   15100. 17000.
 continuum    4.00 1.00 0.00 0.00
 npart     12
 maskdir   filters_CeNdYbC13
-apred     r11
+apred     r12
 telescope lco25m
 lsfid     22940020
 waveid    22670000

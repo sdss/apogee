@@ -447,6 +447,7 @@ def save_apWave(pars,out=None,group=0,rows=np.arange(300),npoly=4,frames=[],rms=
         hdu[0].header['COMMENT']='HDU#4 : rms from fit [300,ngroup]'
         hdu[0].header['COMMENT']='HDU#5 : sig from fit [300,ngroup]'
         if allpars is not None : hdu[0].header['COMMENT']='HDU#3 : wavecal fit parameter array [npoly+3*ngroup,300]'
+        hdu[0].header.add_comment('APOGEE_VER:'+os.environ['APOGEE_VER'])
         hdu.append(fits.ImageHDU(chippars))
         hdu.append(fits.ImageHDU(chipwaves))
         hdu.append(fits.ImageHDU(pars))

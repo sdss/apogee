@@ -180,7 +180,7 @@ FOR i=0L,nplanfiles-1 do begin
     print,'-----------------------------------------'
 
     ; Run AP2DPROC
-    if tag_exist(planstr,'platetype') then if planstr.platetype eq 'cal' or planstr.platetype eq 'single' then skywave=0 else skywave=1
+    if tag_exist(planstr,'platetype') then if planstr.platetype eq 'cal' then skywave=0 else skywave=1
     if tag_exist(planstr,'platetype') then if planstr.platetype eq 'sky' then plugmap=0
     outdir=apogee_filename('1D',num=framenum,chip='a',/dir)
     if file_test(outdir,/directory) eq 0 then FILE_MKDIR,outdir
@@ -203,7 +203,7 @@ FOR i=0L,nplanfiles-1 do begin
   ; now add in wavelength calibration information, with shift from skylines
   if waveid gt 0 then begin
       if skywave then spawn,['apskywavecal',planfile],/noshell $
-      else  spawn,['apskycal',planfile,'--nosky'],/noshell
+      else  spawn,['apskywavecal',planfile,'--nosky'],/noshell
   endif
 
   BOMB:

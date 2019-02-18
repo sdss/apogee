@@ -31,7 +31,7 @@ pro mkmultiwave,waveid,name=name,clobber=clobber,nowait=nowait,file=calfile
   cmd=['apmultiwavecal','--name',name,'--vers',dirs.apred,'--plot','--hard','--inst',dirs.instrument] ;,'--verbose']
   for i=0,n_elements(waveid)-1 do cmd=[cmd,string(waveid[i])]
   spawn,cmd,/noshell
-  if file_test(apogee_filename('Wave',num=24040000,chip='a')) then begin
+  if file_test(apogee_filename('Wave',num=waveid[0],chip='a')) then begin
     openw,1,caldir+'/wave/'+file+'py.dat'
     close,1
   endif else stop,'HALT:  failed to make wavecal',waveid

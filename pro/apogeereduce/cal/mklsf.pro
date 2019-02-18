@@ -33,7 +33,9 @@ pro mklsf,lsfid,waveid,darkid=darkid,flatid=flatid,psfid=psfid,fiberid=fiberid,c
   lsffile = apogee_filename('1D',num=lsfid[0],chip='c')
 
   mkpsf,psfid,darkid=darkid,flatid=flatid,fiberid=fiberid,/clobber
-  w=approcess(lsfid,dark=darkid,flat=flatid,psf=psfid,flux=0,wave=waveid,/doproc,/skywave,/clobber)
+  w=approcess(lsfid,dark=darkid,flat=flatid,psf=psfid,flux=0,/doproc,/skywave,/clobber)
+  cmd=['apskywavecal','dummy',' --frameid',str(lsfid),'--waveid',str(waveid),'--apred',dirs.apred,'--telescope',dirs.telescope]
+  spawn,cmd,/noshell
 
   lsffile = file_dirname(lsffile)+'/'+string(format='(i8.8)',lsfid)
   if size(waveid,/type) eq 7 then wavefile = caldir+'wave/'+waveid else $

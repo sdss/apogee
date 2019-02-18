@@ -34,7 +34,7 @@ pro mklsf,lsfid,waveid,darkid=darkid,flatid=flatid,psfid=psfid,fiberid=fiberid,c
 
   mkpsf,psfid,darkid=darkid,flatid=flatid,fiberid=fiberid,/clobber
   w=approcess(lsfid,dark=darkid,flat=flatid,psf=psfid,flux=0,/doproc,/skywave,/clobber)
-  cmd=['apskywavecal','dummy',' --frameid',string(lsfid),'--waveid',string(waveid),'--apred',dirs.apred,'--telescope',dirs.telescope]
+  cmd=['apskywavecal','dummy','--frameid',string(lsfid),'--waveid',string(waveid),'--apred',dirs.apred,'--telescope',dirs.telescope]
   spawn,cmd,/noshell
 
   lsffile = file_dirname(lsffile)+'/'+string(format='(i8.8)',lsfid)

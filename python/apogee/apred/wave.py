@@ -498,8 +498,8 @@ def findlines(frame,rows,waves,lines,out=None,verbose=False,estsig=2) :
             else : estsig0=estsig
             for iline in j :
                 wave=lines['WAVE'][iline]
-                pix0=wave2pix(wave,waves[chip][row,:])+dpixel_median
                 try :
+                    pix0=wave2pix(wave,waves[chip][row,:])+dpixel_median
                     # find peak in median-filtered subtracted spectrum
                     pars=peakfit(medspec,pix0,estsig=estsig0,
                                  sigma=frame[chip][2].data[row,:],mask=frame[chip][3].data[row,:])
@@ -521,7 +521,7 @@ def findlines(frame,rows,waves,lines,out=None,verbose=False,estsig=2) :
                         print('{:5d}{:5d}{:12.3f}{:12.3f}{:12.3f}{:12.3f}{:12d}'.format(
                               ichip+1,row,wave,pars[0],pars[1],pars[1]-pix0,num))
                 except :
-                    if verbose : print('failed: ',num,row,chip,pix0)
+                    if verbose : print('failed: ',num,row,chip,wave)
             if len(dpixel) > 10 : dpixel_median = np.median(np.array(dpixel))
             if verbose: print('median offset: ',row,chip,dpixel_median)
 

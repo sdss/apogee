@@ -46,11 +46,22 @@ outframe = frame   ; the format is the same
 j = where(plugmap.fiberdata.spectrographid eq 2 and $
              plugmap.fiberdata.holetype eq 'OBJECT' and $
              plugmap.fiberdata.objtype eq 'HOT_STD',nstars)
-tell=plugmap.fiberdata[j].fiberid
+
+; make sure we only use good tellurics
+;tell=plugmap.fiberdata[j].fiberid
+tell=[]
+ngd=0
+for i=0,nstars-1 do begin
+  dummy=where((outframe.chipb.mask[*,300-plugmap.fiberdata[j[i]].fiberid] and badmask()) gt 0,nbd)
+  if nbd lt 500 then begin
+    tell=[tell,plugmap.fiberdata[j[i]].fiberid]
+    ngd+=1
+  endif
+endfor
+nstars=ngd
 
 ; need tellurics to do relative flux cal
-if n_elements(tell) gt 0 then begin
-
+if nstars gt 0 then begin
   ; do polynomial fit to log(flux), with 4th order plus offset fo each star,
   ; using every 10th pixel in each chip, so we have 190 pixels * 3 chips * ntelluric data points
   ; and 4 + ntellurics parameters

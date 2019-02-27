@@ -66,7 +66,7 @@ if nstars gt 0 then begin
   ; using every 10th pixel in each chip, so we have 190 pixels * 3 chips * ntelluric data points
   ; and 4 + ntellurics parameters
   npix=190
-  design=fltarr(3*npix*nstars,4+nstars)
+  design=fltarr(3L*npix*nstars,4+nstars)
   y=fltarr(3*npix*nstars)
   for ichip=0,2 do begin
     x=outframe.(ichip).wavelength - 16000.

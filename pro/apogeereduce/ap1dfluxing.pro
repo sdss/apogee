@@ -67,7 +67,7 @@ if nstars gt 0 then begin
   ; and 4 + ntellurics parameters
   npix=190
   design=fltarr(3L*npix*nstars,4+nstars)
-  y=fltarr(3*npix*nstars)
+  y=fltarr(3L*npix*nstars)
   for ichip=0,2 do begin
     x=outframe.(ichip).wavelength - 16000.
     for irow=0L,nstars-1 do begin

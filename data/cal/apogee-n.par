@@ -64,7 +64,7 @@ badfiber   57231 57008   0
 badfiber   57970 58012   121-150
 badfiber   58037 58037   31-60
 # special fiber mapping
-fixfiber   56764 56773   1
+fixfiber   56764 56773   1     # but only for plates _plugged_ in these dates
 fixfiber   58038 58046   2
 # littrow ghost mask
 littrow    55600 56860 06670109 6670109

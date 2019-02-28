@@ -163,6 +163,28 @@ for iloc=0,n_elements(locations)-1 do begin
   for i=i1,i2 do begin
    objname=strtrim(allvisits[good[objuniq[i]]].apogee_id,2)
 
+   ; allobj has allvisit indices of all visits of this object without regard to S/N and commissioning
+   objgood=where(strtrim(allvisits[good].apogee_id,2) eq objname ,ngood)
+   allobj=good[objgood]
+   print,'OBJECT: ',objname,'   HMAG: ',allvisits[allobj[0]].h
+
+   ; recalculate barycentric correction with more accurate calculation
+   if telescope eq 'lco25m' then obs='LCO' else obs='APO'
+   openw,fp,objname+'.bcin',/get_lun
+   for j=0,n_elements(allobj)-1 do $
+     printf,fp,string(format='(2f14.8,f18.8,1x,a)',allvisits[allobj[j]].ra,allvisits[allobj[j]].dec,allvisits[allobj[j]].jd,obs)
+   free_lun,fp
+   cmd=['bc',objname+'.bcin','--out',objname+'.bc']
+   print,cmd
+   spawn,cmd,/noshell
+   readcol,objname+'.bc',bc
+   for j=0,n_elements(allobj)-1 do begin
+     oldbc=allvisits[allobj[j]].bc
+     allvisits[allobj[j]].bc=bc[j]
+     allvisits[allobj[j]].vhelio+=(bc[j]-oldbc)
+     if abs(bc[j]-oldbc) gt 0.1 then stop,'halt: recalculated BC off by more than 100 m/s'
+   endfor
+
    for isurvey=0,1 do begin
     ; find all of the matching objects, separately for commissioning
     if isurvey eq 0 then begin
@@ -182,10 +204,6 @@ for iloc=0,n_elements(locations)-1 do begin
 
     ; obj has allvisit indices of all visits of this object that exceed snmin and are/are not commissioning
     obj=good[objgood]
-    ; allobj has allvisit indices of all visits of this object without regard to S/N and commissioning
-    objgood=where(strtrim(allvisits[good].apogee_id,2) eq objname ,ngood)
-    allobj=good[objgood]
-    print,'OBJECT: ',objname,'   HMAG: ',allvisits[obj[0]].h
     
     IF keyword_set(snsig) and ngood gt 1 THEN BEGIN
       newsnmin = median([allvisits[obj].snr],/even) - snsig*mad([allvisits[obj].snr])

@@ -112,7 +112,96 @@ def comp(a,b,av=None,bv=None,domatch=True,out=None) :
 
     return a,b
 
-def field(name,dr14=False,dir='./') :
+def visitsum_tel(all) :
+
+    j=np.where(all['TELESCOPE'] == 'apo25m')[0]
+    apo= all[j]
+    j=np.where(all['TELESCOPE'] == 'lco25m')[0]
+    lco= all[j]
+    apoobjs = np.array(list(set(apo['APOGEE_ID'])))
+    lcoobjs = np.array(list(set(lco['APOGEE_ID'])))
+    i1,i2=match.match(apoobjs,lcoobjs)
+    vhelio = []
+    vscat = []
+    verr = []
+    sigfiber = []
+    vdiff = []
+    n = []
+    mjd = []
+    tel = []
+    for i in i1 :
+        j=np.where(all['APOGEE_ID'] == apoobjs[i])[0]
+        vhelio.append(all['VHELIO'][j].mean())
+        vscat.append(all['VHELIO'][j].std())
+        verr.append(all['VRELERR'][j].max())
+        sigfiber.append(all['FIBERID'][j].std())
+        vdiff.extend(all['VHELIO'][j]-all['VHELIO'][j].mean())
+        mjd.extend(all['MJD'][j])
+        tel.extend(all['TELESCOPE'][j])
+        n.append(len(j))
+
+    fig,ax=plots.multi(1,2)
+    mjd=np.array(mjd)
+    tel=np.array(tel)
+    vdiff=np.array(vdiff)
+    plots.plotp(ax[0],mjd,vdiff,typeref=tel,types=['apo25m','lco25m'],color=['b','g'],yr=[-1,1])
+    j=np.where(tel == 'apo25m')[0]
+    ax[1].hist(vdiff[j],color='b',bins=np.arange(-1,1,0.01),histtype='step')
+    mjds= [55800, 56130, 56512, 56876, 57230, 57600, 57966, 58360]
+    for i in range(len(mjds)-1) :
+        j=np.where((tel == 'apo25m') & (mjd >mjds[i]) & (mjd<mjds[i+1]) )[0]
+        print(mjds[i],len(j))
+        ax[1].hist(vdiff[j],bins=np.arange(-1,1,0.03),histtype='step')
+
+    j=np.where(tel == 'lco25m')[0]
+    ax[1].hist(vdiff[j],color='g',bins=np.arange(-1,1,0.01),histtype='step')
+    mjds= [57829, 57966, 58360]
+    plt.show()
+    pdb.set_trace()
+
+
+def visitsum(all,out=None,minvisit=1) :
+    objs = set(all['APOGEE_ID'])
+    if out is None :
+        vhelio = []
+        vscat = []
+        verr = []
+        sigfiber = []
+        vdiff = []
+        n = []
+        print('n objects: ', len(objs))
+        for iobj,obj in enumerate(objs) :
+            j = np.where(all['APOGEE_ID'] == obj)[0]
+            print(iobj,len(j))
+            vhelio.append(all['VHELIO'][j].mean())
+            vscat.append(all['VHELIO'][j].std())
+            verr.append(all['VRELERR'][j].max())
+            sigfiber.append(all['FIBERID'][j].std())
+            vdiff.extend(all['VHELIO'][j]-all['VHELIO'][j].mean())
+            n.append(len(j))
+        vhelio=np.array(vhelio)
+        vscat=np.array(vscat)
+        verr=np.array(verr)
+        sigfiber=np.array(sigfiber)
+        vdiff=np.array(vdiff)
+        n=np.array(n)
+    else :
+        vhelio,vscat,verr,sigfiber,vdiff,n = out
+
+    vdiff=np.array(vdiff)
+    fig,ax=plots.multi(2,3)
+    gd = np.where(n>minvisit)[0]
+    ax[0,0].hist(vscat[gd],bins=np.arange(0.01,1,0.01),histtype='step',cumulative=True,normed=True,color='b')
+    ax[2,0].hist(vdiff,color='b',bins=np.arange(-1.,1,0.01),histtype='step')
+    gd=np.where((n>minvisit) & (verr < 0.2))[0]
+    ax[0,0].hist(vscat[gd],bins=np.arange(0.01,1,0.01),histtype='step',cumulative=True,normed=True,color='g')
+    ax[2,1].hist(vscat[gd],bins=np.arange(0.01,1,0.01),histtype='step',color='g')
+    fig.tight_layout()
+    plt.show()
+    return vhelio,vscat,verr,sigfiber,vdiff,n
+
+
+def field(name,dr14=False,dir='./',minvisit=1) :
     """ look at a single field
     """
     all=struct.concat([dir+'/apVisitSum*.fits'])
@@ -160,9 +249,10 @@ def field(name,dr14=False,dir='./') :
     dr14sigfiber=np.array(dr14sigfiber)
     dr14n=np.array(dr14n)
     fig,ax=plots.multi(2,3)
-    ax[0,0].hist(vscat,bins=np.arange(0.01,1,0.01),histtype='step',cumulative=True,normed=True,color='b')
-    ax[0,0].hist(dr14vscat,bins=np.arange(0.01,1,0.01),histtype='step',cumulative=True,normed=True,color='r')
-    gd=np.where(verr < 0.2)[0]
+    gd =np.where(n > minvisit)[0]
+    ax[0,0].hist(vscat[gd],bins=np.arange(0.01,1,0.01),histtype='step',cumulative=True,normed=True,color='b')
+    ax[0,0].hist(dr14vscat[gd],bins=np.arange(0.01,1,0.01),histtype='step',cumulative=True,normed=True,color='r')
+    gd=np.where((verr < 0.2) & (n>minvisit))[0]
     ax[0,0].hist(vscat[gd],bins=np.arange(0.01,1,0.01),histtype='step',cumulative=True,normed=True,color='g')
     ax[0,0].hist(dr14vscat[gd],bins=np.arange(0.01,1,0.01),histtype='step',cumulative=True,normed=True,color='m')
     ax[2,1].hist(vscat[gd],bins=np.arange(0.01,1,0.01),histtype='step',color='k')
@@ -361,3 +451,20 @@ def visitspec(load,plate,mjd,fiber,gridfile='apg_rvsynthgrid',apstar=False) :
         out=correlate(outspec,gridspec[:,ispec])
         pdb.set_trace() 
 
+def repeatspec(a) :
+    stars=set(a['APOGEE_ID'])
+    fig,ax=plots.multi(1,2,hspace=0.001,sharex=True)
+    for star in stars :
+        j=np.where(a['APOGEE_ID'] == star)[0]
+        if len(j) > 1 :
+            for i in j :
+                print(a['TELESCOPE'][i],a['FIELD'][i],a['NVISITS'][i])
+                spec=fits.open(a['TELESCOPE'][i]+'/'+a['FIELD'][i]+'/apStar-r12-'+a['APOGEE_ID'][i]+'.fits')
+                if i == j[0] : spec0=copy.copy(spec[1].data[0,:])
+                plots.plotl(ax[0],spectra.fits2vector(spec[1].header,1),spec[1].data[0,:])
+                plots.plotl(ax[1],spectra.fits2vector(spec[1].header,1),spec[1].data[0,:]/spec0,yr=[0.5,1.5])
+            plt.show()
+            pdb.set_trace()
+            ax[0].cla()
+            ax[1].cla()
+    

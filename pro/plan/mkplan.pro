@@ -32,7 +32,7 @@ outdir=file_dirname(planfile)+'/'
 if not file_test(outdir,/dir) then file_mkdir,outdir
 
 ; get calibration files for this date
-if keyword_set(fixfiberid) then fix0=fixfiberid else undefine,fix0
+if n_elements(fixfiberid) gt 0 then fix0=fixfiberid else undefine,fix0
 getcal,mjd,calfile,darkid=darkid,flatid=flatid,bpmid=bpmid,waveid=waveid,multiwaveid=multiwaveid,$
      responseid=responseid,lsfid=lsfid,detid=detid,sparseid=sparseid,fiberid=fiberid,badfiberid=badfiberid,$
      fixfiberid=fixfiberid,littrowid=littrowid,persistid=persistid,persistmodelid=persistmodelid

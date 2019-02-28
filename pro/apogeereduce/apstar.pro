@@ -164,7 +164,7 @@ for iloc=0,n_elements(locations)-1 do begin
    objname=strtrim(allvisits[good[objuniq[i]]].apogee_id,2)
 
    for isurvey=0,1 do begin
-    ; find all of the matching objects
+    ; find all of the matching objects, separately for commissioning
     if isurvey eq 0 then begin
       objgood=where(allvisits[good].mjd lt 55800 and $
                     strtrim(allvisits[good].apogee_id,2) eq objname  and allvisits[good].snr gt snmin,ngood)
@@ -180,7 +180,9 @@ for iloc=0,n_elements(locations)-1 do begin
     endelse
     if ngood eq 0 then goto, bomb
 
+    ; obj has allvisit indices of all visits of this object that exceed snmin and are/are not commissioning
     obj=good[objgood]
+    ; allobj has allvisit indices of all visits of this object without regard to S/N and commissioning
     objgood=where(strtrim(allvisits[good].apogee_id,2) eq objname ,ngood)
     allobj=good[objgood]
     print,'OBJECT: ',objname,'   HMAG: ',allvisits[obj[0]].h
@@ -193,10 +195,10 @@ for iloc=0,n_elements(locations)-1 do begin
     snrgood = where(allvisits[obj].snr GE newsnmin,ngood)
     if ngood eq 0 then goto, bomb
     obj = obj[snrgood]
-    allobj = allobj[snrgood]
     
     ; check to see if we have already done this stars with all of the visits
-    starfile=stars_dir+clocation+'/'+root+objname+'.fits'
+    ;starfile=stars_dir+clocation+'/'+root+objname+'.fits'
+    starfile=apogee_filename('Star',field=clocation,obj=objname)
     done=0
     if file_test(starfile) then begin
       done=1
@@ -233,17 +235,17 @@ for iloc=0,n_elements(locations)-1 do begin
           ADD_TAG,allvisits,'SYNTHVRELERR',-999999.,allvisits
           ADD_TAG,allvisits,'SYNTHVHELIO',-999999.,allvisits
         endif
+        if not tag_exist(allvisits,'OBSVREL') then begin
+          ADD_TAG,allvisits,'OBSVREL',-999999.,allvisits
+          ADD_TAG,allvisits,'OBSVRELERR',-999999.,allvisits
+          ADD_TAG,allvisits,'OBSVHELIO',-999999.,allvisits
+        endif
         ; IF rvrefine keyword is set to 2, then insert synthetic templates into the iterations with the observed templates. 
         IF rvrefine EQ 2 THEN BEGIN
            ;Right now this is a package deal, and requires no new keywords in the plan files, but these could be seperate keywords
            synthiter = 1
            refinefixmasked = 2 ; Set whether or not to use fixmasked keyword in aprvprep in aprvrefine. Not having it set worked well with the synth option. 
            allsmooth = 0
-           if not tag_exist(allvisits,'OBSVREL') then begin
-            ADD_TAG,allvisits,'OBSVREL',-999999.,allvisits
-            ADD_TAG,allvisits,'OBSVRELERR',-999999.,allvisits
-            ADD_TAG,allvisits,'OBSVHELIO',-999999.,allvisits
-           endif
         ENDIF ;If rvrefine is set but not specifically to 2, then run aprvrefine using default values from DR13.
         vtemp = allvisits[obj]
         aprvrefine,allstr,vtemp,starstr,sinc=sinc,log=log,plotdir=plot_dir,bccomb=bccomb, synth = synthiter, fixmasked = refinefixmasked, trimgrid=trimgrid, allsmooth = allsmooth
@@ -282,7 +284,6 @@ for iloc=0,n_elements(locations)-1 do begin
       mjd5 = long(mjd)  ; clip the decimals
       vhead1 = reform(starstr.header[0,*])
       objid = sxpar(vhead1,'OBJID')
-      outfile = root+strtrim(objid,2)+'-'+strtrim(mjd5,2)+'.fits'
       printf,csh,'convert '+outdir+'plots/'+root+strtrim(objid,2)+'.eps '+finaldir+'plots/'+root+strtrim(objid,2)+'.jpg'
       printf,csh,'convert '+outdir+'plots/'+root+strtrim(objid,2)+'SN.eps '+finaldir+'plots/'+root+strtrim(objid,2)+'SN.jpg'
       printf,csh,'"rm" '+outdir+'plots/'+root+strtrim(objid,2)+'.eps'
@@ -379,7 +380,8 @@ for iloc=0,n_elements(locations)-1 do begin
        ak_wise: float(apstr.ak_wise), sfd_ebv: float(apstr.sfd_ebv),$
        apogee_target1: apogee_target1, apogee_target2: apogee_target2, apogee_target3: apogee_target3, $
        apogee2_target1: apogee2_target1, apogee2_target2: apogee2_target2, apogee2_target3: apogee2_target3, $
-       targflags: targflags, survey: survey, ninst: [n1,n2,n3],$
+       targflags: targflags, survey: survey, programname: allvisits[obj[j[0]]].programname, $
+       ninst: [n1,n2,n3],$
        nvisits: apstr.nvisits, combtype:apstr.combtype, commiss: commiss, $
        snr: float(apstr.snr), $
        starflag: apstr.starflag, starflags: starflag(apstr.starflag), $
@@ -442,7 +444,6 @@ for iloc=0,n_elements(locations)-1 do begin
     oplot,!x.crange,[apstr.vhelio,apstr.vhelio],linestyle=1
     device,/close
     set_plot,'X'
-;    ps2gif,plotfile,/eps,/delete,chmod='644'o
     printf,csh,'convert '+plotfile+'.eps '+outfile+'.jpg'
     printf,csh,'"rm" '+plotfile+'.eps'
 
@@ -485,11 +486,11 @@ for iloc=0,n_elements(locations)-1 do begin
   mkhdr,hdr,0
   sxaddpar,hdr,'V_APSTAR',getvers()
   if nsurvey gt 0 then begin
-    outfile=stars_dir+clocation+'/apField-'+clocation
-    mwrfits,0,outfile+'.fits',hdr,/create
-    mwrfits,all,outfile+'.fits'
-    mwrfits,alldata,outfile+'.fits'
-    mwrfits,c,outfile+'.fits'
+    outfile=apogee_filename('Field',field=clocation)
+    mwrfits,0,outfile,hdr,/create
+    mwrfits,all,outfile
+    mwrfits,alldata,outfile
+    mwrfits,c,outfile
   endif
   if ncommiss gt 0 then begin
     outfile=stars_dir+clocation+'/apFieldC-'+clocation
@@ -544,13 +545,13 @@ for iloc=0,n_elements(locations)-1 do begin
        allvisitspec[jj].err=str.err
        allvisitspec[jj].mask=str.mask
       endif else begin
-       print,'not halted, by 2048 spectrum ignored: '+allvisits[i].file
+       print,'not halted, but 2048 spectrum ignored: '+allvisits[i].file
      endelse
     endfor
-    outfile=stars_dir+clocation+'/apFieldVisits-'+clocation
-    mwrfits,0,outfile+'.fits',hdr,/create
-    mwrfits,allvisits[j],outfile+'.fits'
-    mwrfits,allvisitspec,outfile+'.fits'
+    outfile=apogee_filename('FieldVisits',field=clocation)
+    mwrfits,0,outfile,hdr,/create
+    mwrfits,allvisits[j],outfile
+    mwrfits,allvisitspec,outfile
   endif
 
   free_lun,csh

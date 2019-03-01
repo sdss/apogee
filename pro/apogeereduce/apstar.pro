@@ -170,20 +170,24 @@ for iloc=0,n_elements(locations)-1 do begin
 
    ; recalculate barycentric correction with more accurate calculation
    if telescope eq 'lco25m' then obs='LCO' else obs='APO'
-   openw,fp,objname+'.bcin',/get_lun
+   openw,fp,stars_dir+clocation+'/'+objname+'.bcin',/get_lun
    for j=0,n_elements(allobj)-1 do $
      printf,fp,string(format='(2f14.8,f18.8,1x,a)',allvisits[allobj[j]].ra,allvisits[allobj[j]].dec,allvisits[allobj[j]].jd,obs)
    free_lun,fp
-   cmd=['bc',objname+'.bcin','--out',objname+'.bc']
+   cmd=['bc',stars_dir+clocation+'/'+objname+'.bcin','--out',stars_dir+clocation+'/'+objname+'.bc']
    print,cmd
    spawn,cmd,/noshell
-   readcol,objname+'.bc',bc
+   readcol,stars_dir+clocation+'/'+objname+'.bc',bc
    for j=0,n_elements(allobj)-1 do begin
      oldbc=allvisits[allobj[j]].bc
-     allvisits[allobj[j]].bc=bc[j]
-     allvisits[allobj[j]].vhelio+=(bc[j]-oldbc)
-     if abs(bc[j]-oldbc) gt 0.1 then stop,'halt: recalculated BC off by more than 100 m/s'
+     if oldbc ne 0. then begin
+       allvisits[allobj[j]].bc=bc[j]
+       allvisits[allobj[j]].vhelio+=(bc[j]-oldbc)
+       if abs(bc[j]-oldbc) gt 0.1 then stop,'halt: recalculated BC off by more than 100 m/s'
+     endif
    endfor
+   file_delete,objname+'.bcin',/allow_non
+   file_delete,objname+'.bc',/allow_non
 
    for isurvey=0,1 do begin
     ; find all of the matching objects, separately for commissioning

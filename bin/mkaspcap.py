@@ -69,12 +69,6 @@ if __name__ == '__main__' :
         print(cmd)
         subprocess.call(cmd,shell=False)
 
-        if args.maxwind > 0 :
-            cmd=["idl","-e","readcol,'"+outdir+"/elem.list"+"'"+
-                 ",format='(a)',els,stringskip='#',/silent","&","print,els"]
-            print(cmd)
-            subprocess.call(cmd,shell=False)
-
         f=open(outdir+'/done','w')
         f.close()
     topdir=os.environ['APOGEE_ASPCAP']+'/'+args.apred+'/'+args.aspcap
@@ -83,26 +77,3 @@ if __name__ == '__main__' :
     if args.noelem != 0 : cmd+=' --noelem'
     mkslurm.write('"'+cmd+'" apo*/plan/aspcapStar*.par lco*/plan/aspcapStar*.par',maxrun=2,idlthreads=16,queryport=1051,queryhost=os.uname()[1])
 
-#r=aspcap_root+apred_vers+'/'+aspcap_vers+'/config/'+dirs.instrument+'/'
-#file_mkdir,configdir
-#while file_test(configdir+'lockfile') do apwait,configdir+'lockfile',10
-#if ~file_test(configdir+'/done') then begin
-#  openw,lock,/get_lun,configdir+'/lockfile'
-#  free_lun,lock
-#  aspcap_mklib,aspcap_config,outdir=configdir,maskdir=getenv('APOGEE_DIR')+'/data/windows/filters_26042016/'
-#  ; create individual windows if requested
-#  if keyword_set(maxwind) then  begin
-#    readcol,configdir+'/elem.list',format='(a)',els,stringskip='#',/silent
-#    for i=0,n_elements(els)-1 do n=filtsplit(els[i],maxwind=maxwind,outdir=configdir)
-#  endif
-#  openw,done,/get_lun,configdir+'/done'
-#  free_lun,done
-#  file_delete,configdir+'/lockfile'
-#endif
-
-
-#cd $APOGEE_ASPCAP/$apred_vers/$aspcap_vers
-#mkslurm "aspcap apo*/plan/aspcapStar*.par lco*/plan/aspcapStar*.par" --maxrun=2 --idlthreads=16 --queryport=1051
-#
-#echo "\n\nREMEMBER to modify the aspcapStar*.par files if non-default options,"
-##echo "  e.g., noplot, noelem, fits, are desired"

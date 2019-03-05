@@ -127,7 +127,7 @@ while file_test(configdir+'lockfile') do apwait,configdir+'lockfile',10
 if ~file_test(configdir+'/done') then begin
   openw,lock,/get_lun,configdir+'/lockfile'
   free_lun,lock
-  aspcap_mklib,aspcap_config,outdir=configdir,maskdir=getenv('APOGEE_DIR')+'/data/windows/filters_26042016/'
+  aspcap_mklib,aspcap_config,outdir=configdir,maskdir=getenv('APOGEE_DIR')+'/data/windows/filters_26042016/',maxwind=maxwind
   ; create individual windows if requested
   if keyword_set(maxwind) then  begin
     readcol,configdir+'/elem.list',format='(a)',els,stringskip='#',/silent

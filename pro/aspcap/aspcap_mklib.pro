@@ -283,4 +283,9 @@ for i=0,n_elements(elem)-1 do begin
  endif
 endfor
 free_lun,list
+if keyword_set(maxwind) then  begin
+  readcol,outdir+'/elem.list',format='(a)',els,stringskip='#',/silent
+  for i=0,n_elements(els)-1 do n=filtsplit(els[i],maxwind=maxwind,outdir=outdir)
+endif
+
 end

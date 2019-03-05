@@ -407,6 +407,8 @@ nelem=n_elements(elems)
 targetdir=getenv('APOGEE_TARGET')
 design1=mrdfits(targetdir+'/apogeeDesign.fits',1)
 design2=mrdfits(targetdir+'/apogee2Design.fits',1)
+min_jk=-9999.99
+max_jk=9999.99
 
 ;; Get list of locations by looking at directories
 if ~keyword_set(locationdirs) then begin
@@ -1353,9 +1355,7 @@ if n_elements(allplates) gt 0 then begin
   sxaddhist,'APSTAR VERSION: '+apstar_version,header
   sxaddhist,'ASPCAP VERSION: '+aspcap_version,header
   sxaddhist,'RESULTS VERSION: '+results_version,header
-  sxaddhist,'APRED SOFTWARE VERSION: '+apogeereduce_version(),header
-  sxaddhist,'IDLWRAP SOFTWARE VERSION: '+idlwrap_version(),header
-  sxaddhist,'SPECLIB SOFTWARE VERSION: '+speclib_version(),header
+  sxaddhist,'APOGEE SOFTWARE VERSION: '+getvers(),header
   sxaddhist,'DATE: '+systime(),header
   MWRFITS,0,outfile,header,/create
   MWRFITS,allplates,outfile
@@ -1367,9 +1367,7 @@ sxaddhist,'APRED VERSION: '+apred_version,header
 sxaddhist,'APSTAR VERSION: '+apstar_version,header
 sxaddhist,'ASPCAP VERSION: '+aspcap_version,header
 sxaddhist,'RESULTS VERSION: '+results_version,header
-sxaddhist,'APRED SOFTWARE VERSION: '+apogeereduce_version(),header
-sxaddhist,'IDLWRAP SOFTWARE VERSION: '+idlwrap_version(),header
-sxaddhist,'SPECLIB SOFTWARE VERSION: '+speclib_version(),header
+sxaddhist,'APOGEE SOFTWARE VERSION: '+getvers(),header
 sxaddhist,'DATE: '+systime(),header
 MWRFITS,0,outfile,header,/create
 MWRFITS,allvisitsort,outfile

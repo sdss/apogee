@@ -573,3 +573,22 @@ def vesta() :
     compspec(l31c_fit,l31c_fixed,hard='Vesta_l31c_fitvsfixed')
     #compspec(l31c_fixed,l33_fixed,hard='Vesta_fixed_l31cvl33')
     compspec(l31crenorm_fit,l31crenorm_fixed,hard='Vesta_l31crenorm_fitvsfixed')
+
+def repeat(a) :
+    """ Comparison of repeat observations of objects
+    """
+
+    stars = set(a['APOGEE_ID'])
+    fix,ax=plots.multi(1,7,hspace=0.001)
+    telescope=np.zeros(len(a),dtype='S6')
+    for tel in ['apo1m','apo25m','lco25m'] :
+        j=np.where(np.core.defchararray.find(a['ALTFIELD'],tel) >= 0)[0]
+        telescope[j] = tel
+    for star in stars :
+        j = np.where(a['APOGEE_ID'] == star)[0]
+        n = len(j)
+        if n > 1 :
+            print(star,n,telescope[j])
+            for i in range(7)  :
+                plots.plotp(ax[i],np.repeat(a['FPARAM'][j,0].mean(),n),a['FPARAM'][j,i]-a['FPARAM'][j,i].mean(),typeref=telescope[j],
+                            types=['apo1m','apo25m','lco25m'],color=['r','g','b'])

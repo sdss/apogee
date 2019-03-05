@@ -49,29 +49,33 @@ def allFieldVisits(files=['apo*/*/apFieldVisits-*.fits','apo*/*/apFieldC-*.fits'
     return all
 
 
-def vscat(a,fig=None,ls=None,marker='o') :
+def vscat(a,fig=None,ls=None,marker='o',nmin=2) :
     """ Make histograms of VSCATTER for different Teff and min NVISITS
     """
-    if fig == None : fig,ax=plots.multi(3,6,hspace=0.001,wspace=0.4)
+    if fig == None : fig,ax=plots.multi(4,6,hspace=0.001,wspace=0.4)
     else : fig,ax=fig
     tbins=[3000,3500,4000,4500,5500,8000,30000] 
+    hbins=[8,11,12,13,15]
     snr = a['SNR']
     j=np.where(snr > 300) [0]
     snr[j] = 300
     for i in range(len(tbins)-1) :
         ax[i,0].text(0.9,0.9,'{:d}<=RV_TEFF<{:d}'.format(tbins[i],tbins[i+1]),ha='right',transform=ax[i,0].transAxes,fontsize=8)
-        for j,nmin in enumerate([2,3,5,10]) :
+        for j in range(len(hbins)-1) :
+            ax[0,j].set_title('{:d}<=H<{:d}'.format(hbins[j],hbins[j+1]))
             gd = np.where((a['RV_TEFF']>=tbins[i]) & (a['RV_TEFF']<tbins[i+1]) &
+                          (a['H']>=hbins[j]) & (a['H']<hbins[j+1]) &
                            (a['NVISITS']>nmin) ) [0]
-            print(tbins[i],tbins[i+1],nmin,len(gd))
+            print(tbins[i],tbins[i+1],hbins[j],hbins[j+1],nmin,len(gd))
             try :
-                plots.plotc(ax[i,2],snr[gd],a['VSCATTER'][gd],a['RV_FEH'][gd],marker=marker,xr=[0,310],yr=[0,1],xt='S/N',yt='VSCATTER')
-                ax[i,0].hist(a['VSCATTER'][gd],bins=np.arange(0,1,0.01),ls=ls,histtype='step',color=colors[j])
-                ax[i,0].set_xlabel('VSCATTER')
-                ax[i,1].hist(a['VSCATTER'][gd],bins=np.arange(0,1,0.01),histtype='step',cumulative=True,normed=True,ls=ls,color=colors[j])
-                ax[i,1].set_xlabel('VSCATTER')
+                #plots.plotc(ax[i,2],snr[gd],a['VSCATTER'][gd],a['RV_FEH'][gd],marker=marker,xr=[0,310],yr=[0,1],xt='S/N',yt='VSCATTER')
+                ax[i,j].hist(a['VSCATTER'][gd],bins=np.arange(0,1,0.01),ls=ls,histtype='step',color=colors[j])
+                ax[i,j].set_xlabel('VSCATTER')
+                #ax[i,1].hist(a['VSCATTER'][gd],bins=np.arange(0,1,0.01),histtype='step',cumulative=True,normed=True,ls=ls,color=colors[j])
+                #ax[i,1].set_xlabel('VSCATTER')
             except : pass
 
+    fig.suptitle('NVISITS>{:d}'.format(nmin))
     return fig,ax
 
 def apolco(a,minfeh=-3,out=None) :

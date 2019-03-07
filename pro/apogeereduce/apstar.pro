@@ -186,8 +186,8 @@ for iloc=0,n_elements(locations)-1 do begin
        if abs(bc[j]-oldbc) gt 0.1 then stop,'halt: recalculated BC off by more than 100 m/s'
      endif
    endfor
-   file_delete,objname+'.bcin',/allow_non
-   file_delete,objname+'.bc',/allow_non
+   file_delete,stars_dir+clocation+'/'+objname+'.bcin',/allow_non
+   file_delete,stars_dir+clocation+'/'+objname+'.bc',/allow_non
 
    for isurvey=0,1 do begin
     ; find all of the matching objects, separately for commissioning
@@ -306,10 +306,10 @@ for iloc=0,n_elements(locations)-1 do begin
       mjd5 = long(mjd)  ; clip the decimals
       vhead1 = reform(starstr.header[0,*])
       objid = sxpar(vhead1,'OBJID')
-      printf,csh,'convert '+outdir+'plots/'+root+strtrim(objid,2)+'.eps '+finaldir+'plots/'+root+strtrim(objid,2)+'.jpg'
-      printf,csh,'convert '+outdir+'plots/'+root+strtrim(objid,2)+'SN.eps '+finaldir+'plots/'+root+strtrim(objid,2)+'SN.jpg'
-      printf,csh,'"rm" '+outdir+'plots/'+root+strtrim(objid,2)+'.eps'
-      printf,csh,'"rm" '+outdir+'plots/'+root+strtrim(objid,2)+'SN.eps'
+      printf,csh,'convert '+outdir+'plots/'+file_basename(starfile,'.fits')+'.eps '+finaldir+'plots/'+file_basename(starfile,'.fits')+'.jpg'
+      printf,csh,'convert '+outdir+'plots/'+file_basename(starfile,'.fits')+'SN.eps '+finaldir+'plots/'+file_basename(starfile,'.fits')+'SN.jpg'
+      printf,csh,'"rm" '+outdir+'plots/'+file_basename(starfile,'.fits')+'.eps'
+      printf,csh,'"rm" '+outdir+'plots/'+file_basename(starfile,'.fits')+'SN.eps'
     endif
 
     ; load the apStar file  
@@ -475,7 +475,7 @@ for iloc=0,n_elements(locations)-1 do begin
       printf,html,'<TR><TD bgcolor=lightblue>' else  printf,html,'<TR><TD>'
     printf,html,commiss,'<BR>'
 
-    printf,html,'<A HREF=../'+root+objname+'.fits>',objname,'</a>'
+    printf,html,'<A HREF=../'+file_basename(starfile)+'>',objname,'</a>'
     printf,html,'(<A HREF=../plots/'+objname+'_rvccf.gif>RV template + CCFs</a>)'
     rastring=stringize(apstr.ra,ndec=5)
     decstring=stringize(apstr.dec,ndec=5)
@@ -495,8 +495,8 @@ for iloc=0,n_elements(locations)-1 do begin
     endfor
     printf,html,'</TABLE>'
     printf,html,'<TD> <IMG SRC=../plots/apRV-'+objname+'.jpg>'
-    printf,html,'<TD><IMG SRC=../plots/'+root+objname+'.jpg>'
-    printf,html,'<IMG SRC=../plots/'+root+objname+'SN.jpg>'
+    printf,html,'<TD><IMG SRC=../plots/'+file_basename(starfile,'.fits')+'.jpg>'
+    printf,html,'<IMG SRC=../plots/'+file_basename(starfile,'.fits')+'SN.jpg>'
  
     bomb: 
    endfor

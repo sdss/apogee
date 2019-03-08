@@ -508,7 +508,18 @@ for idir=0,n_elements(datadir)-1 do begin
    if keyword_set(maxwind) then $
      newlib=struct_rename_tags(newlib,'','',addtag='FELEM_WIND',addval=fltarr(nelem,maxwind,3)-9999.)
    firstelem=1
+   ; create new nmlfiles (list of nml files)
    for ielem=0,n_elements(elem)-1 do begin
+     aploadplan,configdir+'/'+elem[ielem]+'.elem.par',libpar,str='INFO' 
+     for iclass=0,n_elements(libpar.info)-1 do begin
+       openw,nmlfiles,aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/'+libpar.info[iclass].class+'.nmlfiles',/get_lun
+       free_lun,nmlfiles
+     endfor
+   endfor
+   ; loop over elements twice, first time to create nml files and nmlfiles file lists, then run FERRE
+   ; second time, read the results
+   for elemloop=0,1 do begin
+    for ielem=0,n_elements(elem)-1 do begin
      jelem=where(strtrim(elem_order,2) eq strtrim(elem[ielem],2),norder)
      if norder eq 0 then stop,'cant match elem in aspcap_elems'
      clock=TIC(elem[ielem])
@@ -545,7 +556,8 @@ for idir=0,n_elements(datadir)-1 do begin
        endif else nwind=0
        for iwind=0,nwind do begin
          if iwind eq 0 then suffix='' else suffix='_'+string(format='(i2.2)',iwind)
-         workdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/elem_'+elem[ielem]+suffix+'/'
+         elemdir='elem_'+elem[ielem]+suffix+'/'
+         workdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/'+elemdir
          iformat="(a,"+string(2*libhead0.n_of_dim)+"(F10.3))"
          fformat="("+string(npix)+"(F12.6))"
          eformat="("+string(npix)+"(F12.6))"
@@ -557,7 +569,8 @@ for idir=0,n_elements(datadir)-1 do begin
          writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.info[iclass].indv,$
             indini=indini,interord=libpar.info[iclass].inter,$
             filterfile=configdir+'/'+libpar.info[iclass].mask+suffix+'.mask',$
-            findi=indi,errbar=errbar,renorm=abs(renorm),obscont=obscont,ttie=libpar.info[iclass].ttie
+            findi=indi,errbar=errbar,renorm=abs(renorm),obscont=obscont,ttie=libpar.info[iclass].ttie,elemdir=elemdir,$
+            libdir='../lib_'+libpar.info[iclass].class
          openw,ipf,workdir+outname+'.ipf',/get_lun
          if tag_exist(libpar.info,'minigrid') then minigrid=libpar.info[iclass].minigrid else minigrid=''
          if minigrid ne '' then begin
@@ -618,29 +631,40 @@ for idir=0,n_elements(datadir)-1 do begin
            file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+'.err',workdir+outname+'.err'
          endif
          if nfit gt 0 then begin
+           if elemloop eq 0 then begin
+             cd,workdir+'/../',current=cwd
+             openu,nmlfiles,aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/'+libpar.info[iclass].class+'.nmlfiles',/get_lun,/append
+             printf,nmlfiles,elemdir+'/'+outname+'.nml'
+             free_lun,nmlfiles
+             file_delete,'lib_'+libpar.info[iclass].class,/allow
+             file_link,file_dirname(libhead.file),'lib_'+libpar.info[iclass].class,/allow
+             cd,cwd
+           endif
            if not file_test(workdir+outname+'.spm') or keyword_set(clobber) then begin
               file_delete,workdir+outname+'.spm',/allow_nonexistent    
-              cd,workdir,current=cwd
-              aspcap_wrpbsscript,outname,exec_path,ncpus,jobsid,libsize,queue=queue,qname=qname,workdir=workdir
-              TOC
-              spawn,['./'+outname+'.pbs'],/noshell
-              cd,cwd
+              ;cd,workdir,current=cwd
+              ;aspcap_wrpbsscript,outname,exec_path,ncpus,jobsid,libsize,queue=queue,qname=qname,workdir=workdir
+              ;TOC
+              ;spawn,['./'+outname+'.pbs'],/noshell
+              ;cd,cwd
            endif
            TOC
-           if minigrid ne '' then $
-           outindex=where(aspcap_params(extra=elem[ielem]) eq libhead0.label[libpar.info[iclass].indv-1]) else $
-           outindex=where(aspcap_params() eq libhead0.label[libpar.info[iclass].indv-1])
-           ; to read the FERRE files, use the main class parameter file with the correct PLOCKs for this class
-           aploadplan,configdir+'/'+libpar.info[iclass].class+'.par',classpar,str='PLOCK' 
-           if minigrid eq '' then  begin
-             str=aspcap_loadferre(workdir+outname,classpar,libfile,npar=npar,/elemfit) 
-             readcol,configdir+'/'+libpar.info[iclass].mask+'.mask',mask,/silent
-             gd=where(mask gt 0.,ngd)
-           endif else begin
-             str=aspcap_loadferre(workdir+outname,classpar,libfile,npar=npar,extra=elem[ielem],/elemfit)
-             ngd=0
-           endelse
-           for istar=0,n_elements(str.param)-1 do begin
+           ; read the FERRE output and load into array
+           if elemloop eq 1 then begin
+             if minigrid ne '' then $
+             outindex=where(aspcap_params(extra=elem[ielem]) eq libhead0.label[libpar.info[iclass].indv-1]) else $
+             outindex=where(aspcap_params() eq libhead0.label[libpar.info[iclass].indv-1])
+             ; to read the FERRE files, use the main class parameter file with the correct PLOCKs for this class
+             aploadplan,configdir+'/'+libpar.info[iclass].class+'.par',classpar,str='PLOCK' 
+             if minigrid eq '' then  begin
+               str=aspcap_loadferre(workdir+outname,classpar,libfile,npar=npar,/elemfit) 
+               readcol,configdir+'/'+libpar.info[iclass].mask+'.mask',mask,/silent
+               gd=where(mask gt 0.,ngd)
+             endif else begin
+               str=aspcap_loadferre(workdir+outname,classpar,libfile,npar=npar,extra=elem[ielem],/elemfit)
+               ngd=0
+             endelse
+             for istar=0,n_elements(str.param)-1 do begin
               j=where(newparam.apogee_id eq str.param[istar].apogee_id,nj)
               if nj gt 0 then begin
                 if keyword_set(maxwind) then begin 
@@ -662,12 +686,13 @@ for idir=0,n_elements(datadir)-1 do begin
                   ;newspec[j].elem_mask[gd]=newspec[j].elem_mask[gd] or 2L^jelem[0]
                 endif
               endif
-           endfor
+             endfor
+           endif
          endif else begin
            ; clean up if we didn't do any fits
            file_delete,workdir+'input.nml',/allow_non
            file_delete,workdir+'lib',/allow_non
- ;          file_delete,workdir+outname+'.nml',/allow_non
+           file_delete,workdir+outname+'.nml',/allow_non
            file_delete,workdir+outname+'.ipf',/allow_non
            file_delete,workdir+outname+frdsuffix,/allow_non
            file_delete,workdir+outname+'.err',/allow_non
@@ -677,7 +702,19 @@ for idir=0,n_elements(datadir)-1 do begin
      ;if minigrid ne '' then stop
      dt=TOC(clock)
      print,'elem:',elem[ielem],dt
-   endfor  ; nelem
+    endfor ; nelem
+    ; run ferre for all nmlfiles
+    if elemloop eq 0 then begin
+      workdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/'
+      cd,workdir,current=cwd
+      nmlfile=file_search('*.nmlfiles')
+      for ifile=0,n_elements(nmlfile)-1 do begin
+        print,'running: ',nmlfile[ifile]
+        spawn,['ferre.x',nmlfile[ifile]],/noshell
+      endfor
+      cd,cwd
+    endif
+   endfor  ; elemloop
    finalstr={param: newparam, spec: newspec, lib: newlib}
    if not keyword_set(noplot) and doelemplot gt 0 then begin
      file_mkdir,resultsdir+'/elem'

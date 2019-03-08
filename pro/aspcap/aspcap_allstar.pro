@@ -452,8 +452,8 @@ For i=0L,nlocationdirs-1L do begin
    if nskip gt 0 then goto,nextloc
 
    ;; Get all of the apFieldVisits files
-   rvisitfiles = file_search(idir+'apFieldVisits-*.fits',count=nrvisitfiles)
-   cvisitfiles = file_search(idir+'apFieldVisitsC-*.fits',count=ncvisitfiles)
+   rvisitfiles = file_search(idir+'a?FieldVisits-*.fits',count=nrvisitfiles)
+   cvisitfiles = file_search(idir+'a?FieldVisitsC-*.fits',count=ncvisitfiles)
    apgundef, visitfiles
    if(nrvisitfiles gt 0 and ncvisitfiles gt 0) then begin
       visitfiles= [rvisitfiles, cvisitfiles]
@@ -472,8 +472,8 @@ For i=0L,nlocationdirs-1L do begin
 
    ;; Get all of the apField files 
    idir=stars_dir+'/'+ilocationid+'/'
-   rstarfiles = file_search(idir+'apField-*.fits',count=nrstarfiles)
-   cstarfiles = file_search(idir+'apFieldC-*.fits',count=ncstarfiles)
+   rstarfiles = file_search(idir+'a?Field-*.fits',count=nrstarfiles)
+   cstarfiles = file_search(idir+'a?FieldC-*.fits',count=ncstarfiles)
    apgundef,starfiles
    if(nrstarfiles gt 0 and ncstarfiles gt 0) then begin
       starfiles= [rstarfiles, cstarfiles]

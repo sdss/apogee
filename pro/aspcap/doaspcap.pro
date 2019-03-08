@@ -24,6 +24,7 @@ if not keyword_set(results_vers) then results_vers=apsetpar(planstr,'results_ver
 if not keyword_set(apred_vers) then apred_vers=apsetpar(planstr,'apred_vers','unknown')
 if not keyword_set(apstar_vers) then apstar_vers=apsetpar(planstr,'apstar_vers','unknown')
 if not keyword_set(aspcap_config) then aspcap_config=apsetpar(planstr,'aspcap_config','unknown')
+if not keyword_set(telescope) then telescope=apsetpar(planstr,'telescope','apo25m')
 if not keyword_set(hmask) then hmask=apsetpar(planstr,'hmask',0)
 if not keyword_set(maskfile) then maskfile=apsetpar(planstr,'maskfile',0)
 if not keyword_set(pixmask) then pixmask=apsetpar(planstr,'pixmask',0)
@@ -70,7 +71,7 @@ if n_elements(noelem) eq 0 then noelem=apsetpar(planstr,'noelem',0)
 if not keyword_set(maxwind) then maxwind=apsetpar(planstr,'maxwind',0)
 if not keyword_set(caldir) then caldir=apsetpar(planstr,'caldir',0)
 ; directories
-;apsetver,apogee_vers
+apsetver,vers=apred_vers,telescope=telescope
 dirs=getdir(apogee_dir,cal_dir,spectro_path,vers)
 if not keyword_set(aspcap_root) then aspcap_root=apsetpar(planstr,'aspcap_root',dirs.aspcap+'/')
 if not keyword_set(redux_root) then redux_root=apsetpar(planstr,'redux_root',dirs.redux)
@@ -96,8 +97,8 @@ endif else begin
   ; for apStar files
   field=planstr.aspcap.field
   ;if not keyword_set(fits) then fits='apStar-*2M????????????????.fits'
-  if not keyword_set(fits) then fits='apStar-*.fits'
-  if keyword_set(commiss) then fits='apStarC-*2M????????????????.fits'
+  if not keyword_set(fits) then fits='a?Star-*.fits'
+  if keyword_set(commiss) then fits='a?StarC-*2M????????????????.fits'
   if tag_exist(planstr.aspcap,'outfield') then outfield=planstr.aspcap.outfield  else outfield=field
   datadir=apstar_vers+'/'+strtrim(field,2)+'/'
   outdir=strtrim(outfield,2)+'/'
@@ -152,9 +153,9 @@ for idir=0,n_elements(datadir)-1 do begin
    nstars=0
  endif else begin
    print,indir,field[idir]
+   list =mrdfits(apogee_filename('Field',field=field[idir]),1,status=status)
    if keyword_set(commiss) then $
-   list=mrdfits(indir+'apFieldC-'+strtrim(file_basename(field[idir]),2)+'.fits',1,status=status) else $
-   list=mrdfits(indir+'apField-'+strtrim(file_basename(field[idir]),2)+'.fits',1,status=status)
+   list=mrdfits(indir+'apFieldC-'+strtrim(file_basename(field[idir]),2)+'.fits',1,status=status) 
    if status lt 0 or size(list,/type) eq 3 then $
      files=file_basename(file_search(indir+fits,test_symlink=symlink)) else begin
        files=strtrim(list.file,2)
@@ -710,7 +711,10 @@ for idir=0,n_elements(datadir)-1 do begin
       nmlfile=file_search('*.nmlfiles')
       for ifile=0,n_elements(nmlfile)-1 do begin
         print,'running: ',nmlfile[ifile]
-        spawn,['ferre.x',nmlfile[ifile]],/noshell
+        spawn,['ferre.x','-l',nmlfile[ifile]],result,/noshell,/stderr
+        openw,foutput,nmlfile[ifile]+'.out',/get_lun
+        for iline = 0,n_elements(result)-1 do printf,foutput,result[iline]
+        free_lun,foutput
       endfor
       cd,cwd
     endif

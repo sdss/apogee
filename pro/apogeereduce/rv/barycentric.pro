@@ -60,9 +60,10 @@ function barycentric, ra, dec, epoch, jd=jd, tai=tai, $
 
    dirs=getdir()
    if dirs.telescope eq 'lco25m' then begin
+     print,'lco'
      longitude = 360. - (70 + 41/60. + 33.36/3600.)
      latitdue = -1 * (29 +52.56/3600.)
-     altitude = 230.
+     altitude = 2380.
    endif
 
    if (NOT keyword_set(jd)) then begin

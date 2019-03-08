@@ -509,7 +509,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
     # if element minigrid, create mini linelist and get wavelengths to store
     if elem == '' :
         nelem=1
-        gd=range(nspec)
+        gdspec=range(nspec)
         nwind = 1
         pixels=[[0,nspec]]
     else :
@@ -517,15 +517,15 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
         nelem=8
         wvac,wair = mini_linelist(elem,linelist,maskdir)
         nwind=wair.shape[0]
-        gd=[]
+        gdspec=[]
         pixels=[]
         for iwind in range(nwind) :
             pix=np.where( (rawwave >= wair[iwind,0]) & (rawwave <= wair[iwind,1]) )[0]
-            gd.extend(pix)
+            gdspec.extend(pix)
             pixels.append([pix[0],pix[-1]+1])
-        nspec=len(gd)
+        nspec=len(gdspec)
         # for elem with all waves, use next line and comment out previous 8
-        #gd=range(nspec)
+        #gdspec=range(nspec)
         #nwind = 1
         #pixels=[[0,nspec]]
 
@@ -584,8 +584,8 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
                         specdata[0,imh,ilogg,iteff,:]=spec
                         specnormdata[0,imh,ilogg,iteff,:]=np.round((specnorm-0.5)*65534.).astype(int)
                     else :
-                        specdata[:,imh,ilogg,iteff,:]=spec[:,gd]
-                        specnormdata[:,imh,ilogg,iteff,:]=np.round((specnorm[:,gd]-0.5)*65534).astype(int)
+                        specdata[:,imh,ilogg,iteff,:]=spec[:,gdspec]
+                        specnormdata[:,imh,ilogg,iteff,:]=np.round((specnorm[:,gdspec]-0.5)*65534).astype(int)
                 except :
                     print(specdata.shape)
                     specdata[:,imh,ilogg,iteff,:]=0.

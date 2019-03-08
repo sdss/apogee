@@ -21,7 +21,7 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from astropy.io import fits
 from astropy.io import ascii
 
-def allField(files=['apo*/*/apField-*.fits','apo*/*/apFieldC-*.fits','lco*/*/apField-*.fits'],out='allField.fits',verbose=False) :
+def allField(files=['apo*/*/a?Field-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?Field-*.fits'],out='allField.fits',verbose=False) :
     '''
     Concatenate set of apField files
     '''
@@ -147,7 +147,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
     '''
 
     if indata is None :
-        indata=allField(files=['apo25m/*/apField-*.fits','lco25m/*/apField-*.fits','apo1m/calibration/apField-*.fits'],out=None,verbose=True)
+        indata=allField(files=['apo25m/*/a?Field-*.fits','lco25m/*/a?Field-*.fits','apo1m/calibration/a?Field-*.fits'],out=None,verbose=True)
 
     j=np.where((indata['COMMISS'] == 0) & (indata['SNR'] > 75) )[0]
     data=indata[j]

@@ -776,83 +776,101 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,teles
     if prefix is None :  
         if p.get('r0') and float(p['r0']) >= -0.001 : prefix = 'rbf_'
         else : prefix=''
-    specdata = fits.open(specdir+'/'+prefix+p['name']+'.fits')[0]
-    npix = specdata.data.shape[-1]
-    nspec=1
-    for i in range(len(specdata.data.shape)-1) :
-        nspec*=specdata.data.shape[i]
-    print('nspec: ', nspec)
-    specdata.data=np.reshape(specdata.data,(nspec,npix))
 
-    # synthesis is in air, we want vacuum
-    ws=spectra.fits2vector(specdata.header,1)
-    ws=spectra.airtovac(ws)
+    # get the synthesis
+    # for regular grids, we just want to process the first extension,
+    # for minigrids, we want to process all except the last (which is the normalized synthesis)
+    speclist = fits.open(specdir+'/'+prefix+p['name']+'.fits')
+    nexten = len(speclist) - 1
+
+    hdulist=fits.HDUList()
+    for exten in range(nexten) :
+
+        specdata = speclist[exten]
+        npix = specdata.data.shape[-1]
+        nspec=1
+        for i in range(len(specdata.data.shape)-1) :
+            nspec*=specdata.data.shape[i]
+        print('nspec: ', nspec)
+        specdata.data=np.reshape(specdata.data,(nspec,npix))
+
+        # synthesis is in air, we want vacuum
+        ws=spectra.fits2vector(specdata.header,1)
+        ws=spectra.airtovac(ws)
 
     # output wavelength grid
-    wa=aspcap.apStarWave()
-    nout=wa.shape[0]
+    #wa=aspcap.apStarWave()
+    #nout=wa.shape[0]
 
-    # create vmacro array
-    vmacro=[]
-    dlam=np.log10(wa[1])-np.log10(wa[0])
-    for k,mh in enumerate(prange(p['mh0'],p['dmh'],p['nmh'])) :
-      for j,logg in enumerate(prange(p['logg0'],p['dlogg'],p['nlogg'])) :
-        for i,teff in enumerate(prange(p['teff0'],p['dteff'],p['nteff'])) :
-            if vmacrofit == 1 :
-                vm = 10.**(0.470794-0.254*mh)
-                vm = 10.**(vmacro_arr[0]+vmacro_arr[1]*teff+vmacro_arr[2]*logg+vmacro_arr[3]*mh)
-                vm = vm if vm<15 else 15.
-            elif vmacrofit == 0 :
-                vm = 0.
-            vmacro.append(vm)
-    vmacro=np.array(vmacro)
+        # is this a minigrid?
+        try :
+            if p['elem'] == '' : nelem = 1
+            else : nelem=8
+        except : nelem=1
 
-    # LSF and rotation convolution all spectra at the same time
-    nmh=int(p['nmh'])
-    nlogg=int(p['nlogg'])
-    nteff=int(p['nteff'])
-    nrot = int(p['nrot'])
-    try :
-        if p['elem'] == '' : nelem = 1
-        else : nelem=8
-    except : nelem=1
+        # create vmacro array
+        vmacro=[]
+        #dlam=np.log10(wa[1])-np.log10(wa[0])
+        for l in range(nelem) :
+          for k,mh in enumerate(prange(p['mh0'],p['dmh'],p['nmh'])) :
+            for j,logg in enumerate(prange(p['logg0'],p['dlogg'],p['nlogg'])) :
+              for i,teff in enumerate(prange(p['teff0'],p['dteff'],p['nteff'])) :
+                if vmacrofit == 1 :
+                    vm = 10.**(0.470794-0.254*mh)
+                    vm = 10.**(vmacro_arr[0]+vmacro_arr[1]*teff+vmacro_arr[2]*logg+vmacro_arr[3]*mh)
+                    vm = vm if vm<15 else 15.
+                elif vmacrofit == 0 :
+                    vm = 0.
+                vmacro.append(vm)
+        vmacro=np.array(vmacro)
 
-    if nrot == 1 :
-        vrot=10.**.176
-        smoothdata=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=vrot,vmacro=vmacro)
-        smoothdata=np.reshape(smoothdata,(nelem,nmh,nlogg,nteff,nout)).astype(np.float32)
-    else :
-        smoothdata=np.zeros([nrot,nelem,nmh,nlogg,nteff,nout],dtype=np.float32)
-        for irot,vrot in enumerate(prange(p['rot0'],p['drot'],p['nrot'])) :
-            if kernel == 'rot' :
-                smooth=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=10.**vrot,vmacro=vmacro)
-            elif kernel == 'gauss' :
-                smooth=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vmacro=10.**vrot)
-            else :
-                print('Unknown kernel!')
-                pdb.set_trace()
-            smoothdata[irot,:,:,:,:,:]=np.reshape(smooth,(nelem,nmh,nlogg,nteff,nout)).astype(np.float32)
+        # LSF and rotation convolution all spectra at the same time
+        nmh=int(p['nmh'])
+        nlogg=int(p['nlogg'])
+        nteff=int(p['nteff'])
+        nrot = int(p['nrot'])
 
-    specdata.data=np.reshape(specdata.data,(nelem,nmh,nlogg,nteff,npix))
+        if nrot == 1 :
+            vrot=10.**.176
+            smoothdata,waveout=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=vrot,vmacro=vmacro)
+            nout=smoothdata.shape[-1]
+            pdb.set_trace()
+            smoothdata=np.reshape(smoothdata,(nelem,nmh,nlogg,nteff,nout)).astype(np.float32)
+        else :
+            smoothdata=np.zeros([nrot,nelem,nmh,nlogg,nteff,nout],dtype=np.float32)
+            for irot,vrot in enumerate(prange(p['rot0'],p['drot'],p['nrot'])) :
+                if kernel == 'rot' :
+                    smooth,waveout=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=10.**vrot,vmacro=vmacro)
+                elif kernel == 'gauss' :
+                    smooth,waveout=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vmacro=10.**vrot)
+                else :
+                    print('Unknown kernel!')
+                    pdb.set_trace()
+                smoothdata[irot,:,:,:,:,:]=np.reshape(smooth,(nelem,nmh,nlogg,nteff,nout)).astype(np.float32)
 
-    hdu=fits.PrimaryHDU(np.squeeze(smoothdata))
-    hdu.header.extend(specdata.header.copy(strip=True))
-    hdu.header['CRVAL1'] = aspcap.logw0
-    hdu.header['CDELT1'] = aspcap.dlogw
-    hdu.header['CTYPE1'] = 'LOG(WAVELENGTH)'
-    if nrot > 1 :
-        hdu.header.insert('CTYPE4',('CRVAL5',float(p['rot0']),''),after=True)
-        hdu.header.insert('CRVAL5',('CDELT5',float(p['drot']),''),after=True)
-        hdu.header.insert('CDELT5',('CRPIX5',1,''),after=True)
-        hdu.header.insert('CRPIX5',('CTYPE5','LOG(VSINI)',''),after=True)
-    hdu.header['INFILE'] = p['specdir']+'/'+prefix+p['name']+'.fits'
-    hdu.header['APRED'] = apred
-    hdu.header['LSFID'] = lsfid
-    hdu.header['WAVEID'] = waveid
-    hdu.header['HIGHRES'] = highres
-    hdu.header.add_comment('LSF convolved spectra')
-    hdu.header.add_comment('APOGEE_VER:'+os.environ['APOGEE_VER'])
-    hdu.writeto(p['name']+'.fits',overwrite=True)
+        specdata.data=np.reshape(specdata.data,(nelem,nmh,nlogg,nteff,npix))
+        if exten == 0 : hdu=fits.PrimaryHDU(np.squeeze(smoothdata))
+        else : hdu=fits.ImageHDU(np.squeeze(smoothdata))
+        hdu.header.extend(specdata.header.copy(strip=True))
+        #hdu.header['CRVAL1'] = aspcap.logw0
+        hdu.header['CRVAL1'] = np.log10(waveout[0])
+        hdu.header['CDELT1'] = aspcap.dlogw
+        hdu.header['CTYPE1'] = 'LOG(WAVELENGTH)'
+        if nrot > 1 :
+            hdu.header.insert('CTYPE4',('CRVAL5',float(p['rot0']),''),after=True)
+            hdu.header.insert('CRVAL5',('CDELT5',float(p['drot']),''),after=True)
+            hdu.header.insert('CDELT5',('CRPIX5',1,''),after=True)
+            hdu.header.insert('CRPIX5',('CTYPE5','LOG(VSINI)',''),after=True)
+        hdu.header['INFILE'] = p['specdir']+'/'+prefix+p['name']+'.fits'
+        hdu.header['APRED'] = apred
+        hdu.header['LSFID'] = lsfid
+        hdu.header['WAVEID'] = waveid
+        hdu.header['HIGHRES'] = highres
+        hdu.header.add_comment('LSF convolved spectra')
+        hdu.header.add_comment('APOGEE_VER:'+os.environ['APOGEE_VER'])
+        hdulist.append(hdu)
+
+    hdulist.writeto(p['name']+'.fits',overwrite=True)
 
     return smoothdata
 
@@ -978,7 +996,7 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',te
             vrot=spec[0][7]
             if vrot < 0.5 : vrot=None
             # convolve one at a time because we have different vrot for each
-            z=lsf.convolve(ws,spec[1],lsf=ls,xlsf=x,vmacro=vmacro,vrot=vrot)
+            z,waveout=lsf.convolve(ws,spec[1],lsf=ls,xlsf=x,vmacro=vmacro,vrot=vrot)
             out.append(spec[1])
             conv.append(np.squeeze(z))
             outpar.append(spec[0])
@@ -1000,6 +1018,7 @@ def getlsf(lsfid,waveid,apred='r10',telescope='apo25m',highres=9,prefix='lsf_',f
     """ Create LSF FITS file or read if already created
     """
     lsfile = prefix+'{:08d}_{:08d}.fits'.format(lsfid,waveid)
+    print(lsfile)
     while os.path.isfile(lsfile+'.lock') :
         # if another process is creating LSF wait until done
         print('waiting for lock: ',lsfile+'.lock')

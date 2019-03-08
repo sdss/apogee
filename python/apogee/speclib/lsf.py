@@ -127,9 +127,9 @@ def convolve(wav,spec,
         tmp= sparse.csr_matrix(tmp)
 
     if highout :
-        return lsf.dot(tmp.T).T.toarray()
+        return lsf.dot(tmp.T).T.toarray(),waveout[gd]
     else :
-        return lsf.dot(tmp.T).T.toarray()[:,::hires]
+        return lsf.dot(tmp.T).T.toarray()[:,::hires],waveout[gd]
 
 def sparsify(lsf):
     """convert an LSF matrix calculated with eval [ncen,npixoff] to a sparse [ncen,ncen] matrix with the LSF on the diagonals (for quick convolution with the LSF)

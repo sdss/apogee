@@ -16,7 +16,8 @@ import pdb
 from tools import match
 from apogee.aspcap import aspcap
 import glob
-import corner
+try: import corner
+except: pass
 
 def writespec(name,data) :
     """ Writes FERRE 'spectrum' file with input data, one line per star

@@ -834,7 +834,6 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,teles
             vrot=10.**.176
             smoothdata,waveout=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=vrot,vmacro=vmacro)
             nout=smoothdata.shape[-1]
-            pdb.set_trace()
             smoothdata=np.reshape(smoothdata,(nelem,nmh,nlogg,nteff,nout)).astype(np.float32)
         else :
             smoothdata=np.zeros([nrot,nelem,nmh,nlogg,nteff,nout],dtype=np.float32)

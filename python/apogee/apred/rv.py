@@ -1,9 +1,12 @@
+# routines for assessing RVs from pipeline
+
 import os
 import copy
 import glob
 import pdb
 import numpy as np
 import matplotlib.pyplot as plt
+import esutil
 from astropy.io import fits
 from apogee.utils import apload
 from apogee.utils import applot
@@ -23,7 +26,7 @@ chips=['a','b','c']
 
 
 def allField(files=['apo*/*/apField-*.fits','apo*/*/apFieldC-*.fits','lco*/*/apField-*.fits'],out='allField.fits',verbose=False) :
-    """ Concatenate set of apField files
+    """ Concatenate set of apField files 
     """
     # concatenate the structures
     all=struct.concat(files,verbose=verbose)
@@ -36,7 +39,7 @@ def allField(files=['apo*/*/apField-*.fits','apo*/*/apFieldC-*.fits','lco*/*/apF
     return all
 
 def allFieldVisits(files=['apo*/*/apFieldVisits-*.fits','apo*/*/apFieldC-*.fits','lco*/*/apFieldVisits-*.fits'],out='allFieldVisits.fits',verbose=False) :
-    """ Concatenate set of apField files
+    """ Concatenate set of apFieldVisit files
     """
     # concatenate the structures
     all=struct.concat(files,verbose=verbose)
@@ -49,8 +52,8 @@ def allFieldVisits(files=['apo*/*/apFieldVisits-*.fits','apo*/*/apFieldC-*.fits'
     return all
 
 
-def vscat(a,fig=None,ls=None,marker='o',nmin=2) :
-    """ Make histograms of VSCATTER for different Teff and min NVISITS
+def vscat(a,fig=None,ls=None,marker='o',nmin=2,mhmin=-3,density=False,out=None) :
+    """ Make histograms of VSCATTER for different bins of Teff H], given min NVISITS, and min [M/H]
     """
     if fig == None : fig,ax=plots.multi(4,6,hspace=0.001,wspace=0.4)
     else : fig,ax=fig
@@ -65,29 +68,47 @@ def vscat(a,fig=None,ls=None,marker='o',nmin=2) :
             ax[0,j].set_title('{:d}<=H<{:d}'.format(hbins[j],hbins[j+1]))
             gd = np.where((a['RV_TEFF']>=tbins[i]) & (a['RV_TEFF']<tbins[i+1]) &
                           (a['H']>=hbins[j]) & (a['H']<hbins[j+1]) &
-                           (a['NVISITS']>nmin) ) [0]
+                           (a['NVISITS']>nmin) & (a['RV_FEH']>mhmin) ) [0]
             print(tbins[i],tbins[i+1],hbins[j],hbins[j+1],nmin,len(gd))
             try :
                 #plots.plotc(ax[i,2],snr[gd],a['VSCATTER'][gd],a['RV_FEH'][gd],marker=marker,xr=[0,310],yr=[0,1],xt='S/N',yt='VSCATTER')
-                ax[i,j].hist(a['VSCATTER'][gd],bins=np.arange(0,1,0.01),ls=ls,histtype='step',color=colors[j])
+                ax[i,j].hist(a['VSCATTER'][gd],bins=np.arange(0,1,0.01),ls=ls,histtype='step',color=colors[j],normed=density)
                 ax[i,j].set_xlabel('VSCATTER')
                 #ax[i,1].hist(a['VSCATTER'][gd],bins=np.arange(0,1,0.01),histtype='step',cumulative=True,normed=True,ls=ls,color=colors[j])
                 #ax[i,1].set_xlabel('VSCATTER')
             except : pass
 
-    fig.suptitle('NVISITS>{:d}'.format(nmin))
+    fig.suptitle('NVISITS>{:d} [M/H]>{:6.2f}'.format(nmin,mhmin))
+    if out is not None : 
+        fig.savefig(out+'.png')
+        plt.close()
     return fig,ax
 
 def apolco(a,minfeh=-3,out=None) :
     """  VSCATTER histograms for APO vs LCO
     """
-    gd=np.where((a['TELESCOPE'] == 'apo25m') & (a['RV_FEH']>minfeh) )[0]
-    fig=vscat(a[gd],marker='o')
-    gd=np.where((a['TELESCOPE'] == 'lco25m') & (a['RV_FEH']>minfeh) )[0]
-    vscat(a[gd],fig=fig,ls=':',marker='+')
+    apo=np.where((a['TELESCOPE'] == 'apo25m') & (a['RV_FEH']>minfeh) )[0]
+    fig=vscat(a[apo],marker='o',density=True)
+    lco=np.where((a['TELESCOPE'] == 'lco25m') & (a['RV_FEH']>minfeh) )[0]
+    vscat(a[lco],fig=fig,ls=':',marker='+',density=True)
     if out is not None : 
-        fig[0].savefig(out+'.png')
+        fig[0].savefig(out+'_1.png')
         plt.close()
+    i1,i2=match.match(a['APOGEE_ID'][apo],a['APOGEE_ID'][lco])
+    print('matched {:d} stars'.format(len(i1)))
+    fig,ax=plots.multi(1,2)
+    #plots.plotp(ax[0,0],a['SNR'][apo[i1]],a['VHELIO_AVG'][apo[i1]]-a['VHELIO_AVG'][lco[i2]],yr=[-3,3],yt=r'$\Delta$ VHELIO_AVG',xt='S/N')
+    #plots.plotp(ax[0,1],a['SNR'][apo[i1]],a['VHELIO_AVG'][apo[i1]]-a['VHELIO_AVG'][lco[i2]],yr=[-50,50],yt=r'$\Delta$ VHELIO_AVG',xt='S/N')
+    #plots.plotp(ax[1,0],a['SNR'][apo[i1]],a['VSCATTER'][apo[i1]]-a['VSCATTER'][lco[i2]],yr=[-0.5,0.5],yt=r'$\Delta$ VSCATTER',xt='S/N')
+    #plots.plotp(ax[1,1],a['SNR'][apo[i1]],a['VSCATTER'][apo[i1]]-a['VSCATTER'][lco[i2]],yr=[-5,5],yt=r'$\Delta$ VSCATTER',xt='S/N')
+    ax[0].hist(a['VHELIO_AVG'][apo[i1]]-a['VHELIO_AVG'][lco[i2]],bins=np.arange(-0.5,0.5,0.02),histtype='step')
+    ax[0].set_xlabel(r'$\Delta$ VHELIO_AVG')
+    ax[1].hist(a['VSCATTER'][apo[i1]]-a['VSCATTER'][lco[i2]],bins=np.arange(-0.25,0.25,0.01),histtype='step')
+    ax[1].set_xlabel(r'$\Delta$ VSCATTER')
+    if out is not None : 
+        fig.savefig(out+'_2.png')
+        plt.close()
+
 
 def comp(a,b,av=None,bv=None,domatch=True,out=None) :
     """ VSCATTER comparison of two different data sets
@@ -105,11 +126,15 @@ def comp(a,b,av=None,bv=None,domatch=True,out=None) :
         plt.close()
 
     if domatch :
-        fig,ax=plots.multi(2,2,hspace=0.001,wspace=0.4)
-        plots.plotp(ax[0,0],a['SNR'],a['VHELIO_AVG']-b['VHELIO_AVG'],yr=[-3,3],yt=r'$\Delta$ VHELIO_AVG')
-        plots.plotp(ax[0,1],a['SNR'],a['VHELIO_AVG']-b['VHELIO_AVG'],yr=[-50,50],yt=r'$\Delta$ VHELIO_AVG')
-        plots.plotp(ax[1,0],a['SNR'],a['VSCATTER']-b['VSCATTER'],yr=[-0.5,0.5],yt=r'$\Delta$ VSCATTER')
-        plots.plotp(ax[1,1],a['SNR'],a['VSCATTER']-b['VSCATTER'],yr=[-5,5],yt=r'$\Delta$ VSCATTER')
+        fig,ax=plots.multi(1,2)
+        #plots.plotp(ax[0,0],a['SNR'],a['VHELIO_AVG']-b['VHELIO_AVG'],yr=[-3,3],yt=r'$\Delta$ VHELIO_AVG')
+        #plots.plotp(ax[0,1],a['SNR'],a['VHELIO_AVG']-b['VHELIO_AVG'],yr=[-50,50],yt=r'$\Delta$ VHELIO_AVG')
+        #plots.plotp(ax[1,0],a['SNR'],a['VSCATTER']-b['VSCATTER'],yr=[-0.5,0.5],yt=r'$\Delta$ VSCATTER')
+        #plots.plotp(ax[1,1],a['SNR'],a['VSCATTER']-b['VSCATTER'],yr=[-5,5],yt=r'$\Delta$ VSCATTER')
+        ax[0].hist(a['VHELIO_AVG']-b['VHELIO_AVG'],bins=np.arange(-0.5,0.5,0.02),histtype='step')
+        ax[0].set_xlabel(r'$\Delta$ VHELIO_AVG')
+        ax[1].hist(a['VSCATTER']-b['VSCATTER'],bins=np.arange(-0.5,0.5,0.02),histtype='step')
+        ax[1].set_xlabel(r'$\Delta$ VSCATTER')
         if out is not None : 
             fig.savefig(out+'_2.png')
             plt.close()
@@ -291,30 +316,58 @@ def dr14comp(a,b,av,bv):
            pax[ichip].cla()
            wax[ichip].cla()
 
-def all() :
-    """ Do a series of RV comparisons for DR14 and proto DR16
+def standards(a,out=None) :
+    """ Compare RVs to standards
+    """
+    stan = fits.open(os.environ['APOGEE_DIR']+'/data/rv/rvstandards.fits')[1].data
+    h=esutil.htm.HTM()
+    m1,m2,rad=h.match(a['ra'],a['dec'],stan['ra'],stan['dec'],1./3600.,maxmatch=500)
+    fig,ax=plots.multi(1,1)
+    ax.hist(a['VHELIO_AVG'][m1]-stan['RV'][m2],histtype='step',bins=np.arange(-1,1,0.1))
+    ax.set_xlabel('RV(APOGEE) - RV(lit)')
+    if out is not None :
+        fig.savefig(out+'.png')
+        plt.close()
+
+   
+def all(a,name='DR16',dr='dr14') :
+    """ Do a series of RV comparisons for input data and previous DR
     """
     grid=[]
     xtit=[]
-    a=fits.open('allField.fits')[1].data
-    load=apload.ApLoad(dr='dr14')
+    load=apload.ApLoad(dr=dr)
     b=load.allStar()[1].data
-    comp(a,b,domatch=False,out='plots/dr14all')
-    grid.append(['dr14all_1.png',''])
-    xtit.append('all stars: DR14 (dotted) and test DR16 (solid)')
-    comp(a,b,domatch=True,out='plots/dr14match')
-    grid.append(['dr14match_1.png','dr14match_2.png'])
-    xtit.append('same stars: DR14 (dotted) and test DR16 (solid)')
+   
+    # vscatter of new RVs
+    vscat(a,out='plots/vscat')
+    vscat(a,out='plots/vscat5',nmin=5)
+    grid.append(['vscat.png','vscat5.png'])
+    xtit.append(name+' : VSCATTER')
+
+    # APO/LCO comparison
     apolco(a,out='plots/apolco')
-    grid.append(['apolco.png',''])
-    xtit.append('testDR16 : APO (solid) and LCO (dotted)')
-    apolco(a,out='plots/apolco_nolowz',minfeh=-0.6)
-    grid.append(['apolco_nolowz.png',''])
-    xtit.append('testDR16, no low [Fe/H]: APO (solid) and LCO (dotted)')
+    grid.append(['apolco_1.png','apolco_2.png'])
+    xtit.append(name+' : APO (solid) and LCO (dotted), same stars')
+    #apolco(a,out='plots/apolco_nolowz',minfeh=-0.6)
+    #grid.append(['apolco_nolowz_1.png','apolco_nolowz_2'])
+    #xtit.append(name+', no low [Fe/H]: APO (solid) and LCO (dotted)')
+
+    # RV standards
+    standards(a,out='plots/rvstan')
+    grid.append(['rvstan.png',''])
+    xtit.append(name+', comparison with literature RVs')
+
+    # comparison with previous DR
+    comp(a,b,domatch=True,out='plots/drcomp')
+    grid.append(['drcomp_1.png','drcomp_2.png'])
+    xtit.append(name+', comparison with '+dr+' : same stars, same NVISITS, new(solid) '+dr+'(dotted)')
+
     html.htmltab(grid,ytitle=xtit,file='plots/rv.html')
 
-def visitspec(load,plate,mjd,fiber,gridfile='apg_rvsynthgrid',apstar=False) :
 
+def visitspec(load,plate,mjd,fiber,gridfile='apg_rvsynthgrid',apstar=False) :
+    """ Crude beginnings of an RV routine
+    """
     grid = fits.open(os.environ['APOGEE_DIR']+'/data/synthgrid/'+gridfile+'.fits')
     if gridfile == 'apg_rvsynthgrid' : hdu=1
     elif gridfile == 'apg_rvsynthgrid_v2': hdu=0
@@ -328,6 +381,15 @@ def visitspec(load,plate,mjd,fiber,gridfile='apg_rvsynthgrid',apstar=False) :
     #    gridspec[:,ispec] /= cont
 
     data = load.apVisit(plate,mjd,fiber)
+
+    # compare with DR14 
+    comp(a,b,domatch=False,out='plots/dr14all')
+    grid.append(['dr14all_1.png',''])
+    xtit.append('all stars: DR14 (dotted) and test DR16 (solid)')
+
+    comp(a,b,domatch=True,out='plots/dr14match')
+    grid.append(['dr14match_1.png','dr14match_2.png'])
+    xtit.append('same stars: DR14 (dotted) and test DR16 (solid)')
     # set bad pixels to nan
     shape=data[1].data.shape
     spec = copy.copy(data[1].data).flatten()

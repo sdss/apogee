@@ -1057,19 +1057,31 @@ def getlsf(lsfid,waveid,apred='r10',telescope='apo25m',highres=9,prefix='lsf_',f
     return x, ls
 
    
-def elemsens(files=None,outfile='elemsens.fits',highres=9,waveid=2420038,lsfid=5440020,apred='r10',fiber='combo',plot=True,calc=False,htmlfile='elemsens.html',filt=None,filtdir=None) :
+def elemsens(files=None,outfile='elemsens',highres=9,waveid=13140000,lsfid=14600018,apred='r12',telescope='apo25m',fiber='combo',
+             calc=False,plot=True,ls=None,htmlfile='elemsens.html',filt=None,filtdir=None) :
     """ Create spectra at a range of paramters with individual abundances varied independently
     """
     if files==None : files=sample.elemsens()
     hdu=fits.HDUList()
-    if calc: x,ls=lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred)
+    hdumask=fits.HDUList()
+    if ls is None :
+        x, ls = getlsf(lsfid,waveid,apred=apred,telescope=telescope,fiber=fiber,highres=highres)
+    else :
+        x = ls[0]
+        ls = ls[1]
     grid=[]
     ytit=[]
-    for i,name in enumerate(files) :
+    for i,name in enumerate(files[1:]) :
         print(name)
         if name == 'C.dat' or name == 'N.dat' : continue
-        if calc : out=mksynth(name,threads=16,ls=(x,ls))
-        else : out=name+'.fits'
+        if calc : 
+            out=mksynth(name,threads=16,ls=(x,ls))
+            out0=mksynth(name.replace('.dat','_0.dat'),threads=16,ls=(x,ls))
+            out1=mksynth(name.replace('.dat','_1.dat'),threads=16,ls=(x,ls))
+        else : 
+            out=name+'.fits'
+            out0=name.replace('.dat','_0.dat')+'.fits'
+            out1=name.replace('.dat','_1.dat')+'.fits'
         ehdu=fits.open(out)[2]
         ehdu.header['ELEM'] = name.replace('.dat','')
         ehdu.header['CRVAL1'] = aspcap.logw0
@@ -1085,6 +1097,7 @@ def elemsens(files=None,outfile='elemsens.fits',highres=9,waveid=2420038,lsfid=5
                 fig,ax=plots.multi(3,3,hspace=0.001,wspace=0.001,xtickrot=60,figsize=(12,8))
                 nspec = ehdu.data.shape[0]
                 ispec=0
+                gd=[]
                 for ix in range(3) :
                     te=3500+ix*1000
                     for iy in range(3) :
@@ -1095,15 +1108,58 @@ def elemsens(files=None,outfile='elemsens.fits',highres=9,waveid=2420038,lsfid=5
                         ax[iy,ix].text(0.05,0.9,'Teff:{:6.0f} logg:{:6.1f}'.format(te,logg),transform=ax[iy,ix].transAxes)
                         if filt is not None: plots.plotl(ax[iy,ix],x,filt*0.1+1.005)
                         j=np.where(y < 0.99)[0]
+                        gd.extend(j)
                         ispec+=1
+                mask=np.zeros(ehdu.data.shape[-1])
+                mask[list(set(gd))] = 1.
                 figname = ehdu.header['ELEM'].strip()+'.png'
                 fig.savefig(figname)
                 plt.close()
                 grid.append([figname])
                 ytit.append(ehdu.header['ELEM'])
+                mhdu=fits.ImageHDU(mask)
+                mhdu.header['ELEM'] = name.replace('.dat','')
+                mhdu.header['CRVAL1'] = aspcap.logw0
+                mhdu.header['CDELT1'] = aspcap.dlogw
+                mhdu.header['CTYPE1'] = 'LOG(WAVELENGTH)'
+                hdumask.append(mhdu)
     # output single file
-    if outfile is not None: hdu.writeto(outfile,overwrite=True)
+    if outfile is not None: 
+        hdu.writeto(outfile+'.fits',overwrite=True)
+        hdumask.writeto(outfile+'_mask.fits',overwrite=True)
     html.htmltab(grid,ytitle=ytit,file=htmlfile)
+
+def mkmask(file='elemsens_mask')  :
+
+    mask=fits.open(file+'.fits')
+    els=[]
+    for i in range(len(mask)) : els.append(mask[i].header['ELEM'])
+    els = np.array(els)
+    alphas=np.array(['Mg','Si','S','Ca','Ti'])
+    metals=np.array(['Na','Al','P','K','V','Cr','Mn','Co','Ni','Cu','Ge','Rb'])
+    for i,el in enumerate(els) :
+        print(el)
+        plt.clf()
+        plt.plot(mask[i].data)
+        if el in alphas :
+            for al in alphas :
+                if el != al :
+                    print(el,al)
+                    j=np.where(els == al)[0][0]
+                    gd=np.where(abs(mask[j].data) > 0.)[0]
+                    mask[i].data[gd] = -1.*mask[i].data[gd]
+        elif el in metals :
+            for al in metals :
+                if el != al :
+                    print(el,al)
+                    j=np.where(els == al)[0][0]
+                    gd=np.where(abs(mask[j].data) > 0.)[0]
+                    mask[i].data[gd] = -1.*mask[i].data[gd]
+
+        plt.plot(mask[i].data)
+        plt.draw()
+        plt.show()
+        pdb.set_trace()
 
 def filter_lines(infile,outfile,wind,nskip=0) :
     """ Read from input linelist file, output comments and lines falling in windows of [w1,w2] to outfile

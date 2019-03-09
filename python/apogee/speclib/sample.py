@@ -40,8 +40,12 @@ def elemsens(teffs=[3500,4500,5500],loggs=[1.0,3.0,5.0],mhs=[0.0]) :
     for el in np.append(['','C','N'],els):
         if el == '' : name='ref.dat'
         else : name=el+'.dat'
+        name0=el+'_0.dat'
+        name1=el+'_1.dat'
         files.append(name)
         f=open(name,'w')
+        f0=open(name0,'w')
+        f1=open(name1,'w')
         f.write("#   Teff   logg    [M/H] [alpha/M] [C/M]   [N/M]  vmicro  vrot")
         for e in els: f.write('{:>7s}'.format(e))
         f.write('\n')
@@ -60,6 +64,18 @@ def elemsens(teffs=[3500,4500,5500],loggs=[1.0,3.0,5.0],mhs=[0.0]) :
                       else: ab=0.0
                       out = out + '{:7.2f}'.format(ab)      # other elements
                     f.write(out+'\n')
+                    out = '{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}'.format(teff,logg,mh,am,cm+dcm,nm+dnm,vmicro,vrot)      
+                    for e in els : 
+                      if e == el : ab=0. 
+                      else: ab=-10.0
+                      out = out + '{:7.2f}'.format(ab)      # other elements
+                    f0.write(out+'\n')
+                    out = '{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}'.format(teff,logg,mh,am,cm+dcm,nm+dnm,vmicro,vrot)      
+                    for e in els : 
+                      if e == el : ab=0.1 
+                      else: ab=-10.0
+                      out = out + '{:7.2f}'.format(ab)      # other elements
+                    f1.write(out+'\n')
     return files
 
 def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,logglim=[-0.5,5.5],mhlim=[-2.5,0.75],nmlim=[-0.5,2.],cmlim=[-1.5,1.],emlim=[-0.5,1.],vmicrolim=[0.3,4.8],amlim=[-0.5,1.],vrotlim=[1.5,96.],rot=True,nsamp=1,niso=None) :

@@ -632,17 +632,15 @@ for idir=0,n_elements(datadir)-1 do begin
            file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+'.err',workdir+outname+'.err'
          endif
          if nfit gt 0 then begin
-           if elemloop eq 0 then begin
-             cd,workdir+'/../',current=cwd
-             openu,nmlfiles,aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/'+libpar.info[iclass].class+'.nmlfiles',/get_lun,/append
-             printf,nmlfiles,elemdir+'/'+outname+'.nml'
-             free_lun,nmlfiles
-             file_delete,'lib_'+libpar.info[iclass].class,/allow
-             file_link,file_dirname(libhead.file),'lib_'+libpar.info[iclass].class,/allow
-             cd,cwd
-           endif
-           if not file_test(workdir+outname+'.spm') or keyword_set(clobber) then begin
+           if elemloop eq 0 and (not file_test(workdir+outname+'.spm') or keyword_set(clobber)) then begin
               file_delete,workdir+outname+'.spm',/allow_nonexistent    
+              cd,workdir+'/../',current=cwd
+              openu,nmlfiles,aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/'+libpar.info[iclass].class+'.nmlfiles',/get_lun,/append
+              printf,nmlfiles,elemdir+'/'+outname+'.nml'
+              free_lun,nmlfiles
+              file_delete,'lib_'+libpar.info[iclass].class,/allow
+              file_link,file_dirname(libhead.file),'lib_'+libpar.info[iclass].class,/allow
+              cd,cwd
               ;cd,workdir,current=cwd
               ;aspcap_wrpbsscript,outname,exec_path,ncpus,jobsid,libsize,queue=queue,qname=qname,workdir=workdir
               ;TOC
@@ -710,11 +708,13 @@ for idir=0,n_elements(datadir)-1 do begin
       cd,workdir,current=cwd
       nmlfile=file_search('*.nmlfiles')
       for ifile=0,n_elements(nmlfile)-1 do begin
-        print,'running: ',nmlfile[ifile]
-        spawn,['ferre.x','-l',nmlfile[ifile]],result,/noshell,/stderr
-        openw,foutput,nmlfile[ifile]+'.out',/get_lun
-        for iline = 0,n_elements(result)-1 do printf,foutput,result[iline]
-        free_lun,foutput
+        if file_lines(nmlfile[ifile]) gt 0 then begin
+          print,'running: ',nmlfile[ifile]
+          spawn,['ferre.x','-l',nmlfile[ifile]],result,/noshell,/stderr
+          openw,foutput,nmlfile[ifile]+'.out',/get_lun
+          for iline = 0,n_elements(result)-1 do printf,foutput,result[iline]
+          free_lun,foutput
+        endif
       endfor
       cd,cwd
     endif

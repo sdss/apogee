@@ -111,7 +111,8 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,dwarf=False,trange=[3750,5500],mhrange=[
     mean=bindata(mh,teff-ghb,bins,median=True)
     if not dr13: plots.plotp(ax,bins+binsize/2.,mean,marker='o',size=40,color='b')
     ax.text(0.1,0.9,'E(B-V)<{:6.2f}'.format(ebvmax),transform=ax.transAxes)
-    tefit = fit.fit1d(bins+binsize/2.,mean,degree=2,reject=0)
+    gd=np.where(np.isfinite(mean))[0]
+    tefit = fit.fit1d(bins[gd]+binsize/2.,mean[gd],degree=2,reject=0)
     # 1D quadratic fit as a function of metallicity
     allfit = fit.fit1d(mh,teff-ghb,ydata=teff,degree=2,reject=0)
     #ejk=np.clip(np.sqrt(allstar['J_ERR']**2+allstar['K_ERR']**2),0.,0.02)

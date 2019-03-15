@@ -651,18 +651,16 @@ stop
 
       ; add extratarg tag info
       for k=0,n_elements(tmp_allvisitloc)-1 do begin
-        extratarg=0
-        if (tmp_allvisitloc[k].commiss eq 0 and  $
-           ((tmp_allvisitloc[k].apogee_target1 and 2L^11) gt 0 or $
-            (tmp_allvisitloc[k].apogee_target1 and 2L^12) gt 0 or $
-            (tmp_allvisitloc[k].apogee_target1 and 2L^13) gt 0)) then begin
-          extratarg=0
-        endif else begin
-          if tmp_allvisitloc[k].commiss eq 1 then extratarg = extratarg or 2
-          if strpos(tmp_allvisitloc[k].targflags,'_TELLURIC') ge 0 then extratarg= extratarg or 4
-          if strtrim(tmp_allvisitloc[k].telescope,2) eq 'apo1m' then extratarg= extratarg or 8
-          if extratarg eq 0 then extratarg = extratarg or 1
-        endelse
+        extratarg=1
+        if (tmp_allvisitloc[k].apogee_target1 and 2L^11) gt 0 then extratarg = 0
+        if (tmp_allvisitloc[k].apogee_target1 and 2L^12) gt 0 then extratarg = 0
+        if (tmp_allvisitloc[k].apogee_target1 and 2L^13) gt 0 then extratarg = 0
+        if (tmp_allvisitloc[k].apogee2_target1 and 2L^11) gt 0 then extratarg = 0
+        if (tmp_allvisitloc[k].apogee2_target1 and 2L^12) gt 0 then extratarg = 0
+        if (tmp_allvisitloc[k].apogee2_target1 and 2L^13) gt 0 then extratarg = 0
+        if tmp_allvisitloc[k].commiss eq 1 then extratarg = extratarg or 2
+        if strpos(tmp_allvisitloc[k].targflags,'_TELLURIC') ge 0 then extratarg= extratarg or 4
+        if strtrim(tmp_allvisitloc[k].telescope,2) eq 'apo1m' then extratarg= extratarg or 8
         tmp_allvisitloc[k].extratarg = extratarg   
         ; get cohort maximum magnitude
         icohort=-1
@@ -823,18 +821,16 @@ stop
 
          endif
           ; add extratarg tag info
-         extratarg=0
-         if (tmp_allstarloc[k].commiss eq 0 and  $
-            ((tmp_allstarloc[k].apogee_target1 and 2L^11) gt 0 or $
-             (tmp_allstarloc[k].apogee_target1 and 2L^12) gt 0 or $
-             (tmp_allstarloc[k].apogee_target1 and 2L^13) gt 0)) then begin
-           extratarg=0
-         endif else begin
-           if tmp_allstarloc[k].commiss eq 1 then extratarg = extratarg or 2
-           if strpos(tmp_allstarloc[k].targflags,'_TELLURIC') ge 0 then extratarg= extratarg or 4
-           if strtrim(tmp_allstarloc[k].telescope,2) eq 'apo1m' then extratarg= extratarg or 8
-           if extratarg eq 0 then extratarg = extratarg or 1
-         endelse
+         extratarg=1
+         if (tmp_allstarloc[k].apogee_target1 and 2L^11) gt 0 then extratarg = 0
+         if (tmp_allstarloc[k].apogee_target1 and 2L^12) gt 0 then extratarg = 0
+         if (tmp_allstarloc[k].apogee_target1 and 2L^13) gt 0 then extratarg = 0
+         if (tmp_allstarloc[k].apogee2_target1 and 2L^11) gt 0 then extratarg = 0
+         if (tmp_allstarloc[k].apogee2_target1 and 2L^12) gt 0 then extratarg = 0
+         if (tmp_allstarloc[k].apogee2_target1 and 2L^13) gt 0 then extratarg = 0
+         if tmp_allstarloc[k].commiss eq 1 then extratarg = extratarg or 2
+         if strpos(tmp_allstarloc[k].targflags,'_TELLURIC') ge 0 then extratarg= extratarg or 4
+         if strtrim(tmp_allstarloc[k].telescope,2) eq 'apo1m' then extratarg= extratarg or 8
          tmp_allstarloc[k].extratarg = extratarg   
          tmp_allstarloc[k].min_h = min(allvisitloc[pk].min_h)
          tmp_allstarloc[k].max_h = max(allvisitloc[pk].max_h)

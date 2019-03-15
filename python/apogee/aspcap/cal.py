@@ -244,6 +244,8 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         i1,i2=match.match(data['APOGEE_ID'][jn], data['APOGEE_ID'][js])
         jc=jn[i1]
         mklinks(data,jc,dir+'_ns')
+        jc=js[i2]
+        mklinks(data,jc,dir+'_ns')
         all.extend(jc)
 
     if hrdata is not None:
@@ -323,7 +325,8 @@ def docal(vers,clobber=False,allstar=True,hr=True,teff=True,logg=True,vmicro=Tru
         cc=fits.open('allStar-'+vers+'.fits')[3].data
     else :
         c=allc
-        cc=apl.allStar()[3].data
+        cc=fits.open('allCal-'+vers+'.fits')[3].data
+        #cc=apl.allStar()[3].data
     print('Total stars:',len(c))
 
     figs=[]

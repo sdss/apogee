@@ -515,7 +515,7 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
     else :
         # number of minigrid abundances
         nelem=8
-        wvac,wair = mini_linelist(elem,linelist,maskdir)
+        wvac,wair = mini_linelist(elem,linelist,maskdir=maskdir)
         nwind=wair.shape[0]
         gdspec=[]
         pixels=[]
@@ -918,18 +918,18 @@ def mkspec(input) :
     vmicro=pars[6]
     vrot=pars[7]
     elems=[]
-    els = ['O','Na','Mg','Al','Si','P','S','K','Ca','Ti','V','Cr','Mn','Co','Ni','Cu','Ge','Rb','Ce','Nd']
+    els = ['O','Na','Mg','Al','Si','P','S','K','Ca','Ti','V','Cr','Mn','Co','Fe','Ni','Cu','Ge','Rb','Ce','Nd']
     for j,el in enumerate(els) :
         elems.append([el,pars[8+j]])
     print(teff,logg,mh,vmicro,am,cm,nm)
     spec,specnorm=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=indata['kurucz'],fill=False,
-                              linelist=indata['linelist'],wrange=indata['wrange'],dw=indata['dw'],h2o=indata['h2o'],atoms=indata['atoms'],save=False)
-    #spec,specnorm=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=False,fill=False,linelist='20180901.OH',h2o=0,atoms=False,wrange=[15100.,17000.],save=False)
+                              linelist=indata['linelist'],linelistdir=indata['linelistdir'],
+                              wrange=indata['wrange'],dw=indata['dw'],h2o=indata['h2o'],atoms=indata['atoms'],save=True)
     return pars,specnorm
     
 
 def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',telescope='apo25m',
-            fiber='combo',linelist='20180901',kurucz=False,h2o=None,atoms=True,plot=False,lines=None,ls=None) :
+            fiber='combo',linelist='20180901',linelistdir=None,kurucz=False,h2o=None,atoms=True,plot=False,lines=None,ls=None) :
     """ Make a series of spectra from parameters in an input file, with parallel processing for turbospec
         Outputs to FITS file {file}.fits
 
@@ -953,6 +953,7 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',te
 
     indata={}
     indata['linelist']=linelist
+    indata['linelistdir']=linelistdir
     indata['kurucz']=kurucz
     indata['h2o']=h2o
     indata['atoms']=atoms
@@ -964,7 +965,6 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',te
         inputs.append((par,indata))
 
     pool = mp.Pool(threads)
-    #specs = pool.map_async(mkspec, pars).get()
     specs = pool.map_async(mkspec, inputs).get()
     pool.close()
     pool.join()
@@ -1058,38 +1058,39 @@ def getlsf(lsfid,waveid,apred='r10',telescope='apo25m',highres=9,prefix='lsf_',f
 
    
 def elemsens(files=None,outfile='elemsens',highres=9,waveid=13140000,lsfid=14600018,apred='r12',telescope='apo25m',fiber='combo',
-             calc=False,plot=True,ls=None,htmlfile='elemsens.html',filt=None,filtdir=None) :
+             calc=False,plot=True,ls=None,htmlfile='elemsens.html',filt=None,filtdir=None,linelist='20180901') :
     """ Create spectra at a range of paramters with individual abundances varied independently
     """
     if files==None : files=sample.elemsens()
     hdu=fits.HDUList()
     hdumask=fits.HDUList()
     if ls is None :
-        x, ls = getlsf(lsfid,waveid,apred=apred,telescope=telescope,fiber=fiber,highres=highres)
+        xls, ls = getlsf(lsfid,waveid,apred=apred,telescope=telescope,fiber=fiber,highres=highres)
     else :
-        x = ls[0]
+        xls = ls[0]
         ls = ls[1]
     grid=[]
     ytit=[]
-    for i,name in enumerate(files[1:]) :
+    for i,name in enumerate(files[3:]) :
+        elem=name.replace('.dat','')
         print(name)
         if name == 'C.dat' or name == 'N.dat' : continue
         if calc : 
-            out=mksynth(name,threads=16,ls=(x,ls))
-            out0=mksynth(name.replace('.dat','_0.dat'),threads=16,ls=(x,ls))
-            out1=mksynth(name.replace('.dat','_1.dat'),threads=16,ls=(x,ls))
-        else : 
-            out=name+'.fits'
-            out0=name.replace('.dat','_0.dat')+'.fits'
-            out1=name.replace('.dat','_1.dat')+'.fits'
-        ehdu=fits.open(out)[2]
-        ehdu.header['ELEM'] = name.replace('.dat','')
+            #out=mksynth(name,threads=16,ls=(x,ls))
+            mini_linelist(elem,linelist,only=True)
+            out0=mksynth('ref.dat',threads=16,ls=(xls,ls),linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'_only',h2o=0)
+            os.rename('ref.dat.fits',elem+'_ref.fits')
+            out1=mksynth(name,threads=16,ls=(xls,ls),linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'_only',h2o=0)
+            os.rename(name+'.fits',elem+'.fits')
+        #ehdu=fits.open(out)[2]
+        ehdu=fits.open(elem+'.fits')[2]
+        ref=fits.open(elem+'_ref.fits')[2].data
+        ehdu.header['ELEM'] = elem
         ehdu.header['CRVAL1'] = aspcap.logw0
         ehdu.header['CDELT1'] = aspcap.dlogw
         ehdu.header['CTYPE1'] = 'LOG(WAVELENGTH)'
-        hdu.append(ehdu)
         if plot :
-            if i==0 :
+            if i==-1 :
                 ref=ehdu.data
             else :
                 if filtdir is not None: 
@@ -1123,40 +1124,66 @@ def elemsens(files=None,outfile='elemsens',highres=9,waveid=13140000,lsfid=14600
                 mhdu.header['CDELT1'] = aspcap.dlogw
                 mhdu.header['CTYPE1'] = 'LOG(WAVELENGTH)'
                 hdumask.append(mhdu)
+        ehdu.data -= ref
+        hdu.append(ehdu)
     # output single file
     if outfile is not None: 
         hdu.writeto(outfile+'.fits',overwrite=True)
         hdumask.writeto(outfile+'_mask.fits',overwrite=True)
     html.htmltab(grid,ytitle=ytit,file=htmlfile)
 
-def mkmask(file='elemsens_mask')  :
+def mkmask(file='elemsens')  :
 
     mask=fits.open(file+'.fits')
     els=[]
     for i in range(len(mask)) : els.append(mask[i].header['ELEM'])
     els = np.array(els)
-    alphas=np.array(['Mg','Si','S','Ca','Ti'])
-    metals=np.array(['Na','Al','P','K','V','Cr','Mn','Co','Ni','Cu','Ge','Rb'])
+    alphas=np.array(['O','Mg','Si','S','Ca','Ti'])
+    metals=np.array(['Na','Al','P','K','V','Cr','Mn','Co','Fe','Ni','Cu','Ge','Rb','Ce','Nd'])
+    fig,ax=plots.multi(1,2,hspace=0.001,sharex=True)
+    x=10.**spectra.fits2vector(mask[0].header,1)
     for i,el in enumerate(els) :
         print(el)
-        plt.clf()
-        plt.plot(mask[i].data)
+        gd=[]
+        ax[0].cla()
+        for k in range(9) : 
+            plots.plotl(ax[0],x,mask[i].data[k,:])
+            gd.extend(np.where(mask[i].data[k,:] < -0.01)[0])
         if el in alphas :
+            bd=[]
             for al in alphas :
+                ax[1].cla()
                 if el != al :
                     print(el,al)
                     j=np.where(els == al)[0][0]
-                    gd=np.where(abs(mask[j].data) > 0.)[0]
-                    mask[i].data[gd] = -1.*mask[i].data[gd]
+                    for k in range(9) : 
+                        plots.plotl(ax[1],x,mask[j].data[k,:])
+                        #plots.plotl(ax[1],x,mask[j].data[k,:]/mask[i].data[k,:] )
+                        bd.extend(np.where((mask[j].data[k,:]/mask[i].data[k,:] < 0.2) & (mask[j].data[k,:]<-0.01) )[0])
+                    plt.show()
+                    #gd=np.where(abs(mask[j].data) > 0.)[0]
+                    #mask[i].data[gd] = -1.*mask[i].data[gd]
         elif el in metals :
             for al in metals :
+                ax[1].cla()
                 if el != al :
                     print(el,al)
                     j=np.where(els == al)[0][0]
-                    gd=np.where(abs(mask[j].data) > 0.)[0]
-                    mask[i].data[gd] = -1.*mask[i].data[gd]
+                    for k in range(9) : 
+                        plots.plotl(ax[1],x,mask[j].data[k,:])
+                        #plots.plotl(ax[1],x,mask[j].data[k,:]/mask[i].data[k,:] )
+                        bd.extend(np.where((mask[j].data[k,:]/mask[i].data[k,:] < 0.2) & (mask[j].data[k,:]<-0.01) )[0])
+                    #gd=np.where(abs(mask[j].data) > 0.)[0]
+                    #print(el,al,j,len(gd))
+                    #mask[i].data[gd] = -1.*abs(mask[i].data[gd])
+                    plt.show()
 
-        plt.plot(mask[i].data)
+        new=np.zeros(mask[i].data.shape[-1])
+        new[gd] = 1.
+        new[bd] = -1*new[bd]
+        ax[1].cla()
+        plots.plotl(ax[1],x,new)
+          
         plt.draw()
         plt.show()
         pdb.set_trace()
@@ -1190,18 +1217,29 @@ def filter_lines(infile,outfile,wind,nskip=0) :
     fout.close()
     return nout
  
-def mini_linelist(elem,linelist,maskdir) :
-    """ Produce an abbreviated line list for minigrid construction given mask file and linelist file IN AIR
+def mini_linelist(elem,linelist,maskdir=None,only=False,clobber=False) :
+    """ Produce abbreviated Turbospec linelists, e.g. for minigrid construction, given mask file and linelist file IN AIR
+        With only, produce linelist with only lines from input element 
         Return arrays of wavelength ranges wind,wair
     """
 
     # get window ranges in vacuum and convert to air
-    wind=np.loadtxt(os.environ['APOGEE_DIR']+'/data/windows/'+maskdir+'/'+elem+'.wave')
-    nwind=wind.shape[0]
-    wair=spectra.vactoair(wind)
+    if maskdir is not None :
+        wind=np.loadtxt(os.environ['APOGEE_DIR']+'/data/windows/'+maskdir+'/'+elem+'.wave')
+        nwind=wind.shape[0]
+        wair=spectra.vactoair(wind)
+    else : 
+        nwind = 1
+        wair=np.zeros([2,2])
+        wair[0,0] = -1.
+        wair[0,1] = 1.e10
+        wind = wair
 
     # setup output directory
-    outdir = os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'/'
+    if only :
+        outdir = os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'_only/'
+    else :
+        outdir = os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'/'
     try: os.mkdir(outdir)
     except: pass
 
@@ -1211,7 +1249,7 @@ def mini_linelist(elem,linelist,maskdir) :
         time.sleep(10)
 
     # if files are already created, return, otherwise open .lock file and create
-    if os.path.isfile(outdir+elem+'.done') : return wind,wair
+    if not clobber and os.path.isfile(outdir+elem+'.done') : return wind,wair
     fp = open(outdir+elem+'.lock','w')
     fp.close()
 
@@ -1219,9 +1257,9 @@ def mini_linelist(elem,linelist,maskdir) :
     # Turbospectrum files are in air wavelengths
     lists=['turbospec.'+linelist+'.atoms','turbospec.'+linelist+'.molec',
            'turbospec.'+linelist+'.Hlinedata','turbospec.h2o-BC8.5V.molec','turbospec.h2o-BC9.5V.molec']
-    for i,list in enumerate(lists) :
-        filepath=os.environ['APOGEE_SPECLIB']+'/linelists/'+list
-        fout=open(outdir+list,'w')
+    for i,linelist in enumerate(lists) :
+        filepath=os.environ['APOGEE_SPECLIB']+'/linelists/'+linelist
+        fout=open(outdir+linelist,'w')
         with open(filepath) as fp:  
             out = ''
             nelem = 0
@@ -1229,17 +1267,28 @@ def mini_linelist(elem,linelist,maskdir) :
             line = fp.readline()
             while line :
                 if line[0] == "'" :
+                    # we have a new element
                     if nelem > 0 :
+                        # if it's not the first element, write out the previous one!
                         if n > 0 :
-                            j=head.split("'")[2].split()[0]
-
-                            fout.write("'"+head.split("'")[1]+"'   "+j+'{:10d}\n'.format(n))
-                            fout.write(out)
+                            if 'molec' in linelist :
+                                tmp = int(float(head.split("'")[1]))
+                                elemcode = [tmp//100,tmp%100]
+                            else :
+                                elemcode = [int(float(head.split("'")[1]))]
+                            if not only or atomic.periodic(elem) in elemcode :
+                                j=head.split("'")[2].split()[0]
+                                # for the header line, include the new number of lines
+                                fout.write("'"+head.split("'")[1]+"'   "+j+'{:10d}\n'.format(n))
+                                # write the accumlated data output
+                                fout.write(out)
                             n=0
                     head = line
+                    # start the line data output with the comment line
                     out = fp.readline()
                     nelem += 1
                 else :
+                    # accumulate the linelist for this element if it's within the desired range
                     w = line.split()[0]
                     for i in range(nwind) :
                       if (float(w) >= wair[i,0]) and (float(w) <=wair[i,1]) : 
@@ -1247,9 +1296,16 @@ def mini_linelist(elem,linelist,maskdir) :
                           n+=1
                 line = fp.readline()          
             if n > 0 :
-                j=head.split("'")[2].split()[0]
-                fout.write("'"+head.split("'")[1]+"'   "+j+'{:10d}\n'.format(n))
-                fout.write(out)
+                # last element
+                if 'molec' in linelist :
+                    tmp = int(float(head.split("'")[1]))
+                    elemcode = [tmp//100,tmp%100]
+                else :
+                    elemcode = [int(float(head.split("'")[1]))]
+                if not only or atomic.periodic(elem) in elemcode :
+                    j=head.split("'")[2].split()[0]
+                    fout.write("'"+head.split("'")[1]+"'   "+j+'{:10d}\n'.format(n))
+                    fout.write(out)
         fout.close()
 
     # write .done file and remove .lock

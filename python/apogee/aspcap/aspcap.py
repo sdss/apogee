@@ -265,12 +265,11 @@ def intplot(a=None,param='FPARAM',indir='cal',apred='r10',aspcap='t33b',verbose=
         ret=plots.mark(fig)
         if ret[2] == 'q' : break
         ind=plots._index[0]
-        try :
-            load.settelescope='apo25m'
-            try : f=load.aspcapField(a['ALTFIELD'][ind])
-            except : f=load.aspcapField(a['FIELD'][ind])
-        except :
-            load.settelescope='lco25m'
+        load.settelescope('apo25m')
+        try : f=load.aspcapField(a['ALTFIELD'][ind])
+        except : f=load.aspcapField(a['FIELD'][ind])
+        if f is None :
+            load.settelescope('lco25m')
             try : f=load.aspcapField(a['ALTFIELD'][ind])
             except : f=load.aspcapField(a['FIELD'][ind])
         if f is None :
@@ -507,12 +506,13 @@ def plotparamdiffs(a,b,title=None,hard=None,logg=None) :
     if title is not None : fig.suptitle(title)
     if hard is not None : fig.savefig(hard)
 
-def multiwind(data,apred='r10',aspcap='t33w') :
+def multiwind(data,apred='r10',aspcap='t33w',out='plots/') :
     """ Plot results from different windows for each element
     """
     #load=apload.ApLoad(apred=apred,aspcap=aspcap)
     #data=load.allCal()
     els=data[3].data['ELEM_SYMBOL'][0]
+    elemtoh=data[3].data['ELEMTOH'][0]
     grid=[]
     ytit=[]
     for iel,el in enumerate(els) :
@@ -523,14 +523,25 @@ def multiwind(data,apred='r10',aspcap='t33w') :
             fig.suptitle(el)
             for i in range(1,nwind+1) : 
                 plots.plotc(ax[i-1],data[1].data['FPARAM'][:,0],data[1].data['FELEM'][:,i,iel]-data[1].data['FELEM'][:,0,iel],
-                            data[1].data['FPARAM'][:,3],xr=[3000,6000],yr=[-1,1],zr=[-2,0.5],xt='Teff',size=20,yt=r'$\Delta$(line-global)')
+                            data[1].data['FPARAM'][:,3],xr=[3000,6000],yr=[-1,1],zr=[-2,0.5],xt='Teff',size=5,yt=r'$\Delta$(line-global)')
                 ax[i-1].text(0.05,0.8,'{:8.2f}-{:8.2f}   {:8.2f}'.format(w[i-1,0],w[i-1,1],w[i-1,2]),transform=ax[i-1].transAxes,fontsize=10)
                 ax[i-1].yaxis.label.set_size(6)
-            fig.savefig(el+'.png')
-            grid.append([el+'.png'])
+            fig.savefig(out+el+'.png')
+            fig,ax=plots.multi(1,nwind,hspace=0.001,figsize=(6,nwind))
+            fig.suptitle(el)
+            for i in range(1,nwind+1) : 
+                if elemtoh[iel] == 1: y = data[1].data['FELEM'][:,i,iel]-data[1].data['FPARAM'][:,3]
+                else : y = data[1].data['FELEM'][:,i,iel]
+                plots.plotc(ax[i-1],data[1].data['FPARAM'][:,3],y,
+                            data[1].data['FPARAM'][:,0],xr=[-2.5,1.],yr=[-0.5,0.5],zr=[3500,5500],xt='[M/H]',size=5,yt='[X/M]')
+                ax[i-1].text(0.05,0.8,'{:8.2f}-{:8.2f}   {:8.2f}'.format(w[i-1,0],w[i-1,1],w[i-1,2]),transform=ax[i-1].transAxes,fontsize=10)
+                ax[i-1].yaxis.label.set_size(6)
+            fig.savefig(out+el+'_2.png')
+            grid.append([el+'.png',el+'_2.png'])
             ytit.append(el)
             plt.close()
-    html.htmltab(grid,ytitle=ytit,file='wind.html')
+            plt.close()
+    html.htmltab(grid,ytitle=ytit,file=out+'wind.html')
 
 def compspec(a,b,j=0,hard=None) :
     """ compare spectra and best fits from two different input aspcapField files for specified object

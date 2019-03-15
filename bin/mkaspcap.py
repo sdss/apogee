@@ -34,6 +34,7 @@ if __name__ == '__main__' :
     parser.add_argument("--npar",type=int,default=0)
     parser.add_argument("--renorm",type=int,default=0)
     parser.add_argument("--maxwind",type=int,default=0)
+    parser.add_argument("--unitweight",type=int,default=0)
     parser.add_argument("--fields",type=str,nargs='+',help='list of fields',default=[])
     args=parser.parse_args()
 
@@ -65,6 +66,7 @@ if __name__ == '__main__' :
              ",apred='{:s}'".format(args.apred)+
              ",renorm={:d}".format(args.renorm)+
              ",maxwind={:d}".format(args.maxwind)+
+             ",unitweight={:d}".format(args.unitweight)+
              ",inst='"+inst+"'"]
         print(cmd)
         subprocess.call(cmd,shell=False)

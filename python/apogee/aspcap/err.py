@@ -63,7 +63,11 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
         y, x = np.mgrid[tebins[0]:tebins[-1]:200j,mhbins[0]:mhbins[-1]:200j]
         for iplt in range(len(snbins)) :
             sn = snbins[iplt]+dsn/2.
-            ax[iplt].imshow(elemerr(soln,y-4500.,sn-100.,x),extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower',cmap='rainbow')
+            try :
+                ax[iplt].imshow(elemerr(soln,y-4500.,sn-100.,x),extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
+                                aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower',cmap='rainbow')
+            except: pass
+
             ax[iplt].text(0.98,0.98,title+' S/N={:4.0f}'.format(sn),va='top',ha='right',transform=ax[iplt].transAxes)
 
         fig.savefig(out+'_err.jpg')
@@ -76,9 +80,11 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
               if ix == 0 : yt=r'$\sigma$'
               else : yt=''
               for iy in range(len(mhbins)) :
-                gdplt=np.where((np.isclose(rmsderiv[:,1]+4500,tebins[ix]+dte/2.)) & (np.isclose(rmsderiv[:,3],mhbins[iy]+dmh/2.)))[0]
-                plots.plotc(ax[iy,ix],rmsderiv[gdplt,2]+100,np.exp(rmsdata[gdplt]),rmsderiv[gdplt,3],size=30,zr=[-2,0.5],
-                            yr=zr,xr=[snbins[0],snbins[-1]],xt='S/N',yt=yt)
+                try :
+                    gdplt=np.where((np.isclose(rmsderiv[:,1]+4500,tebins[ix]+dte/2.)) & (np.isclose(rmsderiv[:,3],mhbins[iy]+dmh/2.)))[0]
+                    plots.plotc(ax[iy,ix],rmsderiv[gdplt,2]+100,np.exp(rmsdata[gdplt]),rmsderiv[gdplt,3],size=30,zr=[-2,0.5],
+                                yr=zr,xr=[snbins[0],snbins[-1]],xt='S/N',yt=yt)
+                except: pass
                 ax[iy,ix].text(0.98,0.98,'{:8.0f} {:8.2f}'.format(tebins[ix]+dte/2.,mhbins[iy]+dmh/2.),ha='right',va='top',transform=ax[iy,ix].transAxes)
             fig.savefig(out+'_err_sn.jpg')
             plt.close()
@@ -91,7 +97,8 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
         print(snmin,snmax,temin,temax,mhmin,mhmax)
         pdb.set_trace()
 
-    return soln
+    try : return soln
+    except : return 0.
 
 
 def elemerr(soln,te,sn,fe) :

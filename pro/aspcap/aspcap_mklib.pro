@@ -5,7 +5,7 @@
 ;-
 pro aspcap_mklib,config,suffix=suffix,prefix=prefix,libdir=libdir,classes=classes,elem=elem,vpar=vpar,carlos=carlos,maskdir=maskdir,$
     femin=femin,rotpar=rotpar,opar=opar,vlock=vlock,vmlock=vmlock,outdir=outdir,nmlock=nmlock,cmlock=cmlock,apred=apred,inst=inst,$
-    renorm=renorm,obscont=obscont,maxwind=maxwind
+    renorm=renorm,obscont=obscont,maxwind=maxwind,unitweight=unitweight
 
 if n_elements(apred) gt 0 then apsetver,vers=apred,instrument=inst
 ;if ~keyword_set(elem) then elem=['C','Al','Ca','Fe','K','Mg','Mn','Na','Ni','N','O','Si','S','Ti','V']
@@ -285,7 +285,7 @@ endfor
 free_lun,list
 if keyword_set(maxwind) then  begin
   readcol,outdir+'/elem.list',format='(a)',els,stringskip='#',/silent
-  for i=0,n_elements(els)-1 do n=filtsplit(els[i],maxwind=maxwind,outdir=outdir)
+  for i=0,n_elements(els)-1 do n=filtsplit(els[i],maxwind=maxwind,outdir=outdir,unitweight=unitweight)
 endif
 
 end

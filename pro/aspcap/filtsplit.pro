@@ -1,4 +1,4 @@
-function filtsplit,el,maxwind=maxwind,outdir=outdir
+function filtsplit,el,maxwind=maxwind,outdir=outdir,unitweight=unitweight
 
 ; Read in filter (mask) file for given element
 ; Split it into discrete non-zero chunks
@@ -43,7 +43,7 @@ if nwind gt 1 and (nwind le maxwind or maxwind eq 0) then begin
     openw,out,outdir+el+'_'+string(format='(i2.2)',iwind+1)+'.mask',/get_lun
     printf,sum,wave[wall[0,iwind]],wave[wall[1,iwind]],weight[iwind]
     for i=0,n_elements(mask)-1 do begin
-      if i lt wall[0,iwind] or i gt wall[1,iwind] then val=0. else val=mask[i]
+      if i lt wall[0,iwind] or i gt wall[1,iwind] then val=0. else if keyword_set(unitweight) then val=1. else val=mask[i]
       printf,out,val
     endfor
     free_lun,out

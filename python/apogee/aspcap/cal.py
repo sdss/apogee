@@ -140,7 +140,7 @@ def hrsample(indata,hrdata,maxbin=50,raw=True) :
     return i1[gd],i2[gd]
 
 def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v3.6.0',
-              cal1m=True,coolstars=True,dir='cal',hrdata=None,optical=True,ns=True,snmin=75) :
+              cal1m=True,coolstars=True,dir='cal',hrdata=None,optical=True,ns=True,Ce=True,ebvmax=None,snmin=75) :
     '''
     selects a calibration subsample from an input apField structure, including several calibration sub-classes: 
         cluster, APOKASC stars, 1m calibration stars. Creates cluster web pages/plots if requested
@@ -235,6 +235,13 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         mklinks(data,i1,dir+'_optical')
         all.extend(i1)
 
+    if Ce :
+        stars = np.loadtxt(os.environ['APOGEE_DIR']+'/data/calib/Ce_test_stars.txt',dtype=str)[:,0]
+        i1,i2=match.match(data['APOGEE_ID'],stars)
+        print('Number of Ce test stars: ',len(i1))
+        mklinks(data,i1,dir+'_Ce')
+        all.extend(i1)
+
     if ns :
         #north-south overlap
         jn=np.where((data['FIELD'] == 'N2243') | (data['FIELD'] == '000+08') |
@@ -246,6 +253,11 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         mklinks(data,jc,dir+'_ns')
         jc=js[i2]
         mklinks(data,jc,dir+'_ns')
+        all.extend(jc)
+
+    if ebvmax is not None:
+        jc=np.where(data['SFD_EBV'] < ebvmax)[0]
+        mklinks(data,jc,dir+'_ebv')
         all.extend(jc)
 
     if hrdata is not None:

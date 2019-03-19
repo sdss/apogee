@@ -1,6 +1,6 @@
 ; doaspcap is master routine for running ASPCAP pipline: pre-processing, FERRE, and post-processing
 
-pro doaspcap,planfile,mjd=mjd,nruns=nruns,queue=queue,clobber=clobber,old=old,ncpus=ncpus,errbar=errbar,renorm=renorm,obscont=obscont,aspcap_vers=aspcap_vers,results_vers=results_vers,nstars=nstars,hmask=hmask,maskfile=maskfile,obspixmask=obspixmask,pixmask=pixmask,highbad=highbad,skyerr=skyerr,starlist=starlist,lowbad=lowbad,higherr=higherr,conthighbad=conthighbad,contlowbad=contlowbad,conthigherr=conthigherr,qaspcap=qaspcap,redux_root=redux_root,red_vers=red_vers,noplot=noplot,vacuum=vacuum,commiss=commiss,nored=nored,visits=visits,aspcap_config=aspcap_config,fits=fits,symlink=symlink,doelemplot=doelemplot,noelem=noelem,maxwind=maxwind,caldir=caldir,persist=persist,npar=npar,nelem=nelem,mask_telluric=mask_telluric,altmaskdir=altmaskdir,testmjd=testmjd
+pro doaspcap,planfile,mjd=mjd,nruns=nruns,queue=queue,clobber=clobber,old=old,ncpus=ncpus,errbar=errbar,renorm=renorm,obscont=obscont,aspcap_vers=aspcap_vers,results_vers=results_vers,nstars=nstars,hmask=hmask,maskfile=maskfile,obspixmask=obspixmask,pixmask=pixmask,highbad=highbad,skyerr=skyerr,starlist=starlist,lowbad=lowbad,higherr=higherr,conthighbad=conthighbad,contlowbad=contlowbad,conthigherr=conthigherr,qaspcap=qaspcap,redux_root=redux_root,red_vers=red_vers,noplot=noplot,vacuum=vacuum,commiss=commiss,nored=nored,visits=visits,aspcap_config=aspcap_config,fits=fits,symlink=symlink,doelemplot=doelemplot,noelem=noelem,maxwind=maxwind,caldir=caldir,persist=persist,npar=npar,nelem=nelem,mask_telluric=mask_telluric,altmaskdir=altmaskdir,testmjd=testmjd,notie=notie
 
 TIC
 ; read plan file and required fields: apvisit and plateid/mjd or field
@@ -45,6 +45,7 @@ if n_elements(skyfact) eq 0 then skyfact=apsetpar(planstr,'skyfact',1000.)
 if n_elements(visits) eq 0 then visits=apsetpar(planstr,'visits',0)
 if n_elements(npar) eq 0 then npar=apsetpar(planstr,'npar',7)
 if n_elements(nelem) eq 0 then nelem=apsetpar(planstr,'nelem',0)
+if n_elements(notie) eq 0 then notie=apsetpar(planstr,'notie',0)
 if tag_exist(planstr,'fits') then fits=planstr.fits
 if not keyword_set(symlink) then symlink=apsetpar(planstr,'symlink',0)
 if n_elements(indv) eq 0 then indv=apsetpar(planstr,'indv',0)
@@ -475,6 +476,11 @@ for idir=0,n_elements(datadir)-1 do begin
  ; now get the best result for each star from among the different classes
  resultsdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/'
  finalstr=aspcap_bestclass(allparam,allspec,alllib,/nocoarse,classes=class)
+
+ ; correct parameters if we have caldir
+ if keyword_set(caldir) then begin
+   aspcap_correct,paramstr,finalstr.lib.elem_symbol,aspcap_root+apred_vers+'/'+aspcap_vers+'/'+caldir+'/' ,/noelem
+ endif
  ; write aspcapField file (no aspcapStar files)
  aspcap_writefits,finalstr,resultsdir+'/'+ofile+'-'+strcompress(oname[idir],/remove_all)+'.fits',mjddir=mjddir
 
@@ -488,9 +494,13 @@ for idir=0,n_elements(datadir)-1 do begin
    if keyword_set(maxwind) then begin
      newparam=struct_rename_tags(finalstr.param,'','',addtag='FELEM',addval=fltarr(nelem,maxwind+1)-9999.)
      newparam=struct_rename_tags(newparam,'','',addtag='FELEM_ERR',addval=fltarr(nelem,maxwind+1)-9999.)
+     newparam=struct_rename_tags(newparam,'','',addtag='FELEM_CAL',addval=fltarr(nelem,maxwind+1)-9999.)
+     newparam=struct_rename_tags(newparam,'','',addtag='FELEM_CAL_ERR',addval=fltarr(nelem,maxwind+1)-9999.)
    endif else begin 
      newparam=struct_rename_tags(finalstr.param,'','',addtag='FELEM',addval=fltarr(nelem)-9999.)
      newparam=struct_rename_tags(newparam,'','',addtag='FELEM_ERR',addval=fltarr(nelem)-9999.)
+     newparam=struct_rename_tags(newparam,'','',addtag='FELEM_CAL',addval=fltarr(nelem)-9999.)
+     newparam=struct_rename_tags(newparam,'','',addtag='FELEM_CAL_ERR',addval=fltarr(nelem)-9999.)
    endelse
    newparam=struct_rename_tags(newparam,'','',addtag='ELEM',addval=fltarr(nelem)-9999.)
    newparam=struct_rename_tags(newparam,'','',addtag='ELEM_ERR',addval=fltarr(nelem)-9999.)
@@ -518,8 +528,11 @@ for idir=0,n_elements(datadir)-1 do begin
      endfor
    endfor
    ; loop over elements twice, first time to create nml files and nmlfiles file lists, then run FERRE
+   ; also include run with calibrated parameters
+   ; elemloop=0 setup uncalibrated run, 1 setup calibrated run, and run
+   ; elemloop=2 read uncalibrated run, 3 read calibrated run
    ; second time, read the results
-   for elemloop=0,1 do begin
+   for elemloop=0,2,2 do begin
     for ielem=0,n_elements(elem)-1 do begin
      jelem=where(strtrim(elem_order,2) eq strtrim(elem[ielem],2),norder)
      if norder eq 0 then stop,'cant match elem in aspcap_elems'
@@ -563,14 +576,16 @@ for idir=0,n_elements(datadir)-1 do begin
          fformat="("+string(npix)+"(F12.6))"
          eformat="("+string(npix)+"(F12.6))"
          outname=elem[ielem]+'-'+libpar.info[iclass].class+'-'+oname[idir]
+         if elemloop eq 1 or elemloop eq 3 then outname=outname+'_cal'
          file_mkdir,workdir
          if tag_exist(libpar,'indi') then indi=libpar.indi else undefine,indi
          if tag_exist(libpar.info,'indini') then indini=libpar.info[iclass].indini else undefine,indini
-         if tag_exist(libpar.info,'renorm') then renorm=libpar.info[iclass].renorm
+         if tag_exist(libpar.info,'renorm') then renorm=libpar.info[iclass].renorm       
+         if keyword_set(notie) then undef,ttie else ttie=libpar.info[iclass].ttie
          writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.info[iclass].indv,$
             indini=indini,interord=libpar.info[iclass].inter,$
             filterfile=configdir+'/'+libpar.info[iclass].mask+suffix+'.mask',$
-            findi=indi,errbar=errbar,renorm=abs(renorm),obscont=obscont,ttie=libpar.info[iclass].ttie,elemdir=elemdir,$
+            findi=indi,errbar=errbar,renorm=abs(renorm),obscont=obscont,ttie=ttie,elemdir=elemdir,$
             libdir='../lib_'+libpar.info[iclass].class
          openw,ipf,workdir+outname+'.ipf',/get_lun
          if tag_exist(libpar.info,'minigrid') then minigrid=libpar.info[iclass].minigrid else minigrid=''
@@ -592,6 +607,7 @@ for idir=0,n_elements(datadir)-1 do begin
          for i=0,nobj-1 do begin
            if finalstr.param[i].class eq libpar.info[iclass].class then begin
              init=finalstr.param[i].fparam[index]
+             if elemloop eq 1 or elemloop eq 3 then init=finalstr.param[i].param[index]
              if minigrid ne '' then begin
                missing=where(index lt 0,nmissing)
                if nmissing gt 0 then init[missing] = 0.
@@ -632,7 +648,7 @@ for idir=0,n_elements(datadir)-1 do begin
            file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+'.err',workdir+outname+'.err'
          endif
          if nfit gt 0 then begin
-           if elemloop eq 0 and (not file_test(workdir+outname+'.spm') or keyword_set(clobber)) then begin
+           if elemloop lt 2 and (not file_test(workdir+outname+'.spm') or keyword_set(clobber)) then begin
               file_delete,workdir+outname+'.spm',/allow_nonexistent    
               cd,workdir+'/../',current=cwd
               openu,nmlfiles,aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/'+libpar.info[iclass].class+'.nmlfiles',/get_lun,/append
@@ -649,7 +665,7 @@ for idir=0,n_elements(datadir)-1 do begin
            endif
            TOC
            ; read the FERRE output and load into array
-           if elemloop eq 1 then begin
+           if elemloop ge  2 then begin
              if minigrid ne '' then $
              outindex=where(aspcap_params(extra=elem[ielem]) eq libhead0.label[libpar.info[iclass].indv-1]) else $
              outindex=where(aspcap_params() eq libhead0.label[libpar.info[iclass].indv-1])
@@ -668,13 +684,25 @@ for idir=0,n_elements(datadir)-1 do begin
               if nj gt 0 then begin
                 if keyword_set(maxwind) then begin 
                   if iwind gt 0 then newlib.felem_wind[jelem,iwind-1,*] = [w1[iwind-1],w2[iwind-1],w3[iwind-1]]
-                  newparam[j].felem[jelem,iwind] = str.param[istar].fparam[outindex]
-                  if str.param[istar].fparam_cov[outindex,outindex] gt 0 then $
-                    newparam[j].felem_err[jelem,iwind] = sqrt(str.param[istar].fparam_cov[outindex,outindex])
+                  if elemloop eq 2 then begin
+                    newparam[j].felem[jelem,iwind] = str.param[istar].fparam[outindex] 
+                    if str.param[istar].fparam_cov[outindex,outindex] gt 0 then $
+                      newparam[j].felem_err[jelem,iwind] = sqrt(str.param[istar].fparam_cov[outindex,outindex])
+                  endif else begin 
+                    newparam[j].felem_cal[jelem,iwind] = str.param[istar].fparam[outindex] 
+                    if str.param[istar].fparam_cov[outindex,outindex] gt 0 then $
+                      newparam[j].felem_cal_err[jelem,iwind] = sqrt(str.param[istar].fparam_cov[outindex,outindex])
+                  endelse
                 endif else  begin
-                  newparam[j].felem[jelem] = str.param[istar].fparam[outindex]
-                  if str.param[istar].fparam_cov[outindex,outindex] gt 0 then $
-                    newparam[j].felem_err[jelem] = sqrt(str.param[istar].fparam_cov[outindex,outindex])
+                  if elemloop eq 2 then begin
+                    newparam[j].felem[jelem] = str.param[istar].fparam[outindex]
+                    if str.param[istar].fparam_cov[outindex,outindex] gt 0 then $
+                      newparam[j].felem_err[jelem] = sqrt(str.param[istar].fparam_cov[outindex,outindex])
+                  endif else begin 
+                    newparam[j].felem_cal[jelem] = str.param[istar].fparam[outindex]
+                    if str.param[istar].fparam_cov[outindex,outindex] gt 0 then $
+                      newparam[j].felem_cal_err[jelem] = sqrt(str.param[istar].fparam_cov[outindex,outindex])
+                  endelse
                 endelse
                 if iwind eq 0 then begin
                   newparam[j].elem_chi2[jelem] = str.param[istar].param_chi2
@@ -682,7 +710,7 @@ for idir=0,n_elements(datadir)-1 do begin
                 endif
                 if ngd gt 0 then begin
                   ;newspec[j].elem_bestfit[gd]+=str.spec[istar].spec_bestfit[gd]
-                  ;newspec[j].elem_mask[gd]=newspec[j].elem_mask[gd] or 2L^jelem[0]
+                  newspec[j].elem_mask[gd]=newspec[j].elem_mask[gd] or 2L^jelem[0]
                 endif
               endif
              endfor
@@ -726,7 +754,8 @@ for idir=0,n_elements(datadir)-1 do begin
      printf,script,'cd '+resultsdir+'/elem/'
      for istar=0,n_elements(finalstr.param)-1 do elemplot,finalstr,istar,hard=resultsdir+'/elem/',script=script,maskdir=configdir,altmaskdir=altmaskdir
      free_lun,script
-     spawn,['csh ',resultsdir+'/elem/convert.csh'],/noshell
+     file_chmod,resultsdir+'/elem/convert.csh','770'o
+     spawn,[resultsdir+'/elem/convert.csh'],/noshell
      file_delete,resultsdir+'/elem/convert.csh'
      for iel=0,n_elements(finalstr.lib.elem_symbol)-1 do begin
         el=strtrim(finalstr.lib.elem_symbol[iel],2)

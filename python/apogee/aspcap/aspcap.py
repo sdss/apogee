@@ -585,21 +585,73 @@ def vesta() :
     #compspec(l31c_fixed,l33_fixed,hard='Vesta_fixed_l31cvl33')
     compspec(l31crenorm_fit,l31crenorm_fixed,hard='Vesta_l31crenorm_fitvsfixed')
 
-def repeat(a) :
+def repeat(data) :
     """ Comparison of repeat observations of objects
     """
 
+    a=data[1].data
+    els=data[3].data['ELEM_SYMBOL'][0]
     stars = set(a['APOGEE_ID'])
-    fix,ax=plots.multi(1,7,hspace=0.001)
+    fig,ax=plots.multi(2,7,figsize=(8,18),wspace=0.4)
+    efig,eax=plots.multi(2,len(els),hspace=0.001,figsize=(8,36),wspace=0.4)
     telescope=np.zeros(len(a),dtype='S6')
-    for tel in ['apo1m','apo25m','lco25m'] :
+    colors=['r','g','b']
+    tels=['apo1m','apo25m','lco25m'] 
+    for tel in tels :
         j=np.where(np.core.defchararray.find(a['ALTFIELD'],tel) >= 0)[0]
         telescope[j] = tel
+    diff=[]
+    ediff=[]
+    tdiff=[]
+    teldiff=[]
     for star in stars :
         j = np.where(a['APOGEE_ID'] == star)[0]
         n = len(j)
         if n > 1 :
             print(star,n,telescope[j])
+            for i in j : 
+                ediff.append(a['FELEM'][i,0,:]-a['FELEM'][j,0,:].mean(axis=0))
+                diff.append(a['FPARAM'][i,:]-a['FPARAM'][j,:].mean(axis=0))
+                tdiff.append(a['FPARAM'][j,0].mean())
+                teldiff.append(telescope[i])
             for i in range(7)  :
-                plots.plotp(ax[i],np.repeat(a['FPARAM'][j,0].mean(),n),a['FPARAM'][j,i]-a['FPARAM'][j,i].mean(),typeref=telescope[j],
-                            types=['apo1m','apo25m','lco25m'],color=['r','g','b'])
+                plots.plotp(ax[i,0],np.repeat(a['FPARAM'][j,0].mean(),n),a['FPARAM'][j,i]-a['FPARAM'][j,i].mean(),typeref=telescope[j],
+                            types=tels,color=colors)
+                #for itel,tel in enumerate(tels) :
+                #    gd=np.where(np.core.defchararray.find(a['ALTFIELD'][j],tel) >= 0)[0]
+                #    gd=j[gd]
+            for i in range(len(els))  :
+                plots.plotp(eax[i,0],np.repeat(a['FPARAM'][j,0].mean(),n),a['FELEM'][j,0,i]-a['FELEM'][j,0,i].mean(),typeref=telescope[j],
+                            types=tels,color=colors,yr=[-0.2,0.2])
+                #for itel,tel in enumerate(tels) :
+                #    gd=np.where(np.core.defchararray.find(a['ALTFIELD'][j],tel) >= 0)[0]
+                #    gd=j[gd]
+                #    ax[i,1].hist(a['FELEM'][gd,i]-a['FELEM'][gd,i].mean(),color=colors[itel])
+    diff=np.array(diff) 
+    ediff=np.array(ediff) 
+    tdiff=np.array(tdiff) 
+    teldiff=np.array(teldiff) 
+    for itel,tel in enumerate(tels) :
+        gd=np.where(teldiff == tel)[0]
+        if len(gd) > 0 :
+            for i in range(7)  :
+                if i == 0 : bins=np.arange(-200,200,10)
+                elif i ==1 : bins=np.arange(-0.5,0.5,0.025)
+                else : bins=np.arange(-0.2,0.2,0.01)
+                ax[i,1].hist(diff[gd,i],color=colors[itel],histtype='step',bins=bins)
+            for i in range(len(els))  :
+                bins=np.arange(-0.2,0.2,0.01)
+                try: eax[i,1].hist(ediff[gd,i],color=colors[itel],histtype='step',bins=bins)
+                except: pass
+    for i,el in enumerate(els) : 
+        eax[i,0].set_ylabel(el)
+        eax[i,1].text(0.1,0.9,el,transform=eax[i,1].transAxes)
+    for i,param in enumerate(data[3].data['PARAM_SYMBOL'][0]) : 
+        if i < 7 :
+            ax[i,0].set_ylabel(param)
+            ax[i,1].text(0.1,0.9,param,transform=ax[i,1].transAxes)
+    fig.savefig('plots/param_diff.png')
+    efig.savefig('plots/elem_diff.png')
+    pdb.set_trace()
+    plt.close(fig)
+    plt.close(efig)

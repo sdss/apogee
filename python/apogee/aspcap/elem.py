@@ -667,6 +667,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
             nlines = len(np.where(allstar[3].data['FELEM_WIND'][0][0,:,jelem] > 0)[0])
             if nlines > 0 :
                 linefig,lineax=plots.multi(2,nlines+1,hspace=0.001,wspace=0.4,figsize=(10,18))
+        else : nlines = 0
 
         # parameters for the fit for this element
         if cal == 'dr13' :

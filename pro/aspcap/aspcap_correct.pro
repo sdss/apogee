@@ -3,7 +3,7 @@
 ;    populate param and elem from fparam, felem
 ;    Also, set flags!
 ;-
-pro aspcap_correct,str,elem,caldir,dr10=dr10,dr13=dr13
+pro aspcap_correct,str,elem,caldir,dr10=dr10,dr13=dr13,noelem=noelem
 
 giant_tepar=mrdfits(caldir+'/giant_tecal.fits',1)
 dwarf_tepar=mrdfits(caldir+'/dwarf_tecal.fits',1)
@@ -30,6 +30,7 @@ dwarfcal=mrdfits(caldir+'/dwarfcal.fits',1)
 
 
 nelem=n_elements(elem)
+if keyword_set(noelem) then nelem=0
 
 mask='FF'XL
 help,mask

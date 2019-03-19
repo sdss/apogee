@@ -253,10 +253,12 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         mklinks(data,jc,dir+'_ns')
         jc=js[i2]
         mklinks(data,jc,dir+'_ns')
+        print('Number of N/S overlap stars: ',len(jc))
         all.extend(jc)
 
     if ebvmax is not None:
-        jc=np.where(data['SFD_EBV'] < ebvmax)[0]
+        jc=np.where( (data['SFD_EBV']>0) & (data['SFD_EBV'] < ebvmax) )[0]
+        print('Number of low E(B-V) stars: ',len(jc))
         mklinks(data,jc,dir+'_ebv')
         all.extend(jc)
 

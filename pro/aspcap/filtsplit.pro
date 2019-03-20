@@ -1,4 +1,4 @@
-function filtsplit,el,maxwind=maxwind,outdir=outdir,unitweight=unitweight
+function filtsplit,el,maxwind=maxwind,outdir=outdir,unitweight=unitweight,maskdir=maskdir
 
 ; Read in filter (mask) file for given element
 ; Split it into discrete non-zero chunks
@@ -9,8 +9,8 @@ if ~keyword_set(maxwind) then maxwind=0
 if ~keyword_set(outdir) then outdir='./'
 
 ; read in master filter and wavelengths
-readcol,getenv('APOGEE_DIR')+'/data/windows/filters_26042016/'+el+'.filt',mask,/silent
-readcol,getenv('APOGEE_DIR')+'/data/windows/filters_26042016/'+'wave.dat',wave,/silent
+readcol,getenv('APOGEE_DIR')+'/data/windows/'+maskdir+'/'+el+'.filt',mask,/silent
+readcol,getenv('APOGEE_DIR')+'/data/windows/'+maskdir+'/'+'wave.dat',wave,/silent
 
 ; loop through mask finding non-zero windows
 nfilt=0

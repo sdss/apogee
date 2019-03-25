@@ -93,7 +93,8 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
     for id in ids: j.extend( np.where( np.core.defchararray.strip(all['APOGEE_ID']) == id) [0] )
     f.write(html.table(all['FPARAM'][j],plots=False,ytitle=ids,xtitle=aspcap.params()[0]))
     html.tail(f)
-    
+
+    docal(vers,clobber=False,allstar=False,hr=False,teff=True,logg=True,vmicro=False,vmacro=False,elemcal=True,out='plots/',stp=False,cal='default',calib=False) 
 
     return all
 
@@ -249,9 +250,8 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         js=np.where((data['FIELD'] == 'N2243-S') | (data['FIELD'] == '000+08-S') |
                     (data['FIELD'] == '300+75-S') | (data['FIELD'] == 'M12-S') | (data['FIELD'] == 'SA57-S')  )[0]
         i1,i2=match.match(data['APOGEE_ID'][jn], data['APOGEE_ID'][js])
-        jc=jn[i1]
-        mklinks(data,jc,dir+'_ns')
-        jc=js[i2]
+        jc=list(jn[i1])
+        jc.extend(js[i2])
         mklinks(data,jc,dir+'_ns')
         print('Number of N/S overlap stars: ',len(jc))
         all.extend(jc)
@@ -327,20 +327,15 @@ def docal(vers,clobber=False,allstar=True,hr=True,teff=True,logg=True,vmicro=Tru
     print(os.getcwd())
 
     # combine aspcapField files into allCal
-    if clobber :
+    calfile = 'allCal-'+vers+'.fits'
+    if clobber or not os.path.isfile(calfile) :
         allc=allCal(['hr???/aspcapField*.fits','cal???/aspcapField*.fits','clust???/aspcapField*.fits'],out='allCal-'+vers+'.fits')
-    else :
-        try:
-            allc=fits.open('allCal-'+vers+'.fits')[1].data
-        except:
-            allc=allCal(['hr???/aspcapField*.fits','cal???/aspcapField*.fits','clust???/aspcapField*.fits'],out='allCal-'+vers+'.fits')
+     
+    allc=fits.open('allCal-'+vers+'.fits')
     if allstar :
-        c=fits.open('allStar-'+vers+'.fits')[1].data
-        cc=fits.open('allStar-'+vers+'.fits')[3].data
+        c=fits.open('allStar-'+vers+'.fits')
     else :
         c=allc
-        cc=fits.open('allCal-'+vers+'.fits')[3].data
-        #cc=apl.allStar()[3].data
     print('Total stars:',len(c))
 
     figs=[]
@@ -359,10 +354,10 @@ def docal(vers,clobber=False,allstar=True,hr=True,teff=True,logg=True,vmicro=Tru
     allcal={}
     # Teff vs photometric
     if teff :
-        allcal['giant_teffcal'] = teffcomp.ghb(c,ebvmax=0.02,glatmin=10,out=out+'giant_teffcomp',yr=[-750,750],dwarf=False,calib=calib)
+        allcal['giant_teffcal'] = teffcomp.ghb(c[1].data,ebvmax=0.02,glatmin=10,out=out+'giant_teffcomp',yr=[-750,750],dwarf=False,calib=calib)
         if out is not None :
             struct.wrfits(struct.dict2struct(allcal['giant_teffcal']),out+'giant_tecal.fits')
-        allcal['dwarf_teffcal'] = teffcomp.ghb(c,ebvmax=0.02,glatmin=10,trange=[4000,7500],out=out+'dwarf_teffcomp',yr=[-750,750],dwarf=True,calib=calib)
+        allcal['dwarf_teffcal'] = teffcomp.ghb(c[1].data,ebvmax=0.02,glatmin=10,trange=[4000,7500],out=out+'dwarf_teffcomp',yr=[-750,750],dwarf=True,calib=calib)
         if out is not None :
             struct.wrfits(struct.dict2struct(allcal['dwarf_teffcal']),out+'dwarf_tecal.fits')
         if stp : pdb.set_trace()
@@ -373,8 +368,8 @@ def docal(vers,clobber=False,allstar=True,hr=True,teff=True,logg=True,vmicro=Tru
 
     # log g vs asteroseismic
     if logg :
-        allcal['rgbrcsep' ] = loggcomp.rcrgb(c,out=out+'rcrgbsep')
-        allcal['loggcal'] = loggcomp.apokasc(c,plotcal=False,out=out+'loggcomp',calib=calib)
+        allcal['rgbrcsep' ] = loggcomp.rcrgb(c[1].data,out=out+'rcrgbsep')
+        allcal['loggcal'] = loggcomp.apokasc(c[1].data,plotcal=False,out=out+'loggcomp',calib=calib)
         if out is not None :
             struct.wrfits(struct.dict2struct(dict(allcal['rgbrcsep'].items()+allcal['loggcal'].items())),out+'loggcal.fits')
         if stp : pdb.set_trace()
@@ -387,35 +382,38 @@ def docal(vers,clobber=False,allstar=True,hr=True,teff=True,logg=True,vmicro=Tru
     if vmicro :
         print("vmicro fit, cubic in log g, linear in [M/H]")
         print("sample limited to FERRE vmicro error <0.01 ")
-        vfit.fit_vmicro(c,degree=3,reject=0.15,mhrange=[-2,1],loggrange=[-0.3,4.9],vmrange=[0,7],teffrange=[3550,6500],vrange=[0.55,4],maxerr=0.01,func=vfit.vm3_1,out=out+'vmicro3_1')
+        vfit.fit_vmicro(c[1].data,degree=3,reject=0.15,mhrange=[-2,1],loggrange=[-0.3,4.9],vmrange=[0,7],
+                        teffrange=[3550,6500],vrange=[0.55,4],maxerr=0.01,func=vfit.vm3_1,out=out+'vmicro3_1')
 
         print("full sample (maxerr=0.1)")
-        vfit.fit_vmicro(c,degree=3,reject=0.15,mhrange=[-2,1],loggrange=[-0.3,4.9],vmrange=[0,7],teffrange=[3500,6500],vrange=[0.55,4],maxerr=0.1,func=vfit.vm3_1,out=out+'vmicro3_1all')
+        vfit.fit_vmicro(c[1].data,degree=3,reject=0.15,mhrange=[-2,1],loggrange=[-0.3,4.9],vmrange=[0,7],
+                        teffrange=[3500,6500],vrange=[0.55,4],maxerr=0.1,func=vfit.vm3_1,out=out+'vmicro3_1all')
 
         #dwarfs only
         print("dwarfs only, fit as f(Teff)")
-        dw=np.where(c['FPARAM'][:,1] > 4)[0]
-        vfit.fit_vmicro(c,reject=0.15,mhrange=[-2,1],loggrange=[4,5],vmrange=[0,7],teffrange=[3500,8000],vrange=[0.55,4],maxerr=0.1,func=vfit.vm1t,out=out+'vmicro1t')
+        dw=np.where(c[1].data['FPARAM'][:,1] > 4)[0]
+        vfit.fit_vmicro(c[1].data,reject=0.15,mhrange=[-2,1],loggrange=[4,5],vmrange=[0,7],teffrange=[3500,8000],
+                        vrange=[0.55,4],maxerr=0.1,func=vfit.vm1t,out=out+'vmicro1t')
         fig,ax=plots.multi(1,1)
-        plots.plotc(ax,c['FPARAM'][dw,0],10**c['FPARAM'][dw,2],c['FPARAM'][dw,3],xr=[3500,8000],xt='Teff',
+        plots.plotc(ax,c[1].data['FPARAM'][dw,0],10**c[1].data['FPARAM'][dw,2],c[1].data['FPARAM'][dw,3],xr=[3500,8000],xt='Teff',
            yr=[0,4],yt='vmicro',zr=[-2,0.5],zt='[M/H]',colorbar=True)
 
     # vmacro
     if vmacro :
-        vfit.fit_vmacro(c,mhrange=[-2.5,1],reject=0.3,maxerr=0.1,out=out+'vmacro_2d')
+        vfit.fit_vmacro(c[1].data,mhrange=[-2.5,1],reject=0.3,maxerr=0.1,out=out+'vmacro_2d')
 
     # elemental abundances
     if elemcal :
-        elems=np.append(cc['ELEM_SYMBOL'][0],['M','alpha'])
+        elems=np.append(c[3].data['ELEM_SYMBOL'][0],['M','alpha'])
         # use allCal file for uncertainty calibration, so we have multiple visits
         # use allstar for calibration, so we have full solar circle sample
-        errcal=elem.cal(allc,cc['ELEM_SYMBOL'][0],cc['ELEMTOH'][0],elems,hard=out+'giants_',cal=cal,errpar=True,plot=False,calib=calib)
-        allcal['giantcal']=elem.cal(c,cc['ELEM_SYMBOL'][0],cc['ELEMTOH'][0],elems,hard=out+'giants_',cal=cal,errpar=True,calib=calib)
+        errcal=elem.cal(allc,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'giants_',cal=cal,errpar=True,plot=False,calib=calib)
+        allcal['giantcal']=elem.cal(c,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'giants_',cal=cal,errpar=True,calib=calib)
         allcal['giantcal']['errpar']=errcal['errpar']
         if out is not None :
             struct.wrfits(allcal['giantcal'],out+'giantcal.fits')
-        errcal=elem.cal(allc,cc['ELEM_SYMBOL'][0],cc['ELEMTOH'][0],elems,hard=out+'dwarfs_',dwarfs=True,errpar=True,plot=False,cal=cal,calib=calib)
-        allcal['dwarfcal']=elem.cal(c,cc['ELEM_SYMBOL'][0],cc['ELEMTOH'][0],elems,hard=out+'dwarfs_',dwarfs=True,cal=cal,calib=calib)
+        errcal=elem.cal(allc,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'dwarfs_',dwarfs=True,errpar=True,plot=False,cal=cal,calib=calib)
+        allcal['dwarfcal']=elem.cal(c,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'dwarfs_',dwarfs=True,cal=cal,calib=calib)
         allcal['dwarfcal']['errpar']=errcal['errpar']
         if out is not None :
             struct.wrfits(allcal['dwarfcal'],out+'dwarfcal.fits')

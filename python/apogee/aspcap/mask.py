@@ -6,7 +6,7 @@ from apogee.aspcap import aspcap
 import numpy as np
 import pdb
 
-def mkwind(el,halfwidth=1.2) :
+def mkwind(el,halfwidth=1.2,invert=False) :
     """ Create default window file from master filt file
     """
     chipswave=aspcap.gridWave()
@@ -15,17 +15,24 @@ def mkwind(el,halfwidth=1.2) :
 
     filt=ascii.read(el+'.filt',Reader=ascii.NoHeader)['col1']
 
-    pdb.set_trace()
     fp=open(el+'.wind','w')
     start=-1
     cens=[]
     for i in range(len(filt) ):
-      if filt[i] > 0 and start < 0:
-        start=wave[i]-halfwidth
-      elif filt[i] == 0. and start >=0 :
-        wind=[start,wave[i]+halfwidth]
-        cens.append(wind)
-        start=-1
+        if invert :
+            if filt[i] == 0 and start < 0:
+              start=wave[i]-halfwidth
+            elif filt[i] > 0. and start >=0 :
+              wind=[start,wave[i]+halfwidth]
+              cens.append(wind)
+              start=-1
+        else :
+            if filt[i] > 0 and start < 0:
+              start=wave[i]-halfwidth
+            elif filt[i] == 0. and start >=0 :
+              wind=[start,wave[i]+halfwidth]
+              cens.append(wind)
+              start=-1
 
     for c in cens :
         fp.write('{:8.3f} {:8.3f}   1\n'.format(c[0],c[1]))

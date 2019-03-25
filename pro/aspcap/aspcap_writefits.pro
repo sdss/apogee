@@ -84,7 +84,7 @@ if keyword_set(aspcapstar) then begin
     ;sxaddpar,hdr,'idlwrap',idlwrap_vers,'Software version of IDLWRAP'
     ;sxaddpar,hdr,'ferre',ferre_vers,'Software version of FERRE'
     ;sxaddpar,hdr,'speclib',speclib_vers,'Software version of SPECLIB'
-    sxaddpar,hdr,'speclib',apogee_vers,'Software version of SPECLIB'
+    sxaddpar,hdr,'VERS',apogee_vers,'Software version of APOGEE'
     sxaddpar,hdr,'OBJ',str.param[i].apogee_id,' Object ID'
     sxaddpar,hdr,'RA',str.param[i].ra,' RA (J2000)'
     sxaddpar,hdr,'DEC',str.param[i].dec,' DEC (J2000)'

@@ -478,8 +478,13 @@ for idir=0,n_elements(datadir)-1 do begin
  finalstr=aspcap_bestclass(allparam,allspec,alllib,/nocoarse,classes=class)
 
  ; correct parameters if we have caldir
+ elemskip=2
  if keyword_set(caldir) then begin
-   aspcap_correct,paramstr,finalstr.lib.elem_symbol,aspcap_root+apred_vers+'/'+aspcap_vers+'/'+caldir+'/' ,/noelem
+   aspcap_data,finalstr,indir+files,/keepid
+   paramstr=finalstr.param
+   aspcap_correct,paramstr,0,aspcap_root+apred_vers+'/'+aspcap_vers+'/'+caldir+'/',/noelem
+   finalstr.param=paramstr
+   elemskip=1
  endif
  ; write aspcapField file (no aspcapStar files)
  aspcap_writefits,finalstr,resultsdir+'/'+ofile+'-'+strcompress(oname[idir],/remove_all)+'.fits',mjddir=mjddir
@@ -532,13 +537,13 @@ for idir=0,n_elements(datadir)-1 do begin
    ; elemloop=0 setup uncalibrated run, 1 setup calibrated run, and run
    ; elemloop=2 read uncalibrated run, 3 read calibrated run
    ; second time, read the results
-   for elemloop=0,2,2 do begin
+   for elemloop=0,3,elemskip do begin
     for ielem=0,n_elements(elem)-1 do begin
      jelem=where(strtrim(elem_order,2) eq strtrim(elem[ielem],2),norder)
      if norder eq 0 then stop,'cant match elem in aspcap_elems'
      clock=TIC(elem[ielem])
      TOC
-     print,'Element:', elem[ielem]
+     print,'Element:', elem[ielem], ' elemloop: ', elemloop
      if file_test(configdir+'/'+elem[ielem]+'.elem.par') then $
      aploadplan,configdir+'/'+elem[ielem]+'.elem.par',libpar,str='INFO' else $
      aploadplan,configdir+'/'+elem[ielem]+'.par',libpar,str='INFO' 
@@ -581,7 +586,7 @@ for idir=0,n_elements(datadir)-1 do begin
          if tag_exist(libpar,'indi') then indi=libpar.indi else undefine,indi
          if tag_exist(libpar.info,'indini') then indini=libpar.info[iclass].indini else undefine,indini
          if tag_exist(libpar.info,'renorm') then renorm=libpar.info[iclass].renorm       
-         if keyword_set(notie) then undef,ttie else ttie=libpar.info[iclass].ttie
+         if keyword_set(notie) then undefine,ttie else ttie=libpar.info[iclass].ttie
          writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.info[iclass].indv,$
             indini=indini,interord=libpar.info[iclass].inter,$
             filterfile=configdir+'/'+libpar.info[iclass].mask+suffix+'.mask',$
@@ -731,7 +736,7 @@ for idir=0,n_elements(datadir)-1 do begin
      print,'elem:',elem[ielem],dt
     endfor ; nelem
     ; run ferre for all nmlfiles
-    if elemloop eq 0 then begin
+    if (elemloop eq 1 and elemskip eq 1) or (elemloop eq 0 and elemskip eq 2) then begin
       workdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/'
       cd,workdir,current=cwd
       nmlfile=file_search('*.nmlfiles')

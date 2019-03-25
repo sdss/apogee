@@ -44,7 +44,7 @@ def arctabun(el) :
     '''
     Define Arcturus abundances, and return requested abundance
     '''
-    abun = { "C" : 0.090000, "CI" : 0.09, "N" : 0.400000, "O" : 0.480000, "Na" : 0.210000, "Mg" : 0.370000, "Al" : 0.400000, "Si" : 0.330000, "P" : 0.070000, "S" : 0.350000, "K" : 0.200000, "Ca" : 0.090000, "Sc" : 0.070000, "Ti" : 0.250000, "TiII" : 0.25, "V" : 0.160000, "Cr" : -0.050000, "Mn" : -0.120000, "Fe" : -0.000000, "Co" : 0.040000, "Ni" : 0.030000, "Cu" : -0.050000, "Ge" : 0.000000, "Rb" : 0.000000, "Y" : 0.000000, "Ce" : -0.190000, "Nd" : 0.130000, "M" : 0., "alpha" : 0.3}
+    abun = { "C" : 0.090000, "CI" : 0.09, "N" : 0.400000, "O" : 0.480000, "Na" : 0.210000, "Mg" : 0.370000, "Al" : 0.400000, "Si" : 0.330000, "P" : 0.070000, "S" : 0.350000, "K" : 0.200000, "Ca" : 0.090000, "Sc" : 0.070000, "Ti" : 0.250000, "TiII" : 0.25, "V" : 0.160000, "Cr" : -0.050000, "Mn" : -0.120000, "Fe" : -0.000000, "Co" : 0.040000, "Ni" : 0.030000, "Cu" : -0.050000, "Ge" : 0.000000, "Rb" : 0.000000, "Y" : 0.000000, "Ce" : -0.190000, "Nd" : 0.130000, "Yb" : 0., "M" : 0., "alpha" : 0.3}
     return(abun[el]) 
 
 def optabun(el) :
@@ -87,13 +87,13 @@ def plot(a,elem,etoh,dwarf=False,suffix='',gcal=None,dcal=None,glon=None,glat=No
         etoh[0]=1
         etoh[1]=1
         etoh[2]=1
-        ref=apselect.select(a,redid='VESTA')
+        ref=apselect.select(a,id='VESTA')
     else :
         tit = 'Giants, S/N>200'
         prefix = 'g'+suffix
         tmax=6500
         gd=apselect.select(a,badval='STAR_BAD',sn=sn,raw=True,glon=glon,glat=glat,giants=True)
-        ref=apselect.select(a,redid='alpha_Boo')
+        ref=apselect.select(a,id='alpha_Boo')
     out = open('elem/'+prefix+'.dat','w')
 
 
@@ -104,6 +104,9 @@ def plot(a,elem,etoh,dwarf=False,suffix='',gcal=None,dcal=None,glon=None,glat=No
     solar=apselect.select(a[gd],mh=[-0.1,0.1],raw=True)
 
     ifeh=17
+    if len(a['FELEM'].shape) == 2: felem_feh = a['FELEM'][:,ifeh]
+    else : felem_feh = a['FELEM'][:,0,ifeh]
+  
     ytit=[]
     files=[]
     # loop over elements
@@ -114,9 +117,11 @@ def plot(a,elem,etoh,dwarf=False,suffix='',gcal=None,dcal=None,glon=None,glat=No
             el = elem[ielem].strip()
             #eelem = a['ELEM'][gd,ielem]
             eelem = a['X_M'][gd,ielem]
-            felem = a['FELEM'][gd,ielem]
+            if len(a['FELEM'].shape) == 2: felem = a['FELEM'][gd,ielem]
+            else : felem = a['FELEM'][gd,0,ielem]
             eelem_err = a['X_M_ERR'][gd,ielem]
-            felem_err = a['FELEM_ERR'][gd,ielem]
+            if len(a['FELEM'].shape) == 2: felem_err = a['FELEM_ERR'][gd,ielem]
+            else: felem_err = a['FELEM_ERR'][gd,0,ielem]
             tmp=etoh[ielem]
             if ielem > 2 :
                 if usemh and etoh[ielem] :
@@ -180,11 +185,11 @@ def plot(a,elem,etoh,dwarf=False,suffix='',gcal=None,dcal=None,glon=None,glat=No
               zt='Teff'
               xtit.append('calibrated vs [Fe/H]')
             elif iplot == 1 :
-              x = a['FELEM'][gd,ifeh]
+              x = felem_feh[gd]
               xr = [-1.5,1.]
               xt= '[Fe/H] (raw)'
               y = felem
-              if not usemh: y-=a['PARAM'][gd,3]
+              if not usemh: y-=a['FPARAM'][gd,3]
               yr=[-0.25,0.5]
               yt = '['+name+'/M](raw)'
               z = a['FPARAM'][gd,0]
@@ -209,10 +214,10 @@ def plot(a,elem,etoh,dwarf=False,suffix='',gcal=None,dcal=None,glon=None,glat=No
               xr = [2500,tmax]
               xt= 'Teff'
               y = felem
-              if not usemh: y-=a['PARAM'][gd,3]
+              if not usemh: y-=a['FPARAM'][gd,3]
               yr=[-0.25,0.5]
               yt = '['+name+'/M](raw)'
-              z = a['FELEM'][gd,ifeh]
+              z = felem_feh[gd]
               zr = [-1.5,1.]
               zt='[Fe/H]'
               xtit.append('raw vs Teff')
@@ -223,7 +228,7 @@ def plot(a,elem,etoh,dwarf=False,suffix='',gcal=None,dcal=None,glon=None,glat=No
               y = eelem-felem
               yr = [-0.3,0.3]
               yt = 'cal - raw'
-              z = a['FELEM'][gd,ifeh]
+              z = felem_feh[gd]
               zr = [-1.5,1.]
               zt='[Fe/H]'
               xtit.append('calibration')
@@ -234,7 +239,7 @@ def plot(a,elem,etoh,dwarf=False,suffix='',gcal=None,dcal=None,glon=None,glat=No
               y = eelem_err
               yr= [0,0.3]
               yt = 'Empirical uncertainty'
-              z = a['FELEM'][gd,ifeh]
+              z = felem_feh[gd]
               zr = [-1.5,1.]
               zt='[Fe/H]'
               xtit.append('empirical uncertainty')
@@ -245,7 +250,7 @@ def plot(a,elem,etoh,dwarf=False,suffix='',gcal=None,dcal=None,glon=None,glat=No
               y = felem_err
               yr= [0,0.3]
               yt = 'FERRE uncertainty'
-              z = a['FELEM'][gd,ifeh]
+              z = felem_feh[gd]
               zr = [-1.5,1.]
               zt='[Fe/H]'
               xtit.append('FERRE uncertainty')
@@ -259,7 +264,7 @@ def plot(a,elem,etoh,dwarf=False,suffix='',gcal=None,dcal=None,glon=None,glat=No
                 y = x*0.
               yr= [0,50]
               yt = 'ELEM_CHI2'
-              z = a['FELEM'][gd,ifeh]
+              z = felem_feh[gd]
               zr = [-1.5,1.]
               zt='[Fe/H]'
               xtit.append('CHI2 from element fit')
@@ -976,7 +981,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                     if iline == nlines : iplot+=1
                     #if not sepplot and cal != 'inter' : pdb.set_trace()
                     if iline == nlines and hard is not None : 
-                        fig.savefig(hard+el+'.jpg')
+                        fig.savefig(hard+el.strip()+'.jpg')
                         if sepplot: 
                             fig1.savefig(hard+el+'.pdf')
                             fig2.savefig(hard+el+'_lit.pdf')

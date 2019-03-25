@@ -173,7 +173,8 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
          )[0]
 
     if grid is not None :
-        gdclass = np.where(np.core.defchararray.find(data['ASPCAP_CLASS'][gd],grid) >=0 )[0]
+        try: gdclass = np.where(np.core.defchararray.find(data['ASPCAP_CLASS'][gd],grid) >=0 )[0]
+        except: gdclass = np.where(np.core.defchararray.find(data['CLASS'][gd],grid) >=0 )[0]
         gd=gd[gdclass]
 
     if field is not None :

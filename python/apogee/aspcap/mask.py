@@ -7,7 +7,9 @@ import numpy as np
 import pdb
 
 def mkwind(el,halfwidth=1.2,invert=False) :
-    """ Create default window file from master filt file
+    """ Create default window file with unmasked regions from master filt file
+        use with halfwidth to get windows for minigrid synthesis
+        use with invert to get masked regions
     """
     chipswave=aspcap.gridWave()
     wave=[]
@@ -40,20 +42,25 @@ def mkwind(el,halfwidth=1.2,invert=False) :
 
     fp.close()
 
-def mkmask(el) :
+def mkmask(el,globalmask=None) :
     """ Given input master filt file, and window file with desired windows, output mask file
     """
     chipswave=aspcap.gridWave()
     wave=[]
     for ichip in range(3) : wave.extend(chipswave[ichip])
 
-    filt=ascii.read(el+'.filt',Reader=ascii.NoHeader)['col1']
-    wind=ascii.read(el+'.wind',Reader=ascii.NoHeader)
+    filt=ascii.read(el+'.filt',format='no_header')['col1']
+    wind=ascii.read(el+'.wind',format='no_header')
     fp=open(el+'.mask','w')
     bd=np.where(wind['col3'] == 0)[0]
     for w in bd :
         j=np.where( (wave>wind['col1'][w]) & (wave<wind['col2'][w]) )[0]
         filt[j] = 0.
+    # add in bad pixelsl from global mask if we have one 
+    if globalmask is not None :
+        g=ascii.read(globalmask,format='no_header')['col1']
+        bd=np.where(g == 0)[0]
+        filt[bd] = 0.
     np.savetxt(fp,filt,fmt='%12.8f')
     fp.close()
 

@@ -587,8 +587,9 @@ for idir=0,n_elements(datadir)-1 do begin
          if tag_exist(libpar.info,'indini') then indini=libpar.info[iclass].indini else undefine,indini
          if tag_exist(libpar.info,'renorm') then renorm=libpar.info[iclass].renorm       
          if keyword_set(notie) then undefine,ttie else ttie=libpar.info[iclass].ttie
+         ; use init=0, with no indini, to use starting guess from parameter run
          writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.info[iclass].indv,$
-            indini=indini,interord=libpar.info[iclass].inter,$
+            init=0,interord=libpar.info[iclass].inter,$
             filterfile=configdir+'/'+libpar.info[iclass].mask+suffix+'.mask',$
             findi=indi,errbar=errbar,renorm=abs(renorm),obscont=obscont,ttie=ttie,elemdir=elemdir,$
             libdir='../lib_'+libpar.info[iclass].class
@@ -618,7 +619,9 @@ for idir=0,n_elements(datadir)-1 do begin
                if nmissing gt 0 then init[missing] = 0.
              endif
              ; if we have fit for C, use that value rather than parameters value
-             if newparam[i].felem[cfit] gt -9990 and cindex ge 0 then init[cindex] = newparam[i].felem[cfit]
+             ; removed this because it will not function correctly with elemloop, since all abundances
+             ; are now determined in one FERRE run
+             ;if newparam[i].felem[cfit] gt -9990 and cindex ge 0 then init[cindex] = newparam[i].felem[cfit]
              printf,ipf,file_basename(finalstr.param[i].apogee_id,'.fits'),format=iformat,init,init*0.
              if minigrid ne '' then begin
                help,finalstr.lib.wave

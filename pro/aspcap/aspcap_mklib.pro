@@ -215,10 +215,10 @@ printf,list,'#'
 printf,list,'#'
 for i=0,n_elements(elem)-1 do begin
  el=strtrim(elem[i])
- if file_test(maskdir+'/'+el+'.filt') then begin
+ if file_test(maskdir+'/'+el+'.mask') then begin
   printf,list,el
   file_delete,outdir+el+'.mask',/allow
-  file_copy,maskdir+'/'+el+'.filt',outdir+el+'.mask'
+  file_copy,maskdir+'/'+el+'.mask',outdir+el+'.mask'
   fit=efit
   if el eq 'C' or el eq 'CI' then fit=cfit 
   if el eq 'N' then fit=nfit 

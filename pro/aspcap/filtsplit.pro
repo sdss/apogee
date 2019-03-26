@@ -9,7 +9,7 @@ if ~keyword_set(maxwind) then maxwind=0
 if ~keyword_set(outdir) then outdir='./'
 
 ; read in master filter and wavelengths
-readcol,getenv('APOGEE_DIR')+'/data/windows/'+maskdir+'/'+el+'.filt',mask,/silent
+readcol,getenv('APOGEE_DIR')+'/data/windows/'+maskdir+'/'+el+'.mask',mask,/silent
 readcol,getenv('APOGEE_DIR')+'/data/windows/'+maskdir+'/'+'wave.dat',wave,/silent
 
 ; loop through mask finding non-zero windows

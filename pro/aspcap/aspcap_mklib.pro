@@ -276,7 +276,7 @@ for i=0,n_elements(elem)-1 do begin
       if afit[j] ne efit[j] then ttie[2]=afit[j]
     endif
     printf,new,'INFO ',classes[j],libs[j],1,fit[j],' { ',ttie,' } ',1,inter[j],renorm[j],el,format='(a,a,1x,a,i3,i3,a,3i3,a,i,i,i,1x,a)'
-    print,j,fit[j],efit[j],cfit[j],nfit[j],afit[j],ttie
+    ;print,j,fit[j],efit[j],cfit[j],nfit[j],afit[j],ttie
   endfor
 
   free_lun,new

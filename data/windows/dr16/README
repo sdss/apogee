@@ -5,6 +5,8 @@ global is just edges to mask to original 7214 pixels
 global_mask_01 is v01 combined with global
 global_mask_02 is v02 combined with global, with Br11 masked
 
+param_v01.mask made from edge, global, plus elements except C, N, O, Mg, Fe, Ni
+
 Elements:
  .filt files are original window from Ricardo Carrera analysis
  mask.mkwind extracts the window wavelength ranges into .wind files

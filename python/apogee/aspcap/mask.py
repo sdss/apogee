@@ -64,3 +64,22 @@ def mkmask(el,globalmask=None) :
     np.savetxt(fp,filt,fmt='%12.8f')
     fp.close()
 
+#    elems=['C','CI','N','O','Na','Mg','Al','Si','P','S','K','Ca','Ti','TiII','V','Cr','Mn','Fe','Co','Ni','Cu','Ge','Rb','Ce','Nd','Yb']
+
+def mkparam(out='param.mask',edgefile='global.mask', globalfile='mask_v02_aspcap.txt', els=['CI','Na','Al','Si','P','S','K','Ca','Ti','TiII','V','Cr','Mn','Co','Cu','Ge','Rb','Ce','Nd','Yb']) :
+    """ Make param mask from edge, global and element masks
+    """
+    mask=ascii.read(edgefile,format='no_header')['col1']
+    gmask=ascii.read(globalfile,format='no_header')['col1']
+    bd=np.where(gmask == 0)[0]
+    mask[bd] = 0.
+    for el in els :
+        elem=ascii.read(el+'.filt',format='no_header')['col1']
+        bd=np.where(elem > 0.)[0]
+        mask[bd] = 0.
+    fp=open(out,'w')
+    np.savetxt(fp,mask,fmt='%8.2f')
+    fp.close()
+   
+
+

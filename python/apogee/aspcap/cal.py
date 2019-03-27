@@ -94,7 +94,18 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
     f.write(html.table(all['FPARAM'][j],plots=False,ytitle=ids,xtitle=aspcap.params()[0]))
     html.tail(f)
 
-    docal(vers,clobber=False,allstar=False,hr=False,teff=True,logg=True,vmicro=False,vmacro=False,elemcal=True,out='plots/',stp=False,cal='default',calib=False) 
+    try: os.mkdir('calib/')
+    except: pass
+    docal(out,clobber=False,allstar=False,hr=False,teff=True,logg=True,vmicro=False,vmacro=False,elemcal=True,out='calib/',stp=False,cal='default',calib=False) 
+    try: os.mkdir('calibrated/')
+    except: pass
+    docal(out,clobber=False,allstar=False,hr=False,teff=True,logg=True,vmicro=False,vmacro=False,elemcal=True,out='calibrated/',stp=False,cal='default',calib=True) 
+    try: os.mkdir('qa/')
+    except: pass
+    aspcap.repeat(all,out='qa/')
+    apl=apload.ApLoad(dr='dr14')
+    dr14=apl.allStar()[1].data
+    aspcap.plotparamdiffs(all,dr14)
 
     return all
 
@@ -141,7 +152,7 @@ def hrsample(indata,hrdata,maxbin=50,raw=True) :
     return i1[gd],i2[gd]
 
 def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v3.6.0',
-              cal1m=True,coolstars=True,dir='cal',hrdata=None,optical=True,ns=True,Ce=True,ebvmax=None,snmin=75) :
+              cal1m=True,coolstars=True,dir='cal',hrdata=None,optical=True,ns=True,Ce=True,ebvmax=None,snmin=75,all=True) :
     '''
     selects a calibration subsample from an input apField structure, including several calibration sub-classes: 
         cluster, APOKASC stars, 1m calibration stars. Creates cluster web pages/plots if requested
@@ -269,7 +280,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         all.extend(i1)
 
     # create "all" directories with all stars, removing duplicates
-    mklinks(data,list(set(all)),dir+'_all')
+    if all: mklinks(data,list(set(all)),dir+'_all')
 
     return indata
 
@@ -314,26 +325,23 @@ def symlink(data,out,idir) :
         infile='{:s}/calibration/{:s}'.format(data['TELESCOPE'],data['FILE'])
     os.symlink('../../'+infile,outfile)
 
-def docal(vers,clobber=False,allstar=True,hr=True,teff=True,logg=True,vmicro=True,vmacro=True,elemcal=True,out=None,stp=False,cal='dr14',calib=False) :
+def docal(calfile,clobber=False,allstar=True,hr=True,teff=True,logg=True,vmicro=True,vmacro=True,elemcal=True,out=None,stp=False,cal='dr14',calib=False) :
     '''
     Derives all calibration relations and creates plots of them, as requested
     '''
 
     # output subdirectory
-    try:
-        os.mkdir('cal')
-    except:
-        pass
+    try: os.mkdir('cal')
+    except: pass
     print(os.getcwd())
 
     # combine aspcapField files into allCal
-    calfile = 'allCal-'+vers+'.fits'
     if clobber or not os.path.isfile(calfile) :
-        allc=allCal(['hr???/aspcapField*.fits','cal???/aspcapField*.fits','clust???/aspcapField*.fits'],out='allCal-'+vers+'.fits')
+        allc=allCal(['hr???/aspcapField*.fits','cal???/aspcapField*.fits','clust???/aspcapField*.fits'],out=calfile)
      
-    allc=fits.open('allCal-'+vers+'.fits')
+    allc=fits.open(calfile)
     if allstar :
-        c=fits.open('allStar-'+vers+'.fits')
+        c=fits.open(calfile)
     else :
         c=allc
     print('Total stars:',len(c))
@@ -425,7 +433,7 @@ def docal(vers,clobber=False,allstar=True,hr=True,teff=True,logg=True,vmicro=Tru
     figs.append(['giants_M.jpg','dwarfs_M.jpg'])
     ytitle.append('cluster [M/H]')
 
-    html.htmltab(figs,xtitle=['giants','dwarfs'],ytitle=ytitle,file=out+vers+'.html')
+    html.htmltab(figs,xtitle=['giants','dwarfs'],ytitle=ytitle,file=out+calfile.replace('.fits','.html'))
     return allcal
 
 def comp(plots=['hr','giant_teffcomp','dwarf_teffcomp','rcrgbsep','loggcomp_b','loggcomp','giants_all','clust_key','dwarfs_all','giants_allsolar','dwarfs_allsolar','giants_M','dwarfs_M','giants_err_all','dwarfs_err_all'],runs=['l31a','l31b','l30b_vm4','l31b_vm4','l31a_asset'],out=None) :

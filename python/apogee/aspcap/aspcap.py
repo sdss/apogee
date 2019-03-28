@@ -28,6 +28,7 @@ from tools import plots
 from tools import match
 from tools import html
 from apogee.utils import apload
+from apogee.utils import bitmask
 from apogee.utils import spectra
 from apogee.speclib import isochrones
 try: from apogee.aspcap import ferre
@@ -306,7 +307,7 @@ def intplot(a=None,param='FPARAM',indir='cal',apred='r10',aspcap='t33b',verbose=
     plt.close(sf)
     plt.close(fig)
 
-def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=False, hard=None, grid=None,xr=[8000,3000],yr=[6,-1]) :
+def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=False, hard=None, gridclass=None,xr=[8000,3000],yr=[6,-1],grid=False,contour=False) :
     """ Plot an HR diagram from input structure
 
         Args:
@@ -315,20 +316,32 @@ def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=False, hard=None, 
             colorbar : show colorbar? (default= False)
     """
     fig,ax = plots.multi(1,1)
-    if grid is None :
+    if gridclass is None :
         teff=a[param][:,0]
         logg=a[param][:,1]
     else :
-        teff=a['FPARAM_CLASS'][:,grid,0]
-        logg=a['FPARAM_CLASS'][:,grid,1]
+        teff=a['FPARAM_CLASS'][:,gridclass,0]
+        logg=a['FPARAM_CLASS'][:,gridclass,1]
     if zt == '[M/H]' : 
         z=a[param][:,3]
         if zr is None : zr=[-2,0.5]
     elif zt == 'chi2' : 
         z=a['PARAM_CHI2']
         if zr is None : zr=[0,10]
-    plots.plotc(ax,teff,logg,z,xr=xr,yr=yr,zr=zr,
-                xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
+    aspcapmask=bitmask.AspcapBitMask()
+    starmask=bitmask.StarBitMask()
+    bd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) > 0) |
+                 ((a['STARFLAG']&starmask.badval()) > 0) ) [0]
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) &
+                 ((a['STARFLAG']&starmask.badval()) == 0) ) [0]
+    if contour :
+        plots.plotp(ax,teff,logg,xr=xr,yr=yr,
+                    xt='Teff',yt='log g',contour=-1)
+    else :
+        plots.plotc(ax,teff[gd],logg[gd],z[gd],xr=xr,yr=yr,zr=zr,
+                    xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
+        plots.plotp(ax,teff[bd],logg[bd],color='k',size=2)
+    if grid: ax.grid()
     plots._data = a
     if iso:
         colors=['b','g','k','r']
@@ -347,66 +360,73 @@ def multihr(a,param='FPARAM',colorbar=False,hard=None,xr=[8000,3000],yr=[6,-1]) 
     """
     fig,ax = plots.multi(3,3,hspace=0.001,wspace=0.001,figsize=(8,12))
 
-    z=a[param][:,3]
+    aspcapmask=bitmask.AspcapBitMask()
+    starmask=bitmask.StarBitMask()
+    bd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) > 0) |
+                 ((a['STARFLAG']&starmask.badval()) > 0) ) [0]
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) &
+                 ((a['STARFLAG']&starmask.badval()) == 0) ) [0]
+
+    z=a[param][gd,3]
     zr=[-2,0.5]
     zt='[M/H]'
-    plots.plotc(ax[0,0],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
+    plots.plotc(ax[0,0],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
     ax[0,0].text(0.05,0.9,zt,transform=ax[0,0].transAxes)
 
-    z=10.**a[param][:,2]
+    z=10.**a[param][gd,2]
     zr=[0.3,4]
     zt='vmicro'
-    plots.plotc(ax[0,1],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
+    plots.plotc(ax[0,1],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[0,1].text(0.05,0.9,zt,transform=ax[0,1].transAxes)
 
-    z=10.**a[param][:,7]
+    z=10.**a[param][gd,7]
     zr=[0,10]
     zt='vrot'
-    plots.plotc(ax[0,2],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
+    plots.plotc(ax[0,2],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[0,2].text(0.05,0.9,zt,transform=ax[0,2].transAxes)
 
-    z=a[param][:,4]
+    z=a[param][gd,4]
     zr=[-0.5,0.5]
     zt='[C/M]'
-    plots.plotc(ax[1,0],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
+    plots.plotc(ax[1,0],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
     ax[1,0].text(0.05,0.9,zt,transform=ax[1,0].transAxes)
 
-    z=a[param][:,5]
+    z=a[param][gd,5]
     zr=[-0.5,0.5]
     zt='[N/M]'
-    plots.plotc(ax[1,1],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
+    plots.plotc(ax[1,1],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[1,1].text(0.05,0.9,zt,transform=ax[1,1].transAxes)
 
-    z=a[param][:,4]-a[param][:,5]
+    z=a[param][gd,4]-a[param][gd,5]
     zr=[-0.5,0.5]
     zt='[C/N]'
-    plots.plotc(ax[1,2],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
+    plots.plotc(ax[1,2],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[1,2].text(0.05,0.9,zt,transform=ax[1,2].transAxes)
 
-    z=a[param][:,6]
+    z=a[param][gd,6]
     zr=[-1,1.0]
     zt=r'[$\alpha$/M]'
-    plots.plotc(ax[2,0],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
+    plots.plotc(ax[2,0],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
     ax[2,0].text(0.05,0.9,zt,transform=ax[2,0].transAxes)
 
-    z=a['PARAM_CHI2']
-    zr=[0,10]
-    zt='CHI2'
-    plots.plotc(ax[2,1],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
+    z=np.log10(a['PARAM_CHI2'])
+    zr=[0,2]
+    zt='log(CHI2)'
+    plots.plotc(ax[2,1],a[param][gd,0],a[param][gd,1],z[gd],xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[2,1].text(0.05,0.9,zt,transform=ax[2,1].transAxes)
 
     z=a['MEANFIB']
     zr=[0,300]
     zt='MEANFIB'
-    plots.plotc(ax[2,2],a[param][:,0],a[param][:,1],z,xr=xr,yr=yr,zr=zr,
+    plots.plotc(ax[2,2],a[param][gd,0],a[param][gd,1],z[gd],xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[2,2].text(0.05,0.9,zt,transform=ax[2,2].transAxes)
 
@@ -477,32 +497,14 @@ def plot(wave,spec,color=None,figax=None,ax=None,hard=None,sum=False,title=None,
     except: return
 
 def plotparams(a,title=None,hard=None) :
+    """ Plot parameters vs Teff
+    """
     fig,ax=plots.multi(1,8,hspace=0.001)
 
     paramnames,tagnames,flagnames = params()
 
     for i in range(8) :
         plots.plotc(ax[i],a['FPARAM'][:,0],a['FPARAM'][:,i],a['FPARAM'][:,3],yt=tagnames[i],xt='Teff')
-    if title is not None : fig.suptitle(title)
-    if hard is not None : fig.savefig(hard)
-
-def plotparamdiffs(a,b,title=None,hard=None,logg=None) :
-    """ Plot parameter differences between two different runs
-    """
-    fig,ax=plots.multi(1,9,hspace=0.001,sharex=True)
-
-    paramnames,tagnames,flagnames = params()
-    i1,i2=match.match(a['APOGEE_ID'],b['APOGEE_ID'])
-
-    if logg is not None :
-        j=np.where((a['FPARAM'][i1,1] >= logg[0]) & (a['FPARAM'][i1,1] < logg[1])) [0]
-        i1=i1[j]
-        i2=i2[j]
-
-    for i in range(8) :
-        plots.plotc(ax[i],a['FPARAM'][i1,0],b['FPARAM'][i2,i]-a['FPARAM'][i1,i],a['FPARAM'][i1,3],yt=r'$\Delta$'+tagnames[i],xt='Teff')
-
-    plots.plotc(ax[8],a['FPARAM'][i1,0],b['PARAM_CHI2'][i2]-a['PARAM_CHI2'][i1],a['FPARAM'][i1,3],yt=r'$\Delta\chi^2$',xt='Teff',yr=[-1,1])
     if title is not None : fig.suptitle(title)
     if hard is not None : fig.savefig(hard)
 
@@ -585,7 +587,7 @@ def vesta() :
     #compspec(l31c_fixed,l33_fixed,hard='Vesta_fixed_l31cvl33')
     compspec(l31crenorm_fit,l31crenorm_fixed,hard='Vesta_l31crenorm_fitvsfixed')
 
-def repeat(data) :
+def repeat(data,out=None) :
     """ Comparison of repeat observations of objects
     """
 
@@ -650,8 +652,10 @@ def repeat(data) :
         if i < 7 :
             ax[i,0].set_ylabel(param)
             ax[i,1].text(0.1,0.9,param,transform=ax[i,1].transAxes)
-    fig.savefig('plots/param_diff.png')
-    efig.savefig('plots/elem_diff.png')
-    pdb.set_trace()
+    if out is not None :
+        fig.savefig(out+'param_diff.png')
+        efig.savefig(out+'elem_diff.png')
+    else :
+        pdb.set_trace()
     plt.close(fig)
     plt.close(efig)

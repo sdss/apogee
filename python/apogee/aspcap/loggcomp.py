@@ -164,7 +164,8 @@ def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3000,8000],a
     plots.plotc(ax[1,1],allstar['FPARAM'][i1,0],allstar['FPARAM'][i1,1]-apokasc['LOGG_DW'][i2],allstar['FPARAM'][i1,3],yr=[-1,1],xt='Teff',yt='Delta logg')
     plt.tight_layout()
  
-def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False,out='loggcomp',calloggrange=[-1.,3.8],loggrange=[1.,3.2],mhrange=[-2.5,0.5],teffrange=[3500,5500],calib=False) :
+#def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False,out='loggcomp',calloggrange=[-1.,3.8],loggrange=[1.,3.2],mhrange=[-2.5,0.5],teffrange=[3500,5500],calteffrange=[3000,6000],calib=False) :
+def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False,out='loggcomp',calloggrange=[-1.,3.8],loggrange=[-1.,3.8],mhrange=[-2.5,0.5],teffrange=[3500,5500],calteffrange=[3000,6000],calib=False) :
     '''
     asteroseismic log g comparisons for input allStar structure
     '''
@@ -300,7 +301,7 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
         plt.close()
 
     return {'calloggmin' : calloggrange[0], 'calloggmax' : calloggrange[1], 'loggmin' : loggrange[0], 'loggmax' : loggrange[1], 
-            'mhmin' : mhrange[0], 'mhmax' : mhrange[1], 'calteffmin': teffrange[0], 'calteffmax' : teffrange[1],
+            'mhmin' : mhrange[0], 'mhmax' : mhrange[1], 'calteffmin': calteffrange[0], 'calteffmax' : calteffrange[1],
             'rgbfit' : rgbfit.parameters, 'rcfit' : rcfit.parameters, 'rcfit2' : rcfit2.parameters, 'rgbrms' : rgbrms, 'rcrms' : rcrms ,
             'rgberrpar': rgberrpar, 'rcerrpar': rcerrpar}
 

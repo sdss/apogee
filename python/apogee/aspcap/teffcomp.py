@@ -179,7 +179,7 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,dwarf=False,trange=[3750,5500],mhrange=[
     #pfit = fit.fit1d(allstar[param][:,3],allstar[param][:,0]-ghb,ydata=allstar[param][:,0],plot=ax[1,0],zr=[-500,200],xt='[M/H]',yt='$\Delta Teff$',xr=[-2.7,0.9],yr=[3500,5000])
     #pfit = fit.fit1d(allstar[param][:,0],allstar[param][:,0]-ghb,ydata=allstar[param][:,3],plot=ax[1,1],zr=[-500,200],xt='Teff',xr=[3900,5100],yr=[-2.5,0.5])
     plt.draw()
-    return {'caltemin': 3532., 'caltemax': 10000., 'temin' : trange[0], 'temax': trange[1], 
+    return {'caltemin': 3000., 'caltemax': 10000., 'temin' : trange[0], 'temax': trange[1], 
             'mhmin': mhrange[0], 'mhmax' : mhrange[1],
             'par': tefit.parameters, 'rms' :rms, 'errpar' : errpar}
 

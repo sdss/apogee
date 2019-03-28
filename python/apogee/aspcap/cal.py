@@ -4,6 +4,7 @@ from apogee.aspcap import elem
 from apogee.aspcap import teffcomp
 from apogee.aspcap import loggcomp
 from apogee.aspcap import aspcap
+from apogee.aspcap import qa
 from tools import html
 from tools import match
 from tools import struct
@@ -35,7 +36,7 @@ def allField(files=['apo*/*/a?Field-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?F
 
     return all
 
-def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nelem=15,out='allCal.fits',allfield=None) :
+def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nelem=15,out='allCal.fits',allfield=None,elemcal=True) :
     '''
     Concatenate aspcapField files, adding ELEM tags if not there
     '''
@@ -77,35 +78,40 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
 
     try: os.mkdir('plots/')
     except: pass
-    aspcap.hr(all,hard='plots/hr.png',xr=[8000,3000])
+    aspcap.hr(all,hard='plots/hr.png',xr=[8000,3000],grid=True)
     aspcap.hr(all,hard='plots/hrhot.png',xr=[20000,3000],iso=True)
     aspcap.multihr(all,hard='plots/multihr.png')
-    teffcomp.ghb(all,ebvmax=0.02,glatmin=10,out='plots/giant_teffcomp',yr=[-750,750],dwarf=False,calib=False)
-    loggcomp.apokasc(all,plotcal=False,out='plots/loggcomp',calib=False)
-    grid=[['plots/hr.png','plots/multihr.png'],  
-          ['plots/giant_teffcomp.jpg','plots/giant_teffcomp_b.jpg'], 
-          ['plots/loggcomp.jpg','plots/loggcomp_b.jpg']] 
-    #html.htmltab(grid,file=out.replace('.fits','.html'))
+    #teffcomp.ghb(all,ebvmax=0.02,glatmin=10,out='plots/giant_teffcomp',yr=[-750,750],dwarf=False,calib=False)
+    #loggcomp.apokasc(all,plotcal=False,out='plots/loggcomp',calib=False)
+    grid=[['plots/hr.png','plots/multihr.png','plots/hrhot.png']] 
+
+    # Master summary HTML file
     f=html.head(file=out.replace('.fits','.html'))
     f.write(html.table(grid))
     ids = ['VESTA','alpha_Boo']
     j=[]
     for id in ids: j.extend( np.where( np.core.defchararray.strip(all['APOGEE_ID']) == id) [0] )
     f.write(html.table(all['FPARAM'][j],plots=False,ytitle=ids,xtitle=aspcap.params()[0]))
+    f.write('<p> <a href=calib/'+out.replace('.fits','.html')+'> Calibration plots</a>')
+    f.write('<p> <a href=qa/elem_chem.html> Chemistry plots</a>')
+    f.write('<p> <a href=qa/repeat.html> Duplicate observations plots, including APO/LCO</a>')
+    f.write('<p> <a href=qa/dr14_diffs.html> DR14 comparison plots</a>')
     html.tail(f)
 
+    # do the calibration and calibration and QA plots
     try: os.mkdir('calib/')
     except: pass
-    docal(out,clobber=False,allstar=False,hr=False,teff=True,logg=True,vmicro=False,vmacro=False,elemcal=True,out='calib/',stp=False,cal='default',calib=False) 
+    docal(out,clobber=False,allstar=False,hr=False,teff=True,logg=True,vmicro=False,vmacro=False,elemcal=elemcal,out='calib/',stp=False,cal='default',calib=False) 
     try: os.mkdir('calibrated/')
     except: pass
-    docal(out,clobber=False,allstar=False,hr=False,teff=True,logg=True,vmicro=False,vmacro=False,elemcal=True,out='calibrated/',stp=False,cal='default',calib=True) 
+    try: docal(out,clobber=False,allstar=False,hr=False,teff=True,logg=True,vmicro=False,vmacro=False,elemcal=elemcal,out='calibrated/',stp=False,cal='default',calib=True) 
+    except: pass
     try: os.mkdir('qa/')
     except: pass
-    aspcap.repeat(all,out='qa/')
-    apl=apload.ApLoad(dr='dr14')
-    dr14=apl.allStar()[1].data
-    aspcap.plotparamdiffs(all,dr14)
+    hdulist=fits.open(out)
+    qa.repeat(hdulist,out='qa/',elem=elemcal)
+    qa.dr14comp(hdulist,out='qa/',elem=elemcal)
+    if elemcal : qa.plotelems(hdulist,out='qa/')
 
     return all
 
@@ -152,7 +158,7 @@ def hrsample(indata,hrdata,maxbin=50,raw=True) :
     return i1[gd],i2[gd]
 
 def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v3.6.0',
-              cal1m=True,coolstars=True,dir='cal',hrdata=None,optical=True,ns=True,Ce=True,ebvmax=None,snmin=75,all=True) :
+              cal1m=True,coolstars=True,dir='cal',hrdata=None,optical=True,ns=True,special=None,Ce=True,ebvmax=None,snmin=75,mkall=True) :
     '''
     selects a calibration subsample from an input apField structure, including several calibration sub-classes: 
         cluster, APOKASC stars, 1m calibration stars. Creates cluster web pages/plots if requested
@@ -257,14 +263,33 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
     if ns :
         #north-south overlap
         jn=np.where((data['FIELD'] == 'N2243') | (data['FIELD'] == '000+08') |
-                    (data['FIELD'] == '300+75') | (data['FIELD'] == 'M12-N') | (data['FIELD'] == 'SA57-N') )[0]
+                    (data['FIELD'] == '300+75') | (data['FIELD'] == 'M12-N') )[0]
         js=np.where((data['FIELD'] == 'N2243-S') | (data['FIELD'] == '000+08-S') |
-                    (data['FIELD'] == '300+75-S') | (data['FIELD'] == 'M12-S') | (data['FIELD'] == 'SA57-S')  )[0]
+                    (data['FIELD'] == '300+75-S') | (data['FIELD'] == 'M12-S') )[0]
         i1,i2=match.match(data['APOGEE_ID'][jn], data['APOGEE_ID'][js])
         jc=list(jn[i1])
         jc.extend(js[i2])
+        stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/'+special,names=['id'],format='fixed_width_no_header')
+        jn=np.where(data['TELESCOPE'] == 'apo25m')[0]
+        js=np.where(data['TELESCOPE'] == 'lco25m')[0]
+        i1,i2=match.match(data['APOGEE_ID'][jn],stars['id'])
+        jc.extend(jn[i1])
+        i1,i2=match.match(data['APOGEE_ID'][js],stars['id'])
+        jc.extend(js[i2])
         mklinks(data,jc,dir+'_ns')
         print('Number of N/S overlap stars: ',len(jc))
+        all.extend(jc)
+
+    if special is not None:
+        stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/'+special,names=['id'],format='fixed_width_no_header')
+        jn=np.where(data['TELESCOPE'] == 'apo25m')[0]
+        js=np.where(data['TELESCOPE'] == 'lco25m')[0]
+        i1,i2=match.match(data['APOGEE_ID'][jn],stars['id'])
+        jc=list(jn[i1])
+        i1,i2=match.match(data['APOGEE_ID'][js],stars['id'])
+        jc.extend(js[i2])
+        print('Number of '+special+' stars: ',len(i1))
+        mklinks(data,jc,dir+'_special')
         all.extend(jc)
 
     if ebvmax is not None:
@@ -280,7 +305,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         all.extend(i1)
 
     # create "all" directories with all stars, removing duplicates
-    if all: mklinks(data,list(set(all)),dir+'_all')
+    if mkall: mklinks(data,list(set(all)),dir+'_all')
 
     return indata
 

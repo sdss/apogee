@@ -1,0 +1,24 @@
+Various star lists, mostly for use in constructing calibration sample
+
+optical comparison stars from Henrik:
+  all_comparisons.txt
+  validation_stars_DR16.txt
+
+APO/LOC overlap stars from Sten:
+  apogee_overlap_low_logg.txt
+  apogee_overlap.txt
+
+Stars to exclude:
+  badcal.dat
+
+Ce stars from Cunha et al
+  Ce_test_stars.txt
+
+cool stars from ?:
+  coolstars.txt
+
+GC stars with 1st/2nd generation flags from Szabolcs:
+  gc_szabolcs.dat
+
+IRFM from JAJ?:
+  irfm_temp.fits

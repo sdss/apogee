@@ -66,7 +66,7 @@ def mkmask(el,globalmask=None) :
 
 #    elems=['C','CI','N','O','Na','Mg','Al','Si','P','S','K','Ca','Ti','TiII','V','Cr','Mn','Fe','Co','Ni','Cu','Ge','Rb','Ce','Nd','Yb']
 
-def mkparam(out='param.mask',edgefile='global.mask', globalfile='mask_v02_aspcap.txt', els=['CI','Na','Al','Si','P','S','K','Ca','Ti','TiII','V','Cr','Mn','Co','Ni','Cu','Ge','Rb','Ce','Nd','Yb']) :
+def mkparam(out='param.mask',edgefile='global.mask', globalfile='mask_v02_aspcap.txt', els=['CI','O','Na','Al','Si','P','S','K','Ca','Ti','TiII','V','Cr','Mn','Co','Ni','Cu','Ge','Rb','Ce','Nd','Yb']) :
     """ Make param mask from edge, global and element masks
     """
     mask=ascii.read(edgefile,format='no_header')['col1']

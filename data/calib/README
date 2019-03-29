@@ -3,6 +3,22 @@ Various star lists, mostly for use in constructing calibration sample
 optical comparison stars from Henrik:
   all_comparisons.txt
   validation_stars_DR16.txt
+  cal_stars_20190329.txt : cal stars for DR16, includes
+    BACCHUS-anayzed stars: 100 stars
+    Brewer et al. 2016: 1615 planet-stars
+    da Silva et al. 2015: 309 stars
+    Gaia-ESO DR3: 296 stars overlapping with DR14
+    Jönsson et al 2017: 291 stars
+    Abibekian et al 2012: 1111 stars
+    Bensby et al 2014: 714 stars
+    Gaia benchmarks: 33 stars
+    GALAH DR1: 29 stars overlapping with DR14
+    Reddy et al 2003: 181 stars
+    Reddy et al 2006: 176 stars
+    Ruchti et al 2011: 319 stars
+    Smith et al 2013: 5 stars
+    Souto et al 2016: 12 stars
+    Souto et al 2017: 2 stars
 
 APO/LOC overlap stars from Sten:
   apogee_overlap_low_logg.txt

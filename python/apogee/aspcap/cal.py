@@ -158,7 +158,7 @@ def hrsample(indata,hrdata,maxbin=50,raw=True) :
     return i1[gd],i2[gd]
 
 def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v4.4.2',
-              cal1m=True,coolstars=True,dir='cal',hrdata=None,optical=True,ns=True,special=None,Ce=True,ebvmax=None,snmin=75,mkall=True) :
+              cal1m=True,coolstars=True,dir='cal',hrdata=None,optical='cal_stars_20190329.txt',ns=True,special=None,Ce=True,ebvmax=None,snmin=75,mkall=True) :
     '''
     selects a calibration subsample from an input apField structure, including several calibration sub-classes: 
         cluster, APOKASC stars, 1m calibration stars. Creates cluster web pages/plots if requested
@@ -203,8 +203,8 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         apokasc = fits.open(os.environ['APOGEE_DIR']+'/data/apokasc/'+apokasc+'.fits')[1].data
         i1,i2=match.match(data['APOGEE_ID'],apokasc['2MASS_ID'])
         rgb=np.where(apokasc['CONS_EVSTATES'][i2] == 'RGB')[0]
-        print('Number of APOKASC RGB stars (every 3rd): ',len(rgb[0:-1:3]))
-        jc.extend(i1[rgb][0:-1:3])
+        print('Number of APOKASC RGB stars (every 4th): ',len(rgb[0:-1:3]))
+        jc.extend(i1[rgb][0:-1:4])
         rc=np.where(apokasc['CONS_EVSTATES'][i2] == 'RC')[0]
         print('Number of APOKASC RC stars (every 2nd): ',len(rc[0:-2:2]))
         jc.extend(i1[rc][0:-1:2])
@@ -251,9 +251,9 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         all.extend(j)
         mklinks(data,j,dir+'_cal1m')
 
-    if optical :
+    if optical is not None:
         #stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/validation_stars_DR16.txt',names=['id'],format='fixed_width_no_header')
-        stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/all_comparisons.txt',names=['id'],format='fixed_width_no_header')
+        stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/'+optical,names=['id'],format='fixed_width_no_header')
         i1,i2=match.match(data['APOGEE_ID'],stars['id'])
         print('Number of optical validation stars: ',len(i1))
         mklinks(data,i1,dir+'_optical')
@@ -311,6 +311,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         all.extend(i1)
 
     # create "all" directories with all stars, removing duplicates
+    print('Total number of stars: ',len(list(set(all))))
     if mkall: mklinks(data,list(set(all)),dir+'_all')
 
     return indata

@@ -6,6 +6,8 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import argparse
+import glob
+import numpy as np
 import os
 import sys
 import subprocess
@@ -38,7 +40,8 @@ if __name__ == '__main__' :
     parser.add_argument("--fields",type=str,nargs='+',help='list of fields',default=[])
     args=parser.parse_args()
 
-    for field in args.fields :
+    if len(args.fields) > 0 : nstars=np.zeros(len(args.fields),dtype=int)
+    for i,field in enumerate(args.fields) :
         print('field: ', field)
         cmd=["idl","-e","aspcap_mkplan,'"+field+"'"+
              ",apred_vers='{:s}'".format(args.apred)+
@@ -59,6 +62,8 @@ if __name__ == '__main__' :
              ",maxwind={:d}".format(args.maxwind)]
         print(cmd)
         subprocess.call(cmd,shell=False)
+        nstars[i] = len(glob.glob(field+'/a?Star-*.fits'))
+
     for inst in ['apogee-n','apogee-s'] :
         outdir=os.environ['APOGEE_ASPCAP']+'/'+args.apred+'/'+args.aspcap+'/config/'+inst+'/'
         cmd=["idl","-e","aspcap_mklib,'"+args.config+"'"+
@@ -78,4 +83,12 @@ if __name__ == '__main__' :
     cmd='aspcap '
     if args.noelem != 0 : cmd+=' --noelem'
     mkslurm.write('"'+cmd+'" apo*/plan/aspcapStar*.par lco*/plan/aspcapStar*.par',maxrun=2,idlthreads=16,queryport=1051,queryhost=os.uname()[1])
+    sort=np.argsort(nstars)[::-1]
+    fp=open(topdir+'/slurm/fields.sort','w')
+    for i in range(len(sort)) : 
+        tel=args.fields[sort[i]].split('/')[0]
+        field=args.fields[sort[i]].split('/')[1]
+        fp.write('{:s}/plan/aspcapStar-{:s}.par {:d}\n'.format(tel,field,nstars[sort[i]]))
+    fp.close()
+    print('Modify slurm/aspcap to use fields.sort if desired...')
 

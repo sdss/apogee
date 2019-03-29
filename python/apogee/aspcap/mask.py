@@ -66,17 +66,31 @@ def mkmask(el,globalmask=None) :
 
 #    elems=['C','CI','N','O','Na','Mg','Al','Si','P','S','K','Ca','Ti','TiII','V','Cr','Mn','Fe','Co','Ni','Cu','Ge','Rb','Ce','Nd','Yb']
 
-def mkparam(out='param.mask',edgefile='global.mask', globalfile='mask_v02_aspcap.txt', els=['CI','O','Na','Al','Si','P','S','K','Ca','Ti','TiII','V','Cr','Mn','Co','Ni','Cu','Ge','Rb','Ce','Nd','Yb']) :
+def mkparam(out='param.mask',edgefile='global.mask', globalfile='mask_v02_aspcap.txt', els=['C','N','Mg','Fe']) :
     """ Make param mask from edge, global and element masks
     """
-    mask=ascii.read(edgefile,format='no_header')['col1']
-    gmask=ascii.read(globalfile,format='no_header')['col1']
-    bd=np.where(gmask == 0)[0]
-    mask[bd] = 0.
+    edge=ascii.read(edgefile,format='no_header')['col1']
+    # start with all off
+    mask=edge*0.
+    # turn on specified elements
     for el in els :
         elem=ascii.read(el+'.filt',format='no_header')['col1']
-        bd=np.where(elem > 0.)[0]
-        mask[bd] = 0.
+        gd=np.where(elem > 0.)[0]
+        mask[gd] = 1.
+
+    # now turn off edge, global and other elements
+    bd=np.where(edge < 0.001)[0]
+    mask[bd] = 0.
+    gmask=ascii.read(globalfile,format='no_header')['col1']
+    bd=np.where(gmask < 0.001)[0]
+    mask[bd] = 0.
+    elems =aspcap.elems()[0]
+    for el in elems :
+        if el not in els :
+            print(el)
+            elem=ascii.read(el+'.filt',format='no_header')['col1']
+            bd=np.where(elem > 0.)[0]
+            mask[bd] = 0.
     fp=open(out,'w')
     np.savetxt(fp,mask,fmt='%8.2f')
     fp.close()

@@ -242,14 +242,14 @@ def clustdata() :
               -26.70,232.10,141.30,-154.20,-58.70,-27.30,-21.10,-45.40,223.50,320.50,
                70.70,101.60,181.00,-18.00,-82.80,31.00,80.10,94.10,16.50,71.40,
                -27.50,-93.00,-3.20,206.60]
-    out['drv']=[ 10., 10., 10., 10., 10., 
-               10., 10., 10., 10., 10., 8., 
+    out['drv']=[ 12., 12., 10., 10., 10., 
+               10., 12., 12., 10., 10., 8., 
                8., 10., 10., 10., 10., 10., 
                6., 6., 6., 10., 6., 
                6.,
-               10.00,10.00,10.0,4.00,10.00,7.80,5.30,10.00,10.00,
-               10.00,16.80,10.50,10.00,1.10,0.00,6.70,2.90,6.40,10.40,
-               10.00,13.40,10.00,11.00,10.00,10.00,18.90,10.00,18.00,10.00,
+               10.00,10.00,10.0,8.00,10.00,12.00,10.00,10.00,12.00,
+               12.00,25.00,10.50,12.00,1.10,10.00,10.00,10.00,10.00,10.40,
+               15.00,15.00,10.00,20.00,10.00,10.00,18.90,10.00,10.00,10.00,
                10.00,10.00, 10.00,10.00]
     out['mh']=[-2.35,-2.33,-2.06,-2.01,-1.78,
              -1.66,-1.58,-1.50,-1.33,-1.37,-1.03,
@@ -295,7 +295,7 @@ def clustdata() :
              199.11288 , 189.86658 , 265.17537 , 294.99879 , 217.40541 ,
              279.09975 ,  81.046215, 154.403415, 254.28771 , 287.71713 ,
              201.69684 , 283.76388 , 251.744955, 229.021875, 271.835745,
-             270.89175 ,  13.188495,  15.809415,  78.528165, 245.896755,
+             270.89166 ,  13.188495,  15.809415,  78.528165, 245.896755,
              138.012915, 265.925835,   6.023625,  53.333505, 271.207005,
              264.07179 , 273.065835, 267.554415, 259.15542 , 287.800035,
              267.019995, 272.323335, 271.20684 ]
@@ -316,7 +316,7 @@ def clustdata() :
              16.,
              11.80,13.70,15.80,16.30,8.40,29.00,8.30,28.50,21.50,
              55.30,57.00,7.50,5.40,16.30,2.05,16.40,12.90,16.10,11.70,
-             32.50,15.60,8.40,42.90,9.00,21.50,6.20,5.00,8.00,5.90,
+             32.50,15.60,8.40,42.90,9.00,21.50,6.20,5.00,12.00,5.90,
              13.00,13.30,8.20,16.60]
 
     return out.view(np.recarray)
@@ -399,7 +399,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
     else :
         jc=[]
     print('{:d} stars after RV criterion'.format(len(jc)))
-    if len(jc) == 0 : return jc
+    if len(jc) <= 1 : return jc
 
     # proper motion criterion
     if dist or pm : gaia = True
@@ -437,7 +437,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
       else :
         jc=[]
       print('{:d} stars after PM criterion'.format(len(jc)))
-      if len(jc) == 0 : return jc
+      if len(jc) <= 1 : return jc
    
       # parallaxes
       gaia=job.get_results()
@@ -466,7 +466,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
       else :
         jc=[]
       print('{:d} stars after parallax criterion'.format(len(jc)))
-      if len(jc) == 0 : return jc
+      if len(jc) <= 1 : return jc
 
     # parameters criteria
     if raw :
@@ -482,7 +482,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
             jc=[]
     except: pass
     print('{:d} stars after parameters criterion'.format(len(jc)))
-    if len(jc) == 0 : return jc
+    if len(jc) <= 1 : return jc
 
     # Remove badstars
     if plot :
@@ -495,7 +495,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
        bad.append(line.split()[0])
     jc = [x for x in jc if data[x]['APOGEE_ID'] not in bad]
     print('{:d} stars after badstars rejection'.format(len(jc)))
-    if len(jc) == 0 : return jc
+    if len(jc) <= 1 : return jc
 
     # remove non firstgen GC stars if requested
     if firstgen :

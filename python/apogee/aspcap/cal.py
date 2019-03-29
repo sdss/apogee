@@ -157,7 +157,7 @@ def hrsample(indata,hrdata,maxbin=50,raw=True) :
                 gd.extend(x)
     return i1[gd],i2[gd]
 
-def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v3.6.0',
+def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v4.4.2',
               cal1m=True,coolstars=True,dir='cal',hrdata=None,optical=True,ns=True,special=None,Ce=True,ebvmax=None,snmin=75,mkall=True) :
     '''
     selects a calibration subsample from an input apField structure, including several calibration sub-classes: 
@@ -181,9 +181,11 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         f.write('<TR><TD>NAME<TD>RA<TD>DEC<TD>Radius<TD>RV<TD>Delta RV<TD>Position criterion<TD>RV criterion<TD>PM criterion<TD>Parallax criterion<TD> CMD')
         clust=apselect.clustdata()
         for ic in range(len(clust.name)) :
+            print(clust[ic].name)
             j=apselect.clustmember(data,clust[ic].name,plot=plot,hard=dir)
             print(clust[ic].name,len(j))
-            jc.extend(j)
+            # clusters to exclude here
+            if (clust[ic].name not in ['OmegaCen','Pal1','Pal6','Pal5','Terzan12'])  and (len(j) >= 5): jc.extend(j)
             f.write('<TR><TD>'+clust[ic].name+'<TD>{:12.6f}<TD>{:12.6f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
                     clust[ic].ra,clust[ic].dec,clust[ic].rad,clust[ic].rv,clust[ic].drv))
             f.write('<TD><A HREF='+clust[ic].name+'_pos.jpg><IMG SRC='+clust[ic].name+'_pos.jpg width=300></A>\n')
@@ -212,11 +214,15 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         rc=np.where(apokasc['CONS_EVSTATES'][i2] == 'RC/2CL')[0]
         print('Number of APOKASC RC/2CL stars: ',len(rc))
         jc.extend(i1[rc])
-        lowg=np.where((apokasc['LOGG_SYD_SCALING'][i2] < 2) & (apokasc['LOGG_SYD_SCALING'][i2] > 0.1))[0]
+        logg = 'APOKASC2_LOGG'  # older version used LOGG_SYSD_SCALING
+        lowg=np.where((apokasc[logg][i2] < 2) & (apokasc[logg][i2] > 0.1))[0]
         print('Number of APOKASC low log g  stars: ',len(lowg))
         jc.extend(i1[lowg])
-        highg=np.where((apokasc['LOGG_SYD_SCALING'][i2] > 3.8) & (apokasc['LOGG_SYD_SCALING'][i2] < 5.5))[0]
+        highg=np.where((apokasc[logg][i2] > 3.8) & (apokasc[logg][i2] < 5.5))[0]
         print('Number of APOKASC high log g  stars: ',len(highg))
+        jc.extend(i1[highg])
+        highg=np.where((apokasc['LOGG_DW'][i2] > 3.8) & (apokasc['LOGG_DW'][i2] < 5.5))[0]
+        print('Number of APOKASC high LOGG_DW stars: ',len(highg))
         jc.extend(i1[highg])
         lowz=np.where((apokasc['FE_H_ADOP_COR'][i2] < -1.) & (apokasc['FE_H_ADOP_COR'][i2] > -90.))[0]
         print('Number of APOKASC low [Fe/H] stars: ',len(lowz))

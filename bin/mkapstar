@@ -25,4 +25,22 @@ idl  << endidl
 endidl
 
 cd $apstar_vers
-mkslurm "apred plan/a?Star*.par" --maxrun=32 --idlthreads=1'
+mkslurm "apred plan/a?Star*.par" --maxrun=32 --idlthreads=1
+
+rm slurm/fields.dat
+touch slurm/fields.dat
+foreach field ( ../visit/apo25m/* ../visit/lco25m/* )
+  set nvisit = `ls -d $field/apVisitSum* | wc -l`
+  set name = `basename $field`
+  set tel = `echo $field | awk -F/ '{print $3}'`
+  if $tel == "apo25m" then
+    set plan = apStar-$name.par
+  else if $tel == "lco25m" then
+    set plan = asStar-$name.par
+  endif
+  echo $plan $nvisit >> slurm/fields.dat
+end
+sort -r -n --key=2 slurm/fields.dat > slurm/fields.sort
+
+echo "Modify apred to use order from fields.sort if desired!"
+

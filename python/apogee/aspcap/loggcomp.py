@@ -129,6 +129,7 @@ def rcrgb(allstar,apokasc='APOKASC_cat_v3.6.0.fits',logg='LOGG_SYD_SCALING',rcli
     plt.tight_layout()
     if out is not None :
         plt.savefig(out+'.jpg')
+        plt.close(fig)
 
     fig,ax=plots.multi(2,1)
     plots.plotp(ax[0],allstar['FPARAM'][rgb,0],allstar['FPARAM'][rgb,1],color='r',xr=[5500,3500],yr=[4,1],xt='Teff',yt='log g')
@@ -145,6 +146,7 @@ def rcrgb(allstar,apokasc='APOKASC_cat_v3.6.0.fits',logg='LOGG_SYD_SCALING',rcli
     fig.tight_layout()
     if out is not None :
         plt.savefig(out+'_hr.pdf')
+        plt.close(fig)
 
     return {'rclim' : rclim, 'rgbsep' : rgbfit, 'cnsep' : cnfit}
     

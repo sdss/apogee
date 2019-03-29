@@ -269,7 +269,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         i1,i2=match.match(data['APOGEE_ID'][jn], data['APOGEE_ID'][js])
         jc=list(jn[i1])
         jc.extend(js[i2])
-        stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/'+special,names=['id'],format='fixed_width_no_header')
+        stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/apogee_overlap.txt',names=['id'],format='fixed_width_no_header')
         jn=np.where(data['TELESCOPE'] == 'apo25m')[0]
         js=np.where(data['TELESCOPE'] == 'lco25m')[0]
         i1,i2=match.match(data['APOGEE_ID'][jn],stars['id'])

@@ -319,8 +319,16 @@ for idir=0,n_elements(datadir)-1 do begin
             if ichip eq 0 then newinvar=outinvar*cont^2 else newinvar=[newinvar,outinvar*cont^2]
             if ichip eq 0 then libwaveall=libwave else libwaveall=[libwaveall,libwave]
            endfor
-           ; if we have a previous run and renorm<0, get adjustment to continuum
+           ; if we have a previous run, get best coarse run for initial parameters
+           ; if renorm<0, get adjustment to continuum, before flagging bad pixels
+           starname=file_basename(files[i],'.fits')
+           if ispec gt 0 then starname=starname+'_v'+string(format='(i3.3)',ispec)
            if coarse eq 0 then begin
+             best=where(strpos(beststr.param.apogee_id,starname) ge 0) 
+             for ipar=0,n_elements(par)-1 do begin
+               jpar=where(strtrim(beststr.lib.param_symbol,2) eq strtrim(libhead0.label[ipar],2))
+               par[ipar]=beststr.param[best[0]].fparam[jpar]
+             endfor
              coarsename=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/class_'+class[0]+'/'+class[0]+'-'+oname[idir]
              aspcap_load,coarsename+'.norm',data
              normspec=float(data)
@@ -369,16 +377,6 @@ for idir=0,n_elements(datadir)-1 do begin
              if nipar gt 0 then par[ipar] = logg[i]
              ipar=where(libhead0.label eq 'METALS',nipar)
              if nipar gt 0 then par[ipar] = metals[i]
-           endif
-           starname=file_basename(files[i],'.fits')
-           if ispec gt 0 then starname=starname+'_v'+string(format='(i3.3)',ispec)
-           ; if using previous runs to initial parameters, get them here
-           if coarse eq 0 then begin
-             best=where(strpos(beststr.param.apogee_id,starname) ge 0) 
-             for ipar=0,n_elements(par)-1 do begin
-               jpar=where(strtrim(beststr.lib.param_symbol,2) eq strtrim(libhead0.label[ipar],2))
-               par[ipar]=beststr.param[best[0]].fparam[jpar]
-             endfor
            endif
            ; determine whether we should skip the star for this grid, depending on parameters and mean fiber
            skip=0
@@ -549,37 +547,39 @@ for idir=0,n_elements(datadir)-1 do begin
      elemdir='elem_CNO/'
      outname='CNO-'+libpar.info[iclass].class+'-'+oname[idir]
      workdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/'+elemdir
-     file_mkdir,workdir
-     index=intarr(n_elements(libhead[0].label))
-     for ipar=0,n_elements(libhead[0].label)-1 do index[ipar]=where(params eq strtrim(libhead[0].label[ipar],2))
-     if tag_exist(libpar.info[iclass],'mask') then begin
-       filterfile=configdir+'/'+libpar.info[iclass].mask+'.mask'
-       readcol,filterfile,mask,/silent
-       npix=n_elements(mask)
-     endif else begin
-       npix=99999
-       undefine,filterfile
-     endelse
-     if tag_exist(libpar.info,'indini') then indini=libpar.info[iclass].indini else undefine,indini
-     if tag_exist(libpar.info,'renorm') then renorm=libpar.info[iclass].renorm       
-     if keyword_set(notie) then undefine,ttie else ttie=libpar.info[iclass].ttie
-     ; use init=0, with no indini, to use starting guess from parameter run
-     writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.info[iclass].indv,$
-       init=0,interord=libpar.info[iclass].inter,$
-       filterfile=configdir+'/'+libpar.info[iclass].mask+'.mask',$
-       findi=indi,errbar=errbar,renorm=abs(renorm),obscont=obscont,ttie=ttie
-     cd,workdir,current=cwd
-     file_delete,workdir+outname+frdsuffix,/allow_non
-     file_delete,workdir+outname+'.err',/allow_non
-     file_delete,workdir+outname+'.ipf',/allow_non
-     file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+frdsuffix,workdir+outname+frdsuffix
-     file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+'.err',workdir+outname+'.err'
-     file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+'.ipf',workdir+outname+'.ipf'
-     spawn,['ferre.x',outname+'.nml'],result,/noshell,/stderr
-     openw,foutput,outname+'.out',/get_lun
-     for iline = 0,n_elements(result)-1 do printf,foutput,result[iline]
-     free_lun,foutput
-     cd,cwd
+     if (not file_test(workdir+outname+'.spm') or keyword_set(clobber)) then begin
+       file_mkdir,workdir
+       index=intarr(n_elements(libhead[0].label))
+       for ipar=0,n_elements(libhead[0].label)-1 do index[ipar]=where(params eq strtrim(libhead[0].label[ipar],2))
+       if tag_exist(libpar.info[iclass],'mask') then begin
+         filterfile=configdir+'/'+libpar.info[iclass].mask+'.mask'
+         readcol,filterfile,mask,/silent
+         npix=n_elements(mask)
+       endif else begin
+         npix=99999
+         undefine,filterfile
+       endelse
+       if tag_exist(libpar.info,'indini') then indini=libpar.info[iclass].indini else undefine,indini
+       if tag_exist(libpar.info,'renorm') then renorm=libpar.info[iclass].renorm       
+       if keyword_set(notie) then undefine,ttie else ttie=libpar.info[iclass].ttie
+       ; use init=0, with no indini, to use starting guess from parameter run
+       writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.info[iclass].indv,$
+         init=0,interord=libpar.info[iclass].inter,$
+         filterfile=configdir+'/'+libpar.info[iclass].mask+'.mask',$
+         findi=indi,errbar=errbar,renorm=abs(renorm),obscont=obscont,ttie=ttie
+       cd,workdir,current=cwd
+       file_delete,workdir+outname+frdsuffix,/allow_non
+       file_delete,workdir+outname+'.err',/allow_non
+       file_delete,workdir+outname+'.ipf',/allow_non
+       file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+frdsuffix,workdir+outname+frdsuffix
+       file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+'.err',workdir+outname+'.err'
+       file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+'.ipf',workdir+outname+'.ipf'
+       spawn,['ferre.x',outname+'.nml'],result,/noshell,/stderr
+       openw,foutput,outname+'.out',/get_lun
+       for iline = 0,n_elements(result)-1 do printf,foutput,result[iline]
+       free_lun,foutput
+       cd,cwd
+     endif
      ; to read the FERRE files, use the main class parameter file with the correct PLOCKs for this class
      aploadplan,configdir+'/'+libpar.info[iclass].class+'.par',classpar,str='PLOCK' 
      str=aspcap_loadferre(workdir+outname,classpar,libfile,npar=npar,/elemfit) 
@@ -591,9 +591,8 @@ for idir=0,n_elements(datadir)-1 do begin
              outindex=where(aspcap_params() eq libhead0.label[libpar.info[iclass].indv[ii]-1])
              print,outindex,str.param[istar].fparam[outindex],finalstr.param[j].fparam[outindex]
              finalstr.param[j].fparam[outindex]=str.fparam[outindex]
-             if str.param[istar].fparam_cov[outindex,outindex] gt 0 then $
-                finalstr.param[j].fparam_cov[outindex] = str.param[istar].fparam_cov
-             ;finalstr.param[j].flag=
+             finalstr.param[j].fparam_cov[outindex] = str.param[istar].fparam_cov[outindex]
+             finalstr.param[j].flag=str.param[istar].paramflag[outindex]
            endif
          endfor
        endif
@@ -715,7 +714,6 @@ for idir=0,n_elements(datadir)-1 do begin
            openw,ipf,workdir+outname+'.ipf',/get_lun
            openw,frd,workdir+outname+frdsuffix,/get_lun
            openw,err,workdir+outname+'.err',/get_lun
-           nfit=0
            for i=0,nobj-1 do begin
              if finalstr.param[i].class eq libpar.info[iclass].class then begin
                init=finalstr.param[i].fparam[index]
@@ -727,7 +725,6 @@ for idir=0,n_elements(datadir)-1 do begin
                nerr=speclib_welem(finalstr.lib.wave,finalstr.spec[i].err,wvac)
                printf,frd,spec,format=fformat
                printf,err,nerr,format=eformat 
-               nfit+=1
              endif
            endfor
            free_lun,frd
@@ -739,10 +736,9 @@ for idir=0,n_elements(datadir)-1 do begin
            file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+frdsuffix,workdir+outname+frdsuffix
            file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+'.err',workdir+outname+'.err'
            file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+'.ipf',workdir+outname+'.ipf'
-           nfit=0
-           if file_test('../spectra/'+libpar.info[iclass].class+'-'+oname+'.ipf') then $
-             nfit=file_lines('../spectra/'+libpar.info[iclass].class+'-'+oname+'.ipf') 
          endelse
+         nfit=0
+         if file_test(workdir+outname+'.ipf') then nfit=file_lines(workdir+outname+'.ipf')
          if nfit gt 0 then begin
            if elemloop lt 2 and (not file_test(workdir+outname+'.spm') or keyword_set(clobber)) then begin
               file_delete,workdir+outname+'.spm',/allow_nonexistent    

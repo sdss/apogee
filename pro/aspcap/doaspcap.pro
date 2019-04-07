@@ -329,7 +329,8 @@ for idir=0,n_elements(datadir)-1 do begin
                jpar=where(strtrim(beststr.lib.param_symbol,2) eq strtrim(libhead0.label[ipar],2))
                par[ipar]=beststr.param[best[0]].fparam[jpar]
              endfor
-             coarsename=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/class_'+class[0]+'/'+class[0]+'-'+oname[idir]
+             coarsename=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+$
+                        '/ferre/class_'+beststr.param[best[0]].class+'/'+beststr.param[best[0]].class+'-'+oname[idir]
              aspcap_load,coarsename+'.norm',data
              normspec=float(data)
              if renorm lt 0 then new/=normspec[*,best]

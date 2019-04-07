@@ -224,35 +224,6 @@ for i=0,n_elements(elem)-1 do begin
   if el eq 'N' then fit=nfit 
   if el eq 'Ca' or el eq 'Mg' or el eq 'O' or el eq 'Si' or el eq 'S' or el eq 'Ti' or el eq 'TiII' then fit=afit
 
-  ; old style puts everything in header with different columns for different grids
-  ;openw,out,outdir+el+'.elem.par',/get_lun
-  ;printf,out,'elem '+el
-  ;line=''
-  ;for j=0,n_elements(classes)-1 do line=line+classes[j]+' '
-  ;printf,out,'class '+line
-  ;line=''
-  ;for j=0,n_elements(classes)-1 do line=line+libs[j]+' '
-  ;printf,out,'lib '+line
-  ;line=''
-  ;for j=0,n_elements(classes)-1 do line=line+string(1)+' '
-  ;printf,out,'nov '+line
-  ;line=''
-  ;for j=0,n_elements(classes)-1 do line=line+string(fit[j])+' '
-  ;printf,out,'indv '+line
-  ;line=''
-  ;for j=0,n_elements(classes)-1 do line=line+string(1)+' '
-  ;printf,out,'indini '+line
-  ;line=''
-  ;for j=0,n_elements(classes)-1 do line=line+string(inter[j])+' '
-  ;printf,out,'inter '+line
-  ;line=''
-  ;for j=0,n_elements(classes)-1 do line=line+string(renorm[j])+' '
-  ;printf,out,'renorm '+line
-  ;line=''
-  ;for j=0,n_elements(classes)-1 do line=line+el+' '
-  ;printf,out,'mask '+line
-  ;free_lun,out
-
   ; new style uses an INFO structure with one line per library
   openw,new,outdir+el+'.elem.par',/get_lun
   printf,new,'elem '+el
@@ -286,6 +257,35 @@ free_lun,list
 if keyword_set(maxwind) then  begin
   readcol,outdir+'/elem.list',format='(a)',els,stringskip='#',/silent
   for i=0,n_elements(els)-1 do n=filtsplit(els[i],maxwind=maxwind,outdir=outdir,unitweight=unitweight,maskdir=p.maskdir)
+endif
+
+; CNO refit configuration for dwarf grids (for now)
+el='CNO'
+if file_test(maskdir+'/'+el+'.mask') then begin
+  file_delete,outdir+el+'.mask',/allow
+  file_copy,maskdir+'/'+el+'.mask',outdir+el+'.mask'
+  
+  openw,new,outdir+el+'.elem.par',/get_lun
+  printf,new,'elem '+el
+  printf,new,' typedef struct {'
+  printf,new,'char class[16];'
+  printf,new,'char libs[132];'
+  printf,new,'int nov;'
+  printf,new,'int indv[3];'
+  printf,new,'int ttie[3];'
+  printf,new,'int indini;'
+  printf,new,'int inter;'
+  printf,new,'int renorm;'
+  printf,new,'char mask[8];'
+  printf,new,'} CNOINFO;'
+  print,el
+  for j=0,n_elements(classes) -1 do begin
+    ttie=intarr(3)-1
+    if strpos(classes[j],'GKd') ge 0 or strpos(classes[j],'Md') ge 0 or strpos(classes[j],'Fd') ge 0 then $
+      printf,new,'CNOINFO ',classes[j],libs[j],1,' { ',cfit[j],nfit[j],afit[j],' } { ',ttie,' } ',1,inter[j],renorm[j],el,format='(a,a,1x,a,i3,a,3i3,a,3i3,a,i,i,i,1x,a)'
+  endfor
+
+  free_lun,new
 endif
 
 end

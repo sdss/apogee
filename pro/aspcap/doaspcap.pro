@@ -175,6 +175,7 @@ for idir=0,n_elements(datadir)-1 do begin
  if keyword_set(testmjd) then goto,nextdir
 
  nclass=n_elements(class)
+ first=1
  for iclass=0,nclass-1 do begin
   clock=TIC(class[iclass])
   print,iclass,class[iclass]
@@ -194,7 +195,10 @@ for idir=0,n_elements(datadir)-1 do begin
   ; if this grid is marked with init=0, then get initial guess of parameters from previous coarse runs
   if tag_exist(libpar,'coarse') then coarse=libpar.coarse else coarse=0
   if tag_exist(libpar,'init') then init=libpar.init else init=1
-  if coarse eq 0 then beststr=aspcap_bestclass(allparam,allspec,alllib)
+  if first eq 1 and coarse eq 0 then begin
+     beststr=aspcap_bestclass(allparam,allspec,alllib)
+     first=0
+  endif
   if tag_exist(libpar,'indini') then indini=libpar.indini else indini=0
   if tag_exist(libpar,'renorm') then renorm=libpar.renorm
   if tag_exist(libpar,'obscont') then obscont=libpar.obscont
@@ -315,6 +319,22 @@ for idir=0,n_elements(datadir)-1 do begin
             if ichip eq 0 then newinvar=outinvar*cont^2 else newinvar=[newinvar,outinvar*cont^2]
             if ichip eq 0 then libwaveall=libwave else libwaveall=[libwaveall,libwave]
            endfor
+           ; if we have a previous run, get best coarse run for initial parameters
+           ; if renorm<0, get adjustment to continuum, before flagging bad pixels
+           starname=file_basename(files[i],'.fits')
+           if ispec gt 0 then starname=starname+'_v'+string(format='(i3.3)',ispec)
+           if coarse eq 0 then begin
+             best=where(strpos(beststr.param.apogee_id,starname) ge 0) 
+             for ipar=0,n_elements(par)-1 do begin
+               jpar=where(strtrim(beststr.lib.param_symbol,2) eq strtrim(libhead0.label[ipar],2))
+               par[ipar]=beststr.param[best[0]].fparam[jpar]
+             endfor
+             coarsename=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+$
+                        '/ferre/class_'+beststr.param[best[0]].class+'/'+beststr.param[best[0]].class+'-'+oname[idir]
+             aspcap_load,coarsename+'.norm',data
+             normspec=float(data)
+             if renorm lt 0 then new/=normspec[*,best]
+           endif
            ; mask if we have a pixmask
            if keyword_set(pixmask) then aspcap_pixmask,new,liblist_path+aspcap_config+'/'+pixmask
            ; set masks for analysis
@@ -358,20 +378,6 @@ for idir=0,n_elements(datadir)-1 do begin
              if nipar gt 0 then par[ipar] = logg[i]
              ipar=where(libhead0.label eq 'METALS',nipar)
              if nipar gt 0 then par[ipar] = metals[i]
-           endif
-           starname=file_basename(files[i],'.fits')
-           if ispec gt 0 then starname=starname+'_v'+string(format='(i3.3)',ispec)
-           ; if using previous runs to initial parameters, get them here
-           if coarse eq 0 then begin
-             best=where(strpos(beststr.param.apogee_id,starname) ge 0) 
-             for ipar=0,n_elements(par)-1 do begin
-               jpar=where(strtrim(beststr.lib.param_symbol,2) eq strtrim(libhead0.label[ipar],2))
-               par[ipar]=beststr.param[best[0]].fparam[jpar]
-             endfor
-             coarsename=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/class_'+class[0]+'/'+class[0]+'-'+oname[idir]
-             aspcap_load,coarsename+'.norm',data
-             normspec=float(data)
-             if renorm lt 0 then new/=normspec[*,best]
            endif
            ; determine whether we should skip the star for this grid, depending on parameters and mean fiber
            skip=0
@@ -433,6 +439,7 @@ for idir=0,n_elements(datadir)-1 do begin
     aspcap_wrpbsscript,outname,exec_path,ncpus,jobsid,libsize,queue=queue,qname=qname,workdir=workdir
     spawn,['./'+outname+'.pbs'],/noshell
   endif
+  classend:
   dt=TOC(clock)
   print,'class:',class[iclass],dt,nobj,nfit,dt/nfit
   TOC
@@ -489,6 +496,111 @@ for idir=0,n_elements(datadir)-1 do begin
  ; write aspcapField file (no aspcapStar files)
  aspcap_writefits,finalstr,resultsdir+'/'+ofile+'-'+strcompress(oname[idir],/remove_all)+'.fits',mjddir=mjddir
 
+; in preparation for elements, write out the best spectra into subdirectories for each class
+; we will link to these in the element subdirectories
+ if keyword_set(nstars) then nobj=nstars else nobj=n_elements(finalstr.param)
+ for iclass=0,nclass-1 do begin
+   print,'  class: ', class[iclass]
+   aploadplan,configdir+'/'+class[iclass]+'.par',libpar,str='PLOCK'
+   libfile=libr_path+libpar.lib
+   ; get library parameters for this class
+   rdlibhead,libfile,libhead0,libhead
+   index=intarr(n_elements(libhead[0].label))
+   for ipar=0,n_elements(libhead[0].label)-1 do $
+     index[ipar]=where(params eq strtrim(libhead[0].label[ipar],2))
+   iformat="(a,"+string(2*libhead0.n_of_dim)+"(F10.3))"
+   fformat="("+string(npix)+"(F12.6))"
+   eformat="("+string(npix)+"(F12.6))"
+   openw,frd,specdir+class[iclass]+'-'+oname[idir]+frdsuffix,/get_lun
+   openw,err,specdir+class[iclass]+'-'+oname[idir]+'.err',/get_lun
+   openw,ipf,specdir+class[iclass]+'-'+oname[idir]+'.ipf',/get_lun
+   nfit=0
+   for i=0,nobj-1 do begin
+     if finalstr.param[i].class eq class[iclass] then begin
+       init=finalstr.param[i].fparam[index]
+       printf,ipf,file_basename(finalstr.param[i].apogee_id,'.fits'),format=iformat,init,init*0.
+       if n_elements(finalstr.spec[i].spec) eq 7212 then begin
+         spec=[finalstr.spec[i].spec[0:5319],0.,finalstr.spec[i].spec[5320:7211],0.]
+         nerr=[finalstr.spec[i].err[0:5319],0.,finalstr.spec[i].err[5320:7211],0.]
+       endif else begin
+         spec=finalstr.spec[i].spec
+         nerr=finalstr.spec[i].err
+       endelse
+       printf,frd,spec,format=fformat
+       ferr=nerr
+       printf,err,ferr,format=eformat 
+       nfit+=1
+     endif
+   endfor
+   free_lun,ipf
+   free_lun,frd
+   free_lun,err
+ endfor
+
+ ; redo CNO for whatver grids might be configured to do so
+ if file_test(configdir+'/CNO.elem.par') then  begin
+   aploadplan,configdir+'/CNO.elem.par',libpar,str='CNOINFO' 
+   for iclass=0,n_elements(libpar.info)-1 do begin
+     print,'  class: ', libpar.info[iclass].class
+     libfile=libr_path+libpar.info[iclass].libs
+     rdlibhead,libfile,libhead0,libhead
+
+     elemdir='elem_CNO/'
+     outname='CNO-'+libpar.info[iclass].class+'-'+oname[idir]
+     workdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/'+elemdir
+     if (not file_test(workdir+outname+'.spm') or keyword_set(clobber)) then begin
+       file_mkdir,workdir
+       index=intarr(n_elements(libhead[0].label))
+       for ipar=0,n_elements(libhead[0].label)-1 do index[ipar]=where(params eq strtrim(libhead[0].label[ipar],2))
+       if tag_exist(libpar.info[iclass],'mask') then begin
+         filterfile=configdir+'/'+libpar.info[iclass].mask+'.mask'
+         readcol,filterfile,mask,/silent
+         npix=n_elements(mask)
+       endif else begin
+         npix=99999
+         undefine,filterfile
+       endelse
+       if tag_exist(libpar.info,'indini') then indini=libpar.info[iclass].indini else undefine,indini
+       if tag_exist(libpar.info,'renorm') then renorm=libpar.info[iclass].renorm       
+       if keyword_set(notie) then undefine,ttie else ttie=libpar.info[iclass].ttie
+       ; use init=0, with no indini, to use starting guess from parameter run
+       writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.info[iclass].indv,$
+         init=0,interord=libpar.info[iclass].inter,$
+         filterfile=configdir+'/'+libpar.info[iclass].mask+'.mask',$
+         findi=indi,errbar=errbar,renorm=abs(renorm),obscont=obscont,ttie=ttie
+       cd,workdir,current=cwd
+       file_delete,workdir+outname+frdsuffix,/allow_non
+       file_delete,workdir+outname+'.err',/allow_non
+       file_delete,workdir+outname+'.ipf',/allow_non
+       file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+frdsuffix,workdir+outname+frdsuffix
+       file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+'.err',workdir+outname+'.err'
+       file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+'.ipf',workdir+outname+'.ipf'
+       spawn,['ferre.x',outname+'.nml'],result,/noshell,/stderr
+       openw,foutput,outname+'.out',/get_lun
+       for iline = 0,n_elements(result)-1 do printf,foutput,result[iline]
+       free_lun,foutput
+       cd,cwd
+     endif
+     ; to read the FERRE files, use the main class parameter file with the correct PLOCKs for this class
+     aploadplan,configdir+'/'+libpar.info[iclass].class+'.par',classpar,str='PLOCK' 
+     str=aspcap_loadferre(workdir+outname,classpar,libfile,npar=npar,/elemfit) 
+     for istar=0,n_elements(str.param)-1 do begin
+       j=where(finalstr.param.apogee_id eq str.param[istar].apogee_id,nj)
+       if nj gt 0 then begin
+         for ii=0,n_elements(libpar.info[iclass].indv)-1 do begin
+           if libpar.info[iclass].indv[ii] ge 0 then begin
+             outindex=where(aspcap_params() eq libhead0.label[libpar.info[iclass].indv[ii]-1])
+             print,outindex,str.param[istar].fparam[outindex],finalstr.param[j].fparam[outindex]
+             finalstr.param[j].fparam[outindex]=str.fparam[outindex]
+             finalstr.param[j].fparam_cov[outindex] = str.param[istar].fparam_cov[outindex]
+             finalstr.param[j].flag=str.param[istar].paramflag[outindex]
+           endif
+         endfor
+       endif
+     endfor
+   endfor
+ endif   ; CNO
+
  ; individual elements using parameters from best class
  if ~keyword_set(noelem) and file_test(configdir+'/elem.list') then begin
    resultsdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/'
@@ -523,7 +635,6 @@ for idir=0,n_elements(datadir)-1 do begin
    newlib=struct_rename_tags(newlib,'','',addtag='ELEMTOH',addval=elemtoh)
    if keyword_set(maxwind) then $
      newlib=struct_rename_tags(newlib,'','',addtag='FELEM_WIND',addval=fltarr(nelem,maxwind,3)-9999.)
-   firstelem=1
    ; create new nmlfiles (list of nml files)
    for ielem=0,n_elements(elem)-1 do begin
      aploadplan,configdir+'/'+elem[ielem]+'.elem.par',libpar,str='INFO' 
@@ -571,6 +682,7 @@ for idir=0,n_elements(datadir)-1 do begin
        ; with maxwind keyword, we will loop over the full set of windows plus each individual window
        if keyword_set(maxwind) and file_test(configdir+elem[ielem]+'.wind') and ~tag_exist(libpar.info,'minigrid') then begin
          readcol,configdir+elem[ielem]+'.wind',w1,w2,w3
+         if tag_exist(libpar,'indi') then indi=libpar.indi else undefine,indi
          nwind=n_elements(w1)
        endif else nwind=0
        for iwind=0,nwind do begin
@@ -583,7 +695,6 @@ for idir=0,n_elements(datadir)-1 do begin
          outname=elem[ielem]+'-'+libpar.info[iclass].class+'-'+oname[idir]
          if elemloop eq 1 or elemloop eq 3 then outname=outname+'_cal'
          file_mkdir,workdir
-         if tag_exist(libpar,'indi') then indi=libpar.indi else undefine,indi
          if tag_exist(libpar.info,'indini') then indini=libpar.info[iclass].indini else undefine,indini
          if tag_exist(libpar.info,'renorm') then renorm=libpar.info[iclass].renorm       
          if keyword_set(notie) then undefine,ttie else ttie=libpar.info[iclass].ttie
@@ -593,68 +704,42 @@ for idir=0,n_elements(datadir)-1 do begin
             filterfile=configdir+'/'+libpar.info[iclass].mask+suffix+'.mask',$
             findi=indi,errbar=errbar,renorm=abs(renorm),obscont=obscont,ttie=ttie,elemdir=elemdir,$
             libdir='../lib_'+libpar.info[iclass].class
-         openw,ipf,workdir+outname+'.ipf',/get_lun
          if tag_exist(libpar.info,'minigrid') then minigrid=libpar.info[iclass].minigrid else minigrid=''
+         if keyword_set(nstars) then nobj=nstars else nobj=n_elements(finalstr.param)
+         ; get parameters for all objects whose best fit was current class
          if minigrid ne '' then begin
            ; with minigrid, write flux and err files in workdir
            readcol,getenv('APOGEE_DIR')+'/data/windows/'+minigrid+'/'+elem[ielem]+'.wave',w1,w2,format='(d,d)'
            wvac=[]
            for iii=0,n_elements(w1)-1 do wvac=[[wvac],[alog10(w1[iii]),alog10(w2[iii])]]
+           openw,ipf,workdir+outname+'.ipf',/get_lun
            openw,frd,workdir+outname+frdsuffix,/get_lun
            openw,err,workdir+outname+'.err',/get_lun
-         endif else if firstelem eq 1 then begin
-           ; only write spectra and uncertainties for first element, for others we will link to this
-           openw,frd,specdir+libpar.info[iclass].class+'-'+oname+frdsuffix,/get_lun
-           openw,err,specdir+libpar.info[iclass].class+'-'+oname+'.err',/get_lun
-         endif
-         if keyword_set(nstars) then nobj=nstars else nobj=n_elements(finalstr.param)
-         ; get parameters for all objects whose best fit was current class
-         nfit=0
-         for i=0,nobj-1 do begin
-           if finalstr.param[i].class eq libpar.info[iclass].class then begin
-             init=finalstr.param[i].fparam[index]
-             if elemloop eq 1 or elemloop eq 3 then init=finalstr.param[i].param[index]
-             if minigrid ne '' then begin
+           for i=0,nobj-1 do begin
+             if finalstr.param[i].class eq libpar.info[iclass].class then begin
+               init=finalstr.param[i].fparam[index]
                missing=where(index lt 0,nmissing)
                if nmissing gt 0 then init[missing] = 0.
-             endif
-             ; if we have fit for C, use that value rather than parameters value
-             ; removed this because it will not function correctly with elemloop, since all abundances
-             ; are now determined in one FERRE run
-             ;if newparam[i].felem[cfit] gt -9990 and cindex ge 0 then init[cindex] = newparam[i].felem[cfit]
-             printf,ipf,file_basename(finalstr.param[i].apogee_id,'.fits'),format=iformat,init,init*0.
-             if minigrid ne '' then begin
+               printf,ipf,file_basename(finalstr.param[i].apogee_id,'.fits'),format=iformat,init,init*0.
                help,finalstr.lib.wave
                spec=speclib_welem(finalstr.lib.wave,finalstr.spec[i].spec,wvac)
                nerr=speclib_welem(finalstr.lib.wave,finalstr.spec[i].err,wvac)
                printf,frd,spec,format=fformat
                printf,err,nerr,format=eformat 
-             endif else if firstelem eq 1 then begin
-               if n_elements(finalstr.spec[i].spec) eq 7212 then begin
-                 spec=[finalstr.spec[i].spec[0:5319],0.,finalstr.spec[i].spec[5320:7211],0.]
-                 nerr=[finalstr.spec[i].err[0:5319],0.,finalstr.spec[i].err[5320:7211],0.]
-               endif else begin
-                 spec=finalstr.spec[i].spec
-                 nerr=finalstr.spec[i].err
-               endelse
-               printf,frd,spec,format=fformat
-               ferr=nerr
-               printf,err,ferr,format=eformat 
              endif
-             nfit+=1
-           endif
-         endfor
-         free_lun,ipf
-         if firstelem eq 1 then begin
+           endfor
            free_lun,frd
            free_lun,err
-         endif
-         if minigrid eq '' then begin
+         endif else begin
            file_delete,workdir+outname+frdsuffix,/allow_non
            file_delete,workdir+outname+'.err',/allow_non
+           file_delete,workdir+outname+'.ipf',/allow_non
            file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+frdsuffix,workdir+outname+frdsuffix
            file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+'.err',workdir+outname+'.err'
-         endif
+           file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+'.ipf',workdir+outname+'.ipf'
+         endelse
+         nfit=0
+         if file_test(workdir+outname+'.ipf') then nfit=file_lines(workdir+outname+'.ipf')
          if nfit gt 0 then begin
            if elemloop lt 2 and (not file_test(workdir+outname+'.spm') or keyword_set(clobber)) then begin
               file_delete,workdir+outname+'.spm',/allow_nonexistent    
@@ -665,18 +750,13 @@ for idir=0,n_elements(datadir)-1 do begin
               file_delete,'lib_'+libpar.info[iclass].class,/allow
               file_link,file_dirname(libhead.file),'lib_'+libpar.info[iclass].class,/allow
               cd,cwd
-              ;cd,workdir,current=cwd
-              ;aspcap_wrpbsscript,outname,exec_path,ncpus,jobsid,libsize,queue=queue,qname=qname,workdir=workdir
-              ;TOC
-              ;spawn,['./'+outname+'.pbs'],/noshell
-              ;cd,cwd
            endif
            TOC
            ; read the FERRE output and load into array
            if elemloop ge  2 then begin
              if minigrid ne '' then $
-             outindex=where(aspcap_params(extra=elem[ielem]) eq libhead0.label[libpar.info[iclass].indv-1]) else $
-             outindex=where(aspcap_params() eq libhead0.label[libpar.info[iclass].indv-1])
+             outindex=where(aspcap_params(extra=elem[ielem]) eq libhead0.label[libpar.info[iclass].indv[0]-1]) else $
+             outindex=where(aspcap_params() eq libhead0.label[libpar.info[iclass].indv[0]-1])
              ; to read the FERRE files, use the main class parameter file with the correct PLOCKs for this class
              aploadplan,configdir+'/'+libpar.info[iclass].class+'.par',classpar,str='PLOCK' 
              if minigrid eq '' then  begin

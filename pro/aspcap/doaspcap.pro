@@ -591,7 +591,7 @@ for idir=0,n_elements(datadir)-1 do begin
            if libpar.cnoinfo[iclass].indv[ii] ge 0 then begin
              outindex=where(aspcap_params() eq libhead0.label[libpar.cnoinfo[iclass].indv[ii]-1])
              print,outindex,str.param[istar].fparam[outindex],finalstr.param[j].fparam[outindex]
-             finalstr.param[j].fparam[outindex]=str.fparam[outindex]
+             finalstr.param[j].fparam[outindex]=str.param[istar].fparam[outindex]
              finalstr.param[j].fparam_cov[outindex] = str.param[istar].fparam_cov[outindex]
              finalstr.param[j].flag=str.param[istar].paramflag[outindex]
            endif

@@ -538,7 +538,7 @@ for idir=0,n_elements(datadir)-1 do begin
 
  ; redo CNO for whatver grids might be configured to do so
  if file_test(configdir+'/CNO.elem.par') then  begin
-   aploadplan,configdir+'/CNO.elem.par',libpar,str='INFO' 
+   aploadplan,configdir+'/CNO.elem.par',libpar,str='CNOINFO' 
    for iclass=0,n_elements(libpar.info)-1 do begin
      print,'  class: ', libpar.info[iclass].class
      libfile=libr_path+libpar.info[iclass].libs

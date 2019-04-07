@@ -540,41 +540,41 @@ for idir=0,n_elements(datadir)-1 do begin
  ; redo CNO for whatver grids might be configured to do so
  if file_test(configdir+'/CNO.elem.par') then  begin
    aploadplan,configdir+'/CNO.elem.par',libpar,str='CNOINFO' 
-   for iclass=0,n_elements(libpar.info)-1 do begin
-     print,'  class: ', libpar.info[iclass].class
-     libfile=libr_path+libpar.info[iclass].libs
+   for iclass=0,n_elements(libpar.cnoinfo)-1 do begin
+     print,'  class: ', libpar.cnoinfo[iclass].class
+     libfile=libr_path+libpar.cnoinfo[iclass].libs
      rdlibhead,libfile,libhead0,libhead
 
      elemdir='elem_CNO/'
-     outname='CNO-'+libpar.info[iclass].class+'-'+oname[idir]
+     outname='CNO-'+libpar.cnoinfo[iclass].class+'-'+oname[idir]
      workdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/'+elemdir
      if (not file_test(workdir+outname+'.spm') or keyword_set(clobber)) then begin
        file_mkdir,workdir
        index=intarr(n_elements(libhead[0].label))
        for ipar=0,n_elements(libhead[0].label)-1 do index[ipar]=where(params eq strtrim(libhead[0].label[ipar],2))
-       if tag_exist(libpar.info[iclass],'mask') then begin
-         filterfile=configdir+'/'+libpar.info[iclass].mask+'.mask'
+       if tag_exist(libpar.cnoinfo[iclass],'mask') then begin
+         filterfile=configdir+'/'+libpar.cnoinfo[iclass].mask+'.mask'
          readcol,filterfile,mask,/silent
          npix=n_elements(mask)
        endif else begin
          npix=99999
          undefine,filterfile
        endelse
-       if tag_exist(libpar.info,'indini') then indini=libpar.info[iclass].indini else undefine,indini
-       if tag_exist(libpar.info,'renorm') then renorm=libpar.info[iclass].renorm       
-       if keyword_set(notie) then undefine,ttie else ttie=libpar.info[iclass].ttie
+       if tag_exist(libpar.cnoinfo,'indini') then indini=libpar.cnoinfo[iclass].indini else undefine,indini
+       if tag_exist(libpar.cnoinfo,'renorm') then renorm=libpar.cnoinfo[iclass].renorm       
+       if keyword_set(notie) then undefine,ttie else ttie=libpar.cnoinfo[iclass].ttie
        ; use init=0, with no indini, to use starting guess from parameter run
-       writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.info[iclass].indv,$
-         init=0,interord=libpar.info[iclass].inter,$
-         filterfile=configdir+'/'+libpar.info[iclass].mask+'.mask',$
+       writeferre,workdir,outname,libhead0,nruns=nruns,ncpus=ncpus,indv=libpar.cnoinfo[iclass].indv,$
+         init=0,interord=libpar.cnoinfo[iclass].inter,$
+         filterfile=configdir+'/'+libpar.cnoinfo[iclass].mask+'.mask',$
          findi=indi,errbar=errbar,renorm=abs(renorm),obscont=obscont,ttie=ttie
        cd,workdir,current=cwd
        file_delete,workdir+outname+frdsuffix,/allow_non
        file_delete,workdir+outname+'.err',/allow_non
        file_delete,workdir+outname+'.ipf',/allow_non
-       file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+frdsuffix,workdir+outname+frdsuffix
-       file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+'.err',workdir+outname+'.err'
-       file_link,'../spectra/'+libpar.info[iclass].class+'-'+oname+'.ipf',workdir+outname+'.ipf'
+       file_link,'../spectra/'+libpar.cnoinfo[iclass].class+'-'+oname+frdsuffix,workdir+outname+frdsuffix
+       file_link,'../spectra/'+libpar.cnoinfo[iclass].class+'-'+oname+'.err',workdir+outname+'.err'
+       file_link,'../spectra/'+libpar.cnoinfo[iclass].class+'-'+oname+'.ipf',workdir+outname+'.ipf'
        spawn,['ferre.x',outname+'.nml'],result,/noshell,/stderr
        openw,foutput,outname+'.out',/get_lun
        for iline = 0,n_elements(result)-1 do printf,foutput,result[iline]
@@ -582,14 +582,14 @@ for idir=0,n_elements(datadir)-1 do begin
        cd,cwd
      endif
      ; to read the FERRE files, use the main class parameter file with the correct PLOCKs for this class
-     aploadplan,configdir+'/'+libpar.info[iclass].class+'.par',classpar,str='PLOCK' 
+     aploadplan,configdir+'/'+libpar.cnoinfo[iclass].class+'.par',classpar,str='PLOCK' 
      str=aspcap_loadferre(workdir+outname,classpar,libfile,npar=npar,/elemfit) 
      for istar=0,n_elements(str.param)-1 do begin
        j=where(finalstr.param.apogee_id eq str.param[istar].apogee_id,nj)
        if nj gt 0 then begin
-         for ii=0,n_elements(libpar.info[iclass].indv)-1 do begin
-           if libpar.info[iclass].indv[ii] ge 0 then begin
-             outindex=where(aspcap_params() eq libhead0.label[libpar.info[iclass].indv[ii]-1])
+         for ii=0,n_elements(libpar.cnoinfo[iclass].indv)-1 do begin
+           if libpar.cnoinfo[iclass].indv[ii] ge 0 then begin
+             outindex=where(aspcap_params() eq libhead0.label[libpar.cnoinfo[iclass].indv[ii]-1])
              print,outindex,str.param[istar].fparam[outindex],finalstr.param[j].fparam[outindex]
              finalstr.param[j].fparam[outindex]=str.fparam[outindex]
              finalstr.param[j].fparam_cov[outindex] = str.param[istar].fparam_cov[outindex]

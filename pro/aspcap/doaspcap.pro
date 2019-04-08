@@ -575,29 +575,37 @@ for idir=0,n_elements(datadir)-1 do begin
        file_link,'../spectra/'+libpar.cnoinfo[iclass].class+'-'+oname+frdsuffix,workdir+outname+frdsuffix
        file_link,'../spectra/'+libpar.cnoinfo[iclass].class+'-'+oname+'.err',workdir+outname+'.err'
        file_link,'../spectra/'+libpar.cnoinfo[iclass].class+'-'+oname+'.ipf',workdir+outname+'.ipf'
-       spawn,['ferre.x',outname+'.nml'],result,/noshell,/stderr
-       openw,foutput,outname+'.out',/get_lun
-       for iline = 0,n_elements(result)-1 do printf,foutput,result[iline]
-       free_lun,foutput
+       nfit=0
+       if file_test(workdir+outname+'.ipf') then nfit=file_lines(workdir+outname+'.ipf')
+       if nfit gt 0 then begin
+         spawn,['ferre.x',outname+'.nml'],result,/noshell,/stderr
+         openw,foutput,outname+'.out',/get_lun
+         for iline = 0,n_elements(result)-1 do printf,foutput,result[iline]
+         free_lun,foutput
+       endif
        cd,cwd
      endif
      ; to read the FERRE files, use the main class parameter file with the correct PLOCKs for this class
-     aploadplan,configdir+'/'+libpar.cnoinfo[iclass].class+'.par',classpar,str='PLOCK' 
-     str=aspcap_loadferre(workdir+outname,classpar,libfile,npar=npar,/elemfit) 
-     for istar=0,n_elements(str.param)-1 do begin
-       j=where(finalstr.param.apogee_id eq str.param[istar].apogee_id,nj)
-       if nj gt 0 then begin
-         for ii=0,n_elements(libpar.cnoinfo[iclass].indv)-1 do begin
-           if libpar.cnoinfo[iclass].indv[ii] ge 0 then begin
-             outindex=where(aspcap_params() eq libhead0.label[libpar.cnoinfo[iclass].indv[ii]-1])
-             ;print,outindex,str.param[istar].fparam[outindex],finalstr.param[j].fparam[outindex]
-             finalstr.param[j].fparam[outindex]=str.param[istar].fparam[outindex]
-             finalstr.param[j].fparam_cov[outindex,outindex] = str.param[istar].fparam_cov[outindex,outindex]
-             finalstr.param[j].paramflag=str.param[istar].paramflag[outindex]
-           endif
-         endfor
-       endif
-     endfor
+     nfit=0
+     if file_test(workdir+outname+'.ipf') then nfit=file_lines(workdir+outname+'.ipf')
+     if nfit gt 0 then begin
+       aploadplan,configdir+'/'+libpar.cnoinfo[iclass].class+'.par',classpar,str='PLOCK' 
+       str=aspcap_loadferre(workdir+outname,classpar,libfile,npar=npar,/elemfit) 
+       for istar=0,n_elements(str.param)-1 do begin
+         j=where(finalstr.param.apogee_id eq str.param[istar].apogee_id,nj)
+         if nj gt 0 then begin
+           for ii=0,n_elements(libpar.cnoinfo[iclass].indv)-1 do begin
+             if libpar.cnoinfo[iclass].indv[ii] ge 0 then begin
+               outindex=where(aspcap_params() eq libhead0.label[libpar.cnoinfo[iclass].indv[ii]-1])
+               ;print,outindex,str.param[istar].fparam[outindex],finalstr.param[j].fparam[outindex]
+               finalstr.param[j].fparam[outindex]=str.param[istar].fparam[outindex]
+               finalstr.param[j].fparam_cov[outindex,outindex] = str.param[istar].fparam_cov[outindex,outindex]
+               finalstr.param[j].paramflag=str.param[istar].paramflag[outindex]
+             endif
+           endfor
+         endif
+       endfor
+     endif
    endfor
  endif   ; CNO
 

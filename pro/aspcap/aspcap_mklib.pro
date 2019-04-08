@@ -260,7 +260,8 @@ if keyword_set(maxwind) then  begin
 endif
 
 ; CNO refit configuration for dwarf grids (for now)
-el='CNO'
+;el='CNO'
+el='CN'
 if file_test(maskdir+'/'+el+'.mask') then begin
   file_delete,outdir+el+'.mask',/allow
   file_copy,maskdir+'/'+el+'.mask',outdir+el+'.mask'
@@ -282,7 +283,8 @@ if file_test(maskdir+'/'+el+'.mask') then begin
   for j=0,n_elements(classes) -1 do begin
     ttie=intarr(3)-1
     if strpos(classes[j],'GKd') ge 0 or strpos(classes[j],'Md') ge 0 or strpos(classes[j],'Fd') ge 0 then $
-      printf,new,'CNOINFO ',classes[j],libs[j],1,' { ',cfit[j],nfit[j],afit[j],' } { ',ttie,' } ',1,inter[j],renorm[j],el,format='(a,a,1x,a,i3,a,3i3,a,3i3,a,i,i,i,1x,a)'
+      printf,new,'CNOINFO ',classes[j],libs[j],1,' { ',cfit[j],nfit[j],-1,' } { ',ttie,' } ',1,inter[j],renorm[j],el,format='(a,a,1x,a,i3,a,3i3,a,3i3,a,i,i,i,1x,a)'
+      ;printf,new,'CNOINFO ',classes[j],libs[j],1,' { ',cfit[j],nfit[j],afit[j],' } { ',ttie,' } ',1,inter[j],renorm[j],el,format='(a,a,1x,a,i3,a,3i3,a,3i3,a,i,i,i,1x,a)'
   endfor
 
   free_lun,new

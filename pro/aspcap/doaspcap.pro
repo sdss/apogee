@@ -538,15 +538,15 @@ for idir=0,n_elements(datadir)-1 do begin
  endfor
 
  ; redo CNO for whatver grids might be configured to do so
- if file_test(configdir+'/CNO.elem.par') then  begin
-   aploadplan,configdir+'/CNO.elem.par',libpar,str='CNOINFO' 
+ if file_test(configdir+'/CN.elem.par') then  begin
+   aploadplan,configdir+'/CN.elem.par',libpar,str='CNOINFO' 
    for iclass=0,n_elements(libpar.cnoinfo)-1 do begin
      print,'  class: ', libpar.cnoinfo[iclass].class
      libfile=libr_path+libpar.cnoinfo[iclass].libs
      rdlibhead,libfile,libhead0,libhead
 
-     elemdir='elem_CNO/'
-     outname='CNO-'+libpar.cnoinfo[iclass].class+'-'+oname[idir]
+     elemdir='elem_CN/'
+     outname='CN-'+libpar.cnoinfo[iclass].class+'-'+oname[idir]
      workdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/ferre/'+elemdir
      if (not file_test(workdir+outname+'.spm') or keyword_set(clobber)) then begin
        file_mkdir,workdir

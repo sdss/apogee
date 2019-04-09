@@ -22,8 +22,9 @@ printf,nml,format='(A,1X,I1)',' NDIM =',ndim
 if keyword_set(findi) then $
   printf,nml,format='(A,'+string(ndim)+'(I2))',' INDI =',findi 
 if n_elements(indv) gt 0 then begin
-  printf,nml,format='(A,1X,I1)',' NOV =',n_elements(indv)
-  printf,nml,format='(A,'+string(ndim)+'(I2))',' INDV =',indv 
+  j=where(indv ge 0, nj)
+  printf,nml,format='(A,1X,I1)',' NOV =',nj
+  printf,nml,format='(A,'+string(ndim)+'(I2))',' INDV =',indv[j]
 endif else begin
   printf,nml,format='(A,1X,I1)',' NOV =',ndim
   printf,nml,format='(A,'+string(ndim)+'(I2))',' INDV =',indgen(ndim)+1

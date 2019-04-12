@@ -176,7 +176,9 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
     if clusters :
         jc=[]
         clusts=apselect.clustdata()
+        fstars=open(dir+'/allclust.txt','w')
         f=html.head(file=dir+'/'+file)
+        f.write('<A HREF=allclust.txt> cluster stars list </a>')
         f.write('<TABLE BORDER=2>\n')
         f.write('<TR><TD>NAME<TD>RA<TD>DEC<TD>Radius<TD>RV<TD>Delta RV<TD>Position criterion<TD>RV criterion<TD>PM criterion<TD>Parallax criterion<TD> CMD')
         clust=apselect.clustdata()
@@ -186,14 +188,17 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
             print(clust[ic].name,len(j))
             # clusters to exclude here
             if (clust[ic].name not in ['OmegaCen','Pal1','Pal6','Pal5','Terzan12'])  and (len(j) >= 5): jc.extend(j)
-            f.write('<TR><TD>'+clust[ic].name+'<TD>{:12.6f}<TD>{:12.6f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
+            f.write('<TR><TD><A HREF='+clust[ic].name+'.txt>'+clust[ic].name+'</A><TD>{:12.6f}<TD>{:12.6f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
                     clust[ic].ra,clust[ic].dec,clust[ic].rad,clust[ic].rv,clust[ic].drv))
             f.write('<TD><A HREF='+clust[ic].name+'_pos.jpg><IMG SRC='+clust[ic].name+'_pos.jpg width=300></A>\n')
             f.write('<TD><A HREF='+clust[ic].name+'_rv.jpg><IMG SRC='+clust[ic].name+'_rv.jpg width=300></A>\n')
             f.write('<TD><A HREF='+clust[ic].name+'_pm.jpg><IMG SRC='+clust[ic].name+'_pm.jpg width=300></A>\n')
             f.write('<TD><A HREF='+clust[ic].name+'_parallax.jpg><IMG SRC='+clust[ic].name+'_parallax.jpg width=300></A>\n')
             f.write('<TD><A HREF='+clust[ic].name+'_cmd.jpg><IMG SRC='+clust[ic].name+'_cmd.jpg width=300></A>\n')
+            np.savetxt(dir+'/'+clust[ic].name+'.txt',data[jc]['APOGEE_ID'],fmt='%s')
+            for star in data[jc]['APOGEE_ID'] : fstars.write('{:s} {:s}\n'.format(star,clust[ic].name))
         html.tail(f)
+        fstars.close()
         print('Number of cluster stars: ',len(jc))
         mklinks(data,jc,dir+'_clust')
         all.extend(jc)

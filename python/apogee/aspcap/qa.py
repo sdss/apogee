@@ -54,9 +54,10 @@ def plotelems(hdulist,title=None,out=None) :
             print(el,te,logg,len(gd))
             if etoh[iel] == 1 : abun=a['FELEM'][gd,0,iel]-a['FPARAM'][gd,3]
             else : abun = a['FELEM'][gd,0,iel]
-            fig,ax=plots.multi(1,1,hspace=0.001)
-            plots.plotc(ax,a['FPARAM'][gd,3],abun,a['FPARAM'][gd,0],yr=[-0.5,1],zr=te,xt='[M/H]',colorbar=True,zt='Teff',yt='['+el+'/M]')
-            ax.text(0.1,0.9,'uncalibrated params',transform=ax.transAxes)
+            fig,ax=plots.multi(1,2,hspace=0.001)
+            plots.plotc(ax[0],a['FPARAM'][gd,3],abun,a['FPARAM'][gd,0],yr=[-0.5,1],zr=te,xt='[M/H]',colorbar=True,zt='Teff',yt='['+el+'/M]')
+            ax[0].text(0.1,0.9,'uncalibrated params',transform=ax[0].transAxes)
+            plots.plotc(ax[1],a['FPARAM'][gd,3],abun,a['SNR'][gd],yr=[-0.5,1],zr=[50,200],xt='[M/H]',colorbar=True,zt='S/N',yt='['+el+'/M]')
             if out is not None :
                 outfile=out+el+'_{:1d}.png'.format(icol)
                 fig.savefig(outfile)

@@ -1,7 +1,7 @@
 import numpy as np
 import pdb
 
-def match(A,B,test=False):
+def match(A,B,test=False) :
     '''
     Return indices of input arrays that correspond to matching values
 

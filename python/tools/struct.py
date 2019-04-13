@@ -257,3 +257,8 @@ def dict2struct(d) :
 
     return(rec)
 
+def rmfield( a, *fieldnames_to_remove ):
+    """ Remove fields from structure
+    """
+    return a[ [ name for name in a.dtype.names if name not in fieldnames_to_remove ] ]
+

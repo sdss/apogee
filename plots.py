@@ -223,15 +223,16 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
                 ax.errorbar(x[gd],y[gd],marker=mark,yerr=yerr[gd],fmt='none',capsize=0,ecolor=col,rasterized=rasterized)
     elif contour is not None:
         if contour <= 0 :
-            gd = np.where((x > xr[0]) & (x < xr[1]) & (y>yr[0]) & (y<yr[1]) )[0]
+            gd = np.where((x > np.array(xr).min()) & (x < np.array(xr).max()) & (y>np.array(yr).min()) & (y<np.array(yr).max()) )[0]
             data = np.vstack([x[gd],y[gd]])
-            kde = gaussian_kde(data,bw_method=abs(contour))
-            xgrid = np.linspace(xr[0], xr[1], 40)
-            ygrid = np.linspace(yr[0], yr[1], 40)
+            kde = gaussian_kde(data)
+            #kde = gaussian_kde(data,bw_method=abs(contour))
+            xgrid = np.linspace(np.array(xr).min(), np.array(xr).max(), 40)
+            ygrid = np.linspace(np.array(yr).min(), np.array(yr).max(), 40)
             Xgrid, Ygrid = np.meshgrid(xgrid, ygrid)
             Z = kde.evaluate(np.vstack([Xgrid.ravel(), Ygrid.ravel()]))
             # Plot the result as an image
-            ax.imshow(np.log(Z).reshape(Xgrid.shape), origin='lower', aspect='auto',vmin=0,
+            ax.imshow(np.log(Z).reshape(Xgrid.shape), origin='lower', aspect='auto',vmin=np.log(Z).min(),vmax=np.log(Z).max(),
                        extent=[xr[0], xr[1], yr[0], yr[1]], cmap='Blues')
         else :
             im = np.histogram2d(y,x,range=[yr,xr],bins=20)
@@ -251,7 +252,6 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
         ax.text(text[0],text[1],text[2],transform=ax.transAxes,color=labelcolor)
 
     if draw : plt.draw()
-
 
 
 def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None,ls=None,semilogy=False,linewidth=1.,tit=None,nxtick=None,nytick=None,linestyle='-',alpha=None) :

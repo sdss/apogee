@@ -577,12 +577,13 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
     print('selecting cluster members')
     all=[]
     for cluster in clusts :
-        j=apselect.clustmember(allstar[1].data[gd],cluster,raw=True,firstgen=True,firstpos=False,logg=logg,
-                               pm=pm,dist=dist)
-        print(cluster,len(j))
-        if len(j) < 1 :
-            j=apselect.clustmember(allstar[1].data[gd],cluster,raw=True,logg=logg,pm=pm,dist=dist)
-        all=set(all).union(gd[j].tolist())
+        if (clust[ic].name not in ['OmegaCen','Pal1','Pal6','Pal5','Terzan12'])  and (len(j) >= 5): 
+            j=apselect.clustmember(allstar[1].data[gd],cluster,raw=True,firstgen=True,firstpos=False,logg=logg,
+                                   pm=pm,dist=dist)
+            print(cluster,len(j))
+            if len(j) < 1 :
+                j=apselect.clustmember(allstar[1].data[gd],cluster,raw=True,logg=logg,pm=pm,dist=dist)
+            all=set(all).union(gd[j].tolist())
     data=allstar[1].data[list(all)]
 
     # in the abbreviated array, get the lists of cluster members
@@ -803,8 +804,8 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                                         rmsderiv.append([1.,teffbin+dteffbin/2.-4500.,snbin+dsnbin/2.-100.,mhbin+dmhbin/2.])
                                       print(teffbin+dteffbin/2.-4500.,snbin+dsnbin/2.-100.,mhbin+dmhbin/2.,len(ibin),abundata[np.array(j)[ibin]].std())
                                       if hard is not None:
-                                        fc.write('{:8.1f}{:8.2f}{:8.2f}{:5d}{:8.3f} {:s}\n'.format(
-                                              teffbin+dteffbin/2.,snbin+dsnbin/2.,clusters[i].mh[0],len(ibin),abundata[np.array(j)[ibin]].std(),clusts[iclust]))
+                                        fc.write('{:8.1f}{:8.2f}{:8.2f}{:8.2f}{:5d}{:8.3f} {:s}\n'.format(
+                                              teffbin+dteffbin/2.,snbin+dsnbin/2.,mhbin+dmhbin/2.,clusters[i].mh[0],len(ibin),abundata[np.array(j)[ibin]].std(),clusts[iclust]))
                                       iplt = np.where(snbins == snbin)[0][0]
                                       plots.plotc(errax[iel,iplt],clusters[i].mh,teffbin+dteffbin/2.,abundata[np.array(j)[ibin]].std(),
                                                     size=30,zr=[0,0.1],xr=[-2.5,0.5],yr=[3500,5500],linewidth=1)

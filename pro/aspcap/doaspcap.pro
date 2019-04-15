@@ -496,47 +496,6 @@ for idir=0,n_elements(datadir)-1 do begin
  ; write aspcapField file (no aspcapStar files)
  aspcap_writefits,finalstr,resultsdir+'/'+ofile+'-'+strcompress(oname[idir],/remove_all)+'.fits',mjddir=mjddir
 
-; in preparation for elements, write out the best spectra into subdirectories for each class
-; we will link to these in the element subdirectories
- if keyword_set(nstars) then nobj=nstars else nobj=n_elements(finalstr.param)
- for iclass=0,nclass-1 do begin
-   print,'  class: ', class[iclass]
-   aploadplan,configdir+'/'+class[iclass]+'.par',libpar,str='PLOCK'
-   libfile=libr_path+libpar.lib
-   ; get library parameters for this class
-   rdlibhead,libfile,libhead0,libhead
-   index=intarr(n_elements(libhead[0].label))
-   for ipar=0,n_elements(libhead[0].label)-1 do $
-     index[ipar]=where(params eq strtrim(libhead[0].label[ipar],2))
-   iformat="(a,"+string(2*libhead0.n_of_dim)+"(F10.3))"
-   fformat="("+string(npix)+"(F12.6))"
-   eformat="("+string(npix)+"(F12.6))"
-   openw,frd,specdir+class[iclass]+'-'+oname[idir]+frdsuffix,/get_lun
-   openw,err,specdir+class[iclass]+'-'+oname[idir]+'.err',/get_lun
-   openw,ipf,specdir+class[iclass]+'-'+oname[idir]+'.ipf',/get_lun
-   nfit=0
-   for i=0,nobj-1 do begin
-     if finalstr.param[i].class eq class[iclass] then begin
-       init=finalstr.param[i].fparam[index]
-       printf,ipf,file_basename(finalstr.param[i].apogee_id,'.fits'),format=iformat,init,init*0.
-       if n_elements(finalstr.spec[i].spec) eq 7212 then begin
-         spec=[finalstr.spec[i].spec[0:5319],0.,finalstr.spec[i].spec[5320:7211],0.]
-         nerr=[finalstr.spec[i].err[0:5319],0.,finalstr.spec[i].err[5320:7211],0.]
-       endif else begin
-         spec=finalstr.spec[i].spec
-         nerr=finalstr.spec[i].err
-       endelse
-       printf,frd,spec,format=fformat
-       ferr=nerr
-       printf,err,ferr,format=eformat 
-       nfit+=1
-     endif
-   endfor
-   free_lun,ipf
-   free_lun,frd
-   free_lun,err
- endfor
-
  ; redo CNO for whatver grids might be configured to do so
  if file_test(configdir+'/CN.elem.par') then  begin
    aploadplan,configdir+'/CN.elem.par',libpar,str='CNOINFO' 
@@ -609,10 +568,53 @@ for idir=0,n_elements(datadir)-1 do begin
    endfor
  endif   ; CNO
 
+
  ; individual elements using parameters from best class
  if ~keyword_set(noelem) and file_test(configdir+'/elem.list') then begin
    resultsdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/'
    file_mkdir,resultsdir
+   ; in preparation for elements, write out the best spectra into subdirectories for each class
+   ; we will link to these in the element subdirectories
+   if keyword_set(nstars) then nobj=nstars else nobj=n_elements(finalstr.param)
+   for iclass=0,nclass-1 do begin
+     print,'  class: ', class[iclass]
+     aploadplan,configdir+'/'+class[iclass]+'.par',libpar,str='PLOCK'
+     libfile=libr_path+libpar.lib
+     ; get library parameters for this class
+     rdlibhead,libfile,libhead0,libhead
+     index=intarr(n_elements(libhead[0].label))
+     for ipar=0,n_elements(libhead[0].label)-1 do $
+       index[ipar]=where(params eq strtrim(libhead[0].label[ipar],2))
+     iformat="(a,"+string(2*libhead0.n_of_dim)+"(F10.3))"
+     fformat="("+string(npix)+"(F12.6))"
+     eformat="("+string(npix)+"(F12.6))"
+     openw,frd,specdir+class[iclass]+'-'+oname[idir]+frdsuffix,/get_lun
+     openw,err,specdir+class[iclass]+'-'+oname[idir]+'.err',/get_lun
+     openw,ipf,specdir+class[iclass]+'-'+oname[idir]+'.ipf',/get_lun
+     nfit=0
+     for i=0,nobj-1 do begin
+       if finalstr.param[i].class eq class[iclass] then begin
+         init=finalstr.param[i].fparam[index]
+         printf,ipf,file_basename(finalstr.param[i].apogee_id,'.fits'),format=iformat,init,init*0.
+         if n_elements(finalstr.spec[i].spec) eq 7212 then begin
+           spec=[finalstr.spec[i].spec[0:5319],0.,finalstr.spec[i].spec[5320:7211],0.]
+           nerr=[finalstr.spec[i].err[0:5319],0.,finalstr.spec[i].err[5320:7211],0.]
+         endif else begin
+           spec=finalstr.spec[i].spec
+           nerr=finalstr.spec[i].err
+         endelse
+         printf,frd,spec,format=fformat
+         ferr=nerr
+         printf,err,ferr,format=eformat 
+         nfit+=1
+       endif
+     endfor
+     free_lun,ipf
+     free_lun,frd
+     free_lun,err
+   endfor
+
+   ; now extend the structures for elemental abundances
    elem_order=aspcap_elems(elemtagnames,elemtoh,elem_fitnames)
    nelem=n_elements(elem_order)
    readcol,configdir+'/elem.list',format='(a)',elem,stringskip='#',/silent

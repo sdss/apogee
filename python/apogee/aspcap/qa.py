@@ -21,6 +21,55 @@ def plotparams(a,title=None,hard=None) :
     if title is not None : fig.suptitle(title)
     if hard is not None : fig.savefig(hard)
 
+def plotcn(hdulist,title=None,out=None) :
+    """ Compare parameter level C/M and N/M with element level
+    """
+    a=hdulist[1].data
+    grid=[]
+    yt=[]
+    for iel,el in enumerate(['C','N']) :
+        row=[]
+        xt=[]
+        yt.append(el)
+        for icol in range(5) :
+            if icol == 0 :
+                te=[3000,4000]
+                logg=[0,3.8]
+            elif icol == 1 :
+                te=[4000,4500]
+                logg=[0,3.8]
+            elif icol == 2 :
+                te=[4500,8000]
+                logg=[0,3.8]
+            elif icol == 3 :
+                te=[3000,4000]
+                logg=[3.8,5.5]
+            elif icol == 4 :
+                te=[4000,8000]
+                logg=[3.8,5.5]
+            gd = np.where((a['FPARAM'][:,0] >= te[0]) & (a['FPARAM'][:,0] <= te[1]) &
+                          (a['FPARAM'][:,1] >= logg[0]) & (a['FPARAM'][:,1] <= logg[1]) )[0]
+            if el == 'C' : 
+               abun=a['FELEM'][gd,0,0]
+               pabun=a['FPARAM'][gd,4]
+            elif el == 'N' :
+               abun=a['FELEM'][gd,0,2]
+               pabun=a['FPARAM'][gd,5]
+   
+            fig,ax=plots.multi(1,2,hspace=0.001)
+            plots.plotc(ax[0],a['FPARAM'][gd,3],abun-pabun,a['FPARAM'][gd,0],yr=[-0.5,0.5],zr=te,xt='[M/H]',colorbar=True,zt='Teff',yt=r'$\Delta$['+el+'/M] (el-param)')
+            ax[0].text(0.1,0.9,'uncalibrated params',transform=ax[0].transAxes)
+            plots.plotc(ax[1],a['FPARAM'][gd,3],abun-pabun,a['SNR'][gd],yr=[-0.5,0.5],zr=[50,200],xt='[M/H]',colorbar=True,zt='S/N',yt=r'[$\Delta$'+el+'/M] (el-param)')
+            if out is not None :
+                outfile=out+'param_elem_'+el+'_{:1d}.png'.format(icol)
+                fig.savefig(outfile)
+                row.append(os.path.basename(outfile))
+            else: pdb.set_trace()
+            plt.close(fig)
+            xt.append('{:6.0f}&lt;Teff&lt;{:6.0f} {:6.1f}&lt;logg&lt;{:6.1f}'.format(te[0],te[1],logg[0],logg[1]))
+        grid.append(row)
+    html.htmltab(grid,file=out+'cn.html',ytitle=yt,xtitle=xt)
+
 def plotelems(hdulist,title=None,out=None) :
     """ Make [X/M] vs [M/H] plots for all elements as f(Teff, logg)
     """
@@ -54,9 +103,10 @@ def plotelems(hdulist,title=None,out=None) :
             print(el,te,logg,len(gd))
             if etoh[iel] == 1 : abun=a['FELEM'][gd,0,iel]-a['FPARAM'][gd,3]
             else : abun = a['FELEM'][gd,0,iel]
-            fig,ax=plots.multi(1,1,hspace=0.001)
-            plots.plotc(ax,a['FPARAM'][gd,3],abun,a['FPARAM'][gd,0],yr=[-0.5,1],zr=te,xt='[M/H]',colorbar=True,zt='Teff',yt='['+el+'/M]')
-            ax.text(0.1,0.9,'uncalibrated params',transform=ax.transAxes)
+            fig,ax=plots.multi(1,2,hspace=0.001)
+            plots.plotc(ax[0],a['FPARAM'][gd,3],abun,a['FPARAM'][gd,0],yr=[-0.5,1],zr=te,xt='[M/H]',colorbar=True,zt='Teff',yt='['+el+'/M]')
+            ax[0].text(0.1,0.9,'uncalibrated params',transform=ax[0].transAxes)
+            plots.plotc(ax[1],a['FPARAM'][gd,3],abun,a['SNR'][gd],yr=[-0.5,1],zr=[50,200],xt='[M/H]',colorbar=True,zt='S/N',yt='['+el+'/M]')
             if out is not None :
                 outfile=out+el+'_{:1d}.png'.format(icol)
                 fig.savefig(outfile)
@@ -67,7 +117,6 @@ def plotelems(hdulist,title=None,out=None) :
         grid.append(row)
     html.htmltab(grid,file=out+'elem_chem.html',ytitle=yt,xtitle=xt)
 
-
 def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
     """ Plot parameter differences between two different runs
     """
@@ -76,7 +125,7 @@ def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
     b=bdata[1].data
     paramnames,tagnames,flagnames = aspcap.params()
     i1,i2=match.match(a['APOGEE_ID'],b['APOGEE_ID'])
-    print('numer of matching stars: ',len(i1))
+    print('number of matching stars: ',len(i1))
 
     # parameters first
     if cal : param = 'PARAM'

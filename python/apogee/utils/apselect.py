@@ -22,6 +22,7 @@ from astroquery.gaia import Gaia
 
 import numpy as np
 import copy
+from tools import html
 from tools import plots
 from tools import match
 from apogee.utils import bitmask
@@ -262,8 +263,8 @@ def clustdata() :
              -0.40,-0.23,-0.18,-0.11]
     out['dist']=[8.3, 10.4, 17.9, 16.0, 19.3, 
                12.59, 7.1, 10.2, 7.5, 6.33, 6.4, 
-               4.0, 4.45, 14.87, 5.06, 0., 2.44, 
-               2.04, 0.907, 2.33, 0., 2.36, 
+               4.0, 4.45, 14.87, 5.06, 0.816, 2.44, 
+               2.04, 0.907, 2.33, 0.444, 2.36, 
                4.09,
                17.40,10.30,2.30,5.40,25.20,3.20,12.90,4.90,4.40,
                4.00,5.20,26.50,30.50,23.20,3.00,7.70,12.00,9.40,12.10,
@@ -289,7 +290,7 @@ def clustdata() :
                           0.85, 0.85,0.85, 0.85]
     out['ra']=[259.27917,322.4929,198.2292,211.3625,182.5262,
              323.3625,250.42083,205.55,229.6375,251.80908,248.1333,
-             298.4438,97.3917,103.325,91.8542,91.854,114.5958,
+             298.4438,97.3917,103.325,91.8542,92.25,114.5958,
              12.1083,132.825,359.35,56.75,295.325,
              290.22083,
              199.11288 , 189.86658 , 265.17537 , 294.99879 , 217.40541 ,
@@ -302,7 +303,7 @@ def clustdata() :
 
     out['dec']=[43.1358,12.1669,18.1806,28.5344,18.5425,
               -0.82325,36.4611,28.3772,2.0811,-1.94853,-13.05361,
-              18.7792,-31.2833,16.9167,24.0967,24.097,21.5733,
+              18.7792,-31.2833,16.9167,24.0967,24.35,21.5733,
               85.255,11.8,56.7083,24.11667,40.1867,
               37.77167,
               17.700250,-26.744056, -53.674333,-30.964750, -5.976389,-23.904750,-24.524722,-46.412472, -4.100306,
@@ -311,7 +312,7 @@ def clustdata() :
               1.030472,-24.779167,-25.908694,-30.056278]
     out['rad']=[20.,18.,13.,11.,4.,
              16.,20.,24.,23.,16.,13.,
-             7.,5.,5.,5.,10.,6.,
+             7.,5.,5.,5.,25.,6.,
              16.,45.,16.,110.,12.,
              16.,
              11.80,13.70,15.80,16.30,8.40,29.00,8.30,28.50,21.50,
@@ -518,3 +519,36 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
             pdb.set_trace()
 
     return jc
+
+def clusters(data,dir='clusters/') :
+    """ Determine cluster members from input structure, make web pages with selection
+    """
+    try: os.mkdir(dir)
+    except: pass
+    # get the cluster data
+    clusts=clustdata()
+    # master output text file
+    fstars=open(dir+'/allclust.txt','w')
+    # HTML output
+    f=html.head(file=dir+'/clust.html')
+    f.write('<A HREF=allclust.txt> cluster stars list </a>')
+    f.write('<TABLE BORDER=2>\n')
+    f.write('<TR><TD>NAME<TD>RA<TD>DEC<TD>Radius<TD>RV<TD>Delta RV<TD>Position criterion<TD>RV criterion<TD>PM criterion<TD>Parallax criterion<TD> CMD')
+    clust=clustdata()
+    for ic in range(len(clust.name)) :
+        print(clust[ic].name)
+        j=clustmember(data,clust[ic].name,plot=True,hard=dir)
+        print(clust[ic].name,len(j))
+        # clusters to exclude here
+        f.write('<TR><TD><A HREF='+clust[ic].name+'.txt>'+clust[ic].name+'</A><TD>{:12.6f}<TD>{:12.6f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
+                clust[ic].ra,clust[ic].dec,clust[ic].rad,clust[ic].rv,clust[ic].drv))
+        f.write('<TD><A HREF='+clust[ic].name+'_pos.jpg><IMG SRC='+clust[ic].name+'_pos.jpg width=300></A>\n')
+        f.write('<TD><A HREF='+clust[ic].name+'_rv.jpg><IMG SRC='+clust[ic].name+'_rv.jpg width=300></A>\n')
+        f.write('<TD><A HREF='+clust[ic].name+'_pm.jpg><IMG SRC='+clust[ic].name+'_pm.jpg width=300></A>\n')
+        f.write('<TD><A HREF='+clust[ic].name+'_parallax.jpg><IMG SRC='+clust[ic].name+'_parallax.jpg width=300></A>\n')
+        f.write('<TD><A HREF='+clust[ic].name+'_cmd.jpg><IMG SRC='+clust[ic].name+'_cmd.jpg width=300></A>\n')
+        np.savetxt(dir+'/'+clust[ic].name+'.txt',data[j]['APOGEE_ID'],fmt='%s')
+        for star in data[j]['APOGEE_ID'] : fstars.write('{:s} {:s}\n'.format(star,clust[ic].name))
+    html.tail(f)
+    fstars.close()
+

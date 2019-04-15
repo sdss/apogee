@@ -203,6 +203,16 @@ def repeat(data,out=None,elem=True) :
     ediff=[]
     tdiff=[]
     teldiff=[]
+
+    dmhbin=0.5
+    mhbins=np.arange(-2.25,0.75,dmhbin)
+    dteffbin=250
+    teffbins=np.arange(3500,6000,dteffbin)
+    dsnbin=50
+    snbins=np.arange(50,250,dsnbin)
+    fp=open(out+'repeat_param_rms.txt','w')
+    fe=open(out+'repeat_elem_rms.txt','w')
+
     for star in stars :
         j = np.where(a['APOGEE_ID'] == star)[0]
         n = len(j)
@@ -222,6 +232,21 @@ def repeat(data,out=None,elem=True) :
                 for i in range(len(els))  :
                     plots.plotp(eax[i][0],np.repeat(a['FPARAM'][j,0].mean(),n),a['FELEM'][j,0,i]-a['FELEM'][j,0,i].mean(),typeref=telescope[j],
                                 types=tels,color=colors,yr=[-0.2,0.2],xr=[3000,8000],xt='Teff')
+            # output rms for this star
+            teff=a['FPARAM'][j,0].mean()
+            mh=a['FPARAM'][j,3].mean()
+            for isn in len(snbins)-1 :
+                jj = np.where((a['SNR'][j] > snbins[i]) & (a['SNR'][j] < snbins[i+1]) )[0]
+                sn=a['SNR'][j[jj]].mean()
+                if len(jj) > 1 :
+                    fp.write('{:8.1f}{:8.2f}{:8.2f}'.format(teff,mh,sn))
+                    for i in range(7) : fp.write('{:8.3f}'.format(a['FPARAM'][j[jj],i].std()))
+                    if elem: 
+                        fe.write('{:8.1f}{:8.2f}{:8.2f}'.format(teff,mh,sn))
+                        for i in range(len(els)) : fe.write('{:8.3f}'.format(a['FELEM'][j[jj],0,i].std()))
+               
+    fp.close() 
+    fe.close() 
     diff=np.array(diff) 
     if elem : ediff=np.array(ediff) 
     tdiff=np.array(tdiff) 

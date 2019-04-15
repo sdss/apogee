@@ -109,9 +109,11 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
     try: os.mkdir('qa/')
     except: pass
     hdulist=fits.open(out)
-    qa.repeat(hdulist,out='qa/',elem=elemcal)
     qa.dr14comp(hdulist,out='qa/',elem=elemcal)
-    if elemcal : qa.plotelems(hdulist,out='qa/')
+    if elemcal : 
+        qa.plotelems(hdulist,out='qa/')
+        qa.plotcn(hdulist,out='qa/')
+    qa.repeat(hdulist,out='qa/',elem=elemcal)
 
     return all
 

@@ -92,6 +92,7 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
     j=[]
     for id in ids: j.extend( np.where( (np.core.defchararray.strip(all['APOGEE_ID']) == id) & (all['VISIT'] == 0)) [0] )
     f.write(html.table(all['FPARAM'][j],plots=False,ytitle=ids,xtitle=aspcap.params()[0]))
+    f.write(html.table(all['FELEM'][j,0,:],plots=False,ytitle=ids,xtitle=aspcap.elems()[0]))
     f.write('<p> <a href=calib/'+out.replace('.fits','.html')+'> Calibration plots</a>')
     f.write('<p> <a href=qa/elem_chem.html> Chemistry plots</a>')
     f.write('<p> <a href=qa/repeat.html> Duplicate observations plots, including APO/LCO</a>')

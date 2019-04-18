@@ -6,12 +6,12 @@ from tools import plots
 from tools import html
 from tools import fit
 
-def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,6000,250), mhbins=np.arange(-2.25,0.75,0.5),verbose=False,out=None,title='', zr=[0,0.1], snplot=True, meanerr=None ) :
+def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,6000,250), mhbins=np.arange(-2.25,0.75,0.5),verbose=False,out=None,title='', zr=[0,0.1], snplot=True, meanerr=None,quad=False ) :
     '''
     Fits for empirical uncertainty as function of Teff, S/N, and [M/H]
     '''
     if out is not None :
-        fig,ax=plots.multi(len(snbins),1,wspace=0.001,figsize=(3*len(snbins),2))
+        fig,ax=plots.multi(len(snbins),2,wspace=0.001,figsize=(3*len(snbins),5))
 
     # bin sizes and initialize data arrays
     dte = tebins[1]-tebins[0]
@@ -27,19 +27,24 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
     temax=tebins[0]
     mhmin=mhbins[-1]
     mhmax=mhbins[0]
-    for mhbin in mhbins :
-        for tebin in tebins :
-            for snbin in snbins :
+    npts=np.zeros([len(tebins),len(mhbins),len(snbins)])
+    for imhbin,mhbin in enumerate(mhbins) :
+        for itebin,tebin in enumerate(tebins) :
+            for isnbin,snbin in enumerate(snbins) :
                 ibin = np.where(( te > tebin) & (te <= tebin+dte) &
                                 ( mh > mhbin ) & (mh <= mhbin+dmh) &
                                 ( snr > snbin) & (snr <= snbin+dsn) & (val > -9990.) )[0]
                 if len(ibin) > 3 :
+                    npts[itebin,imhbin,isnbin] = len(ibin)
                     if meanerr is not None :
                         err = np.sqrt(np.clip(val[ibin].std()**2 - np.median(meanerr[ibin])**2,0.001,10000000.))
                     else :
                         err = val[ibin].std()
                     rmsdata.append(err)
-                    rmsderiv.append([1.,tebin+dte/2.-4500.,snbin+dsn/2.-100.,mhbin+dmh/2.])
+                    if quad :
+                        rmsderiv.append([1.,tebin+dte/2.-4500.,snbin+dsn/2.-100.,mhbin+dmh/2.,(tebin+dte/2.-4500.)**2])
+                    else :
+                        rmsderiv.append([1.,tebin+dte/2.-4500.,snbin+dsn/2.-100.,mhbin+dmh/2.])
                     if verbose :
                         print(tebin+dte/2.,snbin+dsn/2.,mhbin+dmh/2.,err,len(ibin))
                     snmin=np.array([snmin,snbin]).min()
@@ -50,7 +55,7 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
                     mhmax=np.array([mhmax,mhbin]).max()
                     if out is not None :
                         iplt=np.where(snbins == snbin)[0][0]
-                        plots.plotc(ax[iplt],mhbin+dmh/2.,tebin+dte/2.,err,xr=[mhbins[0],mhbins[-1]],yr=[tebins[0],tebins[-1]],zr=zr,size=30,linewidth=1)
+                        plots.plotc(ax[0,iplt],mhbin+dmh/2.,tebin+dte/2.,err,xr=[mhbins[0],mhbins[-1]],yr=[tebins[0],tebins[-1]],zr=zr,size=30,linewidth=1)
 
     # do the fit in log(rms) so that empirical uncertainty is positive-definite
     rmsdata=np.log(np.array(rmsdata))
@@ -64,11 +69,13 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
         for iplt in range(len(snbins)) :
             sn = snbins[iplt]+dsn/2.
             try :
-                ax[iplt].imshow(elemerr(soln,y-4500.,sn-100.,x),extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
-                                aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower',cmap='rainbow')
+                ax[0,iplt].imshow(elemerr(soln,y-4500.,sn-100.,x, quad=quad),extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
+                                  aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower',cmap='rainbow')
+                ax[1,iplt].imshow(npts[:,:,iplt],extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
+                                  aspect='auto',vmin=0,vmax=50, origin='lower',cmap='rainbow')
             except: pass
 
-            ax[iplt].text(0.98,0.98,title+' S/N={:4.0f}'.format(sn),va='top',ha='right',transform=ax[iplt].transAxes)
+            ax[0,iplt].text(0.98,0.98,title+' S/N={:4.0f}'.format(sn),va='top',ha='right',transform=ax[0,iplt].transAxes)
 
         fig.savefig(out+'_err.jpg')
         plt.close()
@@ -76,6 +83,7 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
 
         if snplot :
             fig,ax=plots.multi(len(tebins),len(mhbins),wspace=0.001,hspace=0.001,figsize=(2*len(tebins),2*len(mhbins)))
+            x=np.arange(0,250)
             for ix in range(len(tebins)) :
               if ix == 0 : yt=r'$\sigma$'
               else : yt=''
@@ -84,6 +92,7 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
                     gdplt=np.where((np.isclose(rmsderiv[:,1]+4500,tebins[ix]+dte/2.)) & (np.isclose(rmsderiv[:,3],mhbins[iy]+dmh/2.)))[0]
                     plots.plotc(ax[iy,ix],rmsderiv[gdplt,2]+100,np.exp(rmsdata[gdplt]),rmsderiv[gdplt,3],size=30,zr=[-2,0.5],
                                 yr=zr,xr=[snbins[0],snbins[-1]],xt='S/N',yt=yt)
+                    ax[iy,ix].plot(x,elemerr(soln,tebins[ix]+dte/2.-4500,x-100,mhbins[iy]+dmh/2., quad=quad))
                 except: pass
                 ax[iy,ix].text(0.98,0.98,'{:8.0f} {:8.2f}'.format(tebins[ix]+dte/2.,mhbins[iy]+dmh/2.),ha='right',va='top',transform=ax[iy,ix].transAxes)
             fig.savefig(out+'_err_sn.jpg')
@@ -101,11 +110,12 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
     except : return 0.
 
 
-def elemerr(soln,te,sn,fe) :
+def elemerr(soln,te,sn,fe, quad=False) :
     ''' 
     Function to evaluate fit for uncertainty
     '''
     out=soln[0]+soln[1]*te+soln[2]*sn
     if len(soln) > 3: out+= soln[3]*fe
+    if quad : out +=soln[4]*te**2
     return np.exp(out)
 

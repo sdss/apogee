@@ -434,7 +434,14 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
         else :
             pdb.set_trace()
       if len(j) > 0 :
-        if pm: jc=jc[i1[j]]
+        if pm: 
+            #jc=jc[i1[j]]
+            # allow for the possibility of multiple instances of a given star in input list
+            jnew=[]
+            for jjj in j :
+              iii= np.where(data['APOGEE_ID'][jc]  == data['APOGEE_ID'][jc[i1[jjj]]])[0]
+              jnew.extend(iii)
+            jc=jc[jnew]
       else :
         jc=[]
       print('{:d} stars after PM criterion'.format(len(jc)))
@@ -463,7 +470,14 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
             plt.draw()
             pdb.set_trace()
       if len(j) > 0 :
-        if dist: jc=jc[i1[j]]
+        if dist: 
+            #jc=jc[i1[j]]
+            # allow for the possibility of multiple instances of a given star in input list
+            jnew=[]
+            for jjj in j :
+              iii= np.where(data['APOGEE_ID'][jc]  == data['APOGEE_ID'][jc[i1[jjj]]])[0]
+              jnew.extend(iii)
+            jc=jc[jnew]
       else :
         jc=[]
       print('{:d} stars after parallax criterion'.format(len(jc)))

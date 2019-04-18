@@ -1,14 +1,16 @@
 ; doaspcap is master routine for running ASPCAP pipline: pre-processing, FERRE, and post-processing
 
-pro doaspcap,planfile,mjd=mjd,nruns=nruns,queue=queue,clobber=clobber,old=old,ncpus=ncpus,errbar=errbar,renorm=renorm,obscont=obscont,aspcap_vers=aspcap_vers,results_vers=results_vers,nstars=nstars,hmask=hmask,maskfile=maskfile,obspixmask=obspixmask,pixmask=pixmask,highbad=highbad,skyerr=skyerr,starlist=starlist,lowbad=lowbad,higherr=higherr,conthighbad=conthighbad,contlowbad=contlowbad,conthigherr=conthigherr,qaspcap=qaspcap,redux_root=redux_root,red_vers=red_vers,noplot=noplot,vacuum=vacuum,commiss=commiss,nored=nored,visits=visits,aspcap_config=aspcap_config,fits=fits,symlink=symlink,doelemplot=doelemplot,noelem=noelem,maxwind=maxwind,caldir=caldir,persist=persist,npar=npar,nelem=nelem,mask_telluric=mask_telluric,altmaskdir=altmaskdir,testmjd=testmjd,notie=notie
+pro doaspcap,planfile,mjd=mjd,nruns=nruns,queue=queue,clobber=clobber,old=old,ncpus=ncpus,errbar=errbar,renorm=renorm,obscont=obscont,aspcap_vers=aspcap_vers,results_vers=results_vers,nstars=nstars,hmask=hmask,maskfile=maskfile,obspixmask=obspixmask,pixmask=pixmask,highbad=highbad,skyerr=skyerr,starlist=starlist,lowbad=lowbad,higherr=higherr,conthighbad=conthighbad,contlowbad=contlowbad,conthigherr=conthigherr,qaspcap=qaspcap,redux_root=redux_root,red_vers=red_vers,noplot=noplot,vacuum=vacuum,commiss=commiss,nored=nored,visits=visits,aspcap_config=aspcap_config,fits=fits,symlink=symlink,doelemplot=doelemplot,noelem=noelem,maxwind=maxwind,caldir=caldir,persist=persist,npar=npar,nelem=nelem,mask_telluric=mask_telluric,altmaskdir=altmaskdir,testmjd=testmjd,notie=notie,no_version_check=no_version_check
 
 TIC
 ; read plan file and required fields: apvisit and plateid/mjd or field
 ; get appropriate file name templates and directory for input file
 aploadplan,planfile,planstr,struct='ASPCAP'
 
-if tag_exist(planstr,'apogee_version') then $
-  if planstr.apogee_version ne getenv('APOGEE_VER') and planstr.apogee_version ne 'test' then  stop,'APOGEE version does not match!'
+if ~keyword_set(no_version_check) then begin
+  if tag_exist(planstr,'apogee_version') then $
+    if planstr.apogee_version ne getenv('APOGEE_VER') and planstr.apogee_version ne 'test' then  stop,'APOGEE version does not match!'
+endif
 
 ; other parameters priority: 1. keyword, 2. planfile, 3. default
 if not keyword_set(ncpus) then ncpus=apsetpar(planstr,'ncpus',4)

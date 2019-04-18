@@ -38,7 +38,14 @@ print,'flag: ', flag
 print,'planfile: ', planfile
 print,'clobber: ', clobber
 
-doaspcap,planfile,clobber=clobber,noelem=noelem,noplot=noplot,doelemplot=elemplot
+aploadplan,planfile,planstr
+override=0
+if getenv('APOGEE_OVERRIDE_VERSION') eq '1' then override=1
+if (not override) and tag_exist(planstr,'apogee_ver') then $
+ if planstr.apogee_ver ne getenv('APOGEE_VER') and getenv('APOGEE_OVERRIDE_VERSION') ne getenv('APOGEE_VER') then $
+ stop,'APOGEEREDUCE version does not match planfile!'
+
+doaspcap,planfile,clobber=clobber,noelem=noelem,noplot=noplot,doelemplot=elemplot,/no_version_check
 ;doaspcap,planfile
 print,'doaspcap completed successfully'
 

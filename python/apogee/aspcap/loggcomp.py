@@ -151,22 +151,54 @@ def rcrgb(allstar,apokasc='APOKASC_cat_v3.6.0.fits',logg='LOGG_SYD_SCALING',rcli
     return {'rclim' : rclim, 'rgbsep' : rgbfit, 'cnsep' : cnfit}
     
 
-def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3000,8000],apokasc_cat='APOKASC_cat_v4.4.2.fits') :
-
+def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[0.,5.5],teffrange=[3000,8000],apokasc_cat='APOKASC_cat_v4.4.2.fits',out='logg') :
+    """ logg vs asteroseismic for dwarfs
+    """
     gd=apselect.select(allstar,badval=['STAR_BAD'],mh=mhrange,logg=loggrange,teff=teffrange,raw=True)
     allstar=allstar[gd]
-
+    try:
+        gd=np.where(allstar['VISIT'] == 0)[0]
+        allstar=allstar[gd]
+    except: pass
+ 
     # match ASPCAP with APOKASC, and get RC/RGB stars
     apokasc=fits.open(os.environ['APOGEE_DIR']+'/data/apokasc/'+apokasc_cat)[1].data
     i1,i2=match.match(allstar['APOGEE_ID'],apokasc['2MASS_ID'])
-    fix,ax=plots.multi(2,2)
-    plots.plotc(ax[0,0],allstar['FPARAM'][i1,1],allstar['FPARAM'][i1,1]-apokasc['LOGG_DW'][i2],allstar['FPARAM'][i1,0],xt='log g',yt='Delta logg')
-    plots.plotc(ax[0,0],allstar['FPARAM'][i1,1],allstar['FPARAM'][i1,1]-apokasc['LOGG_DW'][i2],allstar['FPARAM'][i1,0],yr=[-1,1],xt='log g',yt='Delta logg')
-    plots.plotc(ax[1,0],allstar['FPARAM'][i1,0],allstar['FPARAM'][i1,1]-apokasc['LOGG_DW'][i2],allstar['FPARAM'][i1,1],yr=[-1,1],xt='Teff',yt='Delta logg')
-    plots.plotc(ax[1,1],allstar['FPARAM'][i1,0],allstar['FPARAM'][i1,1]-apokasc['LOGG_DW'][i2],allstar['FPARAM'][i1,3],yr=[-1,1],xt='Teff',yt='Delta logg')
+    fig,ax=plots.multi(2,2)
+    plots.plotc(ax[0,0],allstar['FPARAM'][i1,1],allstar['FPARAM'][i1,1]-apokasc['LOGG_DW'][i2],allstar['FPARAM'][i1,0],yr=[-1,1],
+                xt='log g',yt=r'$\Delta$logg',zt='Teff',colorbar=True,xr=[3,6])
+    plots.plotc(ax[0,1],allstar['FPARAM'][i1,3],allstar['FPARAM'][i1,1]-apokasc['LOGG_DW'][i2],allstar['FPARAM'][i1,0],yr=[-1,1],
+                xt='[M/H]',yt=r'$\Delta$logg',zt='Teff',colorbar=True,xr=[-2,0.5])
+    plots.plotc(ax[1,0],allstar['FPARAM'][i1,0],allstar['FPARAM'][i1,1]-apokasc['LOGG_DW'][i2],10.**allstar['FPARAM'][i1,2],yr=[-1,1],
+                xt='Teff',yt=r'$\Delta$logg',zt='vmicro',colorbar=True,xr=[4000,7000],zr=[0.5,2.5])
+    plots.plotc(ax[1,1],allstar['FPARAM'][i1,0],allstar['FPARAM'][i1,1]-apokasc['LOGG_DW'][i2],allstar['FPARAM'][i1,3],yr=[-1,1],
+                xt='Teff',yt=r'$\Delta$logg',zt='[M/H]',colorbar=True,xr=[4000,7000])
     plt.tight_layout()
+    if out is not None :
+        fig.savefig(out+'_dwarfs.png')
+        plt.close()
+
+    fig,ax=plots.multi(1,1)
+    gd=np.where(apokasc['APOKASC2_LOGG'][i2] > -99)[0]
+    plots.plotc(ax,allstar['FPARAM'][i1[gd],0],allstar['FPARAM'][i1[gd],1],allstar['FPARAM'][i1[gd],1]-apokasc['APOKASC2_LOGG'][i2[gd]],
+                xr=[8000,3000],yr=[6,0],zr=[-0.5,0.5],colorbar=True,zt=r'$\Delta$ logg',xt='Teff',yt='logg')
+    #plots.plotc(ax[0,1],allstar['FPARAM'][i1[gd],0],allstar['FPARAM'][i1[gd],3],allstar['FPARAM'][i1[gd],1]-apokasc['APOKASC2_LOGG'][i2[gd]],
+    #            xr=[8000,3000],yr=[-2.5,1],zr=[-0.5,0.5],colorbar=True,zt=r'$\Delta logg')
+    #plots.plotc(ax[1,0],allstar['FPARAM'][i1[gd],3],allstar['FPARAM'][i1[gd],1],allstar['FPARAM'][i1[gd],1]-apokasc['APOKASC2_LOGG'][i2[gd]],
+    #            xr=[-2.5,1],yr=[6,0],zr=[-0.5,0.5],colorbar=True,zt=r'$\Delta logg')
+    gd=np.where(apokasc['LOGG_DW'][i2] > -99)[0]
+    plots.plotc(ax,allstar['FPARAM'][i1[gd],0],allstar['FPARAM'][i1[gd],1],allstar['FPARAM'][i1[gd],1]-apokasc['LOGG_DW'][i2[gd]],
+                xr=[8000,3000],yr=[6,0],zr=[-0.5,0.5])
+    #plots.plotc(ax[0,1],allstar['FPARAM'][i1[gd],0],allstar['FPARAM'][i1[gd],3],allstar['FPARAM'][i1[gd],1]-apokasc['LOGG_DW'][i2[gd]],
+    #            xr=[8000,3000],yr=[-2.5,1],zr=[-0.5,0.5])
+    #plots.plotc(ax[1,0],allstar['FPARAM'][i1[gd],3],allstar['FPARAM'][i1[gd],1],allstar['FPARAM'][i1[gd],1]-apokasc['LOGG_DW'][i2[gd]],
+    #            xr=[-2.5,1],yr=[6,0],zr=[-0.5,0.5])
+    plt.tight_layout()
+    if out is not None:
+        fig.savefig(out+'_all.png')
+        plt.close()
+
  
-#def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False,out='loggcomp',calloggrange=[-1.,3.8],loggrange=[1.,3.2],mhrange=[-2.5,0.5],teffrange=[3500,5500],calteffrange=[3000,6000],calib=False) :
 def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False,out='loggcomp',calloggrange=[-1.,3.8],loggrange=[-1.,3.8],mhrange=[-2.5,0.5],teffrange=[3500,5500],calteffrange=[3000,6000],calib=False) :
     '''
     asteroseismic log g comparisons for input allStar structure

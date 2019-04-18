@@ -495,8 +495,10 @@ def getabun(data,elems,elemtoh,el,xh=False,terange=[-1,10000],calib=False,line=0
         if calib :
           if xh : 
               abun = data['X_H'][:,iel]
+              abunerr = data['X_H_ERR'][:,iel]
           else :
               abun = data['X_M'][:,iel]
+              abunerr = data['X_M_ERR'][:,iel]
         else :
           if len(data['FELEM'].shape) == 2: 
               abun = data['FELEM'][:,iel]
@@ -521,7 +523,7 @@ def getabun(data,elems,elemtoh,el,xh=False,terange=[-1,10000],calib=False,line=0
                     (data['FPARAM'][:,0] >= terange[0]) & (data['FPARAM'][:,0] <= terange[1]) & (abun > -9990.) )[0]
     return abun, ok
 
-def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, maxvisit=100,cal='default',dwarfs=False,inter=False,errpar=False,calib=False,nx=4,ny=2,vscatter=[0,0.2],pm=True,dist=True, lines=False) :
+def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, maxvisit=100,cal='default',dwarfs=False,inter=False,errpar=False,calib=False,nx=4,ny=2,maxvscatter=0.2,pm=True,dist=True, lines=False) :
     ''' 
     Determine internal calibration relations for elements
    
@@ -555,8 +557,8 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
         logg=[-1,3.8]
         reject=0.15
         glon=[70,110]
-    gd=apselect.select(allstar[1].data,badval='STAR_BAD',raw=True,logg=logg,vscatter=vscatter)
-    solar=apselect.select(allstar[1].data,badval='STAR_BAD',raw=True,logg=logg,glon=glon,glat=[-5,5],sn=[200,10000],vscatter=vscatter)
+    gd=apselect.select(allstar[1].data,badval='STAR_BAD',raw=True,logg=logg)
+    solar=apselect.select(allstar[1].data,badval='STAR_BAD',raw=True,logg=logg,glon=glon,glat=[-5,5],sn=[200,10000])
     print('ngd: ',len(gd))
     print('nsolar: ',len(solar))
     try :
@@ -577,7 +579,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
     print('selecting cluster members')
     all=[]
     for cluster in clusts :
-        if (clust[ic].name not in ['OmegaCen','Pal1','Pal6','Pal5','Terzan12'])  and (len(j) >= 5): 
+        if (cluster not in ['OmegaCen','Pal1','Pal6','Pal5','Terzan12'])  :
             j=apselect.clustmember(allstar[1].data[gd],cluster,raw=True,firstgen=True,firstpos=False,logg=logg,
                                    pm=pm,dist=dist)
             print(cluster,len(j))
@@ -625,6 +627,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                        ('nstars','{:1d}i4'.format(len(clusts))),
                        ('mean','{:1d}f4'.format(len(clusts))),
                        ('rms','{:1d}f4'.format(len(clusts))),
+                       ('rmsgd','{:1d}f4'.format(len(clusts))),
                        ('rawmean','{:1d}f4'.format(len(clusts))),
                        ('errpar','4f4'),
                        ])
@@ -657,7 +660,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
           elif cal == 'dr14' :
               pars = dr14cal(el,dwarfs=dwarfs)
           else :
-              pars = defaultcal(el)
+              pars = defaultcal(el,dwarfs=dwarfs)
           if pars['elemfit'] >=0 : nels+=1
         allfig,allax=plots.multi(2,(nels-1)/2+1,hspace=0.001,wspace=0.3,figsize=(12,18))
         if len(solar) > 0 : allsolarfig,allsolarax=plots.multi(2,(nels-1)/2+1,hspace=0.001,wspace=0.3,figsize=(12,18))
@@ -681,7 +684,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
         elif cal == 'dr14' :
             pars = dr14cal(el,dwarfs=dwarfs)
         else :
-            pars = defaultcal(el)
+            pars = defaultcal(el,dwarfs=dwarfs)
         pars['clust'] = np.array(clusts,dtype='S16')
         pars['abun'] = np.zeros(len(clusts))
         pars['par'] = np.zeros(3)
@@ -715,14 +718,15 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
 
             teff=data['FPARAM'][ind,0]
             mh=data['FPARAM'][ind,3]
+            vscatter=data['VSCATTER'][ind]
             abun=abundata[ind]
             try :
                 visit=data['VISIT'][ind]
             except :
                 visit = np.zeros(len(ind))
-            gd=np.where((visit == 0) & (teff>=pars['temin']) & (teff<=pars['temax']))[0]
-            # only use visits=0 [gd] for fit, but we'll plot all
-            bd=np.where((visit > 0) | (teff<pars['temin']) | (teff>pars['temax']))[0]
+            # only use visits=0 and vscatter<maxvscatter[gd] for fit, but we'll plot all
+            gd=np.where((visit == 0) & (vscatter<maxvscatter) & (teff>=pars['temin']) & (teff<=pars['temax']))[0]
+            bd=np.where((visit > 0) | (vscatter>=maxvscatter) | (teff<pars['temin']) | (teff>pars['temax']))[0]
             if len(gd) > 2 :
                 print(el,len(ind))
                 for iter in range(2) :
@@ -736,13 +740,13 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                     func=calfunc(pars,teff,mh,abun,clust,order=pars['elemfit'],extcal=False)
                     if iter == 0 :
                         res=abun-func
-                        gd=np.where((visit == 0) & (teff>=pars['temin']) & (teff<=pars['temax']) & (abs(res) <= reject))[0]
+                        gd=np.where((visit == 0) & (vscatter<maxvscatter) & (teff>=pars['temin']) & (teff<=pars['temax']) & (abs(res) <= reject))[0]
                         tmpreject=reject
                         while len(gd) < 10 :
                           tmpreject*=2.
-                          gd=np.where((visit == 0) & (teff>=pars['temin']) & (teff<=pars['temax']) & (abs(res) <= tmpreject))[0]
+                          gd=np.where((visit == 0) & (vscatter<maxvscatter) & (teff>=pars['temin']) & (teff<=pars['temax']) & (abs(res) <= tmpreject))[0]
         
-                        bd=np.where((visit > 0) | (teff<pars['temin']) | (teff>pars['temax']) | (abs(res) > tmpreject))[0]
+                        bd=np.where((visit > 0) | (vscatter>=maxvscatter) | (teff<pars['temin']) | (teff>pars['temax']) | (abs(res) > tmpreject))[0]
 
                 print('\nGlobal {:<8s} {:8.3f} (summed) {:8.3f} (with 3 visits)'.format(el, (abun[gd]-func[gd]).std(), (abun[bd]-func[bd]).std()))
                 # loop through all clusters and determine mean and scatter for each cluster, and accumulate 
@@ -761,14 +765,16 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                   if len(jclust[iclust])>3 :
                     j=np.array(jclust[iclust])
                     try:
-                        cgd=np.where((data['VISIT'][j] == 0) & (data['FPARAM'][j,0]>=pars['temin']) & (data['FPARAM'][j,0]<=pars['temax']))[0]
+                        cgd=np.where((data['VISIT'][j] == 0) & (data['VSCATTER'][j]<maxvscatter) & 
+                                     (data['FPARAM'][j,0]>=pars['temin']) & (data['FPARAM'][j,0]<=pars['temax']))[0]
                     except:
-                        cgd=np.where((data['FPARAM'][j,0]>=pars['temin']) & (data['FPARAM'][j,0]<=pars['temax']))[0]
+                        cgd=np.where((data['VSCATTER'][j]<maxvscatter) & (data['FPARAM'][j,0]>=pars['temin']) & (data['FPARAM'][j,0]<=pars['temax']))[0]
                     if len(gd) > 1 :
                       rmsgd = (abundata[j[cgd]]-calfunc(pars,data['FPARAM'][j[cgd],0],data['FPARAM'][j[cgd],3],abundata[j[cgd]],''*len(j),order=pars['elemfit'])).std()
                     else :
                       rmsgd=-1.
                     rec['rms'][iel,iclust] = (abundata[j]-calfunc(pars,data['FPARAM'][j,0],data['FPARAM'][j,3],abundata[j],''*len(j),order=pars['elemfit'])).std()
+                    rec['rmsgd'][iel,iclust] = rmsgd
                     rec['mean'][iel,iclust] = (abundata[j]-calfunc(pars,data['FPARAM'][j,0],data['FPARAM'][j,3],abundata[j],''*len(j),order=pars['elemfit'])).mean()
                     rec['rawmean'][iel,iclust] = abundata[j].mean()
                     rec['nstars'][iel,iclust] = len(j)
@@ -1094,7 +1100,8 @@ def defaultcal(el,dwarfs=False) :
     '''
     te0=4500
     temin=4000
-    temax=5000
+    if dwarfs : temax=6000
+    else : temax=5000
     elemfit=1
     extfit=0
     caltemin=3532.5

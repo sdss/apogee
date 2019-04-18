@@ -7,7 +7,9 @@ from tools import html
 from tools import match
 import matplotlib.pyplot as plt
 from apogee.aspcap import aspcap
+from apogee.aspcap import err
 from apogee.utils import apload
+from apogee.utils import apselect
 
 def plotparams(a,title=None,hard=None) :
     """ Plot parameters vs Teff
@@ -226,22 +228,14 @@ def dr14comp(a,out=None,elem=True) :
     dr14=apl.allStar()
     plotparamdiffs(a,dr14,out=out+'dr14_',elem=elem)
 
-def repeat(data,out=None,elem=True) :
+def repeat(data,out='./',elem=True,logg=[-1,6]) :
     """ Comparison of repeat observations of objects
     """
 
-    a=data[1].data
+    gd=apselect.select(data[1].data,badval='STAR_BAD',raw=True,logg=logg)
+
+    a=data[1].data[gd]
     stars = set(a['APOGEE_ID'])
-    fig,ax=plots.multi(2,7,figsize=(8,18),hspace=0.001,wspace=0.4,xtickrot=60)
-    efig=[]
-    eax=[]
-    if elem :
-        els=data[3].data['ELEM_SYMBOL'][0]
-        for i in range(len(els)) :
-            tfig,tax=plots.multi(2,1,hspace=0.001,wspace=0.4,xtickrot=60,figsize=(8,3))
-            efig.append(tfig)
-            eax.append(tax)
-    #efig,eax=plots.multi(2,len(els),hspace=0.001,figsize=(8,36),wspace=0.4,xtickrot=60)
     telescope=np.zeros(len(a),dtype='S6')
     colors=['r','g','b']
     tels=['apo1m','apo25m','lco25m'] 
@@ -250,91 +244,54 @@ def repeat(data,out=None,elem=True) :
         telescope[j] = tel
     diff=[]
     ediff=[]
-    tdiff=[]
-    teldiff=[]
+    teff=[]
+    mh=[]
+    sn=[]
 
-    dmhbin=0.5
-    mhbins=np.arange(-2.25,0.75,dmhbin)
-    dteffbin=250
-    teffbins=np.arange(3500,6000,dteffbin)
-    dsnbin=50
-    snbins=np.arange(50,250,dsnbin)
-    fp=open(out+'repeat_param_rms.txt','w')
-    fe=open(out+'repeat_elem_rms.txt','w')
-
+    snbins=np.arange(50,300,50)
+    # looop over stars looking for duplications
     for star in stars :
         j = np.where(a['APOGEE_ID'] == star)[0]
         n = len(j)
         if n > 1 :
             print(star,n,telescope[j])
-            for i in j : 
-                if elem: ediff.append(a['FELEM'][i,0,:]-a['FELEM'][j,0,:].mean(axis=0))
-                diff.append(a['FPARAM'][i,:]-a['FPARAM'][j,:].mean(axis=0))
-                tdiff.append(a['FPARAM'][j,0].mean())
-                teldiff.append(telescope[i])
-            for i in range(7)  :
-                if i == 0 : yr=[-200,200]
-                else : yr=[-0.5,0.5]
-                plots.plotp(ax[i,0],np.repeat(a['FPARAM'][j,0].mean(),n),a['FPARAM'][j,i]-a['FPARAM'][j,i].mean(),typeref=telescope[j],
-                            types=tels,color=colors,xr=[3000,8000],xt='Teff',yr=yr)
-            if elem :
-                for i in range(len(els))  :
-                    plots.plotp(eax[i][0],np.repeat(a['FPARAM'][j,0].mean(),n),a['FELEM'][j,0,i]-a['FELEM'][j,0,i].mean(),typeref=telescope[j],
-                                types=tels,color=colors,yr=[-0.2,0.2],xr=[3000,8000],xt='Teff')
-            # output rms for this star
-            teff=a['FPARAM'][j,0].mean()
-            mh=a['FPARAM'][j,3].mean()
-            for isn in len(snbins)-1 :
-                jj = np.where((a['SNR'][j] > snbins[i]) & (a['SNR'][j] < snbins[i+1]) )[0]
-                sn=a['SNR'][j[jj]].mean()
+            # if we have a duplicate, we need duplicate observations at comparable S/N
+            for isn in range(len(snbins)-1) :
+                jj = np.where((a['SNR'][j] > snbins[isn]) & (a['SNR'][j] < snbins[isn+1]) )[0]
                 if len(jj) > 1 :
-                    fp.write('{:8.1f}{:8.2f}{:8.2f}'.format(teff,mh,sn))
-                    for i in range(7) : fp.write('{:8.3f}'.format(a['FPARAM'][j[jj],i].std()))
-                    if elem: 
-                        fe.write('{:8.1f}{:8.2f}{:8.2f}'.format(teff,mh,sn))
-                        for i in range(len(els)) : fe.write('{:8.3f}'.format(a['FELEM'][j[jj],0,i].std()))
-               
-    fp.close() 
-    fe.close() 
-    diff=np.array(diff) 
-    if elem : ediff=np.array(ediff) 
-    tdiff=np.array(tdiff) 
-    teldiff=np.array(teldiff) 
-    for itel,tel in enumerate(tels) :
-        gd=np.where(teldiff == tel)[0]
-        if len(gd) > 0 :
-            for i in range(7)  :
-                if i == 0 : bins=np.arange(-200,200,10)
-                elif i ==1 : bins=np.arange(-0.5,0.5,0.025)
-                else : bins=np.arange(-0.2,0.2,0.01)
-                ax[i,1].hist(diff[gd,i],color=colors[itel],histtype='step',bins=bins)
-            if elem :
-                for i in range(len(els))  :
-                    bins=np.arange(-0.2,0.2,0.01)
-                    try: eax[i][1].hist(ediff[gd,i],color=colors[itel],histtype='step',bins=bins)
-                    except: pass
-    for i,param in enumerate(data[3].data['PARAM_SYMBOL'][0]) : 
-        if i < 7 :
-            ax[i,0].set_ylabel(param)
-            ax[i,1].text(0.1,0.9,param,transform=ax[i,1].transAxes)
+                    for jjj in jj :
+                        teff.append(a['FPARAM'][j,0].mean())
+                        mh.append(a['FPARAM'][j,3].mean())
+                        sn.append(a['SNR'][j[jj]].mean())
+                        diff.append(a['FPARAM'][j[jjj],:]-a['FPARAM'][j[jj],:].mean(axis=0))
+                        if elem:  ediff.append(a['FELEM'][j[jjj],0,:]-a['FELEM'][j[jj],0,:].mean(axis=0))
+    teff=np.array(teff)
+    mh=np.array(mh)
+    sn=np.array(sn)
+    j=np.where(sn>250)[0]
+    sn[j]=249.999
+    diff=np.array(diff)
     grid=[]
-    if out is not None :
-        fig.savefig(out+'param_diff.png')
-        grid.append([os.path.basename(out+'param_diff.png')])
-        #efig.savefig(out+'elem_diff.png')
-    else :
-        pdb.set_trace()
-    if elem :
-        for i,el in enumerate(els) : 
-            eax[i][0].set_ylabel(el)
-            eax[i][1].text(0.1,0.9,el,transform=eax[i][1].transAxes)
-            if out is not None : 
-                efig[i].savefig(out+el+'_diff.png')
-                plt.close(efig[i])
-            else : pdb.set_trace()
-            grid.append([os.path.basename(out+el+'_diff.png')])
-    plt.close(fig)
-    html.htmltab(grid,file=out+'repeat.html')
+    params=data[3].data['PARAM_SYMBOL'][0]
+    for i,param in enumerate(params) :
+        if param == 'TEFF' : 
+            zr=[0,100] 
+            gd=np.where(abs(diff[:,i]) < 500.)[0]
+        else : 
+            zr=[0,0.2]
+            gd=np.where(abs(diff[:,i]) < 1.)[0]
+        err.errfit(teff[gd],sn[gd],mh[gd],diff[gd,i],out=out+param,zr=zr,verbose=False)
+        grid.append([os.path.basename(out+param+'_err.jpg'),os.path.basename(out+param+'_err_sn.jpg')])
+    html.htmltab(grid,file=out+'repeat_params.html',ytitle=params)
+    if elem : 
+        els=data[3].data['ELEM_SYMBOL'][0]
+        ediff=np.array(ediff)
+        grid=[]
+        for i,el in enumerate(els) :
+            gd=np.where(abs(ediff[:,i]) < 1.)[0]
+            err.errfit(teff[gd],sn[gd],mh[gd],ediff[gd,i],out=out+el,quad=True)
+            grid.append([os.path.basename(out+el+'_err.jpg'),os.path.basename(out+el+'_err_sn.jpg')])
+        html.htmltab(grid,file=out+'repeat_elem.html',ytitle=els)
 
 #l33=fits.open('allCal-r12-l33p.fits')
 #notie=fits.open('../l33notie/allCal-r12-l33notie.fits')

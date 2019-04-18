@@ -76,8 +76,14 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
         hdulist.append(hdu)
         hdulist.writeto(out,overwrite=True)
 
+def summary(hdulist,elemcal=False,out='allCal.fits') :
+    """ Create QA summary page and plots
+    """
+    all=hdulist[1].data
     try: os.mkdir('plots/')
     except: pass
+
+    # HR diagrams
     aspcap.hr(all,hard='plots/hr.png',xr=[8000,3000],grid=True)
     aspcap.hr(all,hard='plots/hrhot.png',xr=[20000,3000],iso=True)
     aspcap.multihr(all,hard='plots/multihr.png')
@@ -88,11 +94,19 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
     # Master summary HTML file
     f=html.head(file=out.replace('.fits','.html'))
     f.write(html.table(grid))
+    f.write('<br>Uncalibrated parameters:<br>')
     ids = ['VESTA','alpha_Boo']
     j=[]
     for id in ids: j.extend( np.where( (np.core.defchararray.strip(all['APOGEE_ID']) == id) & (all['VISIT'] == 0)) [0] )
-    f.write(html.table(all['FPARAM'][j],plots=False,ytitle=ids,xtitle=aspcap.params()[0]))
-    f.write(html.table(all['FELEM'][j,0,:],plots=False,ytitle=ids,xtitle=aspcap.elems()[0]))
+    f.write(html.table(all['FPARAM'][j],plots=False,ytitle=ids,xtitle=aspcap.params()[1]))
+    # table of abundances (relative to M)
+    f.write('<br>Uncalibrated abundances:<br>')
+    abun=all['FELEM'][j,0,:]
+    xtit=[]
+    for i in range(len(hdulist[3].data['ELEM_SYMBOL'][0])) : 
+        if hdulist[3].data['ELEMTOH'][0][i] == 1 : abun[:,i]-=all['FPARAM'][j,3]
+        xtit.append('['+hdulist[3].data['ELEM_SYMBOL'][0][i]+'/M]')
+    f.write(html.table(abun,plots=False,ytitle=ids,xtitle=xtit))
     f.write('<p> <a href=calib/'+out.replace('.fits','.html')+'> Calibration plots</a>')
     f.write('<p> <a href=qa/elem_chem.html> Chemistry plots</a>')
     f.write('<p> <a href=qa/repeat.html> Duplicate observations plots, including APO/LCO</a>')
@@ -103,6 +117,7 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
     try: os.mkdir('calib/')
     except: pass
     docal(out,clobber=False,allstar=False,hr=False,teff=True,logg=True,vmicro=False,vmacro=False,elemcal=elemcal,out='calib/',stp=False,cal='default',calib=False) 
+    pdb.set_trace()
     try: os.mkdir('calibrated/')
     except: pass
     try: docal(out,clobber=False,allstar=False,hr=False,teff=True,logg=True,vmicro=False,vmacro=False,elemcal=elemcal,out='calibrated/',stp=False,cal='default',calib=True) 
@@ -114,7 +129,8 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
     if elemcal : 
         qa.plotelems(hdulist,out='qa/')
         qa.plotcn(hdulist,out='qa/')
-    qa.repeat(hdulist,out='qa/',elem=elemcal)
+    qa.repeat(hdulist,out='repeat/giant_',elem=elemcal,logg=[-1,3.8])
+    qa.repeat(hdulist,out='repeat/dwarf_',elem=elemcal,logg=[3.8,5.5])
 
     return all
 
@@ -396,8 +412,8 @@ def docal(calfile,clobber=False,allstar=True,hr=True,teff=True,logg=True,vmicro=
         else : param='FPARAM'
         plots.plotc(ax,c[param][:,0],c[param][:,1],c[param][:,3],xr=[6000,3000],yr=[5,-1],zr=[-2,0.5])
         plt.savefig(out+'hr.jpg')                                                                                                 
-    figs.append(['hr.jpg','hr.jpg'])
-    ytitle.append('HR')
+        figs.append(['hr.jpg','hr.jpg'])
+        ytitle.append('HR')
 
     allcal={}
     # Teff vs photometric
@@ -425,6 +441,9 @@ def docal(calfile,clobber=False,allstar=True,hr=True,teff=True,logg=True,vmicro=
     ytitle.append('log g')
     figs.append(['loggcomp_b.jpg','loggcomp.jpg'])
     ytitle.append('log g')
+    loggcomp.dwarf(c[1].data,out=out+'logg')
+    figs.append(['logg_dwarfs.png','logg_all.png'])
+    ytitle.append('log g ')
 
     # vmicro calibration
     if vmicro :
@@ -469,7 +488,7 @@ def docal(calfile,clobber=False,allstar=True,hr=True,teff=True,logg=True,vmicro=
     figs.append(['giants_all.jpg','dwarfs_all.jpg'])
     ytitle.append('clusters')
     figs.append(['giants_allsolar.jpg','dwarfs_allsolar.jpg'])
-    ytitle.append('solar circule')
+    ytitle.append('solar circle')
     figs.append(['giants_M.jpg','dwarfs_M.jpg'])
     ytitle.append('cluster [M/H]')
 

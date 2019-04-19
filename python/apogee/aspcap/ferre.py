@@ -25,7 +25,7 @@ def writespec(name,data) :
     f=open(name,'w')
     for spec in data :
         for pix in np.arange(spec.shape[0]) :
-            f.write('{:12.6f}'.format(spec[pix]))
+            f.write('{:14.6e}'.format(spec[pix]))
         f.write('\n')
     f.close()
     return 

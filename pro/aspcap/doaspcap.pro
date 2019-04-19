@@ -1,14 +1,16 @@
 ; doaspcap is master routine for running ASPCAP pipline: pre-processing, FERRE, and post-processing
 
-pro doaspcap,planfile,mjd=mjd,nruns=nruns,queue=queue,clobber=clobber,old=old,ncpus=ncpus,errbar=errbar,renorm=renorm,obscont=obscont,aspcap_vers=aspcap_vers,results_vers=results_vers,nstars=nstars,hmask=hmask,maskfile=maskfile,obspixmask=obspixmask,pixmask=pixmask,highbad=highbad,skyerr=skyerr,starlist=starlist,lowbad=lowbad,higherr=higherr,conthighbad=conthighbad,contlowbad=contlowbad,conthigherr=conthigherr,qaspcap=qaspcap,redux_root=redux_root,red_vers=red_vers,noplot=noplot,vacuum=vacuum,commiss=commiss,nored=nored,visits=visits,aspcap_config=aspcap_config,fits=fits,symlink=symlink,doelemplot=doelemplot,noelem=noelem,maxwind=maxwind,caldir=caldir,persist=persist,npar=npar,nelem=nelem,mask_telluric=mask_telluric,altmaskdir=altmaskdir,testmjd=testmjd,notie=notie
+pro doaspcap,planfile,mjd=mjd,nruns=nruns,queue=queue,clobber=clobber,old=old,ncpus=ncpus,errbar=errbar,renorm=renorm,obscont=obscont,aspcap_vers=aspcap_vers,results_vers=results_vers,nstars=nstars,hmask=hmask,maskfile=maskfile,obspixmask=obspixmask,pixmask=pixmask,highbad=highbad,skyerr=skyerr,starlist=starlist,lowbad=lowbad,higherr=higherr,conthighbad=conthighbad,contlowbad=contlowbad,conthigherr=conthigherr,qaspcap=qaspcap,redux_root=redux_root,red_vers=red_vers,noplot=noplot,vacuum=vacuum,commiss=commiss,nored=nored,visits=visits,aspcap_config=aspcap_config,fits=fits,symlink=symlink,doelemplot=doelemplot,noelem=noelem,maxwind=maxwind,caldir=caldir,persist=persist,npar=npar,nelem=nelem,mask_telluric=mask_telluric,altmaskdir=altmaskdir,testmjd=testmjd,notie=notie,no_version_check=no_version_check
 
 TIC
 ; read plan file and required fields: apvisit and plateid/mjd or field
 ; get appropriate file name templates and directory for input file
 aploadplan,planfile,planstr,struct='ASPCAP'
 
-if tag_exist(planstr,'apogee_version') then $
-  if planstr.apogee_version ne getenv('APOGEE_VER') and planstr.apogee_version ne 'test' then  stop,'APOGEE version does not match!'
+if ~keyword_set(no_version_check) then begin
+  if tag_exist(planstr,'apogee_version') then $
+    if planstr.apogee_version ne getenv('APOGEE_VER') and planstr.apogee_version ne 'test' then  stop,'APOGEE version does not match!'
+endif
 
 ; other parameters priority: 1. keyword, 2. planfile, 3. default
 if not keyword_set(ncpus) then ncpus=apsetpar(planstr,'ncpus',4)
@@ -496,6 +498,50 @@ for idir=0,n_elements(datadir)-1 do begin
  ; write aspcapField file (no aspcapStar files)
  aspcap_writefits,finalstr,resultsdir+'/'+ofile+'-'+strcompress(oname[idir],/remove_all)+'.fits',mjddir=mjddir
 
+
+ ; in preparation for elements, write out the best spectra into subdirectories for each class
+ ; we will link to these in the element subdirectories
+ resultsdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/'
+ file_mkdir,resultsdir
+ if keyword_set(nstars) then nobj=nstars else nobj=n_elements(finalstr.param)
+ for iclass=0,nclass-1 do begin
+   print,'  class: ', class[iclass]
+   aploadplan,configdir+'/'+class[iclass]+'.par',libpar,str='PLOCK'
+   libfile=libr_path+libpar.lib
+   ; get library parameters for this class
+   rdlibhead,libfile,libhead0,libhead
+   index=intarr(n_elements(libhead[0].label))
+   for ipar=0,n_elements(libhead[0].label)-1 do $
+     index[ipar]=where(params eq strtrim(libhead[0].label[ipar],2))
+   iformat="(a,"+string(2*libhead0.n_of_dim)+"(F10.3))"
+   fformat="("+string(npix)+"(E14.6))"
+   eformat="("+string(npix)+"(F12.6))"
+   openw,frd,specdir+class[iclass]+'-'+oname[idir]+frdsuffix,/get_lun
+   openw,err,specdir+class[iclass]+'-'+oname[idir]+'.err',/get_lun
+   openw,ipf,specdir+class[iclass]+'-'+oname[idir]+'.ipf',/get_lun
+   nfit=0
+   for i=0,nobj-1 do begin
+     if finalstr.param[i].class eq class[iclass] then begin
+       init=finalstr.param[i].fparam[index]
+       printf,ipf,file_basename(finalstr.param[i].apogee_id,'.fits'),format=iformat,init,init*0.
+       if n_elements(finalstr.spec[i].spec) eq 7212 then begin
+         spec=[finalstr.spec[i].spec[0:5319],0.,finalstr.spec[i].spec[5320:7211],0.]
+         nerr=[finalstr.spec[i].err[0:5319],0.,finalstr.spec[i].err[5320:7211],0.]
+       endif else begin
+         spec=finalstr.spec[i].spec
+         nerr=finalstr.spec[i].err
+       endelse
+       printf,frd,spec,format=fformat
+       ferr=nerr
+       printf,err,ferr,format=eformat 
+       nfit+=1
+     endif
+   endfor
+   free_lun,ipf
+   free_lun,frd
+   free_lun,err
+ endfor
+
  ; redo CNO for whatver grids might be configured to do so
  if file_test(configdir+'/CN.elem.par') then  begin
    aploadplan,configdir+'/CN.elem.par',libpar,str='CNOINFO' 
@@ -550,6 +596,13 @@ for idir=0,n_elements(datadir)-1 do begin
      if nfit gt 0 then begin
        aploadplan,configdir+'/'+libpar.cnoinfo[iclass].class+'.par',classpar,str='PLOCK' 
        str=aspcap_loadferre(workdir+outname,classpar,libfile,npar=npar,/elemfit) 
+       ; we need to rewrite the input file with the revised C and N
+       libfile=libr_path+libpar.cnoinfo[iclass].libs
+       rdlibhead,libfile,libhead0,libhead
+       index=intarr(n_elements(libhead[0].label))
+       for ipar=0,n_elements(libhead[0].label)-1 do $
+            index[ipar]=where(params eq strtrim(libhead[0].label[ipar],2))
+       openw,ipf,workdir+outname+'.ipf',/get_lun
        for istar=0,n_elements(str.param)-1 do begin
          j=where(finalstr.param.apogee_id eq str.param[istar].apogee_id,nj)
          if nj gt 0 then begin
@@ -562,57 +615,18 @@ for idir=0,n_elements(datadir)-1 do begin
                finalstr.param[j].paramflag=str.param[istar].paramflag[outindex]
              endif
            endfor
+           ; rewrite input file
+           init=finalstr.param[j].fparam[index]
+           printf,ipf,file_basename(finalstr.param[j].apogee_id,'.fits'),format=iformat,init,init*0.
          endif
        endfor
+       free_lun,ipf
      endif
    endfor
  endif   ; CNO
 
-
  ; individual elements using parameters from best class
  if ~keyword_set(noelem) and file_test(configdir+'/elem.list') then begin
-   resultsdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/'
-   file_mkdir,resultsdir
-   ; in preparation for elements, write out the best spectra into subdirectories for each class
-   ; we will link to these in the element subdirectories
-   if keyword_set(nstars) then nobj=nstars else nobj=n_elements(finalstr.param)
-   for iclass=0,nclass-1 do begin
-     print,'  class: ', class[iclass]
-     aploadplan,configdir+'/'+class[iclass]+'.par',libpar,str='PLOCK'
-     libfile=libr_path+libpar.lib
-     ; get library parameters for this class
-     rdlibhead,libfile,libhead0,libhead
-     index=intarr(n_elements(libhead[0].label))
-     for ipar=0,n_elements(libhead[0].label)-1 do $
-       index[ipar]=where(params eq strtrim(libhead[0].label[ipar],2))
-     iformat="(a,"+string(2*libhead0.n_of_dim)+"(F10.3))"
-     fformat="("+string(npix)+"(F12.6))"
-     eformat="("+string(npix)+"(F12.6))"
-     openw,frd,specdir+class[iclass]+'-'+oname[idir]+frdsuffix,/get_lun
-     openw,err,specdir+class[iclass]+'-'+oname[idir]+'.err',/get_lun
-     openw,ipf,specdir+class[iclass]+'-'+oname[idir]+'.ipf',/get_lun
-     nfit=0
-     for i=0,nobj-1 do begin
-       if finalstr.param[i].class eq class[iclass] then begin
-         init=finalstr.param[i].fparam[index]
-         printf,ipf,file_basename(finalstr.param[i].apogee_id,'.fits'),format=iformat,init,init*0.
-         if n_elements(finalstr.spec[i].spec) eq 7212 then begin
-           spec=[finalstr.spec[i].spec[0:5319],0.,finalstr.spec[i].spec[5320:7211],0.]
-           nerr=[finalstr.spec[i].err[0:5319],0.,finalstr.spec[i].err[5320:7211],0.]
-         endif else begin
-           spec=finalstr.spec[i].spec
-           nerr=finalstr.spec[i].err
-         endelse
-         printf,frd,spec,format=fformat
-         ferr=nerr
-         printf,err,ferr,format=eformat 
-         nfit+=1
-       endif
-     endfor
-     free_lun,ipf
-     free_lun,frd
-     free_lun,err
-   endfor
 
    ; now extend the structures for elemental abundances
    elem_order=aspcap_elems(elemtagnames,elemtoh,elem_fitnames)

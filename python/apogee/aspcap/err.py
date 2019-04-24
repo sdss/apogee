@@ -6,7 +6,8 @@ from tools import plots
 from tools import html
 from tools import fit
 
-def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,6000,250), mhbins=np.arange(-2.25,0.75,0.5),verbose=False,out=None,title='', zr=[0,0.1], snplot=True, meanerr=None,quad=False ) :
+def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,6000,250), mhbins=np.arange(-2.25,0.75,0.5),verbose=False,
+           out=None,title='', zr=[0,0.1], snplot=True, meanerr=None,quad=False ) :
     '''
     Fits for empirical uncertainty as function of Teff, S/N, and [M/H]
     '''

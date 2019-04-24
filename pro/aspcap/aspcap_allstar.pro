@@ -753,9 +753,6 @@ stop
          haveaspcap=1
          ;; read library parameters
          aspcap=mrdfits(file,2)
-         ;libr_path= apogee_dir+'/speclib/'
-         ;libfile= strtrim(libr_path+file_basename(aspcap[0].grid,'.dat'),2)
-         ;rdlibhead,libfile,libhead0,libhead
 
          ;; read ASPCAP output
          aspcap=mrdfits(file,1)
@@ -784,12 +781,6 @@ stop
 
       ; reset field name with latest conventions from platePlans
       tmp_allstarloc.field = field
-      ;if strtrim(tmp_allstarloc[0].telescope,2) ne 'apo1m' then begin
-      ;  if tmp_allstarloc[0].location_id ne ilocationid then begin
-      ;    print,'star location does not match: ', tmp_allstarloc[0].location_id,ilocationid
-      ;    stop
-      ;  endif
-      ;endif
       
       ;; Add visits reference indices
       for k=0L, n_elements(tmp_allstarloc)-1L do begin

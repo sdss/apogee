@@ -22,6 +22,8 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from astropy.io import fits
 from astropy.io import ascii
 
+os.environ['ISOCHRONE_DIR']='/uufs/chpc.utah.edu/common/home/apogee/isochrones/'
+
 def allField(files=['apo*/*/a?Field-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?Field-*.fits'],out='allField.fits',verbose=False) :
     '''
     Concatenate set of apField files
@@ -76,20 +78,31 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
         hdulist.append(hdu)
         hdulist.writeto(out,overwrite=True)
 
-def summary(hdulist,elemcal=False,out='allCal.fits') :
+def summary(out='allCal.fits',elemcal=False,prefix='allcal/',cal='dr16cal') :
     """ Create QA summary page and plots
     """
+    hdulist=fits.open(out)
     all=hdulist[1].data
-    try: os.mkdir('plots/')
+    try: os.mkdir(prefix)
+    except: pass
+    try: os.mkdir(prefix+'hr/')
+    except: pass
+    try: os.mkdir(prefix+'calib/')
+    except: pass
+    try: os.mkdir(prefix+'calibrated/')
+    except: pass
+    try: os.mkdir(prefix+'optical/')
+    except: pass
+    try: os.mkdir(prefix+'qa/')
+    except: pass
+    try: os.mkdir(prefix+'repeat/')
     except: pass
 
     # HR diagrams
-    aspcap.hr(all,hard='plots/hr.png',xr=[8000,3000],grid=True)
-    aspcap.hr(all,hard='plots/hrhot.png',xr=[20000,3000],iso=True)
-    aspcap.multihr(all,hard='plots/multihr.png')
-    #teffcomp.ghb(all,ebvmax=0.02,glatmin=10,out='plots/giant_teffcomp',yr=[-750,750],dwarf=False,calib=False)
-    #loggcomp.apokasc(all,plotcal=False,out='plots/loggcomp',calib=False)
-    grid=[['plots/hr.png','plots/multihr.png','plots/hrhot.png']] 
+    aspcap.hr(all,hard=prefix+'hr/hr.png',xr=[8000,3000],grid=True,iso=True,alpha=1.0,snrbd=5,target=prefix+'hr/hr')
+    aspcap.hr(all,hard=prefix+'hr/hrhot.png',xr=[20000,3000],iso=True,snrbd=30)
+    aspcap.multihr(all,hard=prefix+'hr/multihr.png')
+    grid=[[prefix+'hr/hr.png',prefix+'hr/multihr.png',prefix+'hr/hrhot.png'],[prefix+'hr/hr_main.png',prefix+'hr/hr_targ.png','']] 
 
     # Master summary HTML file
     f=html.head(file=out.replace('.fits','.html'))
@@ -97,40 +110,52 @@ def summary(hdulist,elemcal=False,out='allCal.fits') :
     f.write('<br>Uncalibrated parameters:<br>')
     ids = ['VESTA','alpha_Boo']
     j=[]
-    for id in ids: j.extend( np.where( (np.core.defchararray.strip(all['APOGEE_ID']) == id) & (all['VISIT'] == 0)) [0] )
+    try: 
+        for id in ids: j.extend( np.where( (np.core.defchararray.strip(all['APOGEE_ID']) == id) & (all['VISIT'] == 0)) [0] )
+    except: 
+        for id in ids: j.extend( np.where( (np.core.defchararray.strip(all['APOGEE_ID']) == id) ) [0] )
     f.write(html.table(all['FPARAM'][j],plots=False,ytitle=ids,xtitle=aspcap.params()[1]))
     # table of abundances (relative to M)
     f.write('<br>Uncalibrated abundances:<br>')
-    abun=all['FELEM'][j,0,:]
+    try: abun=all['FELEM'][j,0,:]
+    except: abun=all['FELEM'][j,:]
     xtit=[]
     for i in range(len(hdulist[3].data['ELEM_SYMBOL'][0])) : 
         if hdulist[3].data['ELEMTOH'][0][i] == 1 : abun[:,i]-=all['FPARAM'][j,3]
         xtit.append('['+hdulist[3].data['ELEM_SYMBOL'][0][i]+'/M]')
     f.write(html.table(abun,plots=False,ytitle=ids,xtitle=xtit))
-    f.write('<p> <a href=calib/'+out.replace('.fits','.html')+'> Calibration plots</a>')
-    f.write('<p> <a href=qa/elem_chem.html> Chemistry plots</a>')
-    f.write('<p> <a href=qa/repeat.html> Duplicate observations plots, including APO/LCO</a>')
-    f.write('<p> <a href=qa/dr14_diffs.html> DR14 comparison plots</a>')
+    f.write('<p> <a href='+prefix+'calib/'+out.replace('.fits','.html')+'> Calibration plots</a>\n')
+    f.write('<p> <a href='+prefix+'optical/optical.html> Comparison with optical plots</a>\n')
+    f.write('<p> <a href='+prefix+'qa/elem_chem.html> Chemistry plots</a>\n')
+    f.write('<p> <a href='+prefix+'qa/cn.html> C,N parameters and abundances</a>\n')
+    f.write('<p> Dupliecates/repeats, including APO/LCO: <ul>\n')
+    f.write('<li> <a href='+prefix+'repeat/giant_repeat_elem.html> Elemental abundances, giants</a>\n')
+    f.write('<li> <a href='+prefix+'repeat/giant_repeat_params.html> Parameters,  giants</a>\n')
+    f.write('<li> <a href='+prefix+'repeat/dwarf_repeat_elem.html> Elemental abundances, dwarfs</a>\n')
+    f.write('<li> <a href='+prefix+'repeat/dwarf_repeat_params.html> Parameters,  dwarfs</a>\n')
+    f.write('</ul>\n')
+    f.write('<p> <a href='+prefix+'qa/dr14_diffs.html> DR14 comparison plots</a>')
     html.tail(f)
 
+    # optical comparison index
+    grid=[]
+    for el in hdulist[3].data['ELEM_SYMBOL'][0] :
+        grid.append(['r12_uncal_abundcomp_{:s}.png'.format(el)])
+    html.htmltab(grid,file=prefix+'optical/optical.html',ytitle=hdulist[3].data['ELEM_SYMBOL'][0])
+   
     # do the calibration and calibration and QA plots
-    try: os.mkdir('calib/')
-    except: pass
-    docal(out,clobber=False,allstar=False,hr=False,teff=True,logg=True,vmicro=False,vmacro=False,elemcal=elemcal,out='calib/',stp=False,cal='default',calib=False) 
-    pdb.set_trace()
-    try: os.mkdir('calibrated/')
-    except: pass
-    try: docal(out,clobber=False,allstar=False,hr=False,teff=True,logg=True,vmicro=False,vmacro=False,elemcal=elemcal,out='calibrated/',stp=False,cal='default',calib=True) 
-    except: pass
-    try: os.mkdir('qa/')
+    docal(out,clobber=False,allstar=False,hr=False,teff=True,logg=True,vmicro=False,vmacro=False,elemcal=elemcal,
+          out=prefix+'calib/',stp=False,cal=cal,calib=False) 
+    try: docal(out,clobber=False,allstar=False,hr=False,teff=True,logg=True,vmicro=False,vmacro=False,elemcal=elemcal,
+          out=prefix+'calibrated/',stp=False,cal=cal,calib=True) 
     except: pass
     hdulist=fits.open(out)
-    qa.dr14comp(hdulist,out='qa/',elem=elemcal)
+    qa.dr14comp(hdulist,out=prefix+'qa/',elem=elemcal)
     if elemcal : 
-        qa.plotelems(hdulist,out='qa/')
-        qa.plotcn(hdulist,out='qa/')
-    qa.repeat(hdulist,out='repeat/giant_',elem=elemcal,logg=[-1,3.8])
-    qa.repeat(hdulist,out='repeat/dwarf_',elem=elemcal,logg=[3.8,5.5])
+        qa.plotelems(hdulist,out=prefix+'qa/')
+        qa.plotcn(hdulist,out=prefix+'qa/')
+    qa.repeat(hdulist,out=prefix+'repeat/giant_',elem=elemcal,logg=[-1,3.8])
+    qa.repeat(hdulist,out=prefix+'repeat/dwarf_',elem=elemcal,logg=[3.8,5.5])
 
     return all
 

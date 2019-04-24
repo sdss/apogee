@@ -307,7 +307,7 @@ def intplot(a=None,param='FPARAM',indir='cal',apred='r10',aspcap='t33b',verbose=
     plt.close(sf)
     plt.close(fig)
 
-def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=False, hard=None, gridclass=None,xr=[8000,3000],yr=[6,-1],grid=False,contour=False) :
+def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=False, alpha=0.3,hard=None, gridclass=None,xr=[8000,3000],yr=[6,-1],grid=False,contour=False,snrbd=0,target=None) :
     """ Plot an HR diagram from input structure
 
         Args:
@@ -315,7 +315,7 @@ def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=False, hard=None, 
             param : tag to use (default='FPARAM')
             colorbar : show colorbar? (default= False)
     """
-    fig,ax = plots.multi(1,1)
+    fig,ax = plots.multi(1,2,figsize=(8,12),hspace=0.001)
     if gridclass is None :
         teff=a[param][:,0]
         logg=a[param][:,1]
@@ -331,34 +331,84 @@ def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=False, hard=None, 
     aspcapmask=bitmask.AspcapBitMask()
     starmask=bitmask.StarBitMask()
     bd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) > 0) |
-                 ((a['STARFLAG']&starmask.badval()) > 0) ) [0]
+                 ((a['STARFLAG']&starmask.badval()) > 0) |
+                  (a['SNR']<snrbd) ) [0]
     gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) &
-                 ((a['STARFLAG']&starmask.badval()) == 0) ) [0]
+                 ((a['STARFLAG']&starmask.badval()) == 0) &
+                  (a['SNR']>=snrbd) ) [0]
     if contour :
-        plots.plotp(ax,teff,logg,xr=xr,yr=yr,
+        plots.plotp(ax[0],teff,logg,xr=xr,yr=yr,
+                    xt='Teff',yt='log g',contour=-1)
+        plots.plotp(ax[1],teff,logg,xr=xr,yr=yr,
                     xt='Teff',yt='log g',contour=-1)
     else :
-        plots.plotc(ax,teff[gd],logg[gd],z[gd],xr=xr,yr=yr,zr=zr,
+        plots.plotc(ax[0],teff[gd],logg[gd],z[gd],xr=xr,yr=yr,zr=zr,
                     xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
-        plots.plotp(ax,teff[bd],logg[bd],color='k',size=2)
-    if grid: ax.grid()
+        plots.plotc(ax[1],teff[gd],logg[gd],z[gd],xr=xr,yr=yr,zr=zr,
+                    xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
+        plots.plotp(ax[1],teff[bd],logg[bd],color='k',size=2)
+    if grid: 
+        ax[0].grid()
+        ax[1].grid()
+    ax[0].text(0.05,0.9,'{:d} stars, S/N>{:5.0f}, no GRIDEDGE_BAD'.format(len(gd),snrbd),transform=ax[0].transAxes)
+    ax[1].text(0.05,0.9,'{:d} stars'.format(len(gd)+len(bd)),transform=ax[1].transAxes)
     plots._data = a
     if iso:
         colors=['b','g','k','r']
-        for i,z in enumerate(['zm20','zm10','zp00','zp05']) :
-            isodata=isochrones.read(os.environ['ISOCHRONE_DIR']+'/'+z+'.dat',agerange=[7.99,8.01])
-            isochrones.plot(ax,isodata,'teff','logg',color=colors[i],alpha=0.3)
-            isodata=isochrones.read(os.environ['ISOCHRONE_DIR']+'/'+z+'.dat',agerange=[9.99,10.01])
-            isochrones.plot(ax,isodata,'teff','logg',color=colors[i],alpha=0.3)
+        for i,name in enumerate(['zm20','zm10','zp00','zp05']) :
+            isodata=isochrones.read(os.environ['ISOCHRONE_DIR']+'/'+name+'.dat',agerange=[7.99,8.01])
+            isochrones.plot(ax[0],isodata,'teff','logg',color=colors[i],alpha=alpha)
+            isodata=isochrones.read(os.environ['ISOCHRONE_DIR']+'/'+name+'.dat',agerange=[9.99,10.01])
+            isochrones.plot(ax[0],isodata,'teff','logg',color=colors[i],alpha=alpha)
     if hard is not None: 
         fig.savefig(hard)
         plt.close()
+
+    if target is not None:
+        tfig,tax=plots.multi(1,1)
+        main =np.where(a['EXTRATARG'][gd] == 0)[0]
+        plots.plotc(tax,teff[gd[main]],logg[gd[main]],z[gd[main]],xr=xr,yr=yr,zr=zr,
+                    xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
+        tax.grid()
+        tax.text(0.05,0.9,'{:d} stars, main sample, S/N>{:5.0f}, no GRIDEDGE_BAD'.format(len(main),snrbd),transform=tax.transAxes)
+        tfig.savefig(target+'_main.png')
+
+        t1=bitmask.Apogee2Target1()
+        t2=bitmask.Apogee2Target2()
+        t3=bitmask.Apogee2Target3()
+        t1_1=bitmask.ApogeeTarget1()
+        t2_1=bitmask.ApogeeTarget2()
+        tfig,tax=plots.multi(1,1)
+        plots.plotp(tax,teff[gd[main]],logg[gd[main]],color='b',xr=xr,yr=yr,
+                    xt='Teff',yt='log g',label='MAIN')
+        mc =np.where(((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_MAGCLOUD_MEMBER'])) > 0) |
+                     ((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_MAGCLOUD_CANDIDATE'])) > 0) )[0]
+        plots.plotp(tax,teff[gd[mc]],logg[gd[mc]],color='g',xr=xr,yr=yr,
+                    xt='Teff',yt='log g',label='MC')
+        dsph =np.where(((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_DSPH_MEMBER'])) > 0) |
+                     ((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_DSPH_CANDIDATE'])) > 0) |
+                     ((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_SGR_DSPH'])) > 0)  )[0]
+        plots.plotp(tax,teff[gd[dsph]],logg[gd[dsph]],color='c',xr=xr,yr=yr,
+                    xt='Teff',yt='log g',label='DSPH')
+        rr =np.where((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_RRLYR'])) > 0 )[0]
+        plots.plotp(tax,teff[gd[rr]],logg[gd[rr]],color='r',xr=xr,yr=yr,
+                    xt='Teff',yt='log g',label='RRLYR')
+        young =np.where(((a['APOGEE2_TARGET3'][gd] & t3.getval(['APOGEE2_YOUNG_CLUSTER'])) > 0) |
+                        ((a['APOGEE_TARGET2'][gd] & t2_1.getval(['APOGEE_EMBEDDEDCLUSTER_STAR'])) > 0) )[0]
+        plots.plotp(tax,teff[gd[young]],logg[gd[young]],color='m',xr=xr,yr=yr,
+                    xt='Teff',yt='log g',label='YOUNG')
+        tax.grid()
+        tax.legend(loc='upper left')
+        tfig.savefig(target+'_targ.png')
+
+        plt.close()
+
     return fig,ax
 
 def multihr(a,param='FPARAM',colorbar=False,hard=None,xr=[8000,3000],yr=[6,-1]) :
     """ Series of HR diagram plots, color-coded by different quantities
     """
-    fig,ax = plots.multi(3,3,hspace=0.001,wspace=0.001,figsize=(8,12))
+    fig,ax = plots.multi(3,4,hspace=0.001,wspace=0.001,figsize=(12,10))
 
     aspcapmask=bitmask.AspcapBitMask()
     starmask=bitmask.StarBitMask()
@@ -369,56 +419,56 @@ def multihr(a,param='FPARAM',colorbar=False,hard=None,xr=[8000,3000],yr=[6,-1]) 
 
     z=a[param][gd,3]
     zr=[-2,0.5]
-    zt='[M/H]'
+    zt='[M/H] (-2:0.5)'
     plots.plotc(ax[0,0],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
     ax[0,0].text(0.05,0.9,zt,transform=ax[0,0].transAxes)
 
     z=10.**a[param][gd,2]
     zr=[0.3,4]
-    zt='vmicro'
+    zt='vmicro (0.3:4)'
     plots.plotc(ax[0,1],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[0,1].text(0.05,0.9,zt,transform=ax[0,1].transAxes)
 
     z=10.**a[param][gd,7]
     zr=[0,10]
-    zt='vrot'
+    zt='vrot (0:10)'
     plots.plotc(ax[0,2],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[0,2].text(0.05,0.9,zt,transform=ax[0,2].transAxes)
 
     z=a[param][gd,4]
     zr=[-0.5,0.5]
-    zt='[C/M]'
+    zt='[C/M] (-0.5:0.5)'
     plots.plotc(ax[1,0],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
     ax[1,0].text(0.05,0.9,zt,transform=ax[1,0].transAxes)
 
     z=a[param][gd,5]
     zr=[-0.5,0.5]
-    zt='[N/M]'
+    zt='[N/M] (-0.5:0.5)'
     plots.plotc(ax[1,1],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[1,1].text(0.05,0.9,zt,transform=ax[1,1].transAxes)
 
     z=a[param][gd,4]-a[param][gd,5]
     zr=[-0.5,0.5]
-    zt='[C/N]'
+    zt='[C/N] (-0.5:0.5)'
     plots.plotc(ax[1,2],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[1,2].text(0.05,0.9,zt,transform=ax[1,2].transAxes)
 
     z=a[param][gd,6]
     zr=[-1,1.0]
-    zt=r'[$\alpha$/M]'
+    zt=r'[$\alpha$/M] (-1:1)'
     plots.plotc(ax[2,0],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
                 xt='Teff',yt='log g',zt=zt,colorbar=colorbar)
     ax[2,0].text(0.05,0.9,zt,transform=ax[2,0].transAxes)
 
-    z=np.log10(a['PARAM_CHI2'])
-    zr=[0,2]
-    zt='log(CHI2)'
+    z=a['VSCATTER']
+    zr=[0,5]
+    zt='VSCATTER'
     plots.plotc(ax[2,1],a[param][gd,0],a[param][gd,1],z[gd],xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[2,1].text(0.05,0.9,zt,transform=ax[2,1].transAxes)
@@ -429,6 +479,28 @@ def multihr(a,param='FPARAM',colorbar=False,hard=None,xr=[8000,3000],yr=[6,-1]) 
     plots.plotc(ax[2,2],a[param][gd,0],a[param][gd,1],z[gd],xr=xr,yr=yr,zr=zr,
                 xt='Teff',zt=zt,colorbar=colorbar)
     ax[2,2].text(0.05,0.9,zt,transform=ax[2,2].transAxes)
+
+    try: z=np.log10(a['PARAM_CHI2'])
+    except: z=np.log10(a['ASPCAP_CHI2'])
+    zr=[0,2]
+    zt='log(CHI2) (0:2)'
+    plots.plotc(ax[3,0],a[param][gd,0],a[param][gd,1],z[gd],xr=xr,yr=yr,zr=zr,
+                xt='Teff',zt=zt,colorbar=colorbar)
+    ax[3,0].text(0.05,0.9,zt,transform=ax[3,0].transAxes)
+
+    z=a['SNR']
+    zr=[20,200]
+    zt='SNR (20:200)'
+    plots.plotc(ax[3,1],a[param][gd,0],a[param][gd,1],z[gd],xr=xr,yr=yr,zr=zr,
+                xt='Teff',zt=zt,colorbar=colorbar)
+    ax[3,1].text(0.05,0.9,zt,transform=ax[3,1].transAxes)
+
+    z=a['SNR']
+    zr=[20,100]
+    zt='SNR (20:100)'
+    plots.plotc(ax[3,2],a[param][gd,0],a[param][gd,1],z[gd],xr=xr,yr=yr,zr=zr,
+                xt='Teff',zt=zt,colorbar=colorbar)
+    ax[3,2].text(0.05,0.9,zt,transform=ax[3,2].transAxes)
 
     if hard is not None: 
         fig.savefig(hard)

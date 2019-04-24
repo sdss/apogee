@@ -523,7 +523,8 @@ def getabun(data,elems,elemtoh,el,xh=False,terange=[-1,10000],calib=False,line=0
                     (data['FPARAM'][:,0] >= terange[0]) & (data['FPARAM'][:,0] <= terange[1]) & (abun > -9990.) )[0]
     return abun, ok
 
-def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, maxvisit=100,cal='default',dwarfs=False,inter=False,errpar=False,calib=False,nx=4,ny=2,maxvscatter=0.2,pm=True,dist=True, lines=False) :
+def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, maxvisit=100,cal='default',dwarfs=False,inter=False,
+        errpar=False,calib=False,nx=4,ny=2,maxvscatter=0.2,pm=True,dist=True, lines=False) :
     ''' 
     Determine internal calibration relations for elements
    
@@ -833,7 +834,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
  
                         pars['errpar'] = soln
                     # could send all points to generic errfit function, but prefer to keep clusters distinct
-                    #soln2 = apogee.cal.errfit(np.array(tedata),np.array(sndata),np.array(mhdata),np.array(val))
+                    #soln2 = apogee.cal.errfit(np.array(tedata),np.array(sndata),np.array(mhdata),np.array(val),out=hard)
                     #pdb.set_trace()
  
                 # get calibrated values before external calibration 
@@ -1108,6 +1109,29 @@ def defaultcal(el,dwarfs=False) :
     caltemax=6500
     extpar=[0.,0.,0.]
     mhmin=-1
+    return {'elemfit': elemfit, 'mhmin' : mhmin, 'te0': te0, 'temin': temin, 'temax': temax, 
+            'caltemin': caltemin, 'caltemax' : caltemax, 'extfit' : extfit, 'extpar' : np.array(extpar)}
+
+def dr16cal(el,dwarfs=False) :
+    '''
+    Return default parameters for abundance calibrtion
+    '''
+    te0=4500
+    temin=4000
+    if dwarfs : temax=6000
+    else : temax=5000
+    elemfit=0
+    extfit=0
+    caltemin=3532.5
+    caltemax=6500
+    extpar=[0.,0.,0.]
+    mhmin=-1
+
+    if el.strip() == 'Ge' : elemfit=-1
+    if el.strip() == 'Rb' : elemfit=-1
+    if el.strip() == 'Nd' : elemfit=-1
+    if el.strip() == 'Yb' : elemfit=-1
+
     return {'elemfit': elemfit, 'mhmin' : mhmin, 'te0': te0, 'temin': temin, 'temax': temax, 
             'caltemin': caltemin, 'caltemax' : caltemax, 'extfit' : extfit, 'extpar' : np.array(extpar)}
 

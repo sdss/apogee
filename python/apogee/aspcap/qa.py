@@ -52,10 +52,12 @@ def plotcn(hdulist,title=None,out=None) :
             gd = np.where((a['FPARAM'][:,0] >= te[0]) & (a['FPARAM'][:,0] <= te[1]) &
                           (a['FPARAM'][:,1] >= logg[0]) & (a['FPARAM'][:,1] <= logg[1]) )[0]
             if el == 'C' : 
-               abun=a['FELEM'][gd,0,0]
+               try: abun=a['FELEM'][gd,0,0]
+               except: abun=a['FELEM'][gd,0]
                pabun=a['FPARAM'][gd,4]
             elif el == 'N' :
-               abun=a['FELEM'][gd,0,2]
+               try: abun=a['FELEM'][gd,0,2]
+               except: abun=a['FELEM'][gd,2]
                pabun=a['FPARAM'][gd,5]
    
             fig,ax=plots.multi(1,2,hspace=0.001)
@@ -103,8 +105,12 @@ def plotelems(hdulist,title=None,out=None) :
             gd = np.where((a['FPARAM'][:,0] >= te[0]) & (a['FPARAM'][:,0] <= te[1]) &
                           (a['FPARAM'][:,1] >= logg[0]) & (a['FPARAM'][:,1] <= logg[1]) )[0]
             print(el,te,logg,len(gd))
-            if etoh[iel] == 1 : abun=a['FELEM'][gd,0,iel]-a['FPARAM'][gd,3]
-            else : abun = a['FELEM'][gd,0,iel]
+            try:
+                if etoh[iel] == 1 : abun=a['FELEM'][gd,0,iel]-a['FPARAM'][gd,3]
+                else : abun = a['FELEM'][gd,0,iel]
+            except:
+                if etoh[iel] == 1 : abun=a['FELEM'][gd,iel]-a['FPARAM'][gd,3]
+                else : abun = a['FELEM'][gd,iel]
             fig,ax=plots.multi(1,2,hspace=0.001)
             plots.plotc(ax[0],a['FPARAM'][gd,3],abun,a['FPARAM'][gd,0],yr=[-0.5,1],zr=te,xt='[M/H]',colorbar=True,zt='Teff',yt='['+el+'/M]')
             ax[0].text(0.1,0.9,'uncalibrated params',transform=ax[0].transAxes)
@@ -135,18 +141,24 @@ def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
     grid=[]
     yt=[]
     for i in range(8) :
-        if i == 0 : yr=[-200,200]
-        else : yr=[-0.5,0.5]
+        if i == 0 : 
+            yr=[-200,200]
+        elif i==1  : 
+            xr=[-0.5,5]
+            yr=[-0.5,0.5]
+        else :
+            xr=[-2.5,1.0]
+            yr=[-0.5,0.5]
         row=[]
         yt.append(paramnames[i])
         for j in range(3) :
             fig,ax=plots.multi(1,1)
             if j == 0 :
-                plots.plotc(ax,a[param][i1,0],b[param][i2,i]-a[param][i1,i],a[param][i1,3],yt=r'$\Delta$'+tagnames[i],xt='Teff',yr=yr)
+                plots.plotc(ax,a[param][i1,0],b[param][i2,i]-a[param][i1,i],a[param][i1,3],yt=r'$\Delta$'+tagnames[i],xt='Teff',yr=yr,xr=[3000,8000])
             elif j == 1 :
-                plots.plotc(ax,a[param][i1,1],b[param][i2,i]-a[param][i1,i],a[param][i1,3],yt=r'$\Delta$'+tagnames[i],xt='log g',yr=yr)
+                plots.plotc(ax,a[param][i1,1],b[param][i2,i]-a[param][i1,i],a[param][i1,3],yt=r'$\Delta$'+tagnames[i],xt='log g',yr=yr,xr=[-1,6])
             elif j == 2 :
-                plots.plotc(ax,a[param][i1,3],b[param][i2,i]-a[param][i1,i],a[param][i1,3],yt=r'$\Delta$'+tagnames[i],xt='[M/H]',yr=yr)
+                plots.plotc(ax,a[param][i1,3],b[param][i2,i]-a[param][i1,i],a[param][i1,3],yt=r'$\Delta$'+tagnames[i],xt='[M/H]',yr=yr,xr=[-2.5,1.0])
             if out is not None:
                 outfile = out+'paramdiffs_{:1d}_{:1d}.png'.format(i,j)
                 fig.savefig(outfile)
@@ -181,9 +193,9 @@ def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
                 if j == 0 :
                     plots.plotc(ax,a[param][i1,0],abun_b-abun,a[param][i1,3],yt=r'$\Delta$'+el,xt='Teff',yr=yr,xr=[3000,8000])
                 elif j == 1 :
-                    plots.plotc(ax,a[param][i1,1],abun_b-abun,a[param][i1,3],yt=r'$\Delta$'+el,xt='log g',yr=yr)
+                    plots.plotc(ax,a[param][i1,1],abun_b-abun,a[param][i1,3],yt=r'$\Delta$'+el,xt='log g',yr=yr,xr=[-1,6])
                 elif j == 2 :
-                    plots.plotc(ax,a[param][i1,3],abun_b-abun,a[param][i1,3],yt=r'$\Delta$'+el,xt='[M/H]',yr=yr)
+                    plots.plotc(ax,a[param][i1,3],abun_b-abun,a[param][i1,3],yt=r'$\Delta$'+el,xt='[M/H]',yr=yr,xr=[-2.5,1.0])
                 if out is not None:
                     outfile = out+el+'_diff_{:1d}.png'.format(j)
                     fig.savefig(outfile)
@@ -236,12 +248,8 @@ def repeat(data,out='./',elem=True,logg=[-1,6]) :
 
     a=data[1].data[gd]
     stars = set(a['APOGEE_ID'])
-    telescope=np.zeros(len(a),dtype='S6')
     colors=['r','g','b']
     tels=['apo1m','apo25m','lco25m'] 
-    for tel in tels :
-        j=np.where(np.core.defchararray.find(a['ALTFIELD'],tel) >= 0)[0]
-        telescope[j] = tel
     diff=[]
     ediff=[]
     teff=[]
@@ -254,7 +262,7 @@ def repeat(data,out='./',elem=True,logg=[-1,6]) :
         j = np.where(a['APOGEE_ID'] == star)[0]
         n = len(j)
         if n > 1 :
-            print(star,n,telescope[j])
+            print(star,n,a['APOGEE_ID'][j])
             # if we have a duplicate, we need duplicate observations at comparable S/N
             for isn in range(len(snbins)-1) :
                 jj = np.where((a['SNR'][j] > snbins[isn]) & (a['SNR'][j] < snbins[isn+1]) )[0]
@@ -264,7 +272,10 @@ def repeat(data,out='./',elem=True,logg=[-1,6]) :
                         mh.append(a['FPARAM'][j,3].mean())
                         sn.append(a['SNR'][j[jj]].mean())
                         diff.append(a['FPARAM'][j[jjj],:]-a['FPARAM'][j[jj],:].mean(axis=0))
-                        if elem:  ediff.append(a['FELEM'][j[jjj],0,:]-a['FELEM'][j[jj],0,:].mean(axis=0))
+                        try:
+                            if elem:  ediff.append(a['FELEM'][j[jjj],0,:]-a['FELEM'][j[jj],0,:].mean(axis=0))
+                        except:
+                            if elem:  ediff.append(a['FELEM'][j[jjj],:]-a['FELEM'][j[jj],:].mean(axis=0))
     teff=np.array(teff)
     mh=np.array(mh)
     sn=np.array(sn)

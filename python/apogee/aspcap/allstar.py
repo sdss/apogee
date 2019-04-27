@@ -12,11 +12,9 @@ def mkcoord(file='allStar-r12-l33-58358.fits') :
     coords=np.vstack((data['RA'],data['DEC'])).T
     np.savetxt('coords.csv',coords,delimiter=',',header='ra,dec')
 
-def addgaia(file='allStar-r12-l33-58358.fits',gaiafile='gaia.fits.gz',outfile='test.fits') :
+def add_gaia(data,gaiafile='gaia.fits.gz') :
     """ Add GAIA data to allStar file, with coordinate match to (cross-matched) GAIA reference file
     """
-    hdulist=fits.open(file)
-    data=hdulist[1].data
     tab=Table(data)
     in_names=('source_id','parallax','parallax_error','pmra','pmra_error','pmdec','pmdec_error')
     out_names=[]
@@ -35,24 +33,50 @@ def addgaia(file='allStar-r12-l33-58358.fits',gaiafile='gaia.fits.gz',outfile='t
     for inname,outname in zip(in_names,out_names) :
         tab[outname][m1] = gaia[inname][m2]
 
-    # write out the modified file
-    out=fits.HDUList()
-    out.append(fits.BinTableHDU(tab))
-    out.append(hdulist[2])
-    out.append(hdulist[3])
-    out.writeto(outfile,overwrite=True)
+    return tab
+
+def add_spec(data) :
+    tab=Table(data)
+    names=['TEFF_SPEC','LOGG_SPEC']
+    newcols=Table(np.zeros([len(tab),len(names)])-9999.,names=names)
+    tab.add_columns(newcols.columns.values())
+    tab['TEFF_SPEC'] = tab['FPARAM'][:,0]
+    tab['LOGG_SPEC'] = tab['FPARAM'][:,1]
+
+    return(tab)
+
         
-def trimfile(file='test.fits',outfile='trim.fits') :
+def trimfile(data) :
     """ Write a 'lite' allStar file, removing some of the big space users
     """
-    hdulist=fits.open(file)
-    data=hdulist[1].data
     tab=Table(data)
     remove=['ALL_VISITS','VISITS','ALL_VISIT_PK','VISIT_PK','FPARAM_CLASS','CHI2_CLASS',
             'FPARAM','FELEM','FPARAM_COV','PARAM','PARAM_COV','ELEMFLAG','FELEM_ERR',
             'APSTAR_ID','TARGET_ID','ASPCAP_ID','FILE','LOCATION_ID']
     out=fits.HDUList()
     tab.remove_columns(remove)
-    out.append(fits.BinTableHDU(tab))
-    out.writeto(outfile,overwrite=True)
 
+    return tab
+
+def new(infile='allStar-r12-l33-58358.fits',new='allStar-r12-l33.fits',trim='allStarLite-r12-l33.fits') :
+    """ take allStar file, add GAIA info and new _spec columns, outpu
+        also output allStarLite version
+    """
+    hdulist=fits.open(infile)
+    print('adding gaia....')
+    tab=add_gaia(hdulist[1].data)
+    print('adding _SPEC columns....')
+    tab=add_spec(tab)
+
+    # write out the modified file
+    print('writing file ',new)
+    out=fits.HDUList()
+    out.append(fits.BinTableHDU(tab))
+    out.append(hdulist[2])
+    out.append(hdulist[3])
+    out.writeto(new,overwrite=True)
+
+    print('writing file ',trim)
+    out=fits.HDUList()
+    out.append(fits.BinTableHDU(trimfile(tab)))
+    out.writeto(trim,overwrite=True)

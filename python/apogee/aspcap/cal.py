@@ -523,7 +523,7 @@ def docal(infile,calfile=None,clobber=False,hr=True,teff=True,logg=True,vmicro=T
         allcal['dwarfcal']=elem.cal(c,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'dwarfs_',dwarfs=True,cal=cal,calib=calib)
         allcal['dwarfcal']['errpar']=errcal['errpar']
         if out is not None :
-            struct.wrfits(allcal['dwarfcal'],out+'dwarf_abun.fits')
+            struct.wrfits(allcal['dwarfcal'],out+'dwarf_abuncal.fits')
         if stp : pdb.set_trace()
     figs.append(['giants_all.jpg','dwarfs_all.jpg'])
     ytitle.append('clusters')

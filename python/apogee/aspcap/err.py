@@ -7,7 +7,7 @@ from tools import html
 from tools import fit
 
 def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,6000,250), mhbins=np.arange(-2.25,0.75,0.5),verbose=False,
-           out=None,title='', zr=[0,0.1], snplot=True, meanerr=None,quad=False ) :
+           out=None,title='', zr=[0,0.1], snplot=True, meanerr=None,quad=False,mkhtml=True ) :
     '''
     Fits for empirical uncertainty as function of Teff, S/N, and [M/H]
     '''
@@ -100,7 +100,7 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
             plt.close()
             figs.append([os.path.basename(out+'_err_sn.jpg')])
 
-        html.htmltab(figs,file=out+'_err.html',header=title+' empirical uncertainties')
+        if mkhtml : html.htmltab(figs,file=out+'_err.html',header=title+' empirical uncertainties')
 
     if verbose : 
         print(soln)

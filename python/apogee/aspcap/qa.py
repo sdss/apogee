@@ -78,6 +78,13 @@ def plotelems(hdulist,title=None,out=None) :
     """ Make [X/M] vs [M/H] plots for all elements as f(Teff, logg)
     """
     a=hdulist[1].data
+    if 'EXTRATARG' in a.columns.names :
+        gd=np.where(a['EXTRATARG'] == 0)[0]
+        a=a[gd]
+        comment=', main sample only'
+    else :
+        comment=', full sample'
+
     els=hdulist[3].data['ELEM_SYMBOL'][0]
     etoh=hdulist[3].data['ELEMTOH'][0]
     grid=[]
@@ -113,7 +120,7 @@ def plotelems(hdulist,title=None,out=None) :
                 else : abun = a['FELEM'][gd,iel]
             fig,ax=plots.multi(1,2,hspace=0.001)
             plots.plotc(ax[0],a['FPARAM'][gd,3],abun,a['FPARAM'][gd,0],yr=[-0.5,1],zr=te,xt='[M/H]',colorbar=True,zt='Teff',yt='['+el+'/M]')
-            ax[0].text(0.1,0.9,'uncalibrated params',transform=ax[0].transAxes)
+            ax[0].text(0.1,0.9,'uncalibrated params'+comment,transform=ax[0].transAxes)
             plots.plotc(ax[1],a['FPARAM'][gd,3],abun,a['SNR'][gd],yr=[-0.5,1],zr=[50,200],xt='[M/H]',colorbar=True,zt='S/N',yt='['+el+'/M]')
             if out is not None :
                 outfile=out+el+'_{:1d}.png'.format(icol)
@@ -154,11 +161,11 @@ def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
         for j in range(3) :
             fig,ax=plots.multi(1,1)
             if j == 0 :
-                plots.plotc(ax,a[param][i1,0],b[param][i2,i]-a[param][i1,i],a[param][i1,3],yt=r'$\Delta$'+tagnames[i],xt='Teff',yr=yr,xr=[3000,8000])
+                plots.plotc(ax,a[param][i1,0],b[param][i2,i]-a[param][i1,i],a[param][i1,3],yt=r'$\Delta$'+tagnames[i],xt='Teff',yr=yr,xr=[3000,8000],zr=[-2,0.5])
             elif j == 1 :
-                plots.plotc(ax,a[param][i1,1],b[param][i2,i]-a[param][i1,i],a[param][i1,3],yt=r'$\Delta$'+tagnames[i],xt='log g',yr=yr,xr=[-1,6])
+                plots.plotc(ax,a[param][i1,1],b[param][i2,i]-a[param][i1,i],a[param][i1,3],yt=r'$\Delta$'+tagnames[i],xt='log g',yr=yr,xr=[-1,6],zr=[-2,0.5])
             elif j == 2 :
-                plots.plotc(ax,a[param][i1,3],b[param][i2,i]-a[param][i1,i],a[param][i1,3],yt=r'$\Delta$'+tagnames[i],xt='[M/H]',yr=yr,xr=[-2.5,1.0])
+                plots.plotc(ax,a[param][i1,3],b[param][i2,i]-a[param][i1,i],a[param][i1,3],yt=r'$\Delta$'+tagnames[i],xt='[M/H]',yr=yr,xr=[-2.5,1.0],zr=[-2,0.5])
             if out is not None:
                 outfile = out+'paramdiffs_{:1d}_{:1d}.png'.format(i,j)
                 fig.savefig(outfile)
@@ -191,11 +198,11 @@ def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
             for j in range(3) :
                 fig,ax=plots.multi(1,1)
                 if j == 0 :
-                    plots.plotc(ax,a[param][i1,0],abun_b-abun,a[param][i1,3],yt=r'$\Delta$'+el,xt='Teff',yr=yr,xr=[3000,8000])
+                    plots.plotc(ax,a[param][i1,0],abun_b-abun,a[param][i1,3],yt=r'$\Delta$'+el,xt='Teff',yr=yr,xr=[3000,8000],zr=[-2,0.5])
                 elif j == 1 :
-                    plots.plotc(ax,a[param][i1,1],abun_b-abun,a[param][i1,3],yt=r'$\Delta$'+el,xt='log g',yr=yr,xr=[-1,6])
+                    plots.plotc(ax,a[param][i1,1],abun_b-abun,a[param][i1,3],yt=r'$\Delta$'+el,xt='log g',yr=yr,xr=[-1,6],zr=[-2,0.5])
                 elif j == 2 :
-                    plots.plotc(ax,a[param][i1,3],abun_b-abun,a[param][i1,3],yt=r'$\Delta$'+el,xt='[M/H]',yr=yr,xr=[-2.5,1.0])
+                    plots.plotc(ax,a[param][i1,3],abun_b-abun,a[param][i1,3],yt=r'$\Delta$'+el,xt='[M/H]',yr=yr,xr=[-2.5,1.0],zr=[-2,0.5])
                 if out is not None:
                     outfile = out+el+'_diff_{:1d}.png'.format(j)
                     fig.savefig(outfile)
@@ -210,15 +217,15 @@ def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
     # HR diagrams
     grid=[]
     row=[]
-    aspcap.hr(a[i1],hard=out+'hr_match1.png',grid=True)
+    aspcap.hr(a[i1],hard=out+'hr_match1.png',grid=True,size=1)
     row.append(os.path.basename(out+'hr_match1.png'))
-    aspcap.hr(b[i2],hard=out+'hr_match2.png',grid=True)
+    aspcap.hr(b[i2],hard=out+'hr_match2.png',grid=True,size=1)
     row.append(os.path.basename(out+'hr_match2.png'))
     grid.append(row)
     row=[]
-    aspcap.hr(a[i1],hard=out+'hrcal_match1.png',param='PARAM',grid=True)
+    aspcap.hr(a[i1],hard=out+'hrcal_match1.png',param='PARAM',grid=True,size=1)
     row.append(os.path.basename(out+'hrcal_match1.png'))
-    aspcap.hr(b[i2],hard=out+'hrcal_match2.png',param='PARAM',grid=True)
+    aspcap.hr(b[i2],hard=out+'hrcal_match2.png',param='PARAM',grid=True,size=1)
     row.append(os.path.basename(out+'hrcal_match2.png'))
     grid.append(row)
     hrtab=html.table(grid)
@@ -291,7 +298,7 @@ def repeat(data,out='./',elem=True,logg=[-1,6]) :
         else : 
             zr=[0,0.2]
             gd=np.where(abs(diff[:,i]) < 1.)[0]
-        err.errfit(teff[gd],sn[gd],mh[gd],diff[gd,i],out=out+param,zr=zr,verbose=False)
+        err.errfit(teff[gd],sn[gd],mh[gd],diff[gd,i],out=out+param,zr=zr,verbose=False,mkhtml=False)
         grid.append([os.path.basename(out+param+'_err.jpg'),os.path.basename(out+param+'_err_sn.jpg')])
     html.htmltab(grid,file=out+'repeat_params.html',ytitle=params)
     if elem : 
@@ -302,7 +309,7 @@ def repeat(data,out='./',elem=True,logg=[-1,6]) :
             gd=np.where(abs(ediff[:,i]) < 1.)[0]
             err.errfit(teff[gd],sn[gd],mh[gd],ediff[gd,i],out=out+el,quad=True)
             grid.append([os.path.basename(out+el+'_err.jpg'),os.path.basename(out+el+'_err_sn.jpg')])
-        html.htmltab(grid,file=out+'repeat_elem.html',ytitle=els)
+        html.htmltab(grid,file=out+'repeat_elem.html',ytitle=els,mkhtml=False)
 
 #l33=fits.open('allCal-r12-l33p.fits')
 #notie=fits.open('../l33notie/allCal-r12-l33notie.fits')

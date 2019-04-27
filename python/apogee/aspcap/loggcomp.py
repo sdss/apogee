@@ -12,11 +12,13 @@ from apogee.utils import bitmask
 try: from apogee.aspcap import cal
 except: pass
 from apogee.aspcap import err
+from apogee.speclib import isochrones
 import pdb
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import astropy
+from scipy import interpolate
 
 def rcrgb(allstar,apokasc='APOKASC_cat_v3.6.0.fits',logg='LOGG_SYD_SCALING',rclim=np.array([2.38,3.5]),out='rcrgbsep') :
     '''
@@ -151,9 +153,14 @@ def rcrgb(allstar,apokasc='APOKASC_cat_v3.6.0.fits',logg='LOGG_SYD_SCALING',rcli
     return {'rclim' : rclim, 'rgbsep' : rgbfit, 'cnsep' : cnfit}
     
 
-def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[0.,5.5],teffrange=[3000,8000],apokasc_cat='APOKASC_cat_v4.4.2.fits',out='logg') :
-    """ logg vs asteroseismic for dwarfs
+def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3500,7500],apokasc_cat='APOKASC_cat_v4.4.2.fits',out='logg',calib=False) :
+    """ logg calibration for dwarfs, from asteroseismic and isochrones
     """
+    if calib :
+        param = 'PARAM'
+    else :
+        param = 'FPARAM'
+
     gd=apselect.select(allstar,badval=['STAR_BAD'],mh=mhrange,logg=loggrange,teff=teffrange,raw=True)
     allstar=allstar[gd]
     try:
@@ -164,42 +171,69 @@ def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[0.,5.5],teffrange=[3000,8000],ap
     # match ASPCAP with APOKASC, and get RC/RGB stars
     apokasc=fits.open(os.environ['APOGEE_DIR']+'/data/apokasc/'+apokasc_cat)[1].data
     i1,i2=match.match(allstar['APOGEE_ID'],apokasc['2MASS_ID'])
+    gd=np.where(apokasc['LOGG_DW'][i2] > -99)[0]
+
+    # now get isochrone logg from lower main sequence
+    isologg=isochrone(allstar)
+    j1,j2=match.match(allstar['APOGEE_ID'],isologg['APOGEE_ID'])
+
+    # plots of gravity differences
     fig,ax=plots.multi(2,2)
-    plots.plotc(ax[0,0],allstar['FPARAM'][i1,1],allstar['FPARAM'][i1,1]-apokasc['LOGG_DW'][i2],allstar['FPARAM'][i1,0],yr=[-1,1],
-                xt='log g',yt=r'$\Delta$logg',zt='Teff',colorbar=True,xr=[3,6])
-    plots.plotc(ax[0,1],allstar['FPARAM'][i1,3],allstar['FPARAM'][i1,1]-apokasc['LOGG_DW'][i2],allstar['FPARAM'][i1,0],yr=[-1,1],
-                xt='[M/H]',yt=r'$\Delta$logg',zt='Teff',colorbar=True,xr=[-2,0.5])
-    plots.plotc(ax[1,0],allstar['FPARAM'][i1,0],allstar['FPARAM'][i1,1]-apokasc['LOGG_DW'][i2],10.**allstar['FPARAM'][i1,2],yr=[-1,1],
-                xt='Teff',yt=r'$\Delta$logg',zt='vmicro',colorbar=True,xr=[4000,7000],zr=[0.5,2.5])
-    plots.plotc(ax[1,1],allstar['FPARAM'][i1,0],allstar['FPARAM'][i1,1]-apokasc['LOGG_DW'][i2],allstar['FPARAM'][i1,3],yr=[-1,1],
-                xt='Teff',yt=r'$\Delta$logg',zt='[M/H]',colorbar=True,xr=[4000,7000])
+    plots.plotc(ax[0,0],allstar[param][i1,1],allstar[param][i1,1]-apokasc['LOGG_DW'][i2],allstar[param][i1,0],yr=[-1,1],
+                xt='log g',yt=r'$\Delta$logg',zt='Teff',colorbar=True,xr=[3,6],zr=[4000,7000])
+    plots.plotc(ax[0,1],allstar[param][i1,3],allstar[param][i1,1]-apokasc['LOGG_DW'][i2],allstar[param][i1,0],yr=[-1,1],
+                xt='[M/H]',yt=r'$\Delta$logg',zt='Teff',colorbar=True,xr=[-2,0.5],zr=[4000,7000])
+    plots.plotc(ax[1,0],allstar[param][i1,0],allstar[param][i1,1]-apokasc['LOGG_DW'][i2],10.**allstar[param][i1,2],yr=[-1,1],
+                xt='Teff',yt=r'$\Delta$logg',zt='vmicro',colorbar=True,xr=[3000,8000],zr=[0.5,2.5])
+    plots.plotc(ax[1,1],allstar[param][i1,0],allstar[param][i1,1]-apokasc['LOGG_DW'][i2],allstar[param][i1,3],yr=[-1,1],
+                xt='Teff',yt=r'$\Delta$logg',zt='[M/H]',colorbar=True,xr=[3000,8000],zr=[-2,0.5])
+    # only add main sequence in Teff plot
+    plots.plotc(ax[1,1],allstar[param][j1,0],allstar[param][j1,1]-isologg['ISOLOGG'][j2],allstar[param][j1,3],zr=[-2,0.5])
     plt.tight_layout()
-    if out is not None :
+
+    # 2D fit as f(Teff,[M/H])
+    tfit=allstar[param][i1[gd],0]
+    mhfit=allstar[param][i1[gd],3]
+    diff=allstar[param][i1[gd],1]-apokasc['LOGG_DW'][i2[gd]]
+    tfit=np.append(tfit,allstar[param][j1,0])
+    mhfit=np.append(mhfit,allstar[param][j1,3])
+    diff=np.append(diff,allstar[param][j1,1]-isologg['ISOLOGG'][j2])
+    # do the fit and add to plot
+    msfit = fit.fit2d(tfit,mhfit,diff,degree=1,reject=0.3)
+    tfit=np.arange(3000,7000,10)
+    mhfit=tfit*0.
+    plots.plotl(ax[1,1],tfit,msfit(tfit,mhfit),color='orange',linewidth=1.5)
+    mhfit=tfit*0-1.
+    plots.plotl(ax[1,1],tfit,msfit(tfit,mhfit),color='c',linewidth=1.5)
+    mhfit=tfit*0+0.5
+    plots.plotl(ax[1,1],tfit,msfit(tfit,mhfit),color='r',linewidth=1.5)
+    ax[1,1].grid()
+    if out is not None:
         fig.savefig(out+'_dwarfs.png')
         plt.close()
-
-    fig,ax=plots.multi(1,2,hspace=0.001)
+    
+    # HR diagram plot color coded by asteroseismic gravity differences
+    hrfig,hrax=plots.multi(1,2,hspace=0.001)
     gd=np.where(apokasc['APOKASC2_LOGG'][i2] > -99)[0]
-    plots.plotc(ax[0],allstar['FPARAM'][i1[gd],0],allstar['FPARAM'][i1[gd],1],allstar['FPARAM'][i1[gd],1]-apokasc['APOKASC2_LOGG'][i2[gd]],
+    plots.plotc(hrax[0],allstar[param][i1[gd],0],allstar[param][i1[gd],1],allstar[param][i1[gd],1]-apokasc['APOKASC2_LOGG'][i2[gd]],
                 xr=[8000,3000],yr=[6,0],zr=[-0.5,0.5],colorbar=True,zt=r'$\Delta$ logg',xt='Teff',yt='logg')
-    plots.plotc(ax[1],allstar['FPARAM'][i1[gd],0],apokasc['APOKASC2_LOGG'][i2[gd]],allstar['FPARAM'][i1[gd],1]-apokasc['APOKASC2_LOGG'][i2[gd]],
+    plots.plotc(hrax[0],allstar[param][j1,0],allstar[param][j1,1],allstar[param][j1,1]-isologg['ISOLOGG'][j2],zr=[-0.5,0.5])
+    plots.plotc(hrax[1],allstar[param][i1[gd],0],apokasc['APOKASC2_LOGG'][i2[gd]],allstar[param][i1[gd],1]-apokasc['APOKASC2_LOGG'][i2[gd]],
                 xr=[8000,3000],yr=[6,0],zr=[-0.5,0.5],colorbar=True,zt=r'$\Delta$ logg',xt='Teff',yt='APOKASC logg')
-    #plots.plotc(ax[0,1],allstar['FPARAM'][i1[gd],0],allstar['FPARAM'][i1[gd],3],allstar['FPARAM'][i1[gd],1]-apokasc['APOKASC2_LOGG'][i2[gd]],
-    #            xr=[8000,3000],yr=[-2.5,1],zr=[-0.5,0.5],colorbar=True,zt=r'$\Delta logg')
-    #plots.plotc(ax[1,0],allstar['FPARAM'][i1[gd],3],allstar['FPARAM'][i1[gd],1],allstar['FPARAM'][i1[gd],1]-apokasc['APOKASC2_LOGG'][i2[gd]],
-    #            xr=[-2.5,1],yr=[6,0],zr=[-0.5,0.5],colorbar=True,zt=r'$\Delta logg')
+    # use asteroseismic logg on y axis
     gd=np.where(apokasc['LOGG_DW'][i2] > -99)[0]
-    plots.plotc(ax[0],allstar['FPARAM'][i1[gd],0],allstar['FPARAM'][i1[gd],1],allstar['FPARAM'][i1[gd],1]-apokasc['LOGG_DW'][i2[gd]],
+    plots.plotc(hrax[0],allstar[param][i1[gd],0],allstar[param][i1[gd],1],allstar[param][i1[gd],1]-apokasc['LOGG_DW'][i2[gd]],
                 xr=[8000,3000],yr=[6,0],zr=[-0.5,0.5])
-    plots.plotc(ax[1],allstar['FPARAM'][i1[gd],0],apokasc['LOGG_DW'][i2[gd]],allstar['FPARAM'][i1[gd],1]-apokasc['LOGG_DW'][i2[gd]],
+    plots.plotc(hrax[1],allstar[param][i1[gd],0],apokasc['LOGG_DW'][i2[gd]],allstar[param][i1[gd],1]-apokasc['LOGG_DW'][i2[gd]],
                 xr=[8000,3000],yr=[6,0],zr=[-0.5,0.5])
-    #plots.plotc(ax[0,1],allstar['FPARAM'][i1[gd],0],allstar['FPARAM'][i1[gd],3],allstar['FPARAM'][i1[gd],1]-apokasc['LOGG_DW'][i2[gd]],
-    #            xr=[8000,3000],yr=[-2.5,1],zr=[-0.5,0.5])
-    #plots.plotc(ax[1,0],allstar['FPARAM'][i1[gd],3],allstar['FPARAM'][i1[gd],1],allstar['FPARAM'][i1[gd],1]-apokasc['LOGG_DW'][i2[gd]],
-    #            xr=[-2.5,1],yr=[6,0],zr=[-0.5,0.5])
+
     if out is not None:
-        fig.savefig(out+'_all.png')
+        hrfig.savefig(out+'_all.png')
         plt.close()
+
+    return {'calloggmin' : loggrange[0], 'calloggmax' : loggrange[1], 'loggmin' : loggrange[0], 'loggmax' : loggrange[1], 
+            'mhmin' : mhrange[0], 'mhmax' : mhrange[1], 'temin': teffrange[0], 'temax' : teffrange[1],
+            'msfit' : msfit.parameters}
 
  
 def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False,out='loggcomp',calloggrange=[-1.,3.8],loggrange=[-1.,3.8],mhrange=[-2.5,0.5],teffrange=[3500,5500],calteffrange=[3000,6000],calib=False) :
@@ -344,14 +378,64 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
     if out is not None :
         plt.savefig(out+'_b.jpg')
         plt.close()
-        plt.savefig(out+'_b.pdf')
-        plt.close()
 
     return {'calloggmin' : calloggrange[0], 'calloggmax' : calloggrange[1], 'loggmin' : loggrange[0], 'loggmax' : loggrange[1], 
             'mhmin' : mhrange[0], 'mhmax' : mhrange[1], 'calteffmin': calteffrange[0], 'calteffmax' : calteffrange[1],
             'rgbfit' : rgbfit.parameters, 'rcfit' : rcfit.parameters, 'rcfit2' : rcfit2.parameters, 'rgbrms' : rgbrms, 'rcrms' : rcrms ,
             'rgberrpar': rgberrpar, 'rcerrpar': rcerrpar}
 
+def isochrone(allstar,snrbd=300) :
+    """ logg correction for cool dwarfs based on isochrones
+        returns structured array with APOGEE_ID, ISOLOGG
+    """
+
+    print('getting isochrone log g')
+    # restrict the sample to good high S/N stars
+    aspcapmask=bitmask.AspcapBitMask()
+    starmask=bitmask.StarBitMask()
+    gd=np.where( ((allstar['ASPCAPFLAG']&aspcapmask.badval()) == 0) &
+                 ((allstar['STARFLAG']&starmask.badval()) == 0) &
+                  (allstar['SNR']>=snrbd) ) [0]
+    allstar=allstar[gd]
+    if 'TARGFLAGS' in allstar.columns.names : badtarg=['YOUNG','EMBEDDED','EXTENDED','M31','M33','EMISSION','RRLYR','DSPH','MAGCLOUD']
+    else : badtarg = None
+
+    gd=apselect.select(allstar,raw=True,teff=[3000,5000],logg=[4.0,5.5],badtarg=badtarg)
+    allstar=allstar[gd]
+    print(len(allstar))
+
+    # loop through isochrones, reading, finding matches, and calculating expected isochrone logg given Teff
+    first=True
+    for z in np.arange(-1.0,0.3,0.1) :
+        if z<-0.01 : name='zm{:02d}'.format(int(abs(z)*10))
+        else :name='zp{:02d}'.format(int(abs(z)*10))
+        j=np.where(abs(allstar['FPARAM'][:,3]-z) <0.05)[0]
+        if len(j) > 0: 
+            print(z,len(j),name)
+            isodata=isochrones.read(os.environ['ISOCHRONE_DIR']+'/'+name+'.dat',agerange=[9.29,9.31])
+            mdiff = isodata['mini'][0:-1]-isodata['mini'][1:]
+            use=np.where(abs(mdiff) < 1.e-8)[0]
+            if len(use) > 0 : use=use[0]
+            else : use=len(isodata)
+            if use < 10 : pdb.set_trace()
+            gd=np.where(isodata['logg'][0:use]>4)[0]
+            f = interpolate.interp1d(isodata['teff'][gd], isodata['logg'][gd],bounds_error=False)
+            isologg = f(allstar['FPARAM'][j,0])
+            if first :
+                out_id=allstar['APOGEE_ID'][j]
+                out_isologg=isologg
+                first= False
+            else :
+                out_id=np.append(out_id,allstar['APOGEE_ID'][j])
+                out_isologg=np.append(out_isologg,isologg)
+
+    # output structured array
+    outtype=np.dtype([('APOGEE_ID',out_id.dtype),('ISOLOGG',isologg.dtype)])
+    outdata=np.empty(len(out_id),dtype=outtype)
+    outdata['APOGEE_ID']=out_id
+    outdata['ISOLOGG']=out_isologg
+    return outdata
+            
 
 def clusters(allstar,xr=[-2.75,0.5],yr=[-1.,1.],zr=[3500,5500],apokasc='APOKASC_cat_v3.6.0.fits',firstgen=False) :
     '''

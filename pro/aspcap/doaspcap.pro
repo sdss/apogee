@@ -498,7 +498,6 @@ for idir=0,n_elements(datadir)-1 do begin
  ; write aspcapField file (no aspcapStar files)
  aspcap_writefits,finalstr,resultsdir+'/'+ofile+'-'+strcompress(oname[idir],/remove_all)+'.fits',mjddir=mjddir
 
-
  ; in preparation for elements, write out the best spectra into subdirectories for each class
  ; we will link to these in the element subdirectories
  resultsdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/'
@@ -539,6 +538,7 @@ for idir=0,n_elements(datadir)-1 do begin
    endfor
    free_lun,ipf
    free_lun,frd
+
    free_lun,err
  endfor
 

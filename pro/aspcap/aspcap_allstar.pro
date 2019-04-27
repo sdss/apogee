@@ -122,7 +122,7 @@ function allstar_blank, apfield0, maxvisit=maxvisit, nparam=nparam, nelem=nelem,
                          'min_jk', -9999.99, $
                          'max_jk', 9999.99, $
                          'param', fltarr(nparam)-9999.99, $
-                         'fparam', fltarr(nparam)-999999., $
+                         'fparam', fltarr(nparam)-9999.99, $
                          'param_cov', fltarr(nparam, nparam)-9999.99, $
                          'fparam_cov', fltarr(nparam, nparam)-9999.99,$
                          ;'elem', fltarr(nelem)-9999.99, $
@@ -184,10 +184,10 @@ function allstar_blank, apfield0, maxvisit=maxvisit, nparam=nparam, nelem=nelem,
                          'Ni_Fe',-9999.99,$
                          'Cu_Fe',-9999.99,$
                          'Ge_Fe',-9999.99,$
-                         ;'Ce_Fe',-9999.99,$
                          'Rb_Fe',-9999.99,$
-                         'Y_Fe',-9999.99,$
+                         'Ce_Fe',-9999.99,$
                          'Nd_Fe',-9999.99,$
+                         'Yb_Fe',-9999.99,$
                          'C_Fe_err',-9999.99,$
                          'CI_Fe_err',-9999.99,$
                          'N_Fe_err',-9999.99,$
@@ -210,10 +210,10 @@ function allstar_blank, apfield0, maxvisit=maxvisit, nparam=nparam, nelem=nelem,
                          'Ni_Fe_err',-9999.99,$
                          'Cu_Fe_err',-9999.99,$
                          'Ge_Fe_err',-9999.99,$
-                         ;'Ce_Fe_err',-9999.99,$
                          'Rb_Fe_err',-9999.99,$
-                         'Y_Fe_err',-9999.99,$
+                         'Ce_Fe_err',-9999.99,$
                          'Nd_Fe_err',-9999.99,$
+                         'Yb_Fe_err',-9999.99,$
                          'C_Fe_flag',0L,$
                          'CI_Fe_flag',0L,$
                          'N_Fe_flag',0L,$
@@ -236,10 +236,10 @@ function allstar_blank, apfield0, maxvisit=maxvisit, nparam=nparam, nelem=nelem,
                          'Ni_Fe_flag',0L,$
                          'Cu_Fe_flag',0L,$
                          'Ge_Fe_flag',0L,$
-                         ;'Ce_Fe_flag',0L,$
                          'Rb_Fe_flag',0L,$
-                         'Y_Fe_flag',0L,$
+                         'Ce_Fe_flag',0L,$
                          'Nd_Fe_flag',0L,$
+                         'Yb_Fe_flag',0L,$
                          'elem_chi2', fltarr(nelem), $
                          'elemflag', lonarr(nelem),$
                          catalog_info_blank(), $
@@ -399,11 +399,6 @@ nparam=n_elements(params)
 elems=aspcap_elems(elemtags,elemtoh,nelem=nelem)
 nelem=n_elements(elems)
 
-;for itelescope = 0,2 do begin
-; if itelescope eq 0 then telescope = 'apo25m'
-; if itelescope eq 1 then telescope = 'lco25m'
-; if itelescope eq 2 then telescope = 'apo1m'
-
 targetdir=getenv('APOGEE_TARGET')
 design1=mrdfits(targetdir+'/apogeeDesign.fits',1)
 design2=mrdfits(targetdir+'/apogee2Design.fits',1)
@@ -412,10 +407,6 @@ max_jk=9999.99
 
 ;; Get list of locations by looking at directories
 if ~keyword_set(locationdirs) then begin
-  ;if itelescope eq 0 then $
-  ;locationdirs = file_search(visits_dir+'[0-9][0-9][0-9][0-9]', $
-  ;                         /test_directory, count=nlocationdirs) $
-  ;else if itelescope eq 1 then $
   locationdirs = file_search(apogee_dir+'/'+apred_version+'/'+apstar_version+'/*/*', $
                            /test_directory, count=nlocationdirs) 
   splog,strtrim(nlocationdirs,2),' Location directories found'
@@ -550,14 +541,6 @@ stop
       endif
 
       ;; Get character field name and other info
-      ;if itelescope eq 0 then begin
-      ;  field=strtrim(apogee_field(long(ilocationid),str[0].plate),2) 
-      ;  if ilocationid ne str[0].(locind) then begin
-      ;    print, 'location id does not match: ', ilocationid, str[0].(locind)
-      ;    stop
-      ;    for  jj=0,n_elements(str) do str[i].(locind) = ilocationid
-      ;  endif
-      ;endif else field=ilocationid
       field = ilocationid
 
       ;; Get uniq plate/MJD combinations for this location (not apo1m)
@@ -624,7 +607,7 @@ stop
         ; APOGEE-2
         idesign=where(design2.design_id eq plans[iplan].designid,nd)
         idesign=idesign[0]
-        if nd eq 0 then printf,missing,'no design found for ',field
+        if nd eq 0 then printf,missing,'no design found for ',field,plans[iplan].plateid,plans[iplan].designid
         ;if nd eq 0 then stop,'no design found!'
         design=design2
         min_h=design[idesign].cohort_min_h
@@ -899,7 +882,7 @@ stop
                       tmp_allstarloc[k].(ierrtag) = aspcap[kk].x_h_err[eindex[ielem]]
                       tmp_allstarloc[k].(iflagtag) = aspcap[kk].elemflag[eindex[ielem]]
                     endif else begin
-                      if aspcap[kk].x_h[eindex[ielem]] gt -9998. then begin  
+                      if aspcap[kk].x_h[eindex[ielem]] gt -9998. and aspcap[kk].x_h[ife] gt -9998. then begin  
                         tmp_allstarloc[k].(itag)=aspcap[kk].x_h[eindex[ielem]]-aspcap[kk].x_h[ife]
                         tmp_allstarloc[k].(ierrtag) = aspcap[kk].x_m_err[eindex[ielem]]
                       endif
@@ -1168,30 +1151,28 @@ free_lun,altname
 
 ;; set IDs based on final names
 for k=0L,n_elements(allstar)-1 do begin
-   if allstar[k].location_id eq 1 then telescope = 'apo1m' else telescope = 'apo25m'
    allstar[k].apogee_id = strtrim(allstar[k].apogee_id,2)
    allstar[k].apstar_id= $
-            apogee_apstar_id(locid=allstar[k].field, $;locid= allstar[k].location_id, $
+            apogee_apstar_id(locid=allstar[k].field, $
                              star= allstar[k].apogee_id, $
                              apstar_version=apstar_version, $
                              commissioning=allstar[k].commiss, $
-                             telescope=telescope)
+                             telescope=allstar[k].telescope)
    allstar[k].target_id= $
-            apogee_target_id(locid=allstar[k].field, $;locid= allstar[k].location_id, $
+            apogee_target_id(telescope=allstar[k].telescope, $
                              star= allstar[k].apogee_id, $
                              field= allstar[k].field)
    allstar[k].aspcap_id= $
-            apogee_aspcap_id(locid=allstar[k].field, $;locid= allstar[k].location_id, $
+            apogee_aspcap_id(locid=allstar[k].field, $
                              star= allstar[k].apogee_id, $
                              results_version=results_version, $
                              commissioning=allstar[k].commiss, $
-                             telescope=telescope)
+                             telescope=allstar[k].telescope)
 endfor
 for k=0L,n_elements(allvisit)-1 do begin
-   ;if allvisit[k].location_id eq 1 then telescope = 'apo1m' else telescope = 'apo25m'
    allvisit[k].apogee_id = strtrim(allvisit[k].apogee_id,2)
    allvisit[k].target_id= $
-            apogee_target_id(locid=allvisit[k].field, $;locid= allvisit[k].location_id, $
+            apogee_target_id(locid=allvisit[k].telescope, $
                              star= allvisit[k].apogee_id, $
                              field= allvisit[k].field)
    allvisit[k].visit_id= $
@@ -1222,7 +1203,7 @@ if n_elements(u) ne n_elements(allstar) then begin
     junk=where(u eq i,nj)
     if nj eq 0 then begin
       j=where(allstar[u].apstar_id eq allstar[i].apstar_id)
-      printf,dup,'dup: ',i,' ',allstar[i].apogee_id,' ',allstar[i].reduction_id,' ',allstar[i].location_id,' ',allstar[i].field
+      printf,dup,'bad dup: ',i,' ',allstar[i].apogee_id,' ',allstar[i].reduction_id,' ',allstar[i].location_id,' ',allstar[i].field
       printf,dup,'           ',allstar[u[j]].apogee_id,' ',allstar[u[j]].reduction_id,' ',allstar[u[j]].location_id,' ',allstar[u[j]].field
     endif
   endfor
@@ -1237,15 +1218,16 @@ if n_elements(u) ne n_elements(allstar) then begin
     junk=where(u eq i,nj)
     if nj eq 0 then begin
       j=where(allstar[u].apogee_id eq allstar[i].apogee_id)
-      print,'dup: ',i,' ',allstar[i].apogee_id,' ',allstar[i].reduction_id,' ',allstar[i].location_id,' ',allstar[i].field,allstar[i].snr
-      print,'           ',allstar[u[j]].apogee_id,' ',allstar[u[j]].reduction_id,' ',allstar[u[j]].location_id,' ',allstar[u[j]].field,allstar[u[j]].snr
+      printf,dup,'dup: ',i,' ',allstar[i].apogee_id,' ',allstar[i].reduction_id,' ',allstar[i].location_id,' ',allstar[i].field,allstar[i].snr
+      printf,dup,'           ',allstar[u[j]].apogee_id,' ',allstar[u[j]].reduction_id,' ',allstar[u[j]].location_id,' ',allstar[u[j]].field,allstar[u[j]].snr
       ; if stars are from same field, are they just commissioning?
-      if allstar[i].location_id ne allstar[u[j]].location_id then $
+      if allstar[i].location_id ne allstar[u[j]].location_id or $
+         allstar[i].field ne allstar[u[j]].field then $
         allstar[i].extratarg = allstar[i].extratarg or 16 $
       else begin
         if allstar[i].commiss eq 0 and allstar[u[j]].commiss eq 0 then begin
           print,'WARNING: duplicate non-commissioning stars in same field' 
-          printf,dup,'WARNING: duplicate non-commissioning stars in same field' 
+          printf,dup,'WARNING: duplicate non-commissioning stars in same field' ,allstar[i].field
         endif
       endelse
       ndup+=1

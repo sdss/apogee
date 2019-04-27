@@ -5,6 +5,7 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 import numpy as np
 from apogee.utils import apload
 from apogee.utils import apselect
+from apogee.aspcap import err
 from tools import plots
 from tools import html
 from tools import fit
@@ -540,7 +541,9 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
 
     # select cluster members from array that don't have STAR_BAD into data structure
     clusters=apselect.clustdata()
-    #clusters=clusters[16:23]   #metal-rich northern clusters only
+    calclusters=['M92','M15','M13','M3','M5','M12','M35','N2420','N188','M67','N7789','Pleiades','N6819','N6791',
+                 'N6397','M55','N3201','N6752','N362','M4','N2808','47TUC']
+    #calclusters=['N2420','N188','M67','N7789','Pleiades','N6819','N6791']
     clusts = clusters.name
     types = np.arange(len(clusts))
     markers = np.chararray(len(clusts))
@@ -580,7 +583,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
     print('selecting cluster members')
     all=[]
     for cluster in clusts :
-        if (cluster not in ['OmegaCen','Pal1','Pal6','Pal5','Terzan12'])  :
+        if cluster in calclusters :
             j=apselect.clustmember(allstar[1].data[gd],cluster,raw=True,firstgen=True,firstpos=False,logg=logg,
                                    pm=pm,dist=dist)
             print(cluster,len(j))
@@ -597,16 +600,21 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
     for label in ax.axes.get_yticklabels():
         label.set_visible(False)
 
-    for iclust in range(len(clusts)) :
-        ax.scatter((iclust//12)*0.1+0.25,12-iclust%12,marker=markers[iclust],color=colors[iclust])
-        ax.text((iclust//12)*0.1+0.26,12-iclust%12,clusts[iclust]+' ( '+str(clusters[iclust].mh)+')',color=colors[iclust],va='center')
-        ax.set_xlim(0.23,0.8)
-        j=apselect.clustmember(data,clusts[iclust],raw=True,firstgen=True,firstpos=False,logg=logg,pm=pm,dist=dist)
-        if len(j) < 1 :
-            j=apselect.clustmember(data,clusts[iclust],raw=True,logg=logg, pm=pm, dist=dist)
+    for iclust,cluster in enumerate(clusts) :
+        if cluster in calclusters :
+            ax.scatter((iclust//12)*0.1+0.25,12-iclust%12,marker=markers[iclust],color=colors[iclust])
+            ax.text((iclust//12)*0.1+0.26,12-iclust%12,clusts[iclust]+' ( '+str(clusters[iclust].mh)+')',color=colors[iclust],va='center')
+            ax.set_xlim(0.23,0.8)
+            j=apselect.clustmember(data,clusts[iclust],raw=True,firstgen=True,firstpos=False,logg=logg,pm=pm,dist=dist)
+            if len(j) < 1 :
+                j=apselect.clustmember(data,clusts[iclust],raw=True,logg=logg, pm=pm, dist=dist)
+        else :
+            j=[]
         # members is a list of lists of cluster members
         members.append(j)
-    if hard is not None : fig.savefig(hard+'clust_key.pdf')
+    if hard is not None : 
+        fig.savefig(hard+'clust_key.pdf')
+        plt.close(fig)
 
     # setup output structured array
     rec = np.zeros(len(doels),dtype=[
@@ -670,8 +678,10 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
 
     # loop over all the elements!
     iel=0
-    iplot=0
-    for el in doels :
+    #iplot=0
+    grid=[]
+    yt=[]
+    for iplot,el in enumerate(doels) :
         if lines :
             jelem = np.where(allstar[3].data['ELEM_SYMBOL'][0] == el)[0]
             nlines = len(np.where(allstar[3].data['FELEM_WIND'][0][0,:,jelem] > 0)[0])
@@ -684,6 +694,8 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
             pars = dr13cal(el,dwarfs=dwarfs)
         elif cal == 'dr14' :
             pars = dr14cal(el,dwarfs=dwarfs)
+        elif cal == 'dr16' :
+            pars = dr16cal(el,dwarfs=dwarfs)
         else :
             pars = defaultcal(el,dwarfs=dwarfs)
         pars['clust'] = np.array(clusts,dtype='S16')
@@ -703,12 +715,13 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
           clust=np.array([],dtype='S16')
           apogee_id=np.array([],dtype='S16')
           jclust=[]
-          for iclust in range(len(clusts)) :
-              i=np.where(clusters.name == clusts[iclust])
-              # get cluster members: intersection of all cluster members and good ones for this element
-              j=list(set(ok).intersection(members[iclust]))
-              jclust.append(j)
-              if clusters[i].mh > pars['mhmin']  and len(j) > 3 :
+          for iclust,cluster in enumerate(clusts) :
+              #if cluster in calclusters :
+                  i=np.where(clusters.name == clusts[iclust])
+                  # get cluster members: intersection of all cluster members and good ones for this element
+                  j=list(set(ok).intersection(members[iclust]))
+                  jclust.append(j)
+                  if clusters[i].mh > pars['mhmin']  and len(j) > 3 :
                       # ind has the indices of all stars above the [M/H] threshold and good abundances
                       ind=np.append(ind,j)
                       clust=np.append(clust,[clusts[iclust]]*len(j))
@@ -762,8 +775,8 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                 sndata=[]
                 mhdata=[]
                 val=[]
-                for iclust in range(len(clusts)) :
-                  if len(jclust[iclust])>3 :
+                for iclust,cluster in enumerate(clusts) :
+                  if cluster in calclusters and len(jclust[iclust])>3 :
                     j=np.array(jclust[iclust])
                     try:
                         cgd=np.where((data['VISIT'][j] == 0) & (data['VSCATTER'][j]<maxvscatter) & 
@@ -809,7 +822,6 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                                         rmsderiv.append([1.,teffbin+dteffbin/2.-4500.,snbin+dsnbin/2.-100.])
                                       else :
                                         rmsderiv.append([1.,teffbin+dteffbin/2.-4500.,snbin+dsnbin/2.-100.,mhbin+dmhbin/2.])
-                                      print(teffbin+dteffbin/2.-4500.,snbin+dsnbin/2.-100.,mhbin+dmhbin/2.,len(ibin),abundata[np.array(j)[ibin]].std())
                                       if hard is not None:
                                         fc.write('{:8.1f}{:8.2f}{:8.2f}{:8.2f}{:5d}{:8.3f} {:s}\n'.format(
                                               teffbin+dteffbin/2.,snbin+dsnbin/2.,mhbin+dmhbin/2.,clusters[i].mh[0],len(ibin),abundata[np.array(j)[ibin]].std(),clusts[iclust]))
@@ -833,9 +845,13 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                               errax[iel,iplt].text(0.98,0.98,el+' S/N={:4.0f}'.format(sn),va='top',ha='right',transform=errax[iel,iplt].transAxes)
  
                         pars['errpar'] = soln
-                    # could send all points to generic errfit function, but prefer to keep clusters distinct
-                    #soln2 = apogee.cal.errfit(np.array(tedata),np.array(sndata),np.array(mhdata),np.array(val),out=hard)
-                    #pdb.set_trace()
+                        # send all points to generic errfit function (not rms within each bin) for alternative approach and to get plots
+                        try:
+                            soln2 = err.errfit(np.array(tedata),np.array(sndata),np.array(mhdata),np.array(val),out=hard+el.strip(),mkhtml=False)
+                            grid.append([os.path.basename(hard+el.strip()+'_err.jpg'),os.path.basename(hard+el.strip()+'_err_sn.jpg')])
+                            yt.append(el.strip())
+                        except: 
+                            print('errfit failed: ',el)
  
                 # get calibrated values before external calibration 
                 func_cal=calfunc(pars,teff,abun,mh,clust,order=pars['elemfit'],extcal=False)
@@ -900,9 +916,9 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                     if len(doels) > 2 :
                         if iline == 0 :
                             plots.plotp(allax[iplot//2,iplot%2],teff[gd],abun[gd]-func_uncal[gd],typeref=clust[gd],yr=[-0.29,0.29],xr=xr,
-                                        types=clusts,color=colors,marker=markers,size=16,xt='Teff',yt=el)
+                                        types=clusts,color=colors,marker=markers,size=8,xt='Teff',yt=el)
                             plots.plotp(allax[iplot//2,iplot%2],teff[bd],abun[bd]-func_uncal[bd],typeref=clust[bd],yr=[-0.29,0.29],xr=xr,
-                                        types=clusts,color=colors,marker=markers,size=16,facecolors='none',linewidths=0.2)
+                                        types=clusts,color=colors,marker=markers,size=8,facecolors='none',linewidths=0.2)
                             allax[iplot//2,iplot%2].text(0.98,0.98,'{:5.3f}'.format(
                                         (abun[gd]-func_uncal[gd]).std()),transform=allax[iplot//2,iplot%2].transAxes,va='top',ha='right')
                             m67 = np.where(clusts == 'M67')[0][0]
@@ -986,13 +1002,15 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                                   typeref=clusters[gdplt].name,types=clusts,color=colors,marker=markers,size=16,
                                   xr=[-2.5,0.5],yr=[-0.6,0.6],xt='Lit [M/H]',yt='ASPCAP',yerr=rec['rms'][iel])
                     plots.event(fig)
-                    if iline == nlines : iplot+=1
+                    #if iline == nlines : iplot+=1
                     #if not sepplot and cal != 'inter' : pdb.set_trace()
                     if iline == nlines and hard is not None : 
                         fig.savefig(hard+el.strip()+'.jpg')
                         if sepplot: 
                             fig1.savefig(hard+el+'.pdf')
                             fig2.savefig(hard+el+'_lit.pdf')
+                            plt.close(fig1)
+                            plt.close(fig2)
                         if nlines > 0 : 
                             linefig.savefig(hard+el+'_lines.jpg')
                             linefig.savefig(hard+el+'_lines.pdf')
@@ -1030,7 +1048,8 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
         rec[iel]['femin'] = pars['mhmin']
         rec[iel]['femax'] = 99.999
         iel+=1
-    if plot and iplot%2 == 1 : 
+    #if plot and iplot%2 == 1 : 
+    if plot and len(doels)%2 == 1 : 
         allax[iplot//2,iplot%2].set_visible(False)
         ticklabels = allax[iplot//2-1,iplot%2].get_xticklabels()
         plt.setp(ticklabels, visible=True)
@@ -1039,7 +1058,10 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
         allfig.savefig(hard+'all.jpg')
         if len(solar) > 0 : allsolarfig.savefig(hard+'allsolar.jpg')
     if errpar and hard is not None :
+        try: html.htmltab(grid,ytitle=yt,file=hard+'err_all.html')
+        except: pass
         errfig.savefig(hard+'err_all.jpg')
+        plt.close(errfig)
 
     return rec
 
@@ -1121,7 +1143,7 @@ def dr16cal(el,dwarfs=False) :
     if dwarfs : temax=6000
     else : temax=5000
     elemfit=0
-    extfit=0
+    extfit=4
     caltemin=3532.5
     caltemax=6500
     extpar=[0.,0.,0.]

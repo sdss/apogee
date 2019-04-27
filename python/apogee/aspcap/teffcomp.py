@@ -13,6 +13,7 @@ import pdb
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import matplotlib
 
 def bindata(xdata,ydata,bins,median=True) :
     """
@@ -27,7 +28,7 @@ def bindata(xdata,ydata,bins,median=True) :
           mean[i]=ydata[j].mean() 
     return mean
 
-def ghb(allstar,glatmin=30.,ebvmax=0.03,dwarf=False,trange=[3750,5500],mhrange=[-2.5,0.75],alpha=False,out='teffcomp',yr=[-500,500],
+def ghb(allstar,glatmin=30.,ebvmax=0.03,trange=[3750,5500],loggrange=[-1,6],mhrange=[-2.5,0.75],alpha=False,out='teffcomp',yr=[-500,500],
         calib=False,dr13=False,grid=None) :
     """
     Compares allstar ASPCPAP Teff with photometric Teff from GHB for sample of stars with GLAT>glatmin and SFD_EBV<ebvmax,
@@ -43,13 +44,9 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,dwarf=False,trange=[3750,5500],mhrange=[
     """
 
     # select data to use
-    if dwarf :
-        gd=apselect.select(allstar,badval=['STAR_BAD'],badtarg=['EMBEDDED','EXTENDED'],teff=trange,mh=mhrange,logg=[3.8,5.0],raw=True)
-    else :
-        #if dr13:
-        #  gd=apselect.select(allstar,badval=['STAR_BAD'],teff=trange,mh=mhrange,logg=[0,3.8],raw=True)
-        #else :
-        gd=apselect.select(allstar,badval=['STAR_BAD'],badtarg=['EMBEDDED','EXTENDED'],teff=trange,mh=mhrange,logg=[0,3.8],raw=True)
+    if 'TARGFLAGS' in allstar.columns.names : badtarg = ['EMBEDDED','EXTENDED']
+    else : badtarg = None
+    gd=apselect.select(allstar,badval=['STAR_BAD'],badtarg=badtarg,teff=trange,mh=mhrange,logg=loggrange,raw=True)
     allstar=allstar[gd]
     #if dr13 :
     #  j=np.where((abs(allstar['GLAT'])>glatmin)&(allstar['SFD_EBV']<ebvmax))[0]
@@ -64,13 +61,17 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,dwarf=False,trange=[3750,5500],mhrange=[
 
     allstar=allstar[j]
 
-    ghb,dtdjk=cte_ghb(allstar['J']-allstar['K'],allstar['FPARAM'][:,3],dwarf=dwarf)
-    #if not dr13 :
+    ghb,dtdjk=cte_ghb(allstar['J']-allstar['K'],allstar['FPARAM'][:,3],dwarf=False)
+    ghb_dwarf,dtdjk_dwarf=cte_ghb(allstar['J']-allstar['K'],allstar['FPARAM'][:,3],dwarf=True)
+    # use dwarf relation for dwarfs
+    dw=np.where(allstar['FPARAM'][:,1] > 3.8)[0]
+    ghb[dw]=ghb_dwarf[dw]
+    dtdjk[dw]=dtdjk_dwarf[dw]
     gd=np.where(abs(allstar['FPARAM'][:,0]-ghb) < 500)[0]
     ghb=ghb[gd]
     dtdjk=dtdjk[gd]
     allstar=allstar[gd]
-    print('number of stars: ', len(allstar))
+    print('Teff calibration, number of stars: ', len(allstar))
 
     if calib : 
         param='PARAM'
@@ -92,7 +93,6 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,dwarf=False,trange=[3750,5500],mhrange=[
         am=allstar[param][:,grid,6]
         out=out+'_grid{:1d}'.format(grid)
 
-
     # plot Teff difference against metallicity, color-code by temperature
     fig,ax=plots.multi(1,1,hspace=0.001,wspace=0.001,figsize=(12,6))
     xr=[-3.0,1.0]
@@ -105,7 +105,7 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,dwarf=False,trange=[3750,5500],mhrange=[
     if alpha :
         plots.plotc(ax,mh,teff-ghb,am,zr=[-0.1,0.4],xr=xr,yr=yr,xt='[M/H]',yt='ASPCAP-photometric Teff',colorbar=True,zt=r'[$\alpha$/M]',rasterized=True)
     else :
-        plots.plotc(ax,mh,teff-ghb,teff,zr=zr,xr=xr,yr=yr,xt='[M/H]',yt='ASPCAP-photometric Teff',colorbar=True,zt='$T_{eff}$',rasterized=True)
+        plots.plotc(ax,mh,teff-ghb,teff,xr=xr,yr=yr,xt='[M/H]',yt='ASPCAP-photometric Teff',colorbar=True,zt='$T_{eff}$',rasterized=True,zr=trange)
     mean=bindata(mh,teff-ghb,bins,median=False)
     if not dr13: plots.plotp(ax,bins+binsize/2.,mean,marker='o',size=40)
     mean=bindata(mh,teff-ghb,bins,median=True)
@@ -115,6 +115,9 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,dwarf=False,trange=[3750,5500],mhrange=[
     tefit = fit.fit1d(bins[gd]+binsize/2.,mean[gd],degree=2,reject=0)
     # 1D quadratic fit as a function of metallicity
     allfit = fit.fit1d(mh,teff-ghb,ydata=teff,degree=2,reject=0)
+    fig2,ax2=plots.multi(1,1)
+    tefit2 = fit.fit2d(mh,teff,teff-ghb,reject=0,plot=ax2,zr=[-500,200],xt='[M/H]',yt=['Teff'],zt='$\Delta Teff$')
+    #pfit = fit.fit2d(allstar[param][:,3],allstar[param][:,0],allstar[param][:,0]-ghb,plot=ax[0,0],zr=[-500,200],xt='[M/H]',yt=['Teff'],zt='$\Delta Teff$')
     #ejk=np.clip(np.sqrt(allstar['J_ERR']**2+allstar['K_ERR']**2),0.,0.02)
     #errpar = err.errfit(teff,allstar['SNR'],mh,teff-tefit(mh)-ghb,title='Teff',out=out+'_phot',zr=[0,250],meanerr=abs(dtdjk)*ejk)
     errpar = err.errfit(teff,allstar['SNR'],mh,teff-tefit(mh)-ghb,title='Teff',out=out,zr=[0,150])
@@ -127,6 +130,13 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,dwarf=False,trange=[3750,5500],mhrange=[
     else :
       plots.plotl(ax,x,tefit(x),color='k')
       ax.text(0.98,0.9,'rms: {:6.1f}'.format(rms),transform=ax.transAxes,ha='right')
+
+      cmap = matplotlib.cm.get_cmap('rainbow')
+      for t in np.arange(trange[0],trange[1],500.) :
+          rgba=cmap((t-trange[0])/(trange[1]-trange[0]))
+          y=x*0.+t
+          plots.plotl(ax,x,tefit2(x,y),color=rgba)
+
     plots._data_x = mh
     plots._data_y = teff-ghb
     plots._data = allstar
@@ -181,7 +191,7 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,dwarf=False,trange=[3750,5500],mhrange=[
     plt.draw()
     return {'caltemin': 3000., 'caltemax': 10000., 'temin' : trange[0], 'temax': trange[1], 
             'mhmin': mhrange[0], 'mhmax' : mhrange[1],
-            'par': tefit.parameters, 'rms' :rms, 'errpar' : errpar}
+            'par': tefit.parameters, 'rms' :rms, 'par2d': tefit2.parameters, 'errpar' : errpar}
 
 
 def irfm(allstar,trange=[4000,5000],mhrange=[-2.5,0.75],out='dteff') :

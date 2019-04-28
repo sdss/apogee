@@ -109,9 +109,9 @@ def summary(out='allCal.fits',calfile='allCal.fits',prefix='allcal/',cal='dr16',
         aspcap.hr(all,hard=prefix+'hr/hr.png',xr=[8000,3000],grid=True,iso=[9.0,10.0],alpha=1.0,snrbd=5,target=prefix+'hr/hr',size=1)
         aspcap.hr(all,hard=prefix+'hr/hrhot.png',xr=[20000,3000],iso=[8.0,10.0],snrbd=30,size=1)
         aspcap.multihr(all,hard=prefix+'hr/multihr.png',size=1)
-        aspcap.hr(all,hard=prefix+'hr/hr_cal.png',xr=[8000,3000],grid=True,iso=[9.0,10.0],alpha=1.0,snrbd=5,param=param,target=prefix+'hr/hr_cal',size=1)
+        aspcap.hr(all,hard=prefix+'hr/hr_cal.png',xr=[8000,3000],grid=True,iso=[9.0,10.0],alpha=1.0,snrbd=5,param='PARAM',target=prefix+'hr/hr_cal',size=1)
     grid=[[prefix+'hr/hr.png',prefix+'hr/multihr.png',prefix+'hr/hrhot.png'],
-          [prefix+'hr/hr_main.png',prefix+'hr/hr_targ.png','']] 
+          [prefix+'hr/hr_main.png',prefix+'hr/hr_targ.png',''],
           [prefix+'hr/hr_cal_main.png',prefix+'hr/hr_cal.png','']] 
 
     # Master summary HTML file

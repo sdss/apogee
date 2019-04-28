@@ -34,7 +34,7 @@ if(keyword_set(commissioning)) then $
 else $
    csstr= 's'
 
-id= 'apogee.'+telescope+'.'+csstr+'.'+ $
+id= 'apogee.'+strtrim(telescope,2)+'.'+csstr+'.'+ $
     apstar_version+'.'+ $
     strtrim(string(locid),2)+'.'+strtrim(star,2)
 

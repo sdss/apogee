@@ -1172,7 +1172,7 @@ endfor
 for k=0L,n_elements(allvisit)-1 do begin
    allvisit[k].apogee_id = strtrim(allvisit[k].apogee_id,2)
    allvisit[k].target_id= $
-            apogee_target_id(locid=allvisit[k].telescope, $
+            apogee_target_id(telescope=allvisit[k].telescope, $
                              star= allvisit[k].apogee_id, $
                              field= allvisit[k].field)
    allvisit[k].visit_id= $

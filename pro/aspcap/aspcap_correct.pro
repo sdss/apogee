@@ -383,17 +383,18 @@ if nelem gt 0 then begin
       tmpelem=str[giants[gd]].felem[i]-aspcap_elemfit(tmp,giantcal,el,flag)
       tmp.elemflag[i]=flag
       ; populate x_h and x_m arrays
-      ; if this is C or N and we are in dwarf grid, then parameter is already [X/H]
-      if el eq 'C' or el eq 'CI' or el eq 'N' then begin
-         jj=where(strpos(tmpclass,'GKd') ge 0  or strpos(tmpclass,'Fd') ge 0 or strpos(tmpclass,'Md') ge 0,nj,comp=jg,ncomp=njg) 
-         ;if nj gt 0 then tmp[jj].x_m[i]=tmp[jj].elem[i]-tmp[jj].fparam[3]
-         ;if njg gt 0 then tmp[jg].x_m[i]=tmp[jg].elem[i]
-         if nj gt 0 then tmp[jj].x_m[i]=tmpelem[jj]-tmp[jj].fparam[3]
-         if njg gt 0 then tmp[jg].x_m[i]=tmpelem[jg]
-      endif else begin
-         ;if etoh then tmp.x_m[i]=tmp.elem[i]-tmp.fparam[3] else tmp.x_m[i]=tmp.elem[i]
-         if etoh then tmp.x_m[i]=tmpelem-tmp.fparam[3] else tmp.x_m[i]=tmpelem
-      endelse
+      ; if this is C or N and we are in dwarf grid, then parameter is already [X/H] in DR14 (which is flawed!)
+      ;if el eq 'C' or el eq 'CI' or el eq 'N' then begin
+      ;   jj=where(strpos(tmpclass,'GKd') ge 0  or strpos(tmpclass,'Fd') ge 0 or strpos(tmpclass,'Md') ge 0,nj,comp=jg,ncomp=njg) 
+      ;   ;if nj gt 0 then tmp[jj].x_m[i]=tmp[jj].elem[i]-tmp[jj].fparam[3]
+      ;   ;if njg gt 0 then tmp[jg].x_m[i]=tmp[jg].elem[i]
+      ;   if nj gt 0 then tmp[jj].x_m[i]=tmpelem[jj]-tmp[jj].fparam[3]
+      ;   if njg gt 0 then tmp[jg].x_m[i]=tmpelem[jg]
+      ;endif else begin
+      ;   ;if etoh then tmp.x_m[i]=tmp.elem[i]-tmp.fparam[3] else tmp.x_m[i]=tmp.elem[i]
+      ;   if etoh then tmp.x_m[i]=tmpelem-tmp.fparam[3] else tmp.x_m[i]=tmpelem
+      ;endelse
+      if etoh then tmp.x_m[i]=tmpelem-tmp.fparam[3] else tmp.x_m[i]=tmpelem
       ; for [X/H], calculate using all calibrated quantities
       tmp.x_h[i]=tmp.x_m[i]+tmp.param[3]
       str[giants[gd]]=tmp

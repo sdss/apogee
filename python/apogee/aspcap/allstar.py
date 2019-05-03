@@ -16,7 +16,7 @@ def add_gaia(data,gaiafile='gaia.fits.gz') :
     """ Add GAIA data to allStar file, with coordinate match to (cross-matched) GAIA reference file
     """
     tab=Table(data)
-    in_names=('source_id','parallax','parallax_error','pmra','pmra_error','pmdec','pmdec_error')
+    in_names=('source_id','parallax','parallax_error','pmra','pmra_error','pmdec','pmdec_error','phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag')
     out_names=[]
     for name in in_names: out_names.append(('gaia_'+name).upper())
     newcols=Table(np.zeros([len(tab),len(out_names)])-9999.,names=out_names)
@@ -28,7 +28,7 @@ def add_gaia(data,gaiafile='gaia.fits.gz') :
     # read gaia file, match by coordinates, and populate
     gaia=fits.open(gaiafile)[1].data
     h=htm.HTM()
-    maxrad=1./3600.
+    maxrad=2./3600.
     m1,m2,rad=h.match(tab['RA'],tab['DEC'],gaia['RA'],gaia['DEC'],maxrad,maxmatch=1)
     for inname,outname in zip(in_names,out_names) :
         tab[outname][m1] = gaia[inname][m2]
@@ -63,8 +63,9 @@ def new(infile='allStar-r12-l33-58358.fits',new='allStar-r12-l33.fits',trim='all
         also output allStarLite version
     """
     hdulist=fits.open(infile)
+    gd=np.where(np.core.defchararray.strip(hdulist[1].data['APOGEE_ID']) != '')[0]
     print('adding gaia....')
-    tab=add_gaia(hdulist[1].data)
+    tab=add_gaia(hdulist[1].data[gd])
     print('adding _SPEC columns....')
     tab=add_spec(tab)
 

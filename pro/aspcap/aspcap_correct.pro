@@ -3,7 +3,7 @@
 ;    populate param and elem from fparam, felem
 ;    Also, set flags!
 ;-
-pro aspcap_correct,str,elem,caldir,dr10=dr10,dr13=dr13,noelem=noelem,noparam=noparam
+pro aspcap_correct,str,elem,caldir,dr10=dr10,dr13=dr13,noelem=noelem,noparam=noparam,rgblinear=rgblinear
 
 if file_test(caldir+'/all_tecal.fits') then begin
   giant_tepar=mrdfits(caldir+'/all_tecal.fits',1) 
@@ -58,6 +58,8 @@ for i=0,n_elements(medt)-1 do begin
 endfor
 
 ; do initial flags star by star
+ferreflag=paramflagval('GRIDEDGE_BAD')+paramflagval('GRIDEDGE_WARN')+$
+          paramflagval('FERRE_BAD')+paramflagval('FERRE_WARN')
 for i=0L,n_elements(str)-1 do begin
   if i mod 1000 eq 0 then print,'flag: ',i, ' of ',n_elements(str)
   teff=str[i].fparam[0]
@@ -66,8 +68,17 @@ for i=0L,n_elements(str)-1 do begin
   chi2=param_chi2[i]
   snr=strsnr[i]
   starflag=long(str[i].starflag)
-  flag=long(str[i].aspcapflag)
-  pflag=long(str[i].paramflag)
+  flag=long(str[i].aspcapflag)*0
+  pflag=long(str[i].paramflag)*0
+  elemflag=long(str[i].elemflag)*0
+  ; want to turn off all paramflag and elemflag bits except those from loadferre
+  for ip=0,n_elements(pflag)-1 do $
+    pflag[ip]=pflag[ip] or (str[i].paramflag[ip] and ferreflag)
+  for ip=0,n_elements(elemflag)-1 do $
+    elemflag[ip]=elemflag[ip] or (str[i].elemflag[ip] and ferreflag)
+  str[i].paramflag=pflag
+  str[i].elemflag=elemflag
+
   jk0=(str[i].j-str[i].k)-1.5*str[i].ak_targ
 
   ; chi^2
@@ -107,12 +118,13 @@ for i=0L,n_elements(str)-1 do begin
   for ipar=0,n_elements(pflag)-1 do if (pflag[ipar] and paramflagval('GRIDEDGE_BAD')) gt 0 then flag=flag or aspcapflagval('STAR_BAD')
 
   ; bad targets (for ASPCAP)
-  if strpos(str[i].targflags,'EMBEDDED') ge 0 or (strpos(str[i].targflags,'EXTENDED') ge 0 and strpos(str[i].field,'198+08') lt 0) or strpos(str[i].targflags,'M31_CLUSTER') ge 0 then $
+  if strpos(str[i].targflags,'EMBEDDED') ge 0 or $
+     (strpos(str[i].targflags,'EXTENDED') ge 0 and strpos(str[i].field,'198+08') lt 0) or $
+     strpos(str[i].targflags,'M31_CLUSTER') ge 0 then $
      flag=flag or aspcapflagval('STAR_BAD')
 
   ; load new flags
   str[i].aspcapflag=flag
-  str[i].paramflag=pflag
 
 endfor
 
@@ -131,8 +143,11 @@ bd=where(snrerr gt 200.,nbd)
 if nbd gt 0 then snrerr[bd]=200.
 
 ; param array first
+str.param=-9999.99
+str.param_cov=-999.99
 ; calibrate Teff: note DR13 used teff, while DR14 uses mh
 ; giants
+str.paramflag[0]=str.paramflag[0] or paramflagval('CALRANGE_BAD')
 flag=str.paramflag[0]
 teffclip=aspcap_clip(str.fparam[0],giant_tepar.temin,giant_tepar.temax,flag)
 mhclip=aspcap_clip(str.fparam[3],giant_tepar.mhmin,giant_tepar.mhmax,flag)
@@ -144,11 +159,10 @@ if ngd gt 0 then begin
   else $
     str[giants[tcal]].param[0]=str[giants[tcal]].fparam[0]-(giant_tepar.par[0]+giant_tepar.par[1]*mhclip[giants[tcal]]+giant_tepar.par[2]*mhclip[giants[tcal]]^2)
   str[giants[tcal]].param_cov[0,0]=giant_tepar.rms^2
-  str[giants[tcal]].param_cov[0,0]=(exp(giant_tepar.errpar[0]+giant_tepar.errpar[1]*(str[giants[tcal]].fparam[0]-4500)+giant_tepar.errpar[3]*str[giants[tcal]].fparam[3]+giant_tepar.errpar[2]*(snrerr[giants[tcal]]-100.)))^2
+  str[giants[tcal]].param_cov[0,0]=aspcap_elemerr(giant_tepar.errpar,str[giants[tcal]].fparam[0]-4500,str[giants[tcal]].fparam[3],snrerr[giants[tcal]]-100.)^2
+  str[giants[tcal]].paramflag[0]=str[giants[tcal]].paramflag[0] and not(paramflagval('CALRANGE_BAD'))
 endif
-if nbd gt 0 then begin
-  for ibd=0,nbd-1 do str[giants[tbd[ibd]]].paramflag[0]=str[giants[tbd[ibd]]].paramflag[0] or paramflagval('CALRANGE_BAD')
-endif
+
 ; dwarfs
 flag=str.paramflag[0]
 teffclip=aspcap_clip(str.fparam[0],dwarf_tepar.temin,dwarf_tepar.temax,flag)
@@ -161,10 +175,8 @@ if ngd gt 0 then begin
   else $
     str[dwarfs[tcal]].param[0]=str[dwarfs[tcal]].fparam[0]-(dwarf_tepar.par[0]+dwarf_tepar.par[1]*mhclip[dwarfs[tcal]]+dwarf_tepar.par[2]*mhclip[dwarfs[tcal]]^2) 
   str[dwarfs[tcal]].param_cov[0,0]=dwarf_tepar.rms^2
-  str[dwarfs[tcal]].param_cov[0,0]=(exp(dwarf_tepar.errpar[0]+dwarf_tepar.errpar[1]*(str[dwarfs[tcal]].fparam[0]-4500)+dwarf_tepar.errpar[3]*str[dwarfs[tcal]].fparam[3]+dwarf_tepar.errpar[2]*(snrerr[dwarfs[tcal]]-100.)))^2
-endif
-if nbd gt 0 then begin
-  for ibd=0,nbd-1 do str[dwarfs[tbd[ibd]]].paramflag[0]=str[dwarfs[tbd[ibd]]].paramflag[0] or paramflagval('CALRANGE_BAD')
+  str[dwarfs[tcal]].param_cov[0,0]=aspcap_elemerr(dwarf_tepar[0].errpar,str[dwarfs[tcal]].fparam[0]-4500,str[dwarfs[tcal]].fparam[3],snrerr[dwarfs[tcal]]-100.)^2
+  str[dwarfs[tcal]].paramflag[0]=str[dwarfs[tcal]].paramflag[0] and not(paramflagval('CALRANGE_BAD'))
 endif
 
 ; calibrate logg, giants only
@@ -173,58 +185,80 @@ teff=str.fparam[0]
 flag=str.paramflag[1]
 logg=aspcap_clip(str.fparam[1],loggpar.loggmin,loggpar.loggmax,flag)
 mh=aspcap_clip(str.fparam[3],loggpar.mhmin,loggpar.mhmax,flag)
+; start with flag out of range
+str.paramflag[1]=str.paramflag[1] or paramflagval('CALRANGE_BAD')
 
-; DR14
+; DR14+
 dt=str.fparam[0]-(loggpar.rgbsep[0]+(str.fparam[1]-2.5)*loggpar.rgbsep[1]+str.fparam[3]*loggpar.rgbsep[2])
 cn=str.fparam[4]-str.fparam[5]
+if keyword_set(rgblinear) then rgb_corr=(loggpar.rgbfit[0]+loggpar.rgbfit[1]*logg+loggpar.rgbfit[2]*mh) $
+else rgb_corr=(loggpar.rgbfit2[0]+loggpar.rgbfit2[1]*logg+loggpar.rgbfit2[2]*logg^2+$
+                             loggpar.rgbfit2[3]*logg^3+loggpar.rgbfit2[4]*mh)
+; ramp to zero at calloggmax (not needed if we don't calibrate the dwarfs!)
+;j=where(str[rgb].fparam[1] gt 3.2,nj)
+;if nj gt 0 then corr[j]*=(loggpar.calloggmax-str[rgb[j]].fparam[1])/(loggpar.calloggmax-3.2)
 rgb=where(str[gd].fparam[1] gt loggpar.calloggmin and str[gd].fparam[1] lt loggpar.calloggmax and $
           str[gd].fparam[0] gt loggpar.calteffmin and str[gd].fparam[0] lt loggpar.calteffmax and $
           (str[gd].fparam[1] lt loggpar.rclim[0]  or str[gd].fparam[1] gt loggpar.rclim[1] or  $
            cn[gd] lt loggpar.cnsep[0]+str[gd].fparam[3]*loggpar.cnsep[1]+dt[gd]*loggpar.cnsep[2]),nrgb )
 if  nrgb gt 0 then begin
   rgb=gd[rgb]
-  corr=(loggpar.rgbfit[0]+loggpar.rgbfit[1]*logg[rgb]+loggpar.rgbfit[2]*mh[rgb])
-  ; ramp to zero at calloggmax (not needed if we don't calibrate the dwarfs!)
-  ;j=where(str[rgb].fparam[1] gt 3.2,nj)
-  ;if nj gt 0 then corr[j]*=(loggpar.calloggmax-str[rgb[j]].fparam[1])/(loggpar.calloggmax-3.2)
-  str[rgb].param[1]=str[rgb].fparam[1]-corr
+  str[rgb].param[1]=str[rgb].fparam[1]-rgb_corr[rgb]
   str[rgb].param_cov[1,1]=loggpar.rgbrms^2
-  str[rgb].param_cov[1,1]=(exp(loggpar.rgberrpar[0]+loggpar.rgberrpar[1]*(str[rgb].fparam[0]-4500)+loggpar.rgberrpar[3]*str[rgb].fparam[3]+loggpar.rgberrpar[2]*(snrerr[rgb]-100.)))^2
+  str[rgb].param_cov[1,1]=aspcap_elemerr(loggpar.rgberrpar,str[rgb].fparam[0]-4500,str[rgb].fparam[3],snrerr[rgb]-100.)^2
   str[rgb].paramflag[1]=flag[rgb]
+  str[rgb].paramflag[1]=str[rgb].paramflag[1] and not(paramflagval('CALRANGE_BAD'))
+  str[rgb].paramflag[1]=str[rgb].paramflag[1] or paramflagval('LOGG_CAL_RGB')
 endif
 rc=where(str[gd].fparam[1] gt loggpar.calloggmin and str[gd].fparam[1] lt loggpar.calloggmax and $
          str[gd].fparam[0] gt loggpar.calteffmin and str[gd].fparam[0] lt loggpar.calteffmax and $
          str[gd].fparam[1] gt loggpar.rclim[0] and str[gd].fparam[1] lt loggpar.rclim[1] and  $
          cn[gd] gt (loggpar.cnsep[0]+str[gd].fparam[3]*loggpar.cnsep[1]+dt[gd]*loggpar.cnsep[2]),nrc)
+;rc_corr=(loggpar.rcfit[0]+loggpar.rcfit[1]*logg+loggpar.rcfit[2]*mh)
+rc_corr=(loggpar.rcfit2[0]+loggpar.rcfit2[1]*logg+loggpar.rcfit2[2]*logg^2)
 if  nrc gt 0 then begin
   rc=gd[rc]
-  ;corr=(loggpar.rcfit[0]+loggpar.rcfit[1]*logg[rc]+loggpar.rcfit[2]*mh[rc])
-  corr=(loggpar.rcfit2[0]+loggpar.rcfit2[1]*logg[rc]+loggpar.rcfit2[2]*logg[rc]^2)
-  str[rc].param[1]=str[rc].fparam[1]-corr
+  str[rc].param[1]=str[rc].fparam[1]-rc_corr[rc]
   str[rc].param_cov[1,1]=loggpar.rcrms^2
-  str[rc].param_cov[1,1]=(exp(loggpar.rcerrpar[0]+loggpar.rcerrpar[1]*(str[rc].fparam[0]-4500)+loggpar.rcerrpar[3]*str[rc].fparam[3]+loggpar.rcerrpar[2]*(snrerr[rc]-100.)))^2
+  str[rc].param_cov[1,1]=aspcap_elemerr(loggpar.rcerrpar,str[rc].fparam[0]-4500,str[rc].fparam[3],snrerr[rc]-100.)^2
   str[rc].paramflag[1]=flag[rc]
+  str[rc].paramflag[1]=str[rc].paramflag[1] and not(paramflagval('CALRANGE_BAD'))
+  str[rc].paramflag[1]=str[rc].paramflag[1] or paramflagval('LOGG_CAL_RC')
 endif
 
 ; calibrate logg, dwarfs
-teff=str.fparam[0]
 ; clip logg and mh correction term
 flag=str.paramflag[1]
 teff=aspcap_clip(str.fparam[0],dwarf_loggpar.temin,dwarf_loggpar.temax,flag)
 logg=aspcap_clip(str.fparam[1],dwarf_loggpar.loggmin,dwarf_loggpar.loggmax,flag)
 mh=aspcap_clip(str.fparam[3],dwarf_loggpar.mhmin,dwarf_loggpar.mhmax,flag)
+ms_corr=(dwarf_loggpar.msfit[0]+dwarf_loggpar.msfit[1]*teff+dwarf_loggpar.msfit[2]*mh)
 ms=where(str[gd].fparam[1] gt dwarf_loggpar.calloggmin,nms)
 if  nms gt 0 then begin
   ms=gd[ms]
-  corr=(dwarf_loggpar.msfit[0]+dwarf_loggpar.msfit[1]*teff[ms]+dwarf_loggpar.msfit[2]*mh[ms])
-  str[ms].param[1]=str[ms].fparam[1]-corr
-  ;str[ms].param_cov[1,1]=(exp(dwarf_loggpar.errpar[0]+dwarf_loggpar.errpar[1]*(str[ms].fparam[0]-4500)+dwarf_loggpar.errpar[3]*str[ms].fparam[3]+dwarf_loggpar.errpar[2]*(snrerr[ms]-100.)))^2
+  str[ms].param[1]=str[ms].fparam[1]-ms_corr[ms]
+;  str[ms].param_cov[1,1]=aspcap_elemerr(dwarf_loggpar.errpar,str[ms].fparam[0]-4500,str[ms].fparam[3],snrerr[ms]-100.)^2
+;  old=(exp(dwarf_loggpar.errpar[0]+dwarf_loggpar.errpar[1]*(str[ms].fparam[0]-4500)+dwarf_loggpar.errpar[3]*str[ms].fparam[3]+dwarf_loggpar.errpar[2]*(snrerr[ms]-100.)))^2
+;diff=str[ms].param_cov[1,1]-old
+;print,min(diff/old),max(diff/old)
+;stop
   str[ms].paramflag[1]=flag[ms]
+  str[ms].paramflag[1]=str[ms].paramflag[1] and not(paramflagval('CALRANGE_BAD'))
+  str[ms].paramflag[1]=str[ms].paramflag[1] or paramflagval('LOGG_CAL_MS')
 endif
 
-tbd=where(logg[gd] lt loggpar.calloggmin or logg[gd] gt loggpar.calloggmax,nbd)
-if nbd gt 0 then begin
-  for ibd=0,nbd-1 do str[tbd[ibd]].paramflag[0]=str[tbd[ibd]].paramflag[0] or paramflagval('CALRANGE_BAD')
+; transition between RGB and RC
+trans=where(str[gd].fparam[1] lt 4 and str[gd].fparam[1] gt 3.5 and $ 
+            str[gd].fparam[0] lt loggpar.calteffmax and $
+            (str[gd].paramflag[1] and paramflagval('CALRANGE_BAD')) eq 0 ,ntrans)
+if ntrans gt 0 then begin
+  trans=gd[trans]
+  ms_weight=(str[trans].fparam[1]-3.5)/0.5
+  str[trans].param[1]=str[trans].fparam[1]-(ms_corr[trans]*ms_weight+rgb_corr[trans]*(1-ms_weight))
+  str[trans].paramflag[1]=str[trans].paramflag[1] and not(paramflagval('CALRANGE_BAD'))
+  str[trans].paramflag[1]=str[trans].paramflag[1] and not(paramflagval('LOGG_CAL_RGB'))
+  str[trans].paramflag[1]=str[trans].paramflag[1] and not(paramflagval('LOGG_CAL_MS'))
+  str[trans].paramflag[1]=str[trans].paramflag[1] or paramflagval('LOGG_CAL_RGB_MS')
 endif
 
 ; logg for DR13
@@ -271,12 +305,12 @@ if keyword_set(dr13) then begin
 endif
 
 ; calibrate other parameters: [M/H], [C/M], [N/M], [alpha/M]
-; need to create tmp structure so aspcap_elemfit can modify flags if outside calibration range
 if keyword_set(noparam) then begin
   for ipar=2,7 do str.param[ipar]=str.fparam[ipar]
   return
 endif
 
+; need to create tmp structure so aspcap_elemfit can modify flags if outside calibration range
 ; giants
 tmp=str[giants]
 ; [M/H]
@@ -287,7 +321,7 @@ flag=tmp[gd].paramflag[3]
 tmp[gd].param[3]=tmp[gd].fparam[3]-aspcap_elemfit(tmp[gd],giantcal,'M',flag)
 tmp[gd].paramflag[3]=flag
 ; "empirical" parameter errors: [M/H] 
-tmp[gd].param_cov[3,3]=(exp(giantcal[i].errpar[0]+giantcal[i].errpar[1]*(tmp[gd].fparam[0]-4500)+giantcal[i].errpar[3]*tmp[gd].fparam[3]+giantcal[i].errpar[2]*(snrerr[giants[gd]]-100.)))^2
+tmp[gd].param_cov[3,3]=aspcap_elemerr(giantcal[i].errpar,tmp[gd].fparam[0]-4500,tmp[gd].fparam[3],snrerr[giants[gd]]-100.)^2
 ; [C/M], [N/M]
 tmp.param[4]=str[giants].fparam[4]
 tmp.param[5]=str[giants].fparam[5]
@@ -299,7 +333,7 @@ flag=tmp[gd].paramflag[6]
 tmp[gd].param[6]=tmp[gd].fparam[6]-aspcap_elemfit(tmp[gd],giantcal,'alpha',flag)
 tmp[gd].paramflag[6]=flag
 ; "empirical" parameter errors: [alpha/M] 
-tmp[gd].param_cov[6,6]=(exp(giantcal[i].errpar[0]+giantcal[i].errpar[1]*(tmp[gd].fparam[0]-4500)+giantcal[i].errpar[3]*tmp[gd].fparam[3]+giantcal[i].errpar[2]*(snrerr[giants[gd]]-100.)))^2
+tmp[gd].param_cov[6,6]=aspcap_elemerr(giantcal[i].errpar,tmp[gd].fparam[0]-4500,tmp[gd].fparam[3],snrerr[giants[gd]]-100.)^2
 str[giants]=tmp
 
 ; dwarfs
@@ -310,7 +344,7 @@ gd=where( tmp.fparam[0] gt dwarfcal[i].caltemin and tmp.fparam[0] lt dwarfcal[i]
 flag=tmp[gd].paramflag[3] 
 tmp[gd].param[3]=tmp[gd].fparam[3]-aspcap_elemfit(tmp[gd],dwarfcal,'M',flag)
 tmp[gd].paramflag[3]=flag
-tmp[gd].param_cov[3,3]=(exp(dwarfcal[i].errpar[0]+dwarfcal[i].errpar[1]*(tmp[gd].fparam[0]-4500)+dwarfcal[i].errpar[3]*tmp[gd].fparam[3]+dwarfcal[i].errpar[2]*(snrerr[dwarfs[gd]]-100.)))^2
+tmp[gd].param_cov[3,3]=aspcap_elemerr(dwarfcal[i].errpar,tmp[gd].fparam[0]-4500,tmp[gd].fparam[3],snrerr[dwarfs[gd]]-100.)^2
 ; [C/M], [N/M]
 tmp.param[4]=str[dwarfs].fparam[4]
 tmp.param[5]=str[dwarfs].fparam[5]
@@ -321,7 +355,7 @@ gd=where( tmp.fparam[0] gt dwarfcal[i].caltemin and tmp.fparam[0] lt dwarfcal[i]
 flag=tmp[gd].paramflag[6] 
 tmp[gd].param[6]=tmp[gd].fparam[6]-aspcap_elemfit(tmp[gd],dwarfcal,'alpha',flag)
 tmp[gd].paramflag[6]=flag
-tmp[gd].param_cov[6,6]=(exp(dwarfcal[i].errpar[0]+dwarfcal[i].errpar[1]*(tmp[gd].fparam[0]-4500)+dwarfcal[i].errpar[3]*tmp[gd].fparam[3]+dwarfcal[i].errpar[2]*(snrerr[dwarfs[gd]]-100.)))^2
+tmp[gd].param_cov[6,6]=aspcap_elemerr(dwarfcal[i].errpar,tmp[gd].fparam[0]-4500,tmp[gd].fparam[3],snrerr[dwarfs[gd]]-100.)^2
 str[dwarfs]=tmp
 
 ; tranfer vmicro, vsin/vmacro (they are already transferred if locked, but do it anyway)
@@ -330,6 +364,10 @@ str.param[7]=str.fparam[7]
 
 ; now calibrate elements
 print,'calibrating elements...'
+str.x_m=-9999.99
+str.x_h=-9999.99
+str.x_m_err=-999.99
+str.x_h_err=-999.99
 elems=aspcap_elems(tagnames,elemtoh)
 if nelem gt 0 then begin
  for i=0,n_elements(elem)-1 do begin
@@ -366,7 +404,9 @@ if nelem gt 0 then begin
 
     ; calibrate the abundances for giants that are not flagged as BAD for this element
     if giantcal[i].elemfit ge 0 then begin
-      gd=where( (str[giants].elemflag[i] and badparamflag()) eq 0 and str[giants].fparam[0] gt giantcal[i].caltemin and str[giants].fparam[0] lt giantcal[i].caltemax,ngd,comp=bd,ncomp=nbd) 
+      gd=where( (str[giants].elemflag[i] and badparamflag()) eq 0 and $
+                str[giants].fparam[0] gt giantcal[i].caltemin and $
+                str[giants].fparam[0] lt giantcal[i].caltemax,ngd,comp=bd,ncomp=nbd) 
     endif else begin
       ngd=0
       bd=indgen(n_elements(giants))
@@ -399,10 +439,12 @@ if nelem gt 0 then begin
       tmp.x_h[i]=tmp.x_m[i]+tmp.param[3]
       str[giants[gd]]=tmp
 
-      if x_m_exists then str[giants[gd]].x_m_err[i]= $
-         max([[exp(giantcal[ii].errpar[0]+giantcal[ii].errpar[1]*(str[giants[gd]].fparam[0]-4500)+giantcal[ii].errpar[3]*str[giants[gd]].fparam[3]+giantcal[ii].errpar[2]*(snrerr[giants[gd]]-100.))],[str[giants[gd]].felem_err[i]]],dim=2)
-      if x_m_exists then str[giants[gd]].x_h_err[i]= $
-         max([[exp(giantcal[ii].errpar[0]+giantcal[ii].errpar[1]*(str[giants[gd]].fparam[0]-4500)+giantcal[ii].errpar[3]*str[giants[gd]].fparam[3]+giantcal[ii].errpar[2]*(snrerr[giants[gd]]-100.))],[str[giants[gd]].felem_err[i]]],dim=2)
+      if x_m_exists then begin
+         str[giants[gd]].x_m_err[i]= $
+             max([[aspcap_elemerr(giantcal[ii].errpar,str[giants[gd]].fparam[0]-4500.,str[giants[gd]].fparam[3],snrerr[giants[gd]]-100.)],$
+                  [str[giants[gd]].felem_err[i]]],dim=2)
+         str[giants[gd]].x_h_err[i]=str[giants[gd]].x_m_err[i]
+      endif
     endif
     if nbd gt 0 then begin
       str[giants[bd]].elemflag[i]=str[giants[bd]].elemflag[i] or paramflagval('CALRANGE_BAD')
@@ -432,26 +474,29 @@ if nelem gt 0 then begin
       tmp.elemflag[i]=flag
       ; populate x_h and x_m arrays
       ; if this is C or N and we are in dwarf grid, then parameter is already [X/H]
-      if el eq 'C' or el eq 'CI' or el eq 'N' then begin
-         jj=where(strpos(tmpclass,'GKd') ge 0  or strpos(tmpclass,'Fd') ge 0 or strpos(tmpclass,'Md') ge 0,nj,comp=jg,ncomp=njg) 
-         ;if nj gt 0 then tmp[jj].x_m[i]=tmp[jj].elem[i]-tmp[jj].fparam[3]
-         ;if njg gt 0 then tmp[jg].x_m[i]=tmp[jg].elem[i]
-         if nj gt 0 then tmp[jj].x_m[i]=tmpelem[jj]-tmp[jj].fparam[3]
-         if njg gt 0 then tmp[jg].x_m[i]=tmpelem[jg]
-      endif else begin
-         ;if etoh then tmp.x_m[i]=tmp.elem[i]-tmp.fparam[3] else tmp.x_m[i]=tmp.elem[i]
-         if etoh then tmp.x_m[i]=tmpelem-tmp.fparam[3] else tmp.x_m[i]=tmpelem
-      endelse
+      ;if el eq 'C' or el eq 'CI' or el eq 'N' then begin
+      ;   jj=where(strpos(tmpclass,'GKd') ge 0  or strpos(tmpclass,'Fd') ge 0 or strpos(tmpclass,'Md') ge 0,nj,comp=jg,ncomp=njg) 
+      ;   ;if nj gt 0 then tmp[jj].x_m[i]=tmp[jj].elem[i]-tmp[jj].fparam[3]
+      ;   ;if njg gt 0 then tmp[jg].x_m[i]=tmp[jg].elem[i]
+      ;   if nj gt 0 then tmp[jj].x_m[i]=tmpelem[jj]-tmp[jj].fparam[3]
+      ;   if njg gt 0 then tmp[jg].x_m[i]=tmpelem[jg]
+      ;endif else begin
+      ;   ;if etoh then tmp.x_m[i]=tmp.elem[i]-tmp.fparam[3] else tmp.x_m[i]=tmp.elem[i]
+      ;   if etoh then tmp.x_m[i]=tmpelem-tmp.fparam[3] else tmp.x_m[i]=tmpelem
+      ;endelse
+      if etoh then tmp.x_m[i]=tmpelem-tmp.fparam[3] else tmp.x_m[i]=tmpelem
       tmp.x_h[i]=tmp.x_m[i]+tmp.param[3]
       str[dwarfs[gd]]=tmp
       ; flag cool dwarfs
       cool = where(str[dwarfs[gd]].fparam[0] lt 3500, ncool)
       if ncool gt 0 then str[dwarfs[gd[cool]]].elemflag[i]=str[dwarfs[gd[cool]]].elemflag[i] or paramflagval('CALRANGE_WARN')
       ; calibrate the errors
-      if x_m_exists then str[dwarfs[gd]].x_m_err[i]= $
-         max([[exp(dwarfcal[ii].errpar[0]+dwarfcal[ii].errpar[1]*(str[dwarfs[gd]].fparam[0]-4500)+dwarfcal[ii].errpar[3]*str[dwarfs[gd]].fparam[3]+dwarfcal[ii].errpar[2]*(snrerr[dwarfs[gd]]-100.))],[str[dwarfs[gd]].felem_err[i]]],dim=2)
-      if x_m_exists then str[dwarfs[gd]].x_h_err[i]= $
-         max([[exp(dwarfcal[ii].errpar[0]+dwarfcal[ii].errpar[1]*(str[dwarfs[gd]].fparam[0]-4500)+dwarfcal[ii].errpar[3]*str[dwarfs[gd]].fparam[3]+dwarfcal[ii].errpar[2]*(snrerr[dwarfs[gd]]-100.))],[str[dwarfs[gd]].felem_err[i]]],dim=2)
+      if x_m_exists then begin
+         str[dwarfs[gd]].x_m_err[i]= $
+             max([[aspcap_elemerr(dwarfcal[ii].errpar,str[dwarfs[gd]].fparam[0]-4500.,str[dwarfs[gd]].fparam[3],snrerr[dwarfs[gd]]-100.)],$
+                  [str[dwarfs[gd]].felem_err[i]]],dim=2)
+         str[dwarfs[gd]].x_h_err[i]= str[dwarfs[gd]].x_m_err[i]
+      endif
     endif
     if nbd gt 0 then begin
       str[dwarfs[bd]].elemflag[i]=str[dwarfs[bd]].elemflag[i] or paramflagval('CALRANGE_BAD')
@@ -631,3 +676,4 @@ j=where(str.aspcapflag  eq 0, nj)
 print,'all good: ', nj
 
 end
+

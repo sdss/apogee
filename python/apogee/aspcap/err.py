@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from tools import plots
 from tools import html
 from tools import fit
+from apogee.utils import apselect
+from astropy.io import fits
 
 def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,6000,250), mhbins=np.arange(-2.25,0.75,0.5),verbose=False,
            out=None,title='', zr=[0,0.1], snplot=True, meanerr=None,quad=False,mkhtml=True ) :
@@ -110,7 +112,6 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
     try : return soln
     except : return 0.
 
-
 def elemerr(soln,te,sn,fe, quad=False) :
     ''' 
     Function to evaluate fit for uncertainty
@@ -119,4 +120,155 @@ def elemerr(soln,te,sn,fe, quad=False) :
     if len(soln) > 3: out+= soln[3]*fe
     if quad : out +=soln[4]*te**2
     return np.exp(out)
+
+def repeat(data,out='./',elem=True,logg=[-1,6]) :
+    """ Comparison of repeat observations of objects
+    """
+
+    gd=apselect.select(data[1].data,badval='STAR_BAD',raw=True,logg=logg)
+    a=data[1].data[gd]
+    stars = set(a['APOGEE_ID'])
+
+    snbins=np.arange(50,300,50)
+    tebins=np.arange(3500,7500,250)
+    mhbins=np.arange(-2.25,0.75,0.5)
+    dte = tebins[1]-tebins[0]
+    dmh = mhbins[1]-mhbins[0]
+    dsn = snbins[1]-snbins[0]
+
+    # loop over stars looking for duplications
+    rmsderiv=[]
+    rmsparam=[]
+    rmselem=[]
+    quad= True
+    for star in stars :
+        jj = np.where(a['APOGEE_ID'] == star)[0]
+        n = len(jj)
+        if n > 1 :
+            isort = np.argsort(a['SNR'][jj])
+            j=jj[isort]
+            i=0
+            while i < n-1 :
+                if a['SNR'][j[i+1]]/a['SNR'][j[i]] < 1.2 :
+                   rmsderiv.append([1.,
+                                   a['FPARAM'][j[i:i+2],0].mean()-4500.,
+                                   np.min([250.,a['SNR'][j[i:i+2]].mean()])-100.,  # cap S/N at 250
+                                   a['FPARAM'][j[i:i+2],3].mean(),
+                                   (a['FPARAM'][j[i:i+2],0].mean()-4500.)**2 ])
+                   rmsparam.append(np.abs(a['FPARAM'][j[i],:]-a['FPARAM'][j[i+1],:])*np.sqrt(np.pi)/2.)
+                   try: rmselem.append(np.abs(a['FELEM'][j[i],0,:]-a['FELEM'][j[i+1],0,:])*np.sqrt(np.pi)/2.)
+                   except: rmselem.append(np.abs(a['FELEM'][j[i],:]-a['FELEM'][j[i+1],:])*np.sqrt(np.pi)/2.)
+                   i+=2
+                else :
+                   i+=1
+    rmsderiv=np.array(rmsderiv)
+    rmsparam=np.array(rmsparam)
+    rmselem=np.array(rmselem)
+
+    # default grids for showing 2D fits
+    y, x = np.mgrid[tebins[0]:tebins[-1]:200j,mhbins[0]:mhbins[-1]:200j]
+
+    # parameters
+    params=data[3].data['PARAM_SYMBOL'][0]
+    grid=[]
+    ytit=[]
+    outtype=np.dtype([('PARAM',params.dtype),('ERRFIT','5f4')])
+    outparam=np.empty(len(params),dtype=outtype)
+
+    for i,param in enumerate(params) :
+        print(param)
+        outparam[i]['PARAM']=param
+        if param == 'TEFF' : 
+            gd=np.where((rmsparam[:,i] < 500.) & (rmsparam[:,i] > 0.) )[0]
+            zr=[0,100] 
+        else : 
+            gd=np.where((rmsparam[:,i] < 1.) & (rmsparam[:,i] > 0.) )[0]
+            zr=[0,0.2]
+        if len(gd)<5 : continue
+
+        soln,inv = fit.linear(np.log(rmsparam[gd,i]),rmsderiv[gd,:].transpose())
+        outparam[i]['ERRFIT']=soln
+
+        # plots of 2D fits in bins of S/N
+        fig,ax=plots.multi(len(snbins),1,wspace=0.001,figsize=(3*len(snbins),4))
+        for iplt in range(len(snbins)) :
+            sn = snbins[iplt]+dsn/2.
+            ax[iplt].imshow(elemerr(soln,y-4500.,sn-100.,x, quad=quad),extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
+                              aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower',cmap='rainbow')
+            ax[iplt].text(0.98,0.98,param+' S/N={:4.0f}'.format(sn),va='top',ha='right',transform=ax[iplt].transAxes)
+
+        # plots of rms
+        snfig,snax=plots.multi(len(tebins)-1,len(mhbins)-1,wspace=0.001,hspace=0.001,figsize=(2*len(tebins),2*len(mhbins)))
+        xx=np.arange(0,250)
+        for ix in range(len(tebins)-1) :
+            if ix == 0 : yt=r'$\sigma$'
+            else : yt=''
+            for iy in range(len(mhbins)-1) :
+                gdplt = np.where((rmsderiv[:,1]+4500.>tebins[ix]) & (rmsderiv[:,1]+4500.<tebins[ix+1]) &
+                                  (rmsderiv[:,3]>mhbins[iy]) & (rmsderiv[:,3]<mhbins[iy+1]) )[0]
+                if len(gdplt) > 1 :
+                    plots.plotc(snax[iy,ix],rmsderiv[gdplt,2]+100,rmsparam[gdplt,i],rmsderiv[gdplt,3],size=30,zr=[-2,0.5],
+                                yr=zr,xr=[snbins[0],snbins[-1]],xt='S/N',yt=yt)
+                snax[iy,ix].set_ylim(zr)
+                snax[iy,ix].plot(xx,elemerr(soln,tebins[ix]+dte/2.-4500,xx-100,mhbins[iy]+dmh/2., quad=quad))
+                snax[iy,ix].text(0.98,0.98,'{:8.0f} {:8.2f}'.format(tebins[ix]+dte/2.,mhbins[iy]+dmh/2.),ha='right',va='top',transform=snax[iy,ix].transAxes)
+        fig.savefig(out+param+'.png')
+        plt.close(fig)
+        snfig.savefig(out+param+'_sn.png')
+        plt.close(snfig)
+        grid.append([os.path.basename(out+param+'.png'),os.path.basename(out+param+'_sn.png')])
+        ytit.append(param)
+    html.htmltab(grid,file=out+'repeat_param.html',ytitle=ytit)
+   
+    # elements 
+    els=data[3].data['ELEM_SYMBOL'][0]
+    grid=[]
+    ytit=[]
+    outtype=np.dtype([('ELEM',els.dtype),('ERRFIT','5f4')])
+    outelem=np.empty(len(els),dtype=outtype)
+    for i,el in enumerate(els) :
+        print(el)
+        outelem[i]['ELEM']=el
+        gd=np.where((rmselem[:,i] < 1.) & (rmselem[:,i] > 0.) )[0]
+        zr=[0,0.2]
+        if len(gd)<5 : continue
+
+        soln,inv = fit.linear(np.log(rmselem[gd,i]),rmsderiv[gd,:].transpose())
+        outelem[i]['ERRFIT']=soln
+        fig,ax=plots.multi(len(snbins),1,wspace=0.001,figsize=(3*len(snbins),4))
+        for iplt in range(len(snbins)) :
+            sn = snbins[iplt]+dsn/2.
+            ax[iplt].imshow(elemerr(soln,y-4500.,sn-100.,x, quad=quad),extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
+                              aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower',cmap='rainbow')
+            ax[iplt].text(0.98,0.98,el+' S/N={:4.0f}'.format(sn),va='top',ha='right',transform=ax[iplt].transAxes)
+
+        snfig,snax=plots.multi(len(tebins)-1,len(mhbins)-1,wspace=0.001,hspace=0.001,figsize=(2*len(tebins),2*len(mhbins)))
+        xx=np.arange(0,250)
+        for ix in range(len(tebins)-1) :
+            if ix == 0 : yt=r'$\sigma$'
+            else : yt=''
+            for iy in range(len(mhbins)-1) :
+                gdplt = np.where((rmsderiv[:,1]+4500.>tebins[ix]) & (rmsderiv[:,1]+4500.<tebins[ix+1]) &
+                                  (rmsderiv[:,3]>mhbins[iy]) & (rmsderiv[:,3]<mhbins[iy+1]) )[0]
+                if len(gdplt) > 1 :
+                    plots.plotc(snax[iy,ix],rmsderiv[gdplt,2]+100,rmselem[gdplt,i],rmsderiv[gdplt,3],size=30,zr=[-2,0.5],
+                                yr=zr,xr=[snbins[0],snbins[-1]],xt='S/N',yt=yt)
+                snax[iy,ix].set_ylim(zr)
+                snax[iy,ix].plot(xx,elemerr(soln,tebins[ix]+dte/2.-4500,xx-100,mhbins[iy]+dmh/2., quad=quad))
+                snax[iy,ix].text(0.98,0.98,'{:8.0f} {:8.2f}'.format(tebins[ix]+dte/2.,mhbins[iy]+dmh/2.),ha='right',va='top',transform=snax[iy,ix].transAxes)
+        fig.savefig(out+el+'.png')
+        plt.close(fig)
+        snfig.savefig(out+el+'_sn.png')
+        plt.close(snfig)
+        grid.append([os.path.basename(out+el+'.png'),os.path.basename(out+el+'_sn.png')])
+        ytit.append(el)
+
+    html.htmltab(grid,file=out+'repeat_elem.html',ytitle=ytit)
+    hdulist=fits.HDUList()
+    hdulist.append(fits.BinTableHDU(outparam))
+    hdulist.append(fits.BinTableHDU(outelem))
+    hdulist.writeto(out+'errfit.fits',overwrite=True)
+
+    return outparam,outelem
+
 

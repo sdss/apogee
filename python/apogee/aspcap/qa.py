@@ -5,11 +5,13 @@ from astropy.io import fits
 from tools import plots
 from tools import html
 from tools import match
+from tools import fit
 import matplotlib.pyplot as plt
 from apogee.aspcap import aspcap
 from apogee.aspcap import err
 from apogee.utils import apload
 from apogee.utils import apselect
+from apogee.utils import bitmask
 
 def plotparams(a,title=None,hard=None) :
     """ Plot parameters vs Teff
@@ -23,6 +25,9 @@ def plotparams(a,title=None,hard=None) :
     if title is not None : fig.suptitle(title)
     if hard is not None : fig.savefig(hard)
 
+te_ranges=[[3000,4000],[4000,4500],[4500,8000],[3000,4000],[4000,8000]]
+logg_ranges=[[0,3.8],[0,3.8],[0,3.8],[3.8,5.5],[3.8,5.5]]
+
 def plotcn(hdulist,title=None,out=None) :
     """ Compare parameter level C/M and N/M with element level
     """
@@ -33,22 +38,8 @@ def plotcn(hdulist,title=None,out=None) :
         row=[]
         xt=[]
         yt.append(el)
-        for icol in range(5) :
-            if icol == 0 :
-                te=[3000,4000]
-                logg=[0,3.8]
-            elif icol == 1 :
-                te=[4000,4500]
-                logg=[0,3.8]
-            elif icol == 2 :
-                te=[4500,8000]
-                logg=[0,3.8]
-            elif icol == 3 :
-                te=[3000,4000]
-                logg=[3.8,5.5]
-            elif icol == 4 :
-                te=[4000,8000]
-                logg=[3.8,5.5]
+        icol=0
+        for te,logg in zip(te_ranges,logg_ranges) :
             gd = np.where((a['FPARAM'][:,0] >= te[0]) & (a['FPARAM'][:,0] <= te[1]) &
                           (a['FPARAM'][:,1] >= logg[0]) & (a['FPARAM'][:,1] <= logg[1]) )[0]
             if el == 'C' : 
@@ -70,11 +61,12 @@ def plotcn(hdulist,title=None,out=None) :
                 row.append(os.path.basename(outfile))
             else: pdb.set_trace()
             plt.close(fig)
+            icol+=1
             xt.append('{:6.0f}&lt;Teff&lt;{:6.0f} {:6.1f}&lt;logg&lt;{:6.1f}'.format(te[0],te[1],logg[0],logg[1]))
         grid.append(row)
     html.htmltab(grid,file=out+'cn.html',ytitle=yt,xtitle=xt)
 
-def plotelems(hdulist,title=None,out=None) :
+def plotelems(hdulist,title=None,out=None,calib=False) :
     """ Make [X/M] vs [M/H] plots for all elements as f(Teff, logg)
     """
     a=hdulist[1].data
@@ -85,6 +77,9 @@ def plotelems(hdulist,title=None,out=None) :
     else :
         comment=', full sample'
 
+    if calib : param = 'PARAM'
+    else : param = 'FPARAM'
+
     els=hdulist[3].data['ELEM_SYMBOL'][0]
     etoh=hdulist[3].data['ELEMTOH'][0]
     grid=[]
@@ -93,44 +88,78 @@ def plotelems(hdulist,title=None,out=None) :
         row=[]
         xt=[]
         yt.append(el)
-        for icol in range(5) :
-            if icol == 0 :
-                te=[3000,4000]
-                logg=[0,3.8]
-            elif icol == 1 :
-                te=[4000,4500]
-                logg=[0,3.8]
-            elif icol == 2 :
-                te=[4500,8000]
-                logg=[0,3.8]
-            elif icol == 3 :
-                te=[3000,4000]
-                logg=[3.8,5.5]
-            elif icol == 4 :
-                te=[4000,8000]
-                logg=[3.8,5.5]
-            gd = np.where((a['FPARAM'][:,0] >= te[0]) & (a['FPARAM'][:,0] <= te[1]) &
-                          (a['FPARAM'][:,1] >= logg[0]) & (a['FPARAM'][:,1] <= logg[1]) )[0]
+        icol=0
+        for te,logg in zip(te_ranges,logg_ranges) :
+            gd = np.where((a[param][:,0] >= te[0]) & (a[param][:,0] <= te[1]) &
+                          (a[param][:,1] >= logg[0]) & (a[param][:,1] <= logg[1]) )[0]
             print(el,te,logg,len(gd))
-            try:
-                if etoh[iel] == 1 : abun=a['FELEM'][gd,0,iel]-a['FPARAM'][gd,3]
-                else : abun = a['FELEM'][gd,0,iel]
-            except:
-                if etoh[iel] == 1 : abun=a['FELEM'][gd,iel]-a['FPARAM'][gd,3]
-                else : abun = a['FELEM'][gd,iel]
+            if calib :
+                abun=a['X_M'][gd,iel]
+            else :
+                try:
+                    if etoh[iel] == 1 : abun=a['FELEM'][gd,0,iel]-a['FPARAM'][gd,3]
+                    else : abun = a['FELEM'][gd,0,iel]
+                except:
+                    if etoh[iel] == 1 : abun=a['FELEM'][gd,iel]-a['FPARAM'][gd,3]
+                    else : abun = a['FELEM'][gd,iel]
+
             fig,ax=plots.multi(1,2,hspace=0.001)
-            plots.plotc(ax[0],a['FPARAM'][gd,3],abun,a['FPARAM'][gd,0],yr=[-0.5,1],zr=te,xt='[M/H]',colorbar=True,zt='Teff',yt='['+el+'/M]')
+            plots.plotc(ax[0],a[param][gd,3],abun,a[param][gd,0],xr=[-2.5,1.0],yr=[-0.5,1],zr=te,xt='[M/H]',colorbar=True,zt='Teff',yt='['+el+'/M]')
             ax[0].text(0.1,0.9,'uncalibrated params'+comment,transform=ax[0].transAxes)
-            plots.plotc(ax[1],a['FPARAM'][gd,3],abun,a['SNR'][gd],yr=[-0.5,1],zr=[50,200],xt='[M/H]',colorbar=True,zt='S/N',yt='['+el+'/M]')
+            plots.plotc(ax[1],a[param][gd,3],abun,a['SNR'][gd],xr=[-2.5,1.0],yr=[-0.5,1],zr=[50,200],xt='[M/H]',colorbar=True,zt='S/N',yt='['+el+'/M]')
             if out is not None :
                 outfile=out+el+'_{:1d}.png'.format(icol)
                 fig.savefig(outfile)
                 row.append(os.path.basename(outfile))
             else: pdb.set_trace()
             plt.close(fig)
+            icol+=1
             xt.append('{:6.0f}&lt;Teff&lt;{:6.0f} {:6.1f}&lt;logg&lt;{:6.1f}'.format(te[0],te[1],logg[0],logg[1]))
         grid.append(row)
-    html.htmltab(grid,file=out+'elem_chem.html',ytitle=yt,xtitle=xt)
+    if out is not None : html.htmltab(grid,file=out+'elem_chem.html',ytitle=yt,xtitle=xt)
+
+def plotelem_errs(hdulist,title=None,out=None,calib=False) :
+    """ Plot uncertainties
+    """
+    a=hdulist[1].data
+    els=hdulist[3].data['ELEM_SYMBOL'][0]
+    etoh=hdulist[3].data['ELEMTOH'][0]
+    grid=[]
+    yt=[]
+    dwarfs=np.where(a['FPARAM'][:,1] > 3.8)[0]
+    giants=np.where(a['FPARAM'][:,1] < 3.8)[0]
+
+    if calib: param='PARAM'
+    else :param='FPARAM'
+    for iel,el in enumerate(els) :
+        gfig,gax=plots.multi(1,2,hspace=0.001)
+        plots.plotc(gax[0],a[param][giants,0],a['X_H_ERR'][giants,iel],a[param][giants,3],
+                    xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+        try :
+            plots.plotc(gax[1],a[param][giants,0],a['FELEM_ERR'][giants,0,iel],a[param][giants,3],
+                        xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+        except :
+            plots.plotc(gax[1],a[param][giants,0],a['FELEM_ERR'][giants,iel],a[param][giants,3],
+                        xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+        dfig,dax=plots.multi(1,2,hspace=0.001)
+        plots.plotc(dax[0],a[param][dwarfs,0],a['X_H_ERR'][dwarfs,iel],a[param][dwarfs,3],
+                    xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+        try :
+            plots.plotc(dax[1],a[param][dwarfs,0],a['FELEM_ERR'][dwarfs,0,iel],a[param][dwarfs,3],
+                        xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+        except :
+            plots.plotc(dax[1],a[param][dwarfs,0],a['FELEM_ERR'][dwarfs,iel],a[param][dwarfs,3],
+                        xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+        if out is not None :
+            goutfile=out+'giant_'+el+'_err.png'
+            gfig.savefig(goutfile)
+            plt.close(gfig)
+            doutfile=out+'dwarf_'+el+'_err.png'
+            dfig.savefig(doutfile)
+            plt.close(dfig)
+            grid.append([os.path.basename(goutfile),os.path.basename(doutfile)])
+            yt.append(el) 
+    if out is not None : html.htmltab(grid,file=out+'elem_err.html',ytitle=yt,xtitle=['giants','dwarfs'])
 
 def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
     """ Plot parameter differences between two different runs
@@ -159,13 +188,24 @@ def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
         row=[]
         yt.append(paramnames[i])
         for j in range(3) :
-            fig,ax=plots.multi(1,1)
+            fig,ax=plots.multi(1,2,hspace=0.001)
             if j == 0 :
-                plots.plotc(ax,a[param][i1,0],b[param][i2,i]-a[param][i1,i],a[param][i1,3],yt=r'$\Delta$'+tagnames[i],xt='Teff',yr=yr,xr=[3000,8000],zr=[-2,0.5])
+                plots.plotc(ax[0],a['FPARAM'][i1,0],b['FPARAM'][i2,i]-a['FPARAM'][i1,i],a['FPARAM'][i1,3],
+                            yt=r'$\Delta$'+tagnames[i],xt='Teff',yr=yr,xr=[3000,8000],zr=[-2,0.5])
+                plots.plotc(ax[1],a['PARAM'][i1,0],b['PARAM'][i2,i]-a['PARAM'][i1,i],a['PARAM'][i1,3]
+                            ,yt=r'$\Delta$'+tagnames[i],xt='Teff',yr=yr,xr=[3000,8000],zr=[-2,0.5])
             elif j == 1 :
-                plots.plotc(ax,a[param][i1,1],b[param][i2,i]-a[param][i1,i],a[param][i1,3],yt=r'$\Delta$'+tagnames[i],xt='log g',yr=yr,xr=[-1,6],zr=[-2,0.5])
+                plots.plotc(ax[0],a['FPARAM'][i1,1],b['FPARAM'][i2,i]-a['FPARAM'][i1,i],a['FPARAM'][i1,3],
+                            yt=r'$\Delta$'+tagnames[i],xt='log g',yr=yr,xr=[-1,6],zr=[-2,0.5])
+                plots.plotc(ax[1],a['PARAM'][i1,1],b['PARAM'][i2,i]-a['PARAM'][i1,i],a['PARAM'][i1,3],
+                            yt=r'$\Delta$'+tagnames[i],xt='log g',yr=yr,xr=[-1,6],zr=[-2,0.5])
             elif j == 2 :
-                plots.plotc(ax,a[param][i1,3],b[param][i2,i]-a[param][i1,i],a[param][i1,3],yt=r'$\Delta$'+tagnames[i],xt='[M/H]',yr=yr,xr=[-2.5,1.0],zr=[-2,0.5])
+                plots.plotc(ax[0],a['FPARAM'][i1,3],b['FPARAM'][i2,i]-a['FPARAM'][i1,i],a['FPARAM'][i1,3],
+                            yt=r'$\Delta$'+tagnames[i],xt='[M/H]',yr=yr,xr=[-2.5,1.0],zr=[-2,0.5])
+                plots.plotc(ax[1],a['PARAM'][i1,3],b['PARAM'][i2,i]-a['PARAM'][i1,i],a['PARAM'][i1,3],
+                            yt=r'$\Delta$'+tagnames[i],xt='[M/H]',yr=yr,xr=[-2.5,1.0],zr=[-2,0.5])
+            ax[0].text(0.1,0.9,'Uncalibrated',transform=ax[0].transAxes)
+            ax[1].text(0.1,0.9,'Calibrated',transform=ax[1].transAxes)
             if out is not None:
                 outfile = out+'paramdiffs_{:1d}_{:1d}.png'.format(i,j)
                 fig.savefig(outfile)
@@ -196,13 +236,18 @@ def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
             if len(b[elem].shape) == 3 : abun_b=b[elem][i2,0,ii]
             else : abun_b=b[elem][i2,i]
             for j in range(3) :
-                fig,ax=plots.multi(1,1)
+                fig,ax=plots.multi(1,2)
                 if j == 0 :
-                    plots.plotc(ax,a[param][i1,0],abun_b-abun,a[param][i1,3],yt=r'$\Delta$'+el,xt='Teff',yr=yr,xr=[3000,8000],zr=[-2,0.5])
+                    plots.plotc(ax[0],a['FPARAM'][i1,0],abun_b-abun,a['FPARAM'][i1,3],yt=r'$\Delta$'+el,xt='Teff',yr=yr,xr=[3000,8000],zr=[-2,0.5])
+                    plots.plotc(ax[1],a['PARAM'][i1,0],abun_b-abun,a['PARAM'][i1,3],yt=r'$\Delta$'+el,xt='Teff',yr=yr,xr=[3000,8000],zr=[-2,0.5])
                 elif j == 1 :
-                    plots.plotc(ax,a[param][i1,1],abun_b-abun,a[param][i1,3],yt=r'$\Delta$'+el,xt='log g',yr=yr,xr=[-1,6],zr=[-2,0.5])
+                    plots.plotc(ax[0],a['FPARAM'][i1,1],abun_b-abun,a['FPARAM'][i1,3],yt=r'$\Delta$'+el,xt='log g',yr=yr,xr=[-1,6],zr=[-2,0.5])
+                    plots.plotc(ax[1],a['PARAM'][i1,1],abun_b-abun,a['PARAM'][i1,3],yt=r'$\Delta$'+el,xt='log g',yr=yr,xr=[-1,6],zr=[-2,0.5])
                 elif j == 2 :
-                    plots.plotc(ax,a[param][i1,3],abun_b-abun,a[param][i1,3],yt=r'$\Delta$'+el,xt='[M/H]',yr=yr,xr=[-2.5,1.0],zr=[-2,0.5])
+                    plots.plotc(ax[0],a['FPARAM'][i1,3],abun_b-abun,a['FPARAM'][i1,3],yt=r'$\Delta$'+el,xt='[M/H]',yr=yr,xr=[-2.5,1.0],zr=[-2,0.5])
+                    plots.plotc(ax[1],a['PARAM'][i1,3],abun_b-abun,a['PARAM'][i1,3],yt=r'$\Delta$'+el,xt='[M/H]',yr=yr,xr=[-2.5,1.0],zr=[-2,0.5])
+                ax[0].text(0.1,0.9,'Uncalibrated',transform=ax[0].transAxes)
+                ax[1].text(0.1,0.9,'Calibrated',transform=ax[1].transAxes)
                 if out is not None:
                     outfile = out+el+'_diff_{:1d}.png'.format(j)
                     fig.savefig(outfile)
@@ -247,107 +292,130 @@ def dr14comp(a,out=None,elem=True) :
     dr14=apl.allStar()
     plotparamdiffs(a,dr14,out=out+'dr14_',elem=elem)
 
-def repeat(data,out='./',elem=True,logg=[-1,6]) :
-    """ Comparison of repeat observations of objects
+def m67(allstar,out='./') :
+    """ M67 abundances
+    """
+    gd=apselect.select(allstar[1].data,badval='STAR_BAD')
+    m67=np.array(apselect.clustmember(allstar[1].data[gd],'M67',raw=True,pm=True,dist=True))
+    m67=gd[m67]
+    els=allstar[3].data['ELEM_SYMBOL'][0]
+    grid=[]
+    for iel,el in enumerate(els) :
+        fig,ax=plots.multi(1,2,figsize=(6,4),hspace=0.001)
+        plots.plotc(ax[0],allstar[1].data['LOGG'][m67],allstar[1].data['X_M'][m67,iel],allstar[1].data['TEFF'][m67],
+                    yerr=allstar[1].data['X_M_ERR'][m67,iel],
+                    xr=[6,0],yr=[-0.75,0.75],xt='log g',yt='['+el+'/M]')
+        plots.plotc(ax[1],allstar[1].data['LOGG'][m67],allstar[1].data['X_H'][m67,iel],allstar[1].data['TEFF'][m67],
+                    yerr=allstar[1].data['X_H_ERR'][m67,iel],
+                    xr=[6,0],yr=[-0.75,0.75],xt='log g',yt='['+el+'/H]')
+        ax[0].text(0.1,0.9,'rms: {:8.3f}'.format(allstar[1].data['X_M'][m67,iel].std()),transform=ax[0].transAxes)
+        ax[1].text(0.1,0.9,'rms: {:8.3f}'.format(allstar[1].data['X_H'][m67,iel].std()),transform=ax[1].transAxes)
+        outfile=out+'m67_{:s}.png'.format(el.strip())
+        fig.savefig(outfile)
+        plt.close(fig)
+        grid.append([os.path.basename(outfile)])
+    html.htmltab(grid,file=out+'m67.html',ytitle=els)
+
+def calib(allstar,out='./') :
+    """ Plot calibration relations
     """
 
-    gd=apselect.select(data[1].data,badval='STAR_BAD',raw=True,logg=logg)
-
-    a=data[1].data[gd]
-    stars = set(a['APOGEE_ID'])
-    colors=['r','g','b']
-    tels=['apo1m','apo25m','lco25m'] 
-    diff=[]
-    ediff=[]
-    teff=[]
-    mh=[]
-    sn=[]
-
-    snbins=np.arange(50,300,50)
-    # looop over stars looking for duplications
-    for star in stars :
-        j = np.where(a['APOGEE_ID'] == star)[0]
-        n = len(j)
-        if n > 1 :
-            print(star,n,a['APOGEE_ID'][j])
-            # if we have a duplicate, we need duplicate observations at comparable S/N
-            for isn in range(len(snbins)-1) :
-                jj = np.where((a['SNR'][j] > snbins[isn]) & (a['SNR'][j] < snbins[isn+1]) )[0]
-                if len(jj) > 1 :
-                    for jjj in jj :
-                        teff.append(a['FPARAM'][j,0].mean())
-                        mh.append(a['FPARAM'][j,3].mean())
-                        sn.append(a['SNR'][j[jj]].mean())
-                        diff.append(a['FPARAM'][j[jjj],:]-a['FPARAM'][j[jj],:].mean(axis=0))
-                        try:
-                            if elem:  ediff.append(a['FELEM'][j[jjj],0,:]-a['FELEM'][j[jj],0,:].mean(axis=0))
-                        except:
-                            if elem:  ediff.append(a['FELEM'][j[jjj],:]-a['FELEM'][j[jj],:].mean(axis=0))
-    teff=np.array(teff)
-    mh=np.array(mh)
-    sn=np.array(sn)
-    j=np.where(sn>250)[0]
-    sn[j]=249.999
-    diff=np.array(diff)
     grid=[]
-    params=data[3].data['PARAM_SYMBOL'][0]
-    for i,param in enumerate(params) :
-        if param == 'TEFF' : 
-            zr=[0,100] 
-            gd=np.where(abs(diff[:,i]) < 500.)[0]
-        else : 
-            zr=[0,0.2]
-            gd=np.where(abs(diff[:,i]) < 1.)[0]
-        err.errfit(teff[gd],sn[gd],mh[gd],diff[gd,i],out=out+param,zr=zr,verbose=False,mkhtml=False)
-        grid.append([os.path.basename(out+param+'_err.jpg'),os.path.basename(out+param+'_err_sn.jpg')])
-    html.htmltab(grid,file=out+'repeat_params.html',ytitle=params)
-    if elem : 
-        els=data[3].data['ELEM_SYMBOL'][0]
-        ediff=np.array(ediff)
-        grid=[]
-        for i,el in enumerate(els) :
-            gd=np.where(abs(ediff[:,i]) < 1.)[0]
-            err.errfit(teff[gd],sn[gd],mh[gd],ediff[gd,i],out=out+el,quad=True)
-            grid.append([os.path.basename(out+el+'_err.jpg'),os.path.basename(out+el+'_err_sn.jpg')])
-        html.htmltab(grid,file=out+'repeat_elem.html',ytitle=els,mkhtml=False)
+    yt=[]
+    # Teff f([M/H], Teff)
+    fig,ax=plots.multi(1,1)
+    plots.plotc(ax,allstar[1].data['FPARAM'][:,3],allstar[1].data['PARAM'][:,0]-allstar[1].data['FPARAM'][:,0],allstar[1].data['FPARAM'][:,0],
+                xt='[M/H]',yt=r'$\Delta$ Teff',zr=[3000,8000],colorbar=True,zt='Teff')
+    outfile1=out+'calib_Teff_all.png'
+    fig.savefig(outfile1)
+    ax.set_xlim(-3,1)
+    ax.set_ylim(-500,500)
+    outfile2=out+'calib_Teff.png'
+    fig.savefig(outfile2)
+    plt.close(fig)
+    grid.append([os.path.basename(outfile2),os.path.basename(outfile1)])
+    yt.append('Teff')
 
-#l33=fits.open('allCal-r12-l33p.fits')
-#notie=fits.open('../l33notie/allCal-r12-l33notie.fits')
-#i1,i2=match.match(l33[1].data['APOGEE_ID'],notie[1].data['APOGEE_ID'])
-#bd=np.where((l33[1].data['FPARAM'][i1,0] < 4000) & (np.abs(l33[1].data['FELEM'][i1,0,17]-notie[1].data['FELEM'][i2,0,17]) > 0.2) )[0]
-#pdb.set_trace()
-#
-#els=l33[3].data['ELEM_SYMBOL'][0]
-#etoh=l33[3].data['ELEMTOH'][0]
-#
-#grid=[]
-#ytit=[]
-#for iel,el in enumerate(els) :
-#  for col in [0,1] :
-#    if col == 0 : gd=np.where((l33[1].data['FPARAM'][:,1] < 3.8) & (l33[1].data['FPARAM'][:,0] > 3050) )[0]
-#    else :  gd=np.where((l33[1].data['FPARAM'][:,1] > 3.8) & (l33[1].data['FPARAM'][:,0] > 3050) )[0]
-#    fig,ax=plots.multi(1,3,hspace=0.001)
-#    if etoh[iel] == 1 : abun=l33[1].data['FELEM'][gd,0,iel]-l33[1].data['FPARAM'][gd,3]
-#    else : abun = l33[1].data['FELEM'][gd,0,iel]
-#    plots.plotc(ax[0],l33[1].data['FPARAM'][gd,3],abun,l33[1].data['FPARAM'][gd,0],yr=[-0.5,1],zr=[3500,5500],xt='[M/H]')
-#    ax[0].text(0.1,0.9,'uncalibrated params',transform=ax[0].transAxes)
-#
-#    if etoh[iel] == 1 : abun=l33[1].data['FELEM_CAL'][gd,0,iel]-l33[1].data['FPARAM'][gd,3]
-#    else : abun = l33[1].data['FELEM_CAL'][gd,0,iel]
-#    plots.plotc(ax[1],l33[1].data['FPARAM'][gd,3],abun,l33[1].data['FPARAM'][gd,0],yr=[-0.5,1],zr=[3500,5500],xt='[M/H]')
-#    ax[1].text(0.1,0.9,'calibrated params',transform=ax[1].transAxes)
-#
-#    if col == 0 : gd=np.where((notie[1].data['FPARAM'][:,1] < 3.8) & (l33[1].data['FPARAM'][:,0] > 3050) )[0]
-#    else : gd=np.where((notie[1].data['FPARAM'][:,1] > 3.8) & (l33[1].data['FPARAM'][:,0] > 3050) )[0]
-#    if etoh[iel] == 1 : abun=notie[1].data['FELEM'][gd,0,iel]-notie[1].data['FPARAM'][gd,3]
-#    else : abun = notie[1].data['FELEM'][gd,0,iel]
-#    plots.plotc(ax[2],notie[1].data['FPARAM'][gd,3],abun,notie[1].data['FPARAM'][gd,0],yr=[-0.5,1],zr=[3500,5500],xt='[M/H]')
-#    ax[2].text(0.1,0.9,'old notie',transform=ax[2].transAxes)
-#
-#    fig.savefig('elem/comp_'+el+'_{:d}.png'.format(col))
-#    plt.close(fig)
-#  grid.append(['comp_'+el+'_0.png','comp_'+el+'_1.png'])
-#  ytit.append(el)
-#
-#xtit=['giants','dwarfs']
-#html.htmltab(grid,file='elem/comp.html',ytitle=ytit,xtitle=xtit)
+    # logg f(logg,[M/H])
+    fig,ax=plots.multi(1,1)
+    plots.plotc(ax,allstar[1].data['FPARAM'][:,1],allstar[1].data['PARAM'][:,1]-allstar[1].data['FPARAM'][:,1],allstar[1].data['FPARAM'][:,3],
+                xt='log g',yt=r'$\Delta$logg',zr=[-2,0.5],colorbar=True,zt='[M/H]')
+    outfile1=out+'calib_logg_all.png'
+    fig.savefig(outfile1)
+    ax.set_xlim(-1,6)
+    ax.set_ylim(-1,1)
+    outfile2=out+'calib_logg.png'
+    fig.savefig(outfile2)
+    plt.close(fig)
+    grid.append([os.path.basename(outfile2),os.path.basename(outfile1)])
+    yt.append('log g')
+
+    els=allstar[3].data['ELEM_SYMBOL'][0]
+    for iel,el in enumerate(els) :
+        print(el)
+        fig,ax=plots.multi(1,1)
+        if allstar[3].data['ELEMTOH'][0][iel] == 0 : abun = allstar[1].data['FELEM'][:,iel] 
+        else : abun=allstar[1].data['FELEM'][:,iel]-allstar[1].data['FPARAM'][:,3]
+        plots.plotc(ax,allstar[1].data['FPARAM'][:,0],allstar[1].data['X_M'][:,iel]-abun,allstar[1].data['FPARAM'][:,1],
+                    xt='Teff',yt=r'$\Delta$['+el+'/M]',zr=[0,5.],colorbar=True,zt='log g')
+        outfile1=out+'calib_{:s}_all.png'.format(el.strip())
+        fig.savefig(outfile1)
+        ax.set_xlim(3000,8000)
+        ax.set_ylim(-0.5,0.5)
+        outfile2=out+'calib_{:s}.png'.format(el.strip())
+        fig.savefig(outfile2)
+        plt.close(fig)
+        grid.append([os.path.basename(outfile2),os.path.basename(outfile1)])
+        yt.append(el.strip())
+
+    html.htmltab(grid,file=out+'calib.html',ytitle=yt)
+
+def flags(hdulist,out='./') :
+    """ Check flag values
+    """
+    mask=bitmask.AspcapBitMask()
+    for i in range(32) :
+        j=np.where(hdulist[1].data['ASPCAPFLAG'] & 2**i)[0]
+        print(mask.name[i],len(j))
+
+    mask=bitmask.ParamBitMask()
+    f=html.head(out+'flags.html')
+    xt=[]
+    for i in range(32) : 
+        if mask.name[i] != '' : xt.append(mask.name[i])
+    data=[]
+    yt=[]
+    for iparam in range(len(hdulist[3].data['PARAM_SYMBOL'][0])) :
+        yt.append(hdulist[3].data['PARAM_SYMBOL'][0][iparam])
+        row=[]
+        for i in range(32) :
+            j=np.where(hdulist[1].data['PARAMFLAG'][:,iparam] & 2**i)[0]
+            #print(hdulist[3].data['PARAM_SYMBOL'][0][iparam],mask.name[i],len(j))
+            if mask.name[i] == '' and len(j) > 0 :
+                print('Unnamed bits are set!',i,len(j))
+                pdb.set_trace()
+            elif mask.name[i] != '' :
+                row.append(len(j))
+        data.append(row)
+    f.write(html.table(data,xtitle=xt,ytitle=yt,plots=False,formstr=':d'))
+
+    xt=[]
+    for i in range(32) : 
+        if mask.name[i] != '' : xt.append(mask.name[i])
+    data=[]
+    yt=[]
+    for ielem in range(len(hdulist[3].data['ELEM_SYMBOL'][0])) :
+        yt.append(hdulist[3].data['ELEM_SYMBOL'][0][ielem])
+        row=[]
+        for i in range(32) :
+            j=np.where(hdulist[1].data['ELEMFLAG'][:,ielem] & 2**i)[0]
+            #print(hdulist[3].data['ELEM_SYMBOL'][0][ielem],mask.name[i],len(j))
+            if mask.name[i] == '' and len(j) > 0 :
+                print('Unnamed bits are set!',i,len(j))
+                pdb.set_trace()
+            elif mask.name[i] != '' :
+                row.append(len(j))
+        data.append(row)
+    f.write(html.table(data,xtitle=xt,ytitle=yt,plots=False,formstr=':d'))
+
+    html.tail(f)

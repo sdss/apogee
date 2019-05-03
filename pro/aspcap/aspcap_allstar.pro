@@ -123,14 +123,14 @@ function allstar_blank, apfield0, maxvisit=maxvisit, nparam=nparam, nelem=nelem,
                          'max_jk', 9999.99, $
                          'param', fltarr(nparam)-9999.99, $
                          'fparam', fltarr(nparam)-9999.99, $
-                         'param_cov', fltarr(nparam, nparam)-9999.99, $
-                         'fparam_cov', fltarr(nparam, nparam)-9999.99,$
+                         'param_cov', fltarr(nparam, nparam)-999.99, $
+                         'fparam_cov', fltarr(nparam, nparam)-999.99,$
                          ;'elem', fltarr(nelem)-9999.99, $
                          ;'elem_err', fltarr(nelem)-9999.99, $
                          'teff', -9999.99, $
-                         'teff_err', -9999.99, $
+                         'teff_err', -999.99, $
                          'logg', -9999.99, $
-                         'logg_err', -9999.99, $
+                         'logg_err', -999.99, $
                          ;'param_teff', -1., $
                          ;'logvmicro', -9999.99, $
                          ;'vmacro', -9999.99, $
@@ -141,11 +141,11 @@ function allstar_blank, apfield0, maxvisit=maxvisit, nparam=nparam, nelem=nelem,
                          ;'param_logg', -9999.99, $
                          ;'param_logvmicro', -1., $
                          'm_h', -9999.99, $
-                         'm_h_err', -9999.99, $
+                         'm_h_err', -999.99, $
                          ;'param_c_m', -9999.99, $
                          ;'param_n_m', -9999.99, $
                          'alpha_m', -9999.99,$
-                         'alpha_m_err', -9999.99, $
+                         'alpha_m_err', -999.99, $
                          ;'param_teff_err', -1., $
                          ;'param_logg_err', -1., $
                          ;'param_logvmicro_err', -1., $
@@ -159,9 +159,9 @@ function allstar_blank, apfield0, maxvisit=maxvisit, nparam=nparam, nelem=nelem,
                          'felem', reform(fltarr(nelem,nwind))-9999.99, $
                          'felem_err', reform(fltarr(nelem,nwind))-9999.99, $
                          'X_H', fltarr(nelem)-9999.99, $
-                         'X_H_ERR', fltarr(nelem)-9999.99, $
+                         'X_H_ERR', fltarr(nelem)-999.99, $
                          'X_M', fltarr(nelem)-9999.99, $
-                         'X_M_ERR', fltarr(nelem)-9999.99, $
+                         'X_M_ERR', fltarr(nelem)-999.99, $
                          'C_Fe',-9999.99,$
                          'CI_Fe',-9999.99,$
                          'N_Fe',-9999.99,$
@@ -188,32 +188,32 @@ function allstar_blank, apfield0, maxvisit=maxvisit, nparam=nparam, nelem=nelem,
                          'Ce_Fe',-9999.99,$
                          'Nd_Fe',-9999.99,$
                          'Yb_Fe',-9999.99,$
-                         'C_Fe_err',-9999.99,$
-                         'CI_Fe_err',-9999.99,$
-                         'N_Fe_err',-9999.99,$
-                         'O_Fe_err',-9999.99,$
-                         'Na_Fe_err',-9999.99,$
-                         'Mg_Fe_err',-9999.99,$
-                         'Al_Fe_err',-9999.99,$
-                         'Si_Fe_err',-9999.99,$
-                         'P_Fe_err',-9999.99,$
-                         'S_Fe_err',-9999.99,$
-                         'K_Fe_err',-9999.99,$
-                         'Ca_Fe_err',-9999.99,$
-                         'Ti_Fe_err',-9999.99,$
-                         'TiII_Fe_err',-9999.99,$
-                         'V_Fe_err',-9999.99,$
-                         'Cr_Fe_err',-9999.99,$
-                         'Mn_Fe_err',-9999.99,$
-                         'Fe_H_err',-9999.99,$
-                         'Co_Fe_err',-9999.99,$
-                         'Ni_Fe_err',-9999.99,$
-                         'Cu_Fe_err',-9999.99,$
-                         'Ge_Fe_err',-9999.99,$
-                         'Rb_Fe_err',-9999.99,$
-                         'Ce_Fe_err',-9999.99,$
-                         'Nd_Fe_err',-9999.99,$
-                         'Yb_Fe_err',-9999.99,$
+                         'C_Fe_err',-999.99,$
+                         'CI_Fe_err',-999.99,$
+                         'N_Fe_err',-999.99,$
+                         'O_Fe_err',-999.99,$
+                         'Na_Fe_err',-999.99,$
+                         'Mg_Fe_err',-999.99,$
+                         'Al_Fe_err',-999.99,$
+                         'Si_Fe_err',-999.99,$
+                         'P_Fe_err',-999.99,$
+                         'S_Fe_err',-999.99,$
+                         'K_Fe_err',-999.99,$
+                         'Ca_Fe_err',-999.99,$
+                         'Ti_Fe_err',-999.99,$
+                         'TiII_Fe_err',-999.99,$
+                         'V_Fe_err',-999.99,$
+                         'Cr_Fe_err',-999.99,$
+                         'Mn_Fe_err',-999.99,$
+                         'Fe_H_err',-999.99,$
+                         'Co_Fe_err',-999.99,$
+                         'Ni_Fe_err',-999.99,$
+                         'Cu_Fe_err',-999.99,$
+                         'Ge_Fe_err',-999.99,$
+                         'Rb_Fe_err',-999.99,$
+                         'Ce_Fe_err',-999.99,$
+                         'Nd_Fe_err',-999.99,$
+                         'Yb_Fe_err',-999.99,$
                          'C_Fe_flag',0L,$
                          'CI_Fe_flag',0L,$
                          'N_Fe_flag',0L,$
@@ -843,7 +843,8 @@ stop
               endfor
               ; vmicro, vmacro/vsini different for dwarfs and giants
               tmp_allstarloc[k].vmicro=10.^aspcap[kk].param[2]
-              if (strpos(aspcap[kk].class,'GKd') ge 0  or strpos(aspcap[kk].class,'Fd') ge 0 or strpos(aspcap[kk].class,'Md') ge 0) then begin
+              if (strpos(aspcap[kk].class,'BA') ge 0 or strpos(aspcap[kk].class,'GKd') ge 0  or $
+                  strpos(aspcap[kk].class,'Fd') ge 0 or strpos(aspcap[kk].class,'Md') ge 0) then begin
                   tmp_allstarloc[k].vmacro=10.^0.
                   tmp_allstarloc[k].vsini=10.^aspcap[kk].param[7]
               endif else begin
@@ -857,19 +858,6 @@ stop
                 ierrtag=where(strtrim(tagnames,2) eq strtrim(elemtags[ielem],2)+'_ERR')
                 iflagtag=where(strtrim(tagnames,2) eq strtrim(elemtags[ielem],2)+'_FLAG')
                 if eindex[ielem] ge 0 then begin
-                  ;tmp_allstarloc[k].x_h[eindex[ielem]]=aspcap[kk].elem[eindex[ielem]]
-                  ;tmp_allstarloc[k].x_h_err[eindex[ielem]]=aspcap[kk].x_h_err[eindex[ielem]]
-                  ;; if this is C or N and we are in dwarf grid, then parameter is already [X/H]
-                  ;if elems[ielem] eq 'C' or elems[ielem] eq 'CI' or elems[ielem] eq 'N' and $
-                  ;  (strpos(aspcap[kk].class,'GKd') ge 0  or strpos(aspcap[kk].class,'Fd') ge 0 or strpos(aspcap[kk].class,'Md') ge 0) then begin
-                  ;   tmp_allstarloc[k].x_h[eindex[ielem]]+=0.
-                  ;endif else begin
-                  ;  if ~elemtoh[ielem] and aspcap[kk].fparam[3] gt -90 and tmp_allstarloc[k].x_h[eindex[ielem]] gt -90 then begin
-                  ;   tmp_allstarloc[k].x_h[eindex[ielem]]+=aspcap[kk].fparam[3]
-                  ;  endif
-                  ;endelse
-                  ;tmp_allstarloc[k].x_m[eindex[ielem]]=tmp_allstarloc[k].x_h[eindex[ielem]]-aspcap[kk].fparam[3]
-                  ;tmp_allstarloc[k].x_m_err[eindex[ielem]]=aspcap[kk].x_m_err[eindex[ielem]]
                   tmp_allstarloc[k].x_h[eindex[ielem]]=aspcap[kk].x_h[eindex[ielem]]
                   tmp_allstarloc[k].x_h_err[eindex[ielem]]=aspcap[kk].x_h_err[eindex[ielem]]
                   tmp_allstarloc[k].x_m[eindex[ielem]]=aspcap[kk].x_m[eindex[ielem]]

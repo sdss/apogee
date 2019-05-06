@@ -370,52 +370,108 @@ def calib(allstar,out='./') :
 
     html.htmltab(grid,file=out+'calib.html',ytitle=yt)
 
-def flags(hdulist,out='./') :
-    """ Check flag values
+def flags(hdulist,out='./',alpha=0.005) :
+    """ Tabulate number of objects with different flag bits set, and make HR diagrams showing these
     """
+    f=html.head(out+'flags.html')
     mask=bitmask.AspcapBitMask()
+    xt=[]
+    for i in range(32) : 
+        if mask.name[i] != '' : xt.append(mask.name[i])
+    data=[]
+    row=[]
+    yt=['ASPCAPFLAG']
     for i in range(32) :
         j=np.where(hdulist[1].data['ASPCAPFLAG'] & 2**i)[0]
-        print(mask.name[i],len(j))
+        if mask.name[i] == '' and len(j) > 0 :
+            print('Unnamed bits are set!',i,len(j))
+            pdb.set_trace()
+        elif mask.name[i] != '' :
+            print(mask.name[i])
+            if len(j) > 0 :
+                if np.core.defchararray.find(mask.name[i],'COLORTE') >= 0:
+                    jk0=hdulist[1].data['J']-hdulist[1].data['K']-1.5*hdulist[1].data['AK_TARG']
+                    fig,ax=plots.multi(1,2,hspace=0.001)
+                    plots.plotc(ax[0],hdulist[1].data['FPARAM'][:,0],hdulist[1].data['FPARAM'][:,1],hdulist[1].data['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
+                    plots.plotc(ax[1],hdulist[1].data['FPARAM'][:,0],jk0,hdulist[1].data['FPARAM'][:,3],zr=[-2,0.5],alpha=alpha)
+                    plots.plotc(ax[0],hdulist[1].data['FPARAM'][j,0],hdulist[1].data['FPARAM'][j,1],hdulist[1].data['FPARAM'][j,3],
+                                xr=[10000,3000],yr=[6,-1],zr=[-2,0.5],xt='Teff (raw)',yt='logg (raw)')
+                    plots.plotc(ax[1],hdulist[1].data['FPARAM'][j,0],jk0[j],hdulist[1].data['FPARAM'][j,3],
+                                xr=[10000,3000],yr=[-2,4],zr=[-2,0.5],xt='Teff (raw)',yt='J-K')
+                else :
+                    fig,ax=plots.multi(1,1)
+                    plots.plotc(ax,hdulist[1].data['FPARAM'][:,0],hdulist[1].data['FPARAM'][:,1],hdulist[1].data['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
+                    plots.plotc(ax,hdulist[1].data['FPARAM'][j,0],hdulist[1].data['FPARAM'][j,1],hdulist[1].data['FPARAM'][j,3],
+                                xr=[10000,3000],yr=[6,-1],zr=[-2,0.5],xt='Teff (raw)',yt='logg (raw)')
+                outfile=out+'flag_aspcapflag_{:d}.png'.format(i)
+                fig.savefig(outfile)
+                plt.close()
+                row.append('<a href={:s}> {:d} </a>'.format(os.path.basename(outfile),len(j)))
+            else : 
+                row.append('{:d}'.format(len(j)))
+    data.append(row)
+    f.write(html.table(data,xtitle=xt,ytitle=yt,plots=False,formstr=':s'))
 
     mask=bitmask.ParamBitMask()
-    f=html.head(out+'flags.html')
     xt=[]
     for i in range(32) : 
         if mask.name[i] != '' : xt.append(mask.name[i])
     data=[]
     yt=[]
-    for iparam in range(len(hdulist[3].data['PARAM_SYMBOL'][0])) :
-        yt.append(hdulist[3].data['PARAM_SYMBOL'][0][iparam])
+    for iparam,param in enumerate(hdulist[3].data['PARAM_SYMBOL'][0]) :
+        yt.append(param)
         row=[]
         for i in range(32) :
+            print(param,mask.name[i])
             j=np.where(hdulist[1].data['PARAMFLAG'][:,iparam] & 2**i)[0]
-            #print(hdulist[3].data['PARAM_SYMBOL'][0][iparam],mask.name[i],len(j))
             if mask.name[i] == '' and len(j) > 0 :
                 print('Unnamed bits are set!',i,len(j))
                 pdb.set_trace()
             elif mask.name[i] != '' :
-                row.append(len(j))
+                if len(j) > 0 :
+                    fig,ax=plots.multi(1,1)
+                    plots.plotc(ax,hdulist[1].data['FPARAM'][:,0],hdulist[1].data['FPARAM'][:,1],hdulist[1].data['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
+                    plots.plotc(ax,hdulist[1].data['FPARAM'][j,0],hdulist[1].data['FPARAM'][j,1],hdulist[1].data['FPARAM'][j,3],
+                                xr=[10000,3000],yr=[6,-1],zr=[-2,0.5],xt='Teff (raw)',yt='logg (raw)')
+                    outfile=out+'flag_{:s}_{:d}.png'.format(param,i)
+                    fig.savefig(outfile)
+                    plt.close()
+                    row.append('<a href={:s}> {:d} </a>'.format(os.path.basename(outfile),len(j)))
+                else : 
+                    row.append('{:d}'.format(len(j)))
         data.append(row)
-    f.write(html.table(data,xtitle=xt,ytitle=yt,plots=False,formstr=':d'))
+    f.write(html.table(data,xtitle=xt,ytitle=yt,plots=False,formstr=':s'))
 
     xt=[]
     for i in range(32) : 
         if mask.name[i] != '' : xt.append(mask.name[i])
     data=[]
     yt=[]
-    for ielem in range(len(hdulist[3].data['ELEM_SYMBOL'][0])) :
-        yt.append(hdulist[3].data['ELEM_SYMBOL'][0][ielem])
+    for ielem,el in enumerate(hdulist[3].data['ELEM_SYMBOL'][0]) :
+        yt.append(el)
         row=[]
         for i in range(32) :
             j=np.where(hdulist[1].data['ELEMFLAG'][:,ielem] & 2**i)[0]
-            #print(hdulist[3].data['ELEM_SYMBOL'][0][ielem],mask.name[i],len(j))
             if mask.name[i] == '' and len(j) > 0 :
                 print('Unnamed bits are set!',i,len(j))
                 pdb.set_trace()
             elif mask.name[i] != '' :
-                row.append(len(j))
+                print(el,mask.name[i])
+                if len(j) > 0 :
+                    fig,ax=plots.multi(1,2,hspace=0.001)
+                    plots.plotc(ax[0],hdulist[1].data['FPARAM'][:,0],hdulist[1].data['FPARAM'][:,1],hdulist[1].data['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
+                    plots.plotc(ax[1],hdulist[1].data['FPARAM'][:,0],hdulist[1].data['FPARAM'][:,1],hdulist[1].data['FELEM'][:,ielem],alpha=alpha,zr=[-2,0.5])
+                    plots.plotc(ax[0],hdulist[1].data['FPARAM'][j,0],hdulist[1].data['FPARAM'][j,1],hdulist[1].data['FPARAM'][j,3],
+                                xr=[10000,3000],yr=[6,-1],zr=[-2,0.5],xt='Teff (raw)',yt='logg (raw)',colorbar=True,zt='[M/H]')
+                    plots.plotc(ax[1],hdulist[1].data['FPARAM'][j,0],hdulist[1].data['FPARAM'][j,1],hdulist[1].data['FELEM'][j,ielem],
+                                xr=[10000,3000],yr=[6,-1],zr=[-2,0.5],xt='Teff (raw)',yt='logg (raw)',colorbar=True,zt='FELEM')
+                    outfile=out+'flag_{:s}_{:d}.png'.format(el,i)
+                    fig.savefig(outfile)
+                    plt.close()
+                    row.append('<a href={:s}> {:d} </a>'.format(os.path.basename(outfile),len(j)))
+                else : 
+                    row.append('{:d}'.format(len(j)))
         data.append(row)
-    f.write(html.table(data,xtitle=xt,ytitle=yt,plots=False,formstr=':d'))
+    f.write(html.table(data,xtitle=xt,ytitle=yt,plots=False,formstr=':s'))
 
     html.tail(f)

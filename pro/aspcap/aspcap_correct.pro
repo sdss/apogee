@@ -80,7 +80,6 @@ for i=0L,n_elements(str)-1 do begin
   str[i].paramflag=pflag
   str[i].elemflag=elemflag
 
-  jk0=(str[i].j-str[i].k)-1.5*str[i].ak_targ
 
   ; chi^2
   ;j=min(abs(teff-medt),it)
@@ -107,9 +106,11 @@ for i=0L,n_elements(str)-1 do begin
   if snr lt 30 then flag=flag or aspcapflagval('SN_BAD')
 
   ; color=Teff
+  jk0=(str[i].j-str[i].k)-1.5*max([0.,str[i].ak_targ])
   if str[i].h lt 90 and str[i].ak_targ gt -1 and str[i].ak_targ ne 0. then begin
     if abs(teff-aspcap_colorte(jk0,feh)) gt  500 then flag=flag or aspcapflagval('COLORTE_WARN')
-    if abs(teff-aspcap_colorte(jk0,feh)) gt 1000 then flag=flag or aspcapflagval('COLORTE_BAD')
+    if abs(teff-aspcap_colorte(jk0,feh)) gt 1000 and $
+       (teff gt 4500) and (teff lt 8000) then flag=flag or aspcapflagval('COLORTE_BAD')
   endif
 
   ; star level flag

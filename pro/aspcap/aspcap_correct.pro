@@ -445,6 +445,9 @@ if nelem gt 0 then begin
              max([[aspcap_elemerr(giantcal[ii].errpar,str[giants[gd]].fparam[0]-4500.,str[giants[gd]].fparam[3],snrerr[giants[gd]]-100.)],$
                   [str[giants[gd]].felem_err[i]]],dim=2)
          str[giants[gd]].x_h_err[i]=str[giants[gd]].x_m_err[i]
+         ; set flag for large empirical uncertainties
+         u=where(str[giants[gd]].x_h_err[i] gt 0.2, nu)
+         if nu gt 0 then str[giants[gd[u]]].elemflag[i]=str[giants[gd[u]]].elemflag[i] or paramflagval('ERR_WARN')
       endif
     endif
     if nbd gt 0 then begin
@@ -497,6 +500,9 @@ if nelem gt 0 then begin
              max([[aspcap_elemerr(dwarfcal[ii].errpar,str[dwarfs[gd]].fparam[0]-4500.,str[dwarfs[gd]].fparam[3],snrerr[dwarfs[gd]]-100.)],$
                   [str[dwarfs[gd]].felem_err[i]]],dim=2)
          str[dwarfs[gd]].x_h_err[i]= str[dwarfs[gd]].x_m_err[i]
+         ; set flag for large empirical uncertainties
+         u=where(str[dwarfs[gd]].x_h_err[i] gt 0.2, nu)
+         if nu gt 0 then str[dwarfs[gd[u]]].elemflag[i]=str[dwarfs[gd[u]]].elemflag[i] or paramflagval('ERR_WARN')
       endif
     endif
     if nbd gt 0 then begin

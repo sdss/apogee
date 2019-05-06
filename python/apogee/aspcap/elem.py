@@ -1224,24 +1224,40 @@ def dr16cal(el,dwarfs=False) :
 
     else :
 
-        if el.strip() == 'P' : 
+        if el.strip() == 'Na' : 
+            temin=5500
+            temax=5500
+        elif el.strip() == 'P' : 
             temin=4300
+            temin=5500
+            temax=5500
+        elif el.strip() == 'S' : 
+            temin=4260
         elif el.strip() == 'K' : 
             temin=4000
+            temax=6500
         elif el.strip() == 'Ti' : 
             temin=4000
+            temax=6000
         elif el.strip() == 'TiII' : 
             temin=5500
+            temax=6000
         elif el.strip() == 'V' : 
             temin=4800
+            temax=5500
         elif el.strip() == 'Cr' : 
             temin=3800
+            temax=6200
         elif el.strip() == 'Mn' : 
             temin=3800
         elif el.strip() == 'Fe' : 
             extfit=0
+        elif el.strip() == 'Cu' : 
+            temax=6200
         elif el.strip() == 'Ce' : 
             temin=4200
+            temin=5500
+            temax=5500
 
     return {'elemfit': elemfit, 'mhmin' : mhmin, 'te0': te0, 'temin': temin, 'temax': temax, 
             'caltemin': caltemin, 'caltemax' : caltemax, 'extfit' : extfit, 'extpar' : np.array(extpar)}

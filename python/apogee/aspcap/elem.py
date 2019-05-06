@@ -613,7 +613,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
             #    jsaved,j2 = match.match(allstar[1].data[gd]['APOGEE_ID'],stars['APOGEE_ID'])
             j=apselect.clustmember(allstar[1].data[gd],cluster,raw=True,firstgen=True,firstpos=False,logg=logg,
                                    pm=pm,dist=dist)
-            print(cluster,len(j),len(jsaved))
+            #print(cluster,len(j),len(jsaved))
             if len(j) < 1 :
                 j=apselect.clustmember(allstar[1].data[gd],cluster,raw=True,logg=logg,pm=pm,dist=dist)
             all=set(all).union(gd[j].tolist())

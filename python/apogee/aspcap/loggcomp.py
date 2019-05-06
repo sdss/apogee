@@ -153,7 +153,7 @@ def rcrgb(allstar,apokasc='APOKASC_cat_v3.6.0.fits',logg='LOGG_SYD_SCALING',rcli
     return {'rclim' : rclim, 'rgbsep' : rgbfit, 'cnsep' : cnfit}
     
 
-def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3500,7500],apokasc_cat='APOKASC_cat_v4.4.2.fits',out='logg',calib=False) :
+def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3000,7500],apokasc_cat='APOKASC_cat_v4.4.2.fits',out='logg',calib=False) :
     """ logg calibration for dwarfs, from asteroseismic and isochrones
     """
     if calib :
@@ -191,16 +191,25 @@ def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3500,7500],a
     plots.plotc(ax[1,1],allstar[param][j1,0],allstar[param][j1,1]-isologg['ISOLOGG'][j2],allstar[param][j1,3],zr=[-2,0.5])
     plt.tight_layout()
 
-    # 2D fit as f(Teff,[M/H])
+    # 2D fit as f(Teff,[M/H]), using both APOKASC and isochrone log g
     tfit=allstar[param][i1[gd],0]
     mhfit=allstar[param][i1[gd],3]
     diff=allstar[param][i1[gd],1]-apokasc['LOGG_DW'][i2[gd]]
+    snrfit=allstar['SNR'][i1[gd]]
     tfit=np.append(tfit,allstar[param][j1,0])
     mhfit=np.append(mhfit,allstar[param][j1,3])
     diff=np.append(diff,allstar[param][j1,1]-isologg['ISOLOGG'][j2])
+    snrfit=np.append(snrfit,allstar['SNR'][j1])
+
     # do the fit and add to plot
     msfit = fit.fit2d(tfit,mhfit,diff,degree=1,reject=0.3)
-    tfit=np.arange(3000,7000,10)
+    #pdb.set_trace()
+    #mserrpar = err.errfit(tfit,snrfit,mhfit,diff-msfit(tfit,mhfit),
+    #                      out=out+'_ms',title='log g',zr=[0,0.2])
+    mserrpar=np.zeros([4])
+
+    # plot the relation
+    tfit=np.arange(teffrange[0],teffrange[1],10)
     mhfit=tfit*0.
     plots.plotl(ax[1,1],tfit,msfit(tfit,mhfit),color='orange',linewidth=1.5)
     mhfit=tfit*0-1.
@@ -233,7 +242,7 @@ def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3500,7500],a
 
     return {'calloggmin' : loggrange[0], 'calloggmax' : loggrange[1], 'loggmin' : loggrange[0], 'loggmax' : loggrange[1], 
             'mhmin' : mhrange[0], 'mhmax' : mhrange[1], 'temin': teffrange[0], 'temax' : teffrange[1],
-            'msfit' : msfit.parameters}
+            'msfit' : msfit.parameters, 'errpar' : mserrpar }
 
  
 def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False,out='loggcomp',calloggrange=[-1.,3.8],loggrange=[-1.,3.8],mhrange=[-2.5,0.5],teffrange=[3500,5500],calteffrange=[3000,6000],calib=False) :
@@ -276,20 +285,34 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
     rcall=np.append(rc,rc2)
     rcall=np.append(rcall,rc2cl)
 
-    # Do a 2D fit for RGB stars
+    # Do some 2D fits for RGB stars
     fig,ax=plots.multi(2,1,figsize=(12,6))
+    # linear in logg and [M/H]
     rgbfit = fit.fit2d(allstar['FPARAM'][i1[rgb],1],allstar['FPARAM'][i1[rgb],3],
         allstar[param][i1[rgb],1]-apokasc[logg][i2[rgb]],zr=[-1,0.5],gdrange=[-2,2],yr=[-3,1],xr=[1,4],degree=1,
         plot=ax[0],yt='[M/H]',xt='log g',zt='$\Delta log g$',reject=0.3)
+    # cubic in logg, linear in [M/H]
+    data=allstar[param][i1[rgb],1]-apokasc[logg][i2[rgb]]
+    design=np.ones([5,len(rgb)])
+    design[1,:]=allstar['FPARAM'][i1[rgb],1]
+    design[2,:]=allstar['FPARAM'][i1[rgb],1]**2
+    design[3,:]=allstar['FPARAM'][i1[rgb],1]**3
+    design[4,:]=allstar['FPARAM'][i1[rgb],3]
+    params=fit.linear(data,design)[0]
     rgbrms=(allstar[param][i1[rgb],1]-rgbfit(allstar['FPARAM'][i1[rgb],1],allstar['FPARAM'][i1[rgb],3])-apokasc[logg][i2[rgb]]).std()
     ax[0].text(0.98,0.98,'rms: {:5.3f}'.format(rgbrms),transform=ax[0].transAxes,va='top',ha='right')
     rgberrpar = err.errfit(allstar[param][i1[rgb],0],allstar['SNR'][i1[rgb]],allstar[param][i1[rgb],3],
                         allstar[param][i1[rgb],1]-rgbfit(allstar['FPARAM'][i1[rgb],1],allstar['FPARAM'][i1[rgb],3])-apokasc[logg][i2[rgb]],
                         out=out+'_rgb',title='log g',zr=[0,0.2])
+    loggmin=allstar['FPARAM'][i1[rgb],1].min()
+    loggmax=allstar['FPARAM'][i1[rgb],1].max()
 
+    # RC fits
+    # linear in logg and [M/H]
     rcfit = fit.fit2d(allstar['FPARAM'][i1[rc],1],allstar['FPARAM'][i1[rc],3],
         allstar[param][i1[rc],1]-apokasc[logg][i2[rc]],zr=[-1,0.5],gdrange=[-2,2],yr=[-3,1],xr=[1,4],degree=1,
         plot=ax[1],yt='[M/H]',xt='log g',zt='$\Delta log g$',reject=0.3)
+    # quadratic in logg
     rcfit2 = fit.fit1d(allstar['FPARAM'][i1[rcall],1], allstar[param][i1[rcall],1]-apokasc[logg][i2[rcall]],zr=[-1,0.5],yr=[-3,1],xr=[1,4],degree=2,reject=0.3)
     rcrms=(allstar[param][i1[rc],1]-rcfit(allstar['FPARAM'][i1[rc],1],allstar['FPARAM'][i1[rc],3])-apokasc[logg][i2[rc]]).std()
     rcerrpar = err.errfit(allstar[param][i1[rc],0],allstar['SNR'][i1[rc]],allstar[param][i1[rc],3],
@@ -319,10 +342,16 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
         loggfit=np.arange(1,3.5,0.01)
         mhfit=loggfit*0.
         plots.plotl(tmpax[1],loggfit,rgbfit(loggfit,mhfit),color='orange',linewidth=1.5)
+        plots.plotl(tmpax[1],loggfit,params[0]+params[1]*loggfit+params[2]*loggfit**2+params[3]*loggfit**3+params[4]*mhfit,color='orange',linewidth=1.5)
+        mhfit=loggfit*0-2.
+        plots.plotl(tmpax[1],loggfit,rgbfit(loggfit,mhfit),color='b',linewidth=1.5)
+        plots.plotl(tmpax[1],loggfit,params[0]+params[1]*loggfit+params[2]*loggfit**2+params[3]*loggfit**3+params[4]*mhfit,color='b',linewidth=1.5)
         mhfit=loggfit*0-1.
         plots.plotl(tmpax[1],loggfit,rgbfit(loggfit,mhfit),color='c',linewidth=1.5)
+        plots.plotl(tmpax[1],loggfit,params[0]+params[1]*loggfit+params[2]*loggfit**2+params[3]*loggfit**3+params[4]*mhfit,color='c',linewidth=1.5)
         mhfit=loggfit*0+0.5
         plots.plotl(tmpax[1],loggfit,rgbfit(loggfit,mhfit),color='r',linewidth=1.5)
+        plots.plotl(tmpax[1],loggfit,params[0]+params[1]*loggfit+params[2]*loggfit**2+params[3]*loggfit**3+params[4]*mhfit,color='r',linewidth=1.5)
         tmpax[0].grid()
         tmpax[1].grid()
 
@@ -379,9 +408,9 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
         plt.savefig(out+'_b.jpg')
         plt.close()
 
-    return {'calloggmin' : calloggrange[0], 'calloggmax' : calloggrange[1], 'loggmin' : loggrange[0], 'loggmax' : loggrange[1], 
+    return {'calloggmin' : calloggrange[0], 'calloggmax' : calloggrange[1], 'loggmin' : loggmin, 'loggmax' : loggmax, 
             'mhmin' : mhrange[0], 'mhmax' : mhrange[1], 'calteffmin': calteffrange[0], 'calteffmax' : calteffrange[1],
-            'rgbfit' : rgbfit.parameters, 'rcfit' : rcfit.parameters, 'rcfit2' : rcfit2.parameters, 'rgbrms' : rgbrms, 'rcrms' : rcrms ,
+            'rgbfit' : rgbfit.parameters, 'rgbfit2' : params, 'rcfit' : rcfit.parameters, 'rcfit2' : rcfit2.parameters, 'rgbrms' : rgbrms, 'rcrms' : rcrms ,
             'rgberrpar': rgberrpar, 'rcerrpar': rcerrpar}
 
 def isochrone(allstar,snrbd=300) :

@@ -829,79 +829,6 @@ stop
                endelse
             endif
             if nk eq 1 then begin
-              ; Assign values to the _named_ parameter tags
-              tagnames=tag_names(tmp_allstarloc)
-              for iparam=0,n_elements(params)-1 do begin
-                itag=where(strtrim(tagnames,2) eq strtrim(paramtags[iparam],2),ntag)
-                ierrtag=where(strtrim(tagnames,2) eq strtrim(paramtags[iparam],2)+'_ERR')
-                if ntag gt 0 and index[iparam] ge 0 then begin
-                  tmp_allstarloc[k].(itag)=aspcap[kk].param[index[iparam]]
-                  if aspcap[kk].param_cov[index[iparam],index[iparam]] gt 0 then $
-                      tmp_allstarloc[k].(ierrtag) = $
-                  sqrt(aspcap[kk].param_cov[index[iparam],index[iparam]])
-                endif
-              endfor
-              ; vmicro, vmacro/vsini different for dwarfs and giants
-              tmp_allstarloc[k].vmicro=10.^aspcap[kk].param[2]
-              if (strpos(aspcap[kk].class,'BA') ge 0 or strpos(aspcap[kk].class,'GKd') ge 0  or $
-                  strpos(aspcap[kk].class,'Fd') ge 0 or strpos(aspcap[kk].class,'Md') ge 0) then begin
-                  tmp_allstarloc[k].vmacro=10.^0.
-                  tmp_allstarloc[k].vsini=10.^aspcap[kk].param[7]
-              endif else begin
-                  tmp_allstarloc[k].vmacro=10.^aspcap[kk].param[7]
-              endelse
-
-              ; Assign values to the _named_ element tags
-              ife = where(strtrim(aspcaplabs.elem_symbol,2) eq 'Fe')
-              for ielem=0,n_elements(elems)-1 do begin
-                itag=where(strtrim(tagnames,2) eq strtrim(elemtags[ielem],2))
-                ierrtag=where(strtrim(tagnames,2) eq strtrim(elemtags[ielem],2)+'_ERR')
-                iflagtag=where(strtrim(tagnames,2) eq strtrim(elemtags[ielem],2)+'_FLAG')
-                if eindex[ielem] ge 0 then begin
-                  tmp_allstarloc[k].x_h[eindex[ielem]]=aspcap[kk].x_h[eindex[ielem]]
-                  tmp_allstarloc[k].x_h_err[eindex[ielem]]=aspcap[kk].x_h_err[eindex[ielem]]
-                  tmp_allstarloc[k].x_m[eindex[ielem]]=aspcap[kk].x_m[eindex[ielem]]
-                  tmp_allstarloc[k].x_m_err[eindex[ielem]]=aspcap[kk].x_m_err[eindex[ielem]]
-
-                  if itag ge 0 then begin
-                    if ielem eq ife then begin
-                      ; Fe is special, since we don't want [Fe/Fe]!
-                      tmp_allstarloc[k].(itag)=aspcap[kk].x_h[eindex[ielem]]
-                      tmp_allstarloc[k].(ierrtag) = aspcap[kk].x_h_err[eindex[ielem]]
-                      tmp_allstarloc[k].(iflagtag) = aspcap[kk].elemflag[eindex[ielem]]
-                    endif else begin
-                      if aspcap[kk].x_h[eindex[ielem]] gt -9998. and aspcap[kk].x_h[ife] gt -9998. then begin  
-                        tmp_allstarloc[k].(itag)=aspcap[kk].x_h[eindex[ielem]]-aspcap[kk].x_h[ife]
-                        tmp_allstarloc[k].(ierrtag) = aspcap[kk].x_m_err[eindex[ielem]]
-                      endif
-                      tmp_allstarloc[k].(iflagtag) = aspcap[kk].elemflag[eindex[ielem]]
-                    endelse
-
-                    ; special handling for Rb in l31c.2 --> remove it!
-                    if strpos(results_version,'l31c') ge 0  then begin
-                      irb = where(strtrim(aspcaplabs.elem_symbol,2) eq 'Rb')
-                      if ielem eq irb then begin
-                        tmp_allstarloc[k].(itag) = -9999.99
-                        tmp_allstarloc[k].(ierrtag) = -9999.99
-                        tmp_allstarloc[k].x_h[eindex[ielem]] = -9999.99
-                        tmp_allstarloc[k].x_h_err[eindex[ielem]] = -9999.99
-                        tmp_allstarloc[k].x_m[eindex[ielem]] = -9999.99
-                        tmp_allstarloc[k].x_m_err[eindex[ielem]] = -9999.99
-                      endif
-                      irb = where(strtrim(aspcaplabs.elem_symbol,2) eq 'Na')
-                      if ielem eq irb and (tmp_allstarloc[k].x_m[eindex[ielem]] lt -1 or tmp_allstarloc[k].x_h[eindex[ielem]] lt -1) then begin
-                        tmp_allstarloc[k].(itag) = -9999.99
-                        tmp_allstarloc[k].(ierrtag) = -9999.99
-                        tmp_allstarloc[k].x_h[eindex[ielem]] = -9999.99
-                        tmp_allstarloc[k].x_h_err[eindex[ielem]] = -9999.99
-                        tmp_allstarloc[k].x_m[eindex[ielem]] = -9999.99
-                        tmp_allstarloc[k].x_m_err[eindex[ielem]] = -9999.99
-                      endif
-                    endif
-                  endif
-                endif
-              endfor
-
               ; add the ASPCAP output tags
               if tag_exist(aspcap,'meanfib') then tmp_allstarloc[k].meanfib=aspcap[kk].meanfib
               if tag_exist(aspcap,'sigfib') then tmp_allstarloc[k].sigfib=aspcap[kk].sigfib
@@ -919,8 +846,6 @@ stop
               endif
               tmp_allstarloc[k].param_cov=aspcap[kk].param_cov
               tmp_allstarloc[k].fparam_cov=aspcap[kk].fparam_cov
-              ;if tag_exist(aspcap,'elem') then tmp_allstarloc[k].elem=aspcap[kk].elem
-              ;if tag_exist(aspcap,'elem_err') then tmp_allstarloc[k].elem_err=aspcap[kk].elem_err
               if tag_exist(aspcap,'felem') then tmp_allstarloc[k].felem=aspcap[kk].felem
               if tag_exist(aspcap,'felem_err') then tmp_allstarloc[k].felem_err=aspcap[kk].felem_err
               if tag_exist(aspcap,'elem_chi2') then tmp_allstarloc[k].elem_chi2=aspcap[kk].elem_chi2
@@ -1136,6 +1061,12 @@ endfor ; locationdirs loop
 
 free_lun,missing
 free_lun,altname
+
+; add named tags
+if n_elements(aspcaplabs) gt 0 then $
+  labs={param_symbol: aspcaplabs.param_symbol, elem_symbol: aspcaplabs.elem_symbol, $
+        elem_value: aspcaplabs.elem_value, elemtoh: aspcaplabs.elemtoh, classes: aspcaplabs.classes}
+aspcap_namedtags,allstar,labs
 
 ;; set IDs based on final names
 for k=0L,n_elements(allstar)-1 do begin

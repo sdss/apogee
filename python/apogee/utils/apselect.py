@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 
 def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,100.],alpha=[-100.,100.],sn=[0,1000], raw=False, 
            glon=[-1,360],glat=[-90,90],vscatter=[-1,100],grid=None,field=None,giants=None, dwarfs=None,rgb=None, rc=None,inter=None, 
-           id=None, redid=None, badtarg=None, gdtarg=None) :
+           id=None, redid=None, badtarg=None, gdtarg=None, maxdist=None) :
     '''  
     Return indices of requested subsamples from input allStar structure 
 
@@ -109,9 +109,12 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
         if type(badtarg) is str :
             badtarg=[badtarg]
         for val in badtarg :
-            j=np.where(np.core.defchararray.find(data['TARGFLAGS'],val) >= 0)[0]
-            targ[j]=1
-            print(val, len(j))
+            try :
+                j=np.where(np.core.defchararray.find(data['TARGFLAGS'],val) >= 0)[0]
+                targ[j]=1
+                print(val, len(j))
+            except :
+                print('error with TARGFLAGS selection')
 
     # filter for good TARGFLAG if not None, supercedes (default is all bad unless specified)
     if gdtarg is not None :
@@ -119,8 +122,11 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
             gdtarg=[gdtarg]
         targ = np.ones(len(data),dtype=np.int8)
         for val in gdtarg :
-            j=np.where(np.core.defchararray.find(data['TARGFLAGS'],val) >= 0)[0]
-            targ[j]=0
+            try :
+                j=np.where(np.core.defchararray.find(data['TARGFLAGS'],val) >= 0)[0]
+                targ[j]=0
+            except :
+                print('error with TARGFLAGS selection')
    
     if raw :
         param='FPARAM'
@@ -161,7 +167,17 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
     except :
        snr = data['SNR_2']
 
-    gd = np.where((bad == 0)  & (targ == 0) &
+    dist = np.zeros(len(data),dtype=np.int8)
+    if maxdist is not None :
+        try :
+            close=np.where((1000./data['gaia_parallax'] < maxdist ) & 
+                           (data['gaia_parallax_error']/abs(data['gaia_parallax']) < 0.1) )[0]
+            dist = np.ones(len(data),dtype=np.int8)
+            dist[close]=0
+        except :
+            print('no gaia information for distance cut')
+
+    gd = np.where((bad == 0)  & (targ == 0) & (dist == 0) &
          (startype) &
          (t >= teff[0]) & (t <= teff[1])  &
          (g >= logg[0]) & (g <= logg[1])  &

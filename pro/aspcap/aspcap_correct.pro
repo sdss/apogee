@@ -71,7 +71,8 @@ for i=0L,n_elements(str)-1 do begin
   flag=long(str[i].aspcapflag)*0
   pflag=long(str[i].paramflag)*0
   elemflag=long(str[i].elemflag)*0
-  ; want to turn off all paramflag and elemflag bits except those from loadferre
+  ; want to turn off all paramflag and elemflag bits except those from loadferre and NO_ASPCAP_RESULT
+  flag=flag or (str[i].aspcapflag and aspcapflagval('NO_ASPCAP_RESULT'))
   for ip=0,n_elements(pflag)-1 do $
     pflag[ip]=pflag[ip] or (str[i].paramflag[ip] and ferreflag)
   for ip=0,n_elements(elemflag)-1 do $
@@ -488,8 +489,8 @@ if nelem gt 0 then begin
       tmp.x_h[i]=tmp.x_m[i]+tmp.param[3]
       str[dwarfs[gd]]=tmp
       ; flag cool dwarfs
-      cool = where(str[dwarfs[gd]].fparam[0] lt 3500, ncool)
-      if ncool gt 0 then str[dwarfs[gd[cool]]].elemflag[i]=str[dwarfs[gd[cool]]].elemflag[i] or paramflagval('CALRANGE_WARN')
+      ;cool = where(str[dwarfs[gd]].fparam[0] lt 3500, ncool)
+      ;if ncool gt 0 then str[dwarfs[gd[cool]]].elemflag[i]=str[dwarfs[gd[cool]]].elemflag[i] or paramflagval('CALRANGE_WARN')
       ; calibrate the errors
       if x_m_exists then begin
          str[dwarfs[gd]].x_m_err[i]= $

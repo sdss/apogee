@@ -9,6 +9,7 @@ from apogee.aspcap import err
 from tools import plots
 from tools import html
 from tools import fit
+from tools import match
 import pdb
 from astropy.io import fits
 from astropy.io import ascii
@@ -510,18 +511,23 @@ def getabun(data,elems,elemtoh,el,xh=False,terange=[-1,10000],calib=False,line=0
 
           if xh and not elemtoh[iel] : abun+=data['FPARAM'][:,3]
           if not xh and elemtoh[iel] : abun-=data['FPARAM'][:,3]
-          if el.strip() == 'C' or el.strip() == 'CI' or el.strip() == 'N' :
-            # special case for C and N for dwarfs, since those use [M/H] dimension
-            try :
-                dw = np.where((np.core.defchararray.find(data['ASPCAP_CLASS'],'GKd')>=0) | (np.core.defchararray.find(data['ASPCAP_CLASS'],'Fd')>=0)  |
-                             (np.core.defchararray.find(data['ASPCAP_CLASS'],'Md')>=0))[0]
-            except :
-                dw = np.where((np.core.defchararray.find(data['CLASS'],'GKd')>=0) | (np.core.defchararray.find(data['CLASS'],'Fd')>=0)  |
-                             (np.core.defchararray.find(data['CLASS'],'Md')>=0))[0]
-            if xh : abun[dw]-=data['FPARAM'][dw,3]
-            else : abun[dw]-=data['FPARAM'][dw,3]
-        ok=np.where(((data['ELEMFLAG'][:,iel] & 255) == 0) & (abunerr < 0.2) &
-                    (data['FPARAM'][:,0] >= terange[0]) & (data['FPARAM'][:,0] <= terange[1]) & (abun > -9990.) )[0]
+          #if el.strip() == 'C' or el.strip() == 'CI' or el.strip() == 'N' :
+          #  # special case for C and N for dwarfs, since those use [M/H] dimension
+          #  try :
+          #      dw = np.where((np.core.defchararray.find(data['ASPCAP_CLASS'],'GKd')>=0) | (np.core.defchararray.find(data['ASPCAP_CLASS'],'Fd')>=0)  |
+          #                   (np.core.defchararray.find(data['ASPCAP_CLASS'],'Md')>=0))[0]
+          #  except :
+          #      dw = np.where((np.core.defchararray.find(data['CLASS'],'GKd')>=0) | (np.core.defchararray.find(data['CLASS'],'Fd')>=0)  |
+          #                   (np.core.defchararray.find(data['CLASS'],'Md')>=0))[0]
+          #  if xh : abun[dw]-=data['FPARAM'][dw,3]
+          #  else : abun[dw]-=data['FPARAM'][dw,3]
+        if calib : badflag = 255
+        else : badflag = 0
+        ok=np.where(( (data['ELEMFLAG'][:,iel] & badflag) == 0) &
+                      (abunerr < 0.2) &
+                      (data['FPARAM'][:,0] >= terange[0]) & 
+                      (data['FPARAM'][:,0] <= terange[1]) & 
+                      (abun > -9990.) )[0]
     return abun, ok
 
 def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, maxvisit=100,cal='default',dwarfs=False,inter=False,
@@ -554,15 +560,32 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
     allcol=['r','g','b','c','m','y']
     for i in range(len(colors)) : colors[i] = allcol[i%6]
     if dwarfs : 
-        logg=[3.8,5.]
+        logg=[3.8,5.5]
         reject=0.25
         glon=[0,360]
     else : 
         logg=[-1,3.8]
         reject=0.15
         glon=[70,110]
+    #solar=apselect.select(allstar[1].data,badval='STAR_BAD',badtarg=['YOUNG','EMBEDDED','EMISSION','EXTENDED'],
+    #                      raw=True,logg=logg,glon=glon,glat=[-5,5],sn=[200,10000])
+    #solar=apselect.select(allstar[1].data,badval='STAR_BAD',badtarg=['YOUNG','EMBEDDED','EMISSION','EXTENDED'],
+    #                      raw=True,logg=logg,sn=[200,10000],maxdist=500.)
+    solar=apselect.select(allstar[1].data,badval='STAR_BAD',badtarg=['YOUNG','EMBEDDED','EMISSION','EXTENDED'],
+                          raw=True,logg=logg,sn=[200,10000])
+    try :
+        gd=np.where((allstar[1].data['gaia_parallax_error'][solar]/abs(allstar[1].data['gaia_parallax'][solar]) < 0.1) )[0]   
+        solar=solar[gd]
+        distance = 1000./allstar[1].data['gaia_parallax'][solar]
+        x,y,z,r=lbd2xyz(allstar[1].data['GLON'][solar],allstar[1].data['GLAT'][solar],distance/1000.)
+        gd = np.where((abs(z) < 0.5) & (r>8) & (r<9))[0]
+        solar=solar[gd]
+    except:
+        print('no distance information available for solar sample, using glon/glat')
+        solar=apselect.select(allstar[1].data,badval='STAR_BAD',badtarg=['YOUNG','EMBEDDED','EMISSION','EXTENDED'],
+                              raw=True,logg=logg,glon=glon,glat=[-5,5],sn=[200,10000])
+    
     gd=apselect.select(allstar[1].data,badval='STAR_BAD',raw=True,logg=logg)
-    solar=apselect.select(allstar[1].data,badval='STAR_BAD',raw=True,logg=logg,glon=glon,glat=[-5,5],sn=[200,10000])
     print('ngd: ',len(gd))
     print('nsolar: ',len(solar))
     try :
@@ -584,9 +607,13 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
     all=[]
     for cluster in clusts :
         if cluster in calclusters :
+            #clustdir=os.environ['APOGEE_REDUX']+'/r12/stars/junk/'
+            #if clustdir :
+            #    stars=ascii.read(clustdir+'/'+cluster+'.txt',names=['APOGEE_ID'],format='no_header')
+            #    jsaved,j2 = match.match(allstar[1].data[gd]['APOGEE_ID'],stars['APOGEE_ID'])
             j=apselect.clustmember(allstar[1].data[gd],cluster,raw=True,firstgen=True,firstpos=False,logg=logg,
                                    pm=pm,dist=dist)
-            print(cluster,len(j))
+            print(cluster,len(j),len(jsaved))
             if len(j) < 1 :
                 j=apselect.clustmember(allstar[1].data[gd],cluster,raw=True,logg=logg,pm=pm,dist=dist)
             all=set(all).union(gd[j].tolist())
@@ -600,19 +627,22 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
     for label in ax.axes.get_yticklabels():
         label.set_visible(False)
 
+    iplot=0
     for iclust,cluster in enumerate(clusts) :
         if cluster in calclusters :
-            ax.scatter((iclust//12)*0.1+0.25,12-iclust%12,marker=markers[iclust],color=colors[iclust])
-            ax.text((iclust//12)*0.1+0.26,12-iclust%12,clusts[iclust]+' ( '+str(clusters[iclust].mh)+')',color=colors[iclust],va='center')
+            ax.scatter((iplot//12)*0.1+0.25,12-iplot%12,marker=markers[iclust],color=colors[iclust])
+            ax.text((iplot//12)*0.1+0.26,12-iplot%12,clusts[iclust]+' ( '+str(clusters[iclust].mh)+')',color=colors[iclust],va='center')
             ax.set_xlim(0.23,0.8)
             j=apselect.clustmember(data,clusts[iclust],raw=True,firstgen=True,firstpos=False,logg=logg,pm=pm,dist=dist)
             if len(j) < 1 :
                 j=apselect.clustmember(data,clusts[iclust],raw=True,logg=logg, pm=pm, dist=dist)
+            iplot+=1
         else :
             j=[]
         # members is a list of lists of cluster members
         members.append(j)
     if hard is not None : 
+        fig.savefig(hard+'clust_key.png')
         fig.savefig(hard+'clust_key.pdf')
         plt.close(fig)
 
@@ -645,12 +675,12 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
         dmhbin=3.
         mhbins=np.arange(-2.25,0.75,dmhbin)
         nerrfit=2
-        xr=[3500,7000]
+        xr=[3000,7500]
     else :
         dmhbin=0.5
         mhbins=np.arange(-2.25,0.75,dmhbin)
         nerrfit=3
-        xr=[3500,5500]
+        xr=[3000,5500]
     dteffbin=250
     teffbins=np.arange(3500,6000,dteffbin)
     dsnbin=50
@@ -756,7 +786,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                         res=abun-func
                         gd=np.where((visit == 0) & (vscatter<maxvscatter) & (teff>=pars['temin']) & (teff<=pars['temax']) & (abs(res) <= reject))[0]
                         tmpreject=reject
-                        while len(gd) < 10 :
+                        while len(gd) < 10 and tmpreject<reject*8 :
                           tmpreject*=2.
                           gd=np.where((visit == 0) & (vscatter<maxvscatter) & (teff>=pars['temin']) & (teff<=pars['temax']) & (abs(res) <= tmpreject))[0]
         
@@ -915,9 +945,9 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                     # figure with all elements on same plot
                     if len(doels) > 2 :
                         if iline == 0 :
-                            plots.plotp(allax[iplot//2,iplot%2],teff[gd],abun[gd]-func_uncal[gd],typeref=clust[gd],yr=[-0.29,0.29],xr=xr,
+                            plots.plotp(allax[iplot//2,iplot%2],teff[gd],abun[gd]-func_uncal[gd],typeref=clust[gd],yr=[-0.29,0.29],xr=[3500,5500],
                                         types=clusts,color=colors,marker=markers,size=8,xt='Teff',yt=el)
-                            plots.plotp(allax[iplot//2,iplot%2],teff[bd],abun[bd]-func_uncal[bd],typeref=clust[bd],yr=[-0.29,0.29],xr=xr,
+                            plots.plotp(allax[iplot//2,iplot%2],teff[bd],abun[bd]-func_uncal[bd],typeref=clust[bd],yr=[-0.29,0.29],xr=[3500,5500],
                                         types=clusts,color=colors,marker=markers,size=8,facecolors='none',linewidths=0.2)
                             allax[iplot//2,iplot%2].text(0.98,0.98,'{:5.3f}'.format(
                                         (abun[gd]-func_uncal[gd]).std()),transform=allax[iplot//2,iplot%2].transAxes,va='top',ha='right')
@@ -959,20 +989,21 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                         # solar circle stars
                         if iline==0 and len(solar) > 0 :
                             plots.plotc(allsolarax[iplot//2,iplot%2],solar_teff[solar_ok],solar_abun[solar_ok]-solar_func[solar_ok],solar_mh[solar_ok],
-                                        xr=[3000,6000],yr=[-0.5,0.5],zr=[-1,0.5],xt='Teff',yt=el)
-                            plots.plotl(allsolarax[iplot//2,iplot%2],[3000,6000],[median,median],color='orange')
+                                        xr=xr,yr=[-0.5,0.5],zr=[-1,0.5],xt='Teff',yt=el)
+                            plots.plotl(allsolarax[iplot//2,iplot%2],[pars['temin'],pars['temax']],[median,median],color='k')
+                            plots.plotl(allsolarax[iplot//2,iplot%2],xr,[median,median],color='k',ls=':')
                             allsolarax[iplot//2,iplot%2].text(0.98,0.98,'{:5.3f}'.format(std),ha='right',va='top',transform=allsolarax[iplot//2,iplot%2].transAxes)
                             allsolarax[iplot//2,iplot%2].text(0.98,0.02,'{:5.3f}'.format(median),ha='right',va='bottom',transform=allsolarax[iplot//2,iplot%2].transAxes)
                             label = allsolarax[iplot//2,iplot%2].yaxis.get_label()
                             if len(label.get_text()) < 5 : label.set_rotation(0)
-                            plots.plotc(ax[0,2],solar_teff[solar_ok],solar_abun[solar_ok]-solar_func[solar_ok],solar_mh[solar_ok],xr=[3000,6000],yr=[-0.5,0.5],zr=[-1,0.5])
-                            plots.plotl(ax[0,2],[3000,6000],[median,median],color='orange')
+                            plots.plotc(ax[0,2],solar_teff[solar_ok],solar_abun[solar_ok]-solar_func[solar_ok],solar_mh[solar_ok],xr=xr,yr=[-0.5,0.5],zr=[-1,0.5])
+                            plots.plotl(ax[0,2],xr,[median,median],color='orange')
                             ax[0,2].text(0.98,0.98,'{:5.3f}'.format(std),ha='right',va='top',transform=ax[0,2].transAxes)
                             ax[0,2].text(0.98,0.02,'{:5.3f}'.format(median),ha='right',va='bottom',transform=ax[0,2].transAxes)
                             plots.plotc(ax[0,3],solar_mh[solar_ok],solar_abun[solar_ok]-solar_func[solar_ok],solar_teff[solar_ok],yr=[-0.5,0.5],zr=xr)
                             #uncalibrated
-                            plots.plotc(ax[1,2],solar_teff[solar_ok],solar_abun[solar_ok],solar_mh[solar_ok],xr=[3000,6000],yr=[-0.5,0.5],zr=[-1,0.5])
-                            plots.plotl(ax[1,2],[3000,6000],[median_uncal,median_uncal],color='orange')
+                            plots.plotc(ax[1,2],solar_teff[solar_ok],solar_abun[solar_ok],solar_mh[solar_ok],xr=xr,yr=[-0.5,0.5],zr=[-1,0.5])
+                            plots.plotl(ax[1,2],xr,[median_uncal,median_uncal],color='orange')
                             ax[1,2].text(0.98,0.98,'{:5.3f}'.format(std_uncal),ha='right',va='top',transform=ax[1,2].transAxes)
                             ax[1,2].text(0.98,0.02,'{:5.3f}'.format(median_uncal),ha='right',va='bottom',transform=ax[1,2].transAxes)
                             plots.plotc(ax[1,3],solar_mh[solar_ok],solar_abun[solar_ok],solar_teff[solar_ok],yr=[-0.5,0.5],zr=xr)
@@ -1006,6 +1037,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                     #if not sepplot and cal != 'inter' : pdb.set_trace()
                     if iline == nlines and hard is not None : 
                         fig.savefig(hard+el.strip()+'.jpg')
+                        plt.close(fig)
                         if sepplot: 
                             fig1.savefig(hard+el+'.pdf')
                             fig2.savefig(hard+el+'_lit.pdf')
@@ -1045,7 +1077,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                 rec[iel][key][:]=pars[key][:]
             else :
                 rec[iel][key]=pars[key]
-        rec[iel]['femin'] = pars['mhmin']
+        rec[iel]['femin'] = -99.999
         rec[iel]['femax'] = 99.999
         iel+=1
     #if plot and iplot%2 == 1 : 
@@ -1139,20 +1171,77 @@ def dr16cal(el,dwarfs=False) :
     Return default parameters for abundance calibrtion
     '''
     te0=4500
-    temin=4000
-    if dwarfs : temax=6000
-    else : temax=5000
+    # values for WARN and to use for fits, if any
+    temin=0
+    if dwarfs : temax=100000
+    else : temax=10000
+    # default method/order for fit with Teff (0=none)
     elemfit=0
+    # default method for zeropoint (4=solar neighborhood)
     extfit=4
-    caltemin=3532.5
-    caltemax=6500
+    # values for BAD, i.e. no calibration
+    caltemin=3032.5
+    caltemax=7500
     extpar=[0.,0.,0.]
+    # minimum metallicity to use in clusters
     mhmin=-1
 
     if el.strip() == 'Ge' : elemfit=-1
     if el.strip() == 'Rb' : elemfit=-1
     if el.strip() == 'Nd' : elemfit=-1
     if el.strip() == 'Yb' : elemfit=-1
+
+    if not dwarfs :
+        if el.strip() == 'C' : 
+            extfit=0
+        if el.strip() == 'CI' : 
+            extfit=0
+        if el.strip() == 'N' : 
+            extfit=0
+        if el.strip() == 'Na' : 
+            temin=3750
+        elif el.strip() == 'Al' : 
+            temin=3400
+        elif el.strip() == 'K' : 
+            temin=3900
+        elif el.strip() == 'Ti' : 
+            temin=4200
+        elif el.strip() == 'TiII' : 
+            temin=4000
+        elif el.strip() == 'V' : 
+            temax=4800
+        elif el.strip() == 'Mn' : 
+            temin=4000
+        elif el.strip() == 'Fe' : 
+            extfit=0
+        elif el.strip() == 'Co' : 
+            temin=3300
+        elif el.strip() == 'Cu' : 
+            temin=4000
+        elif el.strip() == 'Ce' : 
+            temin=4000
+            temax=5000
+
+    else :
+
+        if el.strip() == 'P' : 
+            temin=4300
+        elif el.strip() == 'K' : 
+            temin=4000
+        elif el.strip() == 'Ti' : 
+            temin=4000
+        elif el.strip() == 'TiII' : 
+            temin=5500
+        elif el.strip() == 'V' : 
+            temin=4800
+        elif el.strip() == 'Cr' : 
+            temin=3800
+        elif el.strip() == 'Mn' : 
+            temin=3800
+        elif el.strip() == 'Fe' : 
+            extfit=0
+        elif el.strip() == 'Ce' : 
+            temin=4200
 
     return {'elemfit': elemfit, 'mhmin' : mhmin, 'te0': te0, 'temin': temin, 'temax': temax, 
             'caltemin': caltemin, 'caltemax' : caltemax, 'extfit' : extfit, 'extpar' : np.array(extpar)}
@@ -1723,4 +1812,18 @@ def elemerr(soln,te,sn,fe) :
 
 if __name__ == '__main__' :
     main()
+
+
+
+def lbd2xyz(l,b,d,R0=8.5) :
+    ''' Angular coordinates + distance -> galactocentry x,y,z '''
+
+    brad = b*np.pi/180.
+    lrad = l*np.pi/180.
+
+    x = d*np.sin(0.5*np.pi-brad)*np.cos(lrad)-R0
+    y = d*np.sin(0.5*np.pi-brad)*np.sin(lrad)
+    z = d*np.cos(0.5*np.pi-brad)
+    r = np.sqrt(x**2+y**2)
+    return x, y, z, r
 

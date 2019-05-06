@@ -448,6 +448,8 @@ def flags(hdulist,out='./',alpha=0.005) :
     data=[]
     yt=[]
     for ielem,el in enumerate(hdulist[3].data['ELEM_SYMBOL'][0]) :
+        if hdulist[3].data['ELEMTOH'] == 1 : fzr=[-2,0.5]
+        else : fzr = [-1,1]
         yt.append(el)
         row=[]
         for i in range(32) :
@@ -460,11 +462,11 @@ def flags(hdulist,out='./',alpha=0.005) :
                 if len(j) > 0 :
                     fig,ax=plots.multi(1,2,hspace=0.001)
                     plots.plotc(ax[0],hdulist[1].data['FPARAM'][:,0],hdulist[1].data['FPARAM'][:,1],hdulist[1].data['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
-                    plots.plotc(ax[1],hdulist[1].data['FPARAM'][:,0],hdulist[1].data['FPARAM'][:,1],hdulist[1].data['FELEM'][:,ielem],alpha=alpha,zr=[-2,0.5])
+                    plots.plotc(ax[1],hdulist[1].data['FPARAM'][:,0],hdulist[1].data['FPARAM'][:,1],hdulist[1].data['FELEM'][:,ielem],alpha=alpha,zr=fzr)
                     plots.plotc(ax[0],hdulist[1].data['FPARAM'][j,0],hdulist[1].data['FPARAM'][j,1],hdulist[1].data['FPARAM'][j,3],
                                 xr=[10000,3000],yr=[6,-1],zr=[-2,0.5],xt='Teff (raw)',yt='logg (raw)',colorbar=True,zt='[M/H]')
                     plots.plotc(ax[1],hdulist[1].data['FPARAM'][j,0],hdulist[1].data['FPARAM'][j,1],hdulist[1].data['FELEM'][j,ielem],
-                                xr=[10000,3000],yr=[6,-1],zr=[-2,0.5],xt='Teff (raw)',yt='logg (raw)',colorbar=True,zt='FELEM')
+                                xr=[10000,3000],yr=[6,-1],zr=fzr,xt='Teff (raw)',yt='logg (raw)',colorbar=True,zt='FELEM')
                     outfile=out+'flag_{:s}_{:d}.png'.format(el,i)
                     fig.savefig(outfile)
                     plt.close()
@@ -475,3 +477,45 @@ def flags(hdulist,out='./',alpha=0.005) :
     f.write(html.table(data,xtitle=xt,ytitle=yt,plots=False,formstr=':s'))
 
     html.tail(f)
+
+def apolco(hdulist,out='./',snmin=150) :
+    """ histograms of LCO-APO  parameters and abundances
+    """
+
+    gd=apselect.select(hdulist[1].data,badval='STAR_BAD',sn=[snmin,10000])
+    a=hdulist[1].data[gd]
+
+    apo=np.where(a['TELESCOPE'] == 'apo25m')[0]
+    lco=np.where(a['TELESCOPE'] == 'lco25m')[0]
+    i1,i2=match.match(a['APOGEE_ID'][apo],a['APOGEE_ID'][lco])
+    grid=[]
+    yt=[]
+    for iparam,param in enumerate(hdulist[3].data['PARAM_SYMBOL'][0]) :
+        fig,ax=plots.multi(1,1,figsize=(6,4.5))
+        diff=a['FPARAM'][lco[i2],iparam]-a['FPARAM'][apo[i1],iparam]
+        if iparam == 0 : ax.hist(diff,bins=np.arange(-100.,100.,1.))
+        else : ax.hist(diff,bins=np.arange(-0.5,0.5,0.01))
+        ax.set_xlabel('{:s} (LCO-APO)'.format(param))
+        ax.text(0.1,0.9,'S/N> {:d}'.format(snmin),transform=ax.transAxes)
+        ax.text(0.1,0.8,'mean: {:8.3f}'.format(diff.mean()),transform=ax.transAxes)
+        ax.text(0.1,0.7,'std: {:8.3f}'.format(diff.std()),transform=ax.transAxes)
+        outfile=out+'apolco_param_{:d}.png'.format(iparam)
+        fig.savefig(outfile)
+        plt.close()
+        grid.append([os.path.basename(outfile)])
+        yt.append(param)
+    for ielem,el in enumerate(hdulist[3].data['ELEM_SYMBOL'][0]) :
+        fig,ax=plots.multi(1,1,figsize=(6,4.5))
+        diff=a['FELEM'][lco[i2],ielem]-a['FELEM'][apo[i1],ielem]
+        ax.hist(diff,bins=np.arange(-0.5,0.5,0.01))
+        ax.set_xlabel('{:s} (LCO-APO)'.format(el))
+        ax.text(0.1,0.9,'S/N> {:d}'.format(snmin),transform=ax.transAxes)
+        ax.text(0.1,0.8,'mean: {:8.3f}'.format(diff.mean()),transform=ax.transAxes)
+        ax.text(0.1,0.7,'std: {:8.3f}'.format(diff.std()),transform=ax.transAxes)
+        outfile=out+'apolco_{:s}.png'.format(el)
+        fig.savefig(outfile)
+        plt.close()
+        grid.append([os.path.basename(outfile)])
+        yt.append(el)
+
+    html.htmltab(grid,file=out+'apolco.html',ytitle=yt)

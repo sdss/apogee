@@ -238,12 +238,12 @@ def dict2struct(d) :
             l = 1
         if isinstance(val,str) : 
             tt = 'S{:d}'.format(len(val))
-        if isinstance(val,int) : 
+        if isinstance(val,int) or isinstance(val,np.integer) : 
             if l == 1 :
                 tt = 'i4'.format(l)
             else :
                 tt = '{:d}d4'.format(l)
-        if isinstance(val,float) : 
+        if isinstance(val,float) or isinstance(val,np.floating) : 
             if l == 1 :
                 tt = 'f4'.format(l)
             else :

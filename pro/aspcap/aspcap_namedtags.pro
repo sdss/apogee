@@ -43,25 +43,27 @@ for ielem=0,n_elements(elems)-1 do begin
   itag=where(strtrim(tagnames,2) eq strtrim(elemtags[ielem],2),ntag)
   if ntag gt 0 then allstar.(itag)= -9999.99
   ierrtag=where(strtrim(tagnames,2) eq strtrim(elemtags[ielem],2)+'_ERR',ntag)
-  if ntag gt 0 then allstar.(itag)= -999.99
+  if ntag gt 0 then allstar.(ierrtag)= -999.99
   iflagtag=where(strtrim(tagnames,2) eq strtrim(elemtags[ielem],2)+'_FLAG',ntag)
-  if ntag gt 0 then allstar.(itag)= 0L
+  if ntag gt 0 then allstar.(iflagtag)= 0L
   if eindex[ielem] ge 0 then begin
     if itag ge 0 then begin
+     allstar.(iflagtag) = allstar.elemflag[eindex[ielem]]
+     ; decision for DR16: only populate named tags with zero warnings
+     named=where(allstar.elemflag[eindex[ielem]] eq 0,n)
+     if n gt 0 then begin
       if ielem eq ife then begin
         ; Fe is special, since we don't want [Fe/Fe]!
-        allstar.(itag)=allstar.x_h[eindex[ielem]]
-        allstar.(ierrtag) = allstar.x_h_err[eindex[ielem]]
-        allstar.(iflagtag) = allstar.elemflag[eindex[ielem]]
+        allstar[named].(itag)=allstar[named].x_h[eindex[ielem]]
+        allstar[named].(ierrtag) = allstar[named].x_h_err[eindex[ielem]]
       endif else begin
-        gd=where(allstar.x_h[eindex[ielem]] gt -9998. and allstar.x_h[ife] gt -9998.,ngd)
+        gd=where(allstar[named].x_h[eindex[ielem]] gt -9998. and allstar[named].x_h[ife] gt -9998.,ngd)
         if ngd gt 0 then begin
-          allstar[gd].(itag)=allstar[gd].x_h[eindex[ielem]]-allstar[gd].x_h[ife]
-          allstar[gd].(ierrtag) = allstar[gd].x_m_err[eindex[ielem]]
+          allstar[named[gd]].(itag)=allstar[named[gd]].x_h[eindex[ielem]]-allstar[named[gd]].x_h[ife]
+          allstar[named[gd]].(ierrtag) = allstar[named[gd]].x_m_err[eindex[ielem]]
         endif
-        allstar.(iflagtag) = allstar.elemflag[eindex[ielem]]
       endelse
-
+     endif
     endif
   endif
 endfor

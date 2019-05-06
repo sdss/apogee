@@ -894,10 +894,10 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                     solar_abun,solar_ok= getabun(allstar[1].data[solar],elems,elemtoh,el,xh=xh,calib=calib)
                     solar_func=calfunc(pars,solar_teff,solar_mh,solar_abun,np.array(['']*len(solar_teff)),order=pars['elemfit'],calib=calib)
                     # get mean and scatter of solar metallicity stars, rejecting points more than 0.2 from mean
-                    ss=np.where((solar_mh[solar_ok] > -0.1) & (solar_mh[solar_ok] < 0.1) & 
+                    ss=np.where((solar_mh[solar_ok] > -0.05) & (solar_mh[solar_ok] < 0.05) & 
                                 (solar_teff[solar_ok] > pars['temin']) & (solar_teff[solar_ok] < pars['temax']))[0]
                     median=np.median(solar_abun[solar_ok[ss]]-solar_func[solar_ok[ss]])
-                    ss=np.where((solar_mh[solar_ok] > -0.1) & (solar_mh[solar_ok] < 0.1) & 
+                    ss=np.where((solar_mh[solar_ok] > -0.05) & (solar_mh[solar_ok] < 0.05) & 
                                 (solar_teff[solar_ok] > pars['temin']) & (solar_teff[solar_ok] < pars['temax']) &
                                 (np.abs(solar_abun[solar_ok]-solar_func[solar_ok])<0.2))[0]
                     std=(solar_abun[solar_ok[ss]]-solar_func[solar_ok[ss]]).std()

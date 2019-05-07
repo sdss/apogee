@@ -1204,6 +1204,8 @@ def dr16cal(el,dwarfs=False) :
             temin=3400
         elif el.strip() == 'K' : 
             temin=3900
+        elif el.strip() == 'P' : 
+            temax=6000
         elif el.strip() == 'Ti' : 
             temin=4200
         elif el.strip() == 'TiII' : 
@@ -1216,6 +1218,7 @@ def dr16cal(el,dwarfs=False) :
             extfit=0
         elif el.strip() == 'Co' : 
             temin=3300
+            temax=6500
         elif el.strip() == 'Cu' : 
             temin=4000
         elif el.strip() == 'Ce' : 
@@ -1252,6 +1255,8 @@ def dr16cal(el,dwarfs=False) :
             temin=3800
         elif el.strip() == 'Fe' : 
             extfit=0
+        elif el.strip() == 'Co' : 
+            temax=6500
         elif el.strip() == 'Cu' : 
             temax=6200
         elif el.strip() == 'Ce' : 

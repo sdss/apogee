@@ -850,6 +850,10 @@ stop
               if tag_exist(aspcap,'felem_err') then tmp_allstarloc[k].felem_err=aspcap[kk].felem_err
               if tag_exist(aspcap,'elem_chi2') then tmp_allstarloc[k].elem_chi2=aspcap[kk].elem_chi2
               if tag_exist(aspcap,'elemflag') then tmp_allstarloc[k].elemflag=aspcap[kk].elemflag
+              if tag_exist(aspcap,'x_h') then tmp_allstarloc[k].x_h=aspcap[kk].x_h
+              if tag_exist(aspcap,'x_h_err') then tmp_allstarloc[k].x_h_err=aspcap[kk].x_h_err
+              if tag_exist(aspcap,'x_m') then tmp_allstarloc[k].x_m=aspcap[kk].x_m
+              if tag_exist(aspcap,'x_m_err') then tmp_allstarloc[k].x_m_err=aspcap[kk].x_m_err
             endif
          endif 
 
@@ -1062,10 +1066,22 @@ endfor ; locationdirs loop
 free_lun,missing
 free_lun,altname
 
+; set param and elem flags for stars without ASPCAP results
+gd=where((allstar.aspcapflag and aspcapflagval('NO_ASPCAP_RESULT')) eq 0, ngd,comp=bd,ncomp=nbd)
+if  nbd gt 0 then begin
+  allstar[bd].aspcapflag = allstar[bd].aspcapflag or aspcapflagval('STAR_BAD')
+  sz=size(allstar.paramflag,/dim)
+  for i=0,sz[0]-1 do allstar[bd].paramflag[i] = allstar[bd].paramflag[i] or paramflagval('OTHER_BAD')
+  sz=size(allstar.elemflag,/dim)
+  for i=0,sz[0]-1 do allstar[bd].elemflag[i] = allstar[bd].elemflag[i] or paramflagval('OTHER_BAD')
+  for i=0,n_elements(bd)-1 do allstar[bd[i]].aspcapflags=aspcapflag(allstar[bd[i]].aspcapflag,0)
+endif
+
 ; add named tags
 if n_elements(aspcaplabs) gt 0 then $
   labs={param_symbol: aspcaplabs.param_symbol, elem_symbol: aspcaplabs.elem_symbol, $
         elem_value: aspcaplabs.elem_value, elemtoh: aspcaplabs.elemtoh, classes: aspcaplabs.classes}
+
 aspcap_namedtags,allstar,labs
 
 ;; set IDs based on final names

@@ -131,8 +131,15 @@ for i=0L,n_elements(str)-1 do begin
 endfor
 
 ; we will only calibrate stars that are not flagged as bad by criteria above
-gd=where((str.aspcapflag and aspcapflagval('STAR_BAD')) eq 0,ngd)
+gd=where(((str.aspcapflag and aspcapflagval('STAR_BAD')) eq 0) and  $
+         ((str.aspcapflag and aspcapflagval('NO_ASPCAP_RESULT')) eq 0), ngd,comp=bd,ncomp=nbd)
 if ngd le 0 then stop,'NO good stars!! something wrong?'
+if  nbd gt 0 then begin
+  sz=size(str.paramflag,/dim)
+  for i=0,sz[0]-1 do str[bd].paramflag[i] = str[bd].paramflag[i] or paramflagval('OTHER_BAD')
+  sz=size(str.elemflag,/dim)
+  for i=0,sz[0]-1 do str[bd].elemflag[i] = str[bd].elemflag[i] or paramflagval('OTHER_BAD')
+endif
 
 ; define giants and dwarfs, only for stars that are not STAR_BAD
 giants=where(str[gd].fparam[1] lt 2./1300.*(str[gd].fparam[0]-3500.)+2. and str[gd].fparam[1] lt 4 and str[gd].fparam[0] lt 7000,ngiants,comp=dwarfs,ncomp=ndwarfs)

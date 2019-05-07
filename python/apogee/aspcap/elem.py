@@ -1198,6 +1198,8 @@ def dr16cal(el,dwarfs=False) :
             extfit=0
         if el.strip() == 'N' : 
             extfit=0
+        if el.strip() == 'O' : 
+            temax=5000
         if el.strip() == 'Na' : 
             temin=3750
         elif el.strip() == 'Al' : 
@@ -1227,7 +1229,9 @@ def dr16cal(el,dwarfs=False) :
 
     else :
 
-        if el.strip() == 'Na' : 
+        if el.strip() == 'O' : 
+            temax=5000
+        elif el.strip() == 'Na' : 
             temin=5500
             temax=5500
         elif el.strip() == 'P' : 

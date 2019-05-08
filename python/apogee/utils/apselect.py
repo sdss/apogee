@@ -170,7 +170,8 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
     dist = np.zeros(len(data),dtype=np.int8)
     if maxdist is not None :
         try :
-            close=np.where((1000./data['gaia_parallax'] < maxdist ) & 
+            close=np.where((data['gaia_parallax'] > -999) &
+                           (1000./data['gaia_parallax'] < maxdist ) & 
                            (data['gaia_parallax_error']/abs(data['gaia_parallax']) < 0.1) )[0]
             dist = np.ones(len(data),dtype=np.int8)
             dist[close]=0

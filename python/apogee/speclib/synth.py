@@ -924,7 +924,7 @@ def mkspec(input) :
     print(teff,logg,mh,vmicro,am,cm,nm)
     spec,specnorm=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=indata['kurucz'],fill=False,
                               linelist=indata['linelist'],linelistdir=indata['linelistdir'],
-                              wrange=indata['wrange'],dw=indata['dw'],h2o=indata['h2o'],atoms=indata['atoms'],save=True)
+                              wrange=indata['wrange'],dw=indata['dw'],h2o=indata['h2o'],atoms=indata['atoms'],save=False)
     return pars,specnorm
     
 
@@ -964,10 +964,15 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',te
     for par in pars :
         inputs.append((par,indata))
 
-    pool = mp.Pool(threads)
-    specs = pool.map_async(mkspec, inputs).get()
-    pool.close()
-    pool.join()
+    if threads == 0 :
+        specs=[]
+        for input in inputs :
+            specs.append(mkspec(input))
+    else :
+        pool = mp.Pool(threads)
+        specs = pool.map_async(mkspec, inputs).get()
+        pool.close()
+        pool.join()
 
     # convolved and bundle output spectra into output fits file
     wa=aspcap.apStarWave()

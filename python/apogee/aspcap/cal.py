@@ -148,20 +148,15 @@ def summary(out='allCal.fits',prefix='allcal/',cal='dr16',hr=True,repeat=True,dr
     f=html.head(file=out.replace('.fits','.html'))
     f.write(html.table(grid,ytitle=['uncalibrated','uncalibrated','calibrated']))
     f.write('<br>Uncalibrated parameters:<br>')
-    ids = ['VESTA','alpha_Boo']
+    ids = ['VESTA','2M14153968+1910558']
     j=[]
     try: 
         for id in ids: j.extend( np.where( (np.core.defchararray.strip(all['APOGEE_ID']) == id) & (all['VISIT'] == 0)) [0] )
     except: 
         for id in ids: j.extend( np.where( (np.core.defchararray.strip(all['APOGEE_ID']) == id) ) [0] )
+    ids = ['VESTA','Arcturus']
     f.write(html.table(all['FPARAM'][j],plots=False,ytitle=ids,xtitle=aspcap.params()[1]))
     f.write('<br>calibrated parameters:<br>')
-    ids = ['VESTA','alpha_Boo']
-    j=[]
-    try: 
-        for id in ids: j.extend( np.where( (np.core.defchararray.strip(all['APOGEE_ID']) == id) & (all['VISIT'] == 0)) [0] )
-    except: 
-        for id in ids: j.extend( np.where( (np.core.defchararray.strip(all['APOGEE_ID']) == id) ) [0] )
     f.write(html.table(all['PARAM'][j],plots=False,ytitle=ids,xtitle=aspcap.params()[1]))
     # table of abundances (relative to M)
     f.write('<br>Uncalibrated abundances:<br>')
@@ -178,26 +173,33 @@ def summary(out='allCal.fits',prefix='allcal/',cal='dr16',hr=True,repeat=True,dr
     for i in range(len(hdulist[3].data['ELEM_SYMBOL'][0])) : 
         xtit.append('['+hdulist[3].data['ELEM_SYMBOL'][0][i]+'/M]')
     f.write(html.table(all['X_M'][j],plots=False,ytitle=ids,xtitle=xtit))
+
     f.write('<p> Calibration relations<ul>\n')
     f.write('<li> <a href='+prefix+'calib/'+out.replace('.fits','.html')+'> Calibration plots</a>\n')
     f.write('<li> <a href='+prefix+'calibrated/'+out.replace('.fits','.html')+'> Calibration check (calibration plots from calibrated values) </a>\n')
     f.write('<li> <a href='+prefix+'qa/calib.html> Calibrated-uncalibrated plots</a>\n')
     f.write('</ul>\n')
-    f.write('<p> <a href='+prefix+'optical/optical.html> Comparison with optical abundances</a>\n')
-    f.write('<br> <a href='+prefix+'qa/elem_chem.html> Chemistry plots</a>\n')
-    f.write('<br> <a href='+prefix+'qa_calibrated/elem_chem.html> Chemistry plots with calibrated params</a>\n')
-    f.write('<br> <a href='+prefix+'qa/cn.html> C,N parameters and abundances</a>\n')
-    f.write('<br> <a href='+prefix+'qa/m67.html> M67 abundances</a>\n')
-    f.write('<br> <a href='+prefix+'qa/flags.html> Bitmasks</a>\n')
-    f.write('<br> <a href='+prefix+'qa/apolco.html> APO-LCO comparison</a>\n')
+    f.write('<p> Comparisons<ul>\n')
+    f.write('<li> <a href='+prefix+'optical/optical.html> Comparison with optical abundances</a>\n')
+    f.write('<li> <a href='+prefix+'qa/apolco.html> APO-LCO comparison</a>\n')
+    f.write('<li> <a href='+prefix+'qa/m67.html> M67 abundances</a>\n')
+    f.write('</ul>\n')
+    f.write('<p> Chemistry plots<ul>\n')
+    f.write('<li> <a href='+prefix+'qa/elem_chem.html> Chemistry plots with uncalibrated abundances</a>\n')
+    f.write('<li> <a href='+prefix+'qa_calibrated/elem_chem.html> Chemistry plots with calibrated abundances</a>\n')
+    f.write('</ul>\n')
+    f.write('<p> QA checks<ul>\n')
+    f.write('<li> <a href='+prefix+'qa/cn.html> C,N parameters vs abundances</a>\n')
+    f.write('<li> <a href='+prefix+'qa/flags.html> Bitmasks</a>\n')
+    f.write('<li> <a href='+prefix+'qa/elem_errs.html> Abundance uncertainties</a>\n')
+    f.write('<li> <a href='+prefix+'qa/dr14_diffs.html> DR14 comparison plots</a>')
+    f.write('</ul>\n')
     f.write('<br> Duplicates/repeats, for empirical uncertainties: <ul>\n')
     f.write('<li> <a href='+prefix+'repeat/giant_repeat_elem.html> Elemental abundances, giants</a>\n')
     f.write('<li> <a href='+prefix+'repeat/giant_repeat_param.html> Parameters,  giants</a>\n')
     f.write('<li> <a href='+prefix+'repeat/dwarf_repeat_elem.html> Elemental abundances, dwarfs</a>\n')
     f.write('<li> <a href='+prefix+'repeat/dwarf_repeat_param.html> Parameters,  dwarfs</a>\n')
     f.write('</ul>\n')
-    f.write('<p> <a href='+prefix+'qa/elem_errs.html> Abundance uncertainties</a>\n')
-    f.write('<br> <a href='+prefix+'qa/dr14_diffs.html> DR14 comparison plots</a>')
     html.tail(f)
 
     # optical comparison index
@@ -233,6 +235,7 @@ def summary(out='allCal.fits',prefix='allcal/',cal='dr16',hr=True,repeat=True,dr
         qa.plotcn(hdulist,out=prefix+'qa/')
         qa.calib(hdulist,out=prefix+'qa/')
         qa.m67(hdulist,out=prefix+'qa/')
+        qa.apolco(hdulist,out=prefix+'qa/')
         qa.flags(hdulist,out=prefix+'qa/')
 
     return all

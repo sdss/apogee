@@ -171,7 +171,8 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
     allam=[]
     allcm=[]
     allnm=[]
-    els = np.array(['O','Na','Mg','Al','Si','P','S','K','Ca','Ti','V','Cr','Mn','Co','Ni','Cu','Ge','Rb','Ce','Nd'])
+    els = np.array(['O','Na','Mg','Al','Si','P','S','K','Ca','Ti','V','Cr','Mn','Co','Fe','Ni','Cu','Ge','Rb','Ce','Nd'])
+
     els_alpha = np.where((els == 'O') | (els == 'Mg') | (els == 'Si') | (els == 'S') | (els == 'Ca') | (els == 'Ti'))[0]
     for el in els: f.write('{:>7s}'.format(el))
     f.write('\n')

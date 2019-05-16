@@ -70,15 +70,17 @@ for i=0L,n_elements(str)-1 do begin
   starflag=long(str[i].starflag)
   flag=long(str[i].aspcapflag)*0
   pflag=long(str[i].paramflag)*0
-  elemflag=long(str[i].elemflag)*0
   ; want to turn off all paramflag and elemflag bits except those from loadferre and NO_ASPCAP_RESULT
   flag=flag or (str[i].aspcapflag and aspcapflagval('NO_ASPCAP_RESULT'))
   for ip=0,n_elements(pflag)-1 do $
     pflag[ip]=pflag[ip] or (str[i].paramflag[ip] and ferreflag)
-  for ip=0,n_elements(elemflag)-1 do $
-    elemflag[ip]=elemflag[ip] or (str[i].elemflag[ip] and ferreflag)
   str[i].paramflag=pflag
-  str[i].elemflag=elemflag
+  if ~keyword_set(noelem) then begin
+    elemflag=long(str[i].elemflag)*0
+    for ip=0,n_elements(elemflag)-1 do $
+      elemflag[ip]=elemflag[ip] or (str[i].elemflag[ip] and ferreflag)
+    str[i].elemflag=elemflag
+  endif
 
 
   ; chi^2
@@ -137,8 +139,10 @@ if ngd le 0 then stop,'NO good stars!! something wrong?'
 if  nbd gt 0 then begin
   sz=size(str.paramflag,/dim)
   for i=0,sz[0]-1 do str[bd].paramflag[i] = str[bd].paramflag[i] or paramflagval('OTHER_BAD')
-  sz=size(str.elemflag,/dim)
-  for i=0,sz[0]-1 do str[bd].elemflag[i] = str[bd].elemflag[i] or paramflagval('OTHER_BAD')
+  if ~keyword_set(noelem) then begin
+    sz=size(str.elemflag,/dim)
+    for i=0,sz[0]-1 do str[bd].elemflag[i] = str[bd].elemflag[i] or paramflagval('OTHER_BAD')
+  endif
 endif
 
 ; define giants and dwarfs, only for stars that are not STAR_BAD

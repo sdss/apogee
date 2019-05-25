@@ -376,13 +376,13 @@ str.param[2]=str.fparam[2]
 str.param[7]=str.fparam[7]
 
 ; now calibrate elements
-print,'calibrating elements...'
-str.x_m=-9999.99
-str.x_h=-9999.99
-str.x_m_err=-999.99
-str.x_h_err=-999.99
-elems=aspcap_elems(tagnames,elemtoh)
 if nelem gt 0 then begin
+ print,'calibrating elements...'
+ str.x_m=-9999.99
+ str.x_h=-9999.99
+ str.x_m_err=-999.99
+ str.x_h_err=-999.99
+ elems=aspcap_elems(tagnames,elemtoh)
  for i=0,n_elements(elem)-1 do begin
   el=strtrim(elem[i],2)
   print,el

@@ -362,6 +362,7 @@ if not keyword_set(silent) then $
 
 ; HDU #0 = Header only
 ;----------------------
+file_delete,outfile,/allow
 FITS_WRITE,outfile,0,header
   
 ; HDU #1 = Flux in units of 10^(-17) erg/s/cm^2/Ang [FLOAT]
@@ -551,6 +552,7 @@ if not keyword_set(nolsf) then begin
 ;-----------------
 ;   apLSF-STAR8.fits
 outlsffile=apogee_filename('StarLSF',field=locationdir,obj=objid)
+file_delete,outlsffile,/allow
 
 if not keyword_set(silent) then $
   print,' Writing combined LSF to ',outlsffile

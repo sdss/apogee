@@ -1,4 +1,4 @@
-pro apstar,planfile,clobber=clobber,sinc=sinc,log=log,noplot=noplot,obj=inpobj,rvrefine=rvrefine,snmin=snmin,snsig=snsig,snmax=snmax,nstars=nstars,nres=nres,bccomb=bccomb,stars_dir=stars_dir, trimgrid = trimgrid
+pro apstar,planfile,clobber=clobber,sinc=sinc,log=log,noplot=noplot,obj=inpobj,rvrefine=rvrefine,snmin=snmin,snsig=snsig,snmax=snmax,nstars=nstars,nres=nres,bccomb=bccomb,stars_dir=stars_dir, trimgrid = trimgrid,forcedone=forcedone
 
 ;+
 ;
@@ -67,7 +67,7 @@ if n_elements(log) eq 0 then log=apsetpar(planstr,'log',1)
 if n_elements(rvrefine) eq 0 then rvrefine=apsetpar(planstr,'rvrefine',2)  ; 1 for DR13 
 if n_elements(snmax) eq 0 then snmax = apsetpar(planstr,'snmax',10) ; 0 for DR13
 if n_elements(snsig) eq 0 then snsig = apsetpar(planstr,'snsig',3)  ; 0 for DR13
-   if keyword_set(snsig) then defsnmin = 1 else defsnmin = 5
+if keyword_set(snsig) then defsnmin = 1 else defsnmin = 5
 if n_elements(snmin) eq 0 then snmin=apsetpar(planstr,'snmin',defsnmin)
 if n_elements(trimgrid) eq 0 then trimgrid=apsetpar(planstr,'trimgrid',0)
 if n_elements(nstars) eq 0 then nstars=apsetpar(planstr,'nstars',0)
@@ -216,7 +216,7 @@ for iloc=0,n_elements(locations)-1 do begin
     ENDIF ELSE newsnmin = snmin
     snrgood = where(allvisits[obj].snr GE newsnmin,ngood)
     if ngood eq 0 then goto, bomb
-    obj = obj[snrgood]
+    if ~keyword_set(forcedone) then obj = obj[snrgood]
     
     ; check to see if we have already done this stars with all of the visits
     ;starfile=stars_dir+clocation+'/'+root+objname+'.fits'
@@ -236,7 +236,7 @@ for iloc=0,n_elements(locations)-1 do begin
     endif
 
     ; if we haven't done it, do it!
-    if keyword_set(clobber) or not done then begin
+    if (keyword_set(clobber) or not done)  and ~keyword_set(forcedone) then begin
       ; load up the spectra into str structure  
       nvisits=n_elements(obj)
       for ivisit=0,nvisits-1 do begin
@@ -291,6 +291,9 @@ for iloc=0,n_elements(locations)-1 do begin
                  chi2_threshold: chi2_threshold,  stablerv_chi2_prob: stablerv_chi2_prob}
         if is eq 0 then binstr=bstr else binstr=[binstr,bstr]
       endfor
+
+      if keyword_set(inpobj) then stop,'Done object ...'
+
       ; Output apStar file and make plots
       print,'Writing output apStar and apLSF files'
       ;apstar_output,starstr,allvisits[obj],binstr,stars_dir,commiss=commiss,localdir=getlocaldir(),apstar_vers=apstar_vers,locationdir=clocation  ;/nolsf
@@ -327,7 +330,7 @@ for iloc=0,n_elements(locations)-1 do begin
       ;feh=sxpar(apstr.head,'RVFEH'+num)
       ;alpha=sxpar(apstr.head,'RVALPH'+num)
       ;carbon=sxpar(apstr.head,'RVCARB'+num)
-      vdiff=apstr.rv.vhelio[ivisit]-allvisits[obj[ivisit]].vhelio
+  ;    vdiff=apstr.rv.vhelio[ivisit]-allvisits[obj[ivisit]].vhelio
       allvisits[obj[ivisit]].vhelio=apstr.rv.vhelio[ivisit]
       allvisits[obj[ivisit]].vrel=apstr.rv.vrel[ivisit]
       allvisits[obj[ivisit]].vrelerr=apstr.rv.vrelerr[ivisit]
@@ -502,13 +505,12 @@ for iloc=0,n_elements(locations)-1 do begin
    endfor
   endfor
 
-  if keyword_set(inpobj) then return
-
   ; write out the apField file(s)
   mkhdr,hdr,0
   sxaddpar,hdr,'V_APSTAR',getvers()
   if nsurvey gt 0 then begin
     outfile=apogee_filename('Field',field=clocation)
+    file_delete,outfile,/allow
     mwrfits,0,outfile,hdr,/create
     mwrfits,all,outfile
     mwrfits,alldata,outfile
@@ -516,6 +518,7 @@ for iloc=0,n_elements(locations)-1 do begin
   endif
   if ncommiss gt 0 then begin
     outfile=stars_dir+clocation+'/apFieldC-'+clocation
+    file_delete,outfile,/allow
     mwrfits,0,outfile+'.fits',hdr,/create
     mwrfits,allp,outfile+'.fits'
     mwrfits,alldatap,outfile+'.fits'
@@ -541,6 +544,7 @@ for iloc=0,n_elements(locations)-1 do begin
       allvisitspec[jj].mask=str.mask
     endfor
     outfile=stars_dir+clocation+'/apFieldVisitsC-'+clocation
+    file_delete,outfile,/allow
     mwrfits,0,outfile+'.fits',hdr,/create
     mwrfits,allvisits[j],outfile+'.fits'
     mwrfits,allvisitspec,outfile+'.fits'
@@ -571,6 +575,7 @@ for iloc=0,n_elements(locations)-1 do begin
      endelse
     endfor
     outfile=apogee_filename('FieldVisits',field=clocation)
+    file_delete,outfile,/allow
     mwrfits,0,outfile,hdr,/create
     mwrfits,allvisits[j],outfile
     mwrfits,allvisitspec,outfile

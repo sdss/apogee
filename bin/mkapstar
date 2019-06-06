@@ -30,6 +30,7 @@ mkslurm "apred plan/a?Star*.par" --maxrun=32 --idlthreads=1
 rm slurm/fields.dat
 touch slurm/fields.dat
 foreach field ( ../visit/apo25m/* ../visit/lco25m/* )
+  echo $field
   set nvisit = `ls -d $field/apVisitSum* | wc -l`
   set name = `basename $field`
   set tel = `echo $field | awk -F/ '{print $3}'`

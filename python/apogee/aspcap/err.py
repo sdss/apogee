@@ -1,6 +1,8 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import pdb
+from numpy.random import normal
 
 from tools import plots
 from tools import html
@@ -112,16 +114,17 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
     try : return soln
     except : return 0.
 
-def elemerr(soln,te,sn,fe, quad=False) :
+def elemerr(soln,te,sn,fe, quad=False, log=True, fact=1.0) :
     ''' 
     Function to evaluate fit for uncertainty
     '''
     out=soln[0]+soln[1]*te+soln[2]*sn
     if len(soln) > 3: out+= soln[3]*fe
     if quad : out +=soln[4]*te**2
-    return np.exp(out)
+    if log : return np.exp(out)*fact
+    else : return out
 
-def repeat(data,out='./',elem=True,logg=[-1,6]) :
+def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
     """ Comparison of repeat observations of objects
     """
 
@@ -131,16 +134,24 @@ def repeat(data,out='./',elem=True,logg=[-1,6]) :
 
     snbins=np.arange(50,300,50)
     tebins=np.arange(3500,7500,250)
-    mhbins=np.arange(-2.25,0.75,0.5)
+    mhbins=np.arange(-2.25,1.00,0.5)
     dte = tebins[1]-tebins[0]
     dmh = mhbins[1]-mhbins[0]
     dsn = snbins[1]-snbins[0]
+
+    # output data files
+    params=data[3].data['PARAM_SYMBOL'][0]
+    els=data[3].data['ELEM_SYMBOL'][0]
+    of=[]
+    for el in els: 
+        of.append(open(out+el+'.txt','w'))
 
     # loop over stars looking for duplications
     rmsderiv=[]
     rmsparam=[]
     rmselem=[]
     quad= True
+    fmt='{:<20s}'+6*' {:9.2f}'+3*' {:10.3f}'+'\n'
     for star in stars :
         jj = np.where(a['APOGEE_ID'] == star)[0]
         n = len(jj)
@@ -158,9 +169,16 @@ def repeat(data,out='./',elem=True,logg=[-1,6]) :
                    rmsparam.append(np.abs(a['FPARAM'][j[i],:]-a['FPARAM'][j[i+1],:])*np.sqrt(np.pi)/2.)
                    try: rmselem.append(np.abs(a['FELEM'][j[i],0,:]-a['FELEM'][j[i+1],0,:])*np.sqrt(np.pi)/2.)
                    except: rmselem.append(np.abs(a['FELEM'][j[i],:]-a['FELEM'][j[i+1],:])*np.sqrt(np.pi)/2.)
+                   for iel in range(len(els)) :
+                       of[iel].write(fmt.format(star,a['FPARAM'][j[i],0],a['FPARAM'][j[i+1],0],
+                                                a['SNR'][j[i]],a['SNR'][j[i+1]],
+                                                a['FPARAM'][j[i],3],a['FPARAM'][j[i+1],3],
+                                                a['FELEM'][j[i],0,iel],a['FELEM'][j[i+1],0,iel],
+                                                np.abs(a['FELEM'][j[i],0,iel]-a['FELEM'][j[i+1],0,iel])))
                    i+=2
                 else :
                    i+=1
+    for iel in range(len(els)) : of[iel].close()
     rmsderiv=np.array(rmsderiv)
     rmsparam=np.array(rmsparam)
     rmselem=np.array(rmselem)
@@ -169,7 +187,6 @@ def repeat(data,out='./',elem=True,logg=[-1,6]) :
     y, x = np.mgrid[tebins[0]:tebins[-1]:200j,mhbins[0]:mhbins[-1]:200j]
 
     # parameters
-    params=data[3].data['PARAM_SYMBOL'][0]
     grid=[]
     ytit=[]
     outtype=np.dtype([('PARAM',params.dtype),('ERRFIT','5f4')])
@@ -186,19 +203,20 @@ def repeat(data,out='./',elem=True,logg=[-1,6]) :
             zr=[0,0.2]
         if len(gd)<5 : continue
 
-        soln,inv = fit.linear(np.log(rmsparam[gd,i]),rmsderiv[gd,:].transpose())
+        if log : soln,inv = fit.linear(np.log(rmsparam[gd,i]),rmsderiv[gd,:].transpose())
+        else : soln,inv = fit.linear(rmsparam[gd,i],rmsderiv[gd,:].transpose())
         outparam[i]['ERRFIT']=soln
 
         # plots of 2D fits in bins of S/N
         fig,ax=plots.multi(len(snbins),1,wspace=0.001,figsize=(3*len(snbins),4))
         for iplt in range(len(snbins)) :
             sn = snbins[iplt]+dsn/2.
-            ax[iplt].imshow(elemerr(soln,y-4500.,sn-100.,x, quad=quad),extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
+            ax[iplt].imshow(elemerr(soln,y-4500.,sn-100.,x, quad=quad, log=log, fact=fact),extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
                               aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower',cmap='rainbow')
             ax[iplt].text(0.98,0.98,param+' S/N={:4.0f}'.format(sn),va='top',ha='right',transform=ax[iplt].transAxes)
 
         # plots of rms
-        snfig,snax=plots.multi(len(tebins)-1,len(mhbins)-1,wspace=0.001,hspace=0.001,figsize=(2*len(tebins),2*len(mhbins)))
+        snfig,snax=plots.multi(len(tebins)-1,len(mhbins)-1,wspace=0.001,hspace=0.001,figsize=(3*len(tebins),2*len(mhbins)),xtickrot=60)
         xx=np.arange(0,250)
         for ix in range(len(tebins)-1) :
             if ix == 0 : yt=r'$\sigma$'
@@ -207,11 +225,14 @@ def repeat(data,out='./',elem=True,logg=[-1,6]) :
                 gdplt = np.where((rmsderiv[:,1]+4500.>tebins[ix]) & (rmsderiv[:,1]+4500.<tebins[ix+1]) &
                                   (rmsderiv[:,3]>mhbins[iy]) & (rmsderiv[:,3]<mhbins[iy+1]) )[0]
                 if len(gdplt) > 1 :
-                    plots.plotc(snax[iy,ix],rmsderiv[gdplt,2]+100,rmsparam[gdplt,i],rmsderiv[gdplt,3],size=30,zr=[-2,0.5],
+                    plots.plotc(snax[iy,ix],rmsderiv[gdplt,2]+100,rmsparam[gdplt,i],rmsderiv[gdplt,3],size=5,zr=[-2,0.5],
                                 yr=zr,xr=[snbins[0],snbins[-1]],xt='S/N',yt=yt)
                 snax[iy,ix].set_ylim(zr)
-                snax[iy,ix].plot(xx,elemerr(soln,tebins[ix]+dte/2.-4500,xx-100,mhbins[iy]+dmh/2., quad=quad))
-                snax[iy,ix].text(0.98,0.98,'{:8.0f} {:8.2f}'.format(tebins[ix]+dte/2.,mhbins[iy]+dmh/2.),ha='right',va='top',transform=snax[iy,ix].transAxes)
+                snax[iy,ix].plot(xx,elemerr(soln,tebins[ix]+dte/2.-4500,xx-100,mhbins[iy]+dmh/2., quad=quad, log=log, fact=fact))
+                snax[iy,ix].text(0.98,0.98,'{:8.0f}{:6.2f}'.format(tebins[ix]+dte/2.,mhbins[iy]+dmh/2.),ha='right',va='top',transform=snax[iy,ix].transAxes,fontsize='x-small')
+                for iz in range(len(snbins)-1) :
+                    gd= np.where((rmsderiv[gdplt,2]+100.>snbins[iz]) & (rmsderiv[gdplt,2]+100.<snbins[iz+1]) ) [0]
+                    snax[iy,ix].text(0.98,0.88-iz*0.08,'{:8.2f}'.format(rmsparam[gdplt[gd],i].mean()),transform=snax[iy,ix].transAxes,fontsize='x-small',ha='right',va='top')
         fig.savefig(out+param+'.png')
         plt.close(fig)
         snfig.savefig(out+param+'_sn.png')
@@ -221,7 +242,6 @@ def repeat(data,out='./',elem=True,logg=[-1,6]) :
     html.htmltab(grid,file=out+'repeat_param.html',ytitle=ytit)
    
     # elements 
-    els=data[3].data['ELEM_SYMBOL'][0]
     grid=[]
     ytit=[]
     outtype=np.dtype([('ELEM',els.dtype),('ERRFIT','5f4')])
@@ -233,42 +253,120 @@ def repeat(data,out='./',elem=True,logg=[-1,6]) :
         zr=[0,0.2]
         if len(gd)<5 : continue
 
-        soln,inv = fit.linear(np.log(rmselem[gd,i]),rmsderiv[gd,:].transpose())
+        if log :soln,inv = fit.linear(np.log(rmselem[gd,i]),rmsderiv[gd,:].transpose())
+        else :soln,inv = fit.linear(rmselem[gd,i],rmsderiv[gd,:].transpose())
         outelem[i]['ERRFIT']=soln
         fig,ax=plots.multi(len(snbins),1,wspace=0.001,figsize=(3*len(snbins),4))
         for iplt in range(len(snbins)) :
             sn = snbins[iplt]+dsn/2.
-            ax[iplt].imshow(elemerr(soln,y-4500.,sn-100.,x, quad=quad),extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
+            ax[iplt].imshow(elemerr(soln,y-4500.,sn-100.,x, quad=quad, log=log, fact=fact),extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
                               aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower',cmap='rainbow')
             ax[iplt].text(0.98,0.98,el+' S/N={:4.0f}'.format(sn),va='top',ha='right',transform=ax[iplt].transAxes)
 
-        snfig,snax=plots.multi(len(tebins)-1,len(mhbins)-1,wspace=0.001,hspace=0.001,figsize=(2*len(tebins),2*len(mhbins)))
+        snfig,snax=plots.multi(len(tebins)-1,len(mhbins)-1,wspace=0.001,hspace=0.001,figsize=(2*len(tebins),3*len(mhbins)),xtickrot=60)
+        fig2,ax2=plots.multi(len(tebins)-1,len(mhbins)-1,wspace=0.001,hspace=0.001,figsize=(2*len(tebins),3*len(mhbins)),xtickrot=60)
         xx=np.arange(0,250)
         for ix in range(len(tebins)-1) :
-            if ix == 0 : yt=r'$\sigma$'
+            if ix == 0 : yt=r'$\sigma$('+el+')'
             else : yt=''
             for iy in range(len(mhbins)-1) :
                 gdplt = np.where((rmsderiv[:,1]+4500.>tebins[ix]) & (rmsderiv[:,1]+4500.<tebins[ix+1]) &
                                   (rmsderiv[:,3]>mhbins[iy]) & (rmsderiv[:,3]<mhbins[iy+1]) )[0]
                 if len(gdplt) > 1 :
-                    plots.plotc(snax[iy,ix],rmsderiv[gdplt,2]+100,rmselem[gdplt,i],rmsderiv[gdplt,3],size=30,zr=[-2,0.5],
+                    plots.plotc(snax[iy,ix],rmsderiv[gdplt,2]+100,rmselem[gdplt,i],rmsderiv[gdplt,3],size=5,zr=[-2,0.5],
                                 yr=zr,xr=[snbins[0],snbins[-1]],xt='S/N',yt=yt)
                 snax[iy,ix].set_ylim(zr)
-                snax[iy,ix].plot(xx,elemerr(soln,tebins[ix]+dte/2.-4500,xx-100,mhbins[iy]+dmh/2., quad=quad))
-                snax[iy,ix].text(0.98,0.98,'{:8.0f} {:8.2f}'.format(tebins[ix]+dte/2.,mhbins[iy]+dmh/2.),ha='right',va='top',transform=snax[iy,ix].transAxes)
+                snax[iy,ix].plot(xx,elemerr(soln,tebins[ix]+dte/2.-4500,xx-100,mhbins[iy]+dmh/2., quad=quad, log=log, fact=fact))
+                snax[iy,ix].text(0.98,0.98,'{:8.0f}{:6.2f}'.format(tebins[ix]+dte/2.,mhbins[iy]+dmh/2.),
+                                 ha='right',va='top',transform=snax[iy,ix].transAxes,fontsize='x-small')
+                for iz in range(len(snbins)-1) :
+                    gd= np.where((rmsderiv[gdplt,2]+100.>snbins[iz]) & (rmsderiv[gdplt,2]+100.<snbins[iz+1]) ) [0]
+                    snax[iy,ix].text(0.98,0.88-iz*0.08,'{:8.3f}'.format(rmselem[gdplt[gd],i].mean()),
+                                     transform=snax[iy,ix].transAxes,fontsize='x-small',ha='right',va='top')
+                    ax2[iy,ix].text(0.98,0.98,'{:8.0f}{:6.2f}'.format(tebins[ix]+dte/2.,mhbins[iy]+dmh/2.),
+                                    ha='right',va='top',transform=ax2[iy,ix].transAxes,fontsize='x-small')
+                    ax2[iy,ix].set_xlim(0,0.16)
+                    bins=np.arange(0,0.161,0.02)
+                    ax2[iy,ix].set_ylim(0,10)
+                    if len(gd) > 0 :
+                        if iz == 1 and len(gd) > 3 :
+                            ax2[iy,ix].hist(np.clip(rmselem[gdplt[gd],i],bins[0],bins[-1]-0.001),bins=bins,histtype='step',color='k')
+                            ylim=ax2[iy,ix].get_ylim()
+                            m=rmselem[gdplt[gd],i].mean()
+                            ax2[iy,ix].plot([m,m],[ylim[0],ylim[1]],color='r')
+                            m=np.median(rmselem[gdplt[gd],i])
+                            ax2[iy,ix].plot([m,m],[ylim[0],ylim[1]],color='g')
+                            m=elemerr(soln,tebins[ix]+dte/2.-4500,snbins[iz]+dsn/2.-100,mhbins[iy]+dmh/2.,
+                                      quad=quad,log=log,fact=fact)
+                            ax2[iy,ix].plot([m,m],[ylim[0],ylim[1]],color='b')
         fig.savefig(out+el+'.png')
         plt.close(fig)
         snfig.savefig(out+el+'_sn.png')
         plt.close(snfig)
-        grid.append([os.path.basename(out+el+'.png'),os.path.basename(out+el+'_sn.png')])
-        ytit.append(el)
+        fig2.savefig(out+el+'_hist2.png')
+        plt.close(fig2)
+        fig,ax=plots.multi(1,1)
+        ax.hist(rmselem[:,i]-elemerr(soln,rmsderiv[:,1],rmsderiv[:,2],rmsderiv[:,3],quad=quad,log=log,fact=fact),bins=np.arange(-0.4,0.4,0.005))
+        ylim=ax.get_ylim()
+        ax.plot([0.,0.],[ylim[0],ylim[1]])
+        ax.set_xlabel('diff*sqrt(pi)/2.-fit')
+        fig.savefig(out+el+'_hist.png')
+        plt.close(fig)
+        grid.append([os.path.basename(out+el+'.png'),os.path.basename(out+el+'_sn.png'),os.path.basename(out+el+'_hist.png'),
+                     os.path.basename(out+el+'_hist2.png')])
+        ytit.append('<A HREF='+os.path.basename(out)+el+'.txt>'+el+'</A>')
 
     html.htmltab(grid,file=out+'repeat_elem.html',ytitle=ytit)
     hdulist=fits.HDUList()
     hdulist.append(fits.BinTableHDU(outparam))
     hdulist.append(fits.BinTableHDU(outelem))
+    hdulist.append(fits.ImageHDU(rmsderiv))
+    hdulist.append(fits.ImageHDU(rmselem))
     hdulist.writeto(out+'errfit.fits',overwrite=True)
 
     return outparam,outelem
 
+def gauss() :
+    """ simple simulator to assess statistics of drawing repeats from a Gaussian distribution
+    """
+    # draw pairs from a unit-Gaussian and accumulate differences
+    diff=[]
+    for i in range(1000000) :
+        a=normal(size=2)
+        diff.append(a[0]-a[1])
+
+    fig,ax=plots.multi(1,1,figsize=(10,5))
+
+    diff=np.array(diff)
+    ax.hist(diff,bins=51)
+    ax.set_xlabel('Difference between pair')
+    ax.text(0.02,0.95,'<diff>: {:7.3f}'.format(diff.mean()), transform=ax.transAxes,size='small')
+    # Vijith says std of differences is sqrt(2), which is verified
+    ax.text(0.02,0.90,'std: {:7.3f}'.format(diff.std()), transform=ax.transAxes,size='small')
+    # biased estimator of standard deviation
+    ax.text(0.02,0.85,'<abs(diff/sqrt(2))>: {:7.3f}'.format(abs(diff/np.sqrt(2.)).mean()), transform=ax.transAxes,size='small')
+    # is unbiased estimator of variance!
+    ax.text(0.02,0.80,'<diff**2/2>: {:7.3f}'.format(((diff**2/2)).mean()), transform=ax.transAxes,size='small')
+    # corrected biased estimator by sqrt(pi/2.)
+    ax.text(0.02,0.75,'<abs(diff/sqrt(2)*sqrt(pi/2)>: {:7.3f}'.format(abs(diff/np.sqrt(2)*np.sqrt(np.pi/2.)).mean()), transform=ax.transAxes,size='small')
+    # but what if we take the log, compare to exp(<log>)
+    ax.text(0.02,0.70,'exp(<log(abs(diff/sqrt(2)*sqrt(pi/2))>): {:7.3f}'.format(np.exp(np.log(abs(diff/np.sqrt(2)*np.sqrt(np.pi/2.))).mean())), transform=ax.transAxes,size='small')
+    ax.set_xlim(-10,8)
+    print(diff.mean(),diff.std(),abs(diff).mean(),(diff**2).mean(),(diff/np.sqrt(2.)).std(),abs(diff*np.sqrt(np.pi/2.)).mean())
+    print(abs(diff*np.sqrt(np.pi/2.)).mean(),np.exp(np.log(abs(diff*np.sqrt(np.pi/2.))).mean()))
+
+    """
+    two observations x_1 and x_2, separated by dx
+    x2=x1+dx
+    x1-xmean= dx/2
+    x2-xmean=dx/2
+
+    for 2 points (n=2) :
+    std = sqrt ( (x1 - x_mean)**2 + (x2-x_mean)**2 )
+        = sqrt ( (dx/2)**2 + (dx/2)**2 )
+        = sqrt ( dx**2 / 2. )
+        = dx / sqrt(2)
+ 
+    but this is a biased estimator
+    """
 

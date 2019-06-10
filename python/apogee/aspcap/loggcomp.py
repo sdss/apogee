@@ -171,10 +171,9 @@ def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3000,7500],a
     # match ASPCAP with APOKASC, and get RC/RGB stars
     apokasc=fits.open(os.environ['APOGEE_DIR']+'/data/apokasc/'+apokasc_cat)[1].data
     i1,i2=match.match(allstar['APOGEE_ID'],apokasc['2MASS_ID'])
-    gd=np.where(apokasc['LOGG_DW'][i2] > -99)[0]
 
     # now get isochrone logg from lower main sequence
-    isologg=isochrone(allstar)
+    isologg=isochrone(allstar,snrbd=50)
     j1,j2=match.match(allstar['APOGEE_ID'],isologg['APOGEE_ID'])
 
     # plots of gravity differences
@@ -192,21 +191,27 @@ def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3000,7500],a
     plt.tight_layout()
 
     # 2D fit as f(Teff,[M/H]), using both APOKASC and isochrone log g
+    gd=np.where(apokasc['LOGG_DW'][i2] > -99)[0]
     tfit=allstar[param][i1[gd],0]
     mhfit=allstar[param][i1[gd],3]
     diff=allstar[param][i1[gd],1]-apokasc['LOGG_DW'][i2[gd]]
     snrfit=allstar['SNR'][i1[gd]]
+
+    # do fit from high S/N, but get uncertainties from all
+    gd=np.where(allstar['SNR'][j1] > 300)[0]
+    msfit = fit.fit2d(np.append(tfit,allstar[param][j1[gd],0]),
+                      np.append(mhfit,allstar[param][j1[gd],3]),
+                      np.append(diff,allstar[param][j1[gd],1]-isologg['ISOLOGG'][j2[gd]]),degree=1,reject=0.3)
+
+    # for uncertainties, all all S/N
     tfit=np.append(tfit,allstar[param][j1,0])
     mhfit=np.append(mhfit,allstar[param][j1,3])
     diff=np.append(diff,allstar[param][j1,1]-isologg['ISOLOGG'][j2])
     snrfit=np.append(snrfit,allstar['SNR'][j1])
-
-    # do the fit and add to plot
-    msfit = fit.fit2d(tfit,mhfit,diff,degree=1,reject=0.3)
-    #pdb.set_trace()
-    #mserrpar = err.errfit(tfit,snrfit,mhfit,diff-msfit(tfit,mhfit),
-    #                      out=out+'_ms',title='log g',zr=[0,0.2])
-    mserrpar=np.zeros([4])
+    mserrpar = err.errfit(tfit,np.clip(snrfit,0.,249.),mhfit,diff-msfit(tfit,mhfit),
+                          out=out+'_ms',title='log g',zr=[0,0.2])
+    #mserrpar=np.zeros([4])
+    pdb.set_trace()
 
     # plot the relation
     tfit=np.arange(teffrange[0],teffrange[1],10)
@@ -329,6 +334,7 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
         fig,ax=plots.multi(2,3,hspace=0.5,wspace=0.001,figsize=(12,12))
     else :
         fig,tmpax=plots.multi(1,4,hspace=0.5,wspace=0.001,figsize=(8,10))
+        fig2,ax2=plots.multi(1,1)
 
     # diff color-coded by gravity as f([M/H])
     # diff color-coded by [M/H] as f(log g)
@@ -355,14 +361,26 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
         tmpax[0].grid()
         tmpax[1].grid()
 
-        plots.plotp(tmpax[2],allstar['FPARAM'][i1[rgb],1],allstar[param][i1[rgb],1]-apokasc[logg][i2[rgb]],
-           xr=[0,5],yr=[-0.75,0.75],xt='seismic log g',yt='ASPCAP-seismic log g',label=[0.9,0.8,'RGB'],color='r',size=15)
-        plots.plotp(tmpax[2],allstar['FPARAM'][i1[rc],1],allstar[param][i1[rc],1]-apokasc[logg][i2[rc]],
-           xr=[0,5],yr=[-0.75,0.75],xt='seismic log g',yt='ASPCAP-seismic log g',label=[0.9,0.6,'RC'],color='b',size=15)
-        plots.plotp(tmpax[2],allstar['FPARAM'][i1[rc2],1],allstar[param][i1[rc2],1]-apokasc[logg][i2[rc2]],
-           xr=[0,5],yr=[-0.75,0.75],xt='seismic log g',yt='ASPCAP-seismic log g',label=[0.9,0.6,'RC'],color='g',size=15)
-        plots.plotp(tmpax[2],allstar['FPARAM'][i1[rc2cl],1],allstar[param][i1[rc2cl],1]-apokasc[logg][i2[rc2cl]],
-           xr=[0,5],yr=[-0.75,0.75],xt='seismic log g',yt='ASPCAP-seismic log g',label=[0.9,0.6,'RC'],color='m',size=15)
+        iax=tmpax[2]
+        plots.plotp(iax,allstar['FPARAM'][i1[rgb],1],allstar[param][i1[rgb],1]-apokasc[logg][i2[rgb]],
+           xr=[0,5],yr=[-0.5,0.5],xt='seismic log g',yt='ASPCAP-seismic log g',label=[0.9,0.8,'RGB'],color='r',size=5)
+        plots.plotp(iax,allstar['FPARAM'][i1[rc],1],allstar[param][i1[rc],1]-apokasc[logg][i2[rc]],
+           xr=[0,5],yr=[-0.5,0.5],xt='seismic log g',yt='ASPCAP-seismic log g',label=[0.9,0.6,'RC'],color='b',size=5)
+        plots.plotp(iax,allstar['FPARAM'][i1[rc2],1],allstar[param][i1[rc2],1]-apokasc[logg][i2[rc2]],
+           xr=[0,5],yr=[-0.5,0.5],xt='seismic log g',yt='ASPCAP-seismic log g',label=[0.9,0.6,'RC'],color='g',size=5)
+        plots.plotp(iax,allstar['FPARAM'][i1[rc2cl],1],allstar[param][i1[rc2cl],1]-apokasc[logg][i2[rc2cl]],
+           xr=[0,5],yr=[-0.5,0.5],xt='seismic log g',yt='ASPCAP-seismic log g',label=[0.9,0.6,'RC'],color='m',size=5)
+        # single plot as f(Teff)
+        iax=ax2
+        plots.plotp(iax,allstar['FPARAM'][i1[rgb],0],allstar[param][i1[rgb],1]-apokasc[logg][i2[rgb]],
+           xr=[4500,5200],yr=[-0.5,0.5],xt='Teff',yt='ASPCAP-seismic log g',label=[0.9,0.8,'RGB'],color='r',size=5)
+        plots.plotp(iax,allstar['FPARAM'][i1[rc],0],allstar[param][i1[rc],1]-apokasc[logg][i2[rc]],
+           xr=[4500,5200],yr=[-0.5,0.5],xt='Teff',yt='ASPCAP-seismic log g',label=[0.9,0.6,'RC'],color='b',size=5)
+        plots.plotp(iax,allstar['FPARAM'][i1[rc2],0],allstar[param][i1[rc2],1]-apokasc[logg][i2[rc2]],
+           xr=[4500,5200],yr=[-0.5,0.5],xt='Teff',yt='ASPCAP-seismic log g',label=[0.9,0.6,'RC'],color='g',size=15)
+        plots.plotp(iax,allstar['FPARAM'][i1[rc2cl],0],allstar[param][i1[rc2cl],1]-apokasc[logg][i2[rc2cl]],
+           xr=[4500,5200],yr=[-0.5,0.5],xt='Teff',yt='ASPCAP-seismic log g',label=[0.9,0.6,'RC'],color='m',size=5)
+          
 
         loggfit=np.arange(2.5,3.5,0.01)
         mhfit=loggfit*0.
@@ -405,8 +423,10 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
         #    allstar['FPARAM'][i1[rc],3],xr=[0,5],yr=[-1,1],xt='seismic log g',zr=[-2,0.5])
     fig.tight_layout()
     if out is not None :
-        plt.savefig(out+'_b.jpg')
-        plt.close()
+        fig.savefig(out+'_b.jpg')
+        plt.close(fig)
+        fig2.savefig(out+'_c.jpg')
+        plt.close(fig2)
 
     return {'calloggmin' : calloggrange[0], 'calloggmax' : calloggrange[1], 'loggmin' : loggmin, 'loggmax' : loggmax, 
             'mhmin' : mhrange[0], 'mhmax' : mhrange[1], 'calteffmin': calteffrange[0], 'calteffmax' : calteffrange[1],

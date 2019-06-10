@@ -66,11 +66,11 @@ def plotcn(hdulist,title=None,out=None) :
         grid.append(row)
     html.htmltab(grid,file=out+'cn.html',ytitle=yt,xtitle=xt)
 
-def plotelems(hdulist,title=None,out=None,calib=False) :
+def plotelems(hdulist,title=None,out=None,calib=False,main=True,named=False) :
     """ Make [X/M] vs [M/H] plots for all elements as f(Teff, logg)
     """
     a=hdulist[1].data
-    if 'EXTRATARG' in a.columns.names :
+    if main and ('EXTRATARG' in a.columns.names) :
         gd=np.where(a['EXTRATARG'] == 0)[0]
         a=a[gd]
         comment=', main sample only'
@@ -79,12 +79,29 @@ def plotelems(hdulist,title=None,out=None,calib=False) :
 
     if calib : param = 'PARAM'
     else : param = 'FPARAM'
+    try: vhelio = a['VHELIO_AVG']
+    except: vhelio = a['VHELIO']
 
     els=hdulist[3].data['ELEM_SYMBOL'][0]
     etoh=hdulist[3].data['ELEMTOH'][0]
     grid=[]
     yt=[]
     for iel,el in enumerate(els) :
+        if named:
+            if el == 'Fe' : tag = 'FE_H'
+            else : tag=(el+'_FE').upper()
+            abun=a[tag]
+            ytit='['+el+'/Fe]'
+        elif calib :
+            abun=a['X_M'][:,iel]
+            ytit='['+el+'/M]'
+        else :
+            try:
+                if etoh[iel] == 1 : abun=a['FELEM'][:,0,iel]-a['FPARAM'][:,3]
+                else : abun = a['FELEM'][:,0,iel]
+            except:
+                if etoh[iel] == 1 : abun=a['FELEM'][:,iel]-a['FPARAM'][:,3]
+                else : abun = a['FELEM'][:,iel]
         row=[]
         xt=[]
         yt.append(el)
@@ -93,20 +110,15 @@ def plotelems(hdulist,title=None,out=None,calib=False) :
             gd = np.where((a[param][:,0] >= te[0]) & (a[param][:,0] <= te[1]) &
                           (a[param][:,1] >= logg[0]) & (a[param][:,1] <= logg[1]) )[0]
             print(el,te,logg,len(gd))
-            if calib :
-                abun=a['X_M'][gd,iel]
-            else :
-                try:
-                    if etoh[iel] == 1 : abun=a['FELEM'][gd,0,iel]-a['FPARAM'][gd,3]
-                    else : abun = a['FELEM'][gd,0,iel]
-                except:
-                    if etoh[iel] == 1 : abun=a['FELEM'][gd,iel]-a['FPARAM'][gd,3]
-                    else : abun = a['FELEM'][gd,iel]
 
-            fig,ax=plots.multi(1,2,hspace=0.001)
-            plots.plotc(ax[0],a[param][gd,3],abun,a[param][gd,0],xr=[-2.5,1.0],yr=[-0.5,1],zr=te,xt='[M/H]',colorbar=True,zt='Teff',yt='['+el+'/M]')
+            fig,ax=plots.multi(1,3,hspace=0.001,figsize=(8,8))
+            plots.plotc(ax[0],a[param][gd,3],abun[gd],a[param][gd,0],xr=[-2.5,1.0],yr=[-0.5,1],zr=te,
+                        xt='[M/H]',colorbar=True,zt='Teff',yt=ytit)
             ax[0].text(0.1,0.9,'uncalibrated params'+comment,transform=ax[0].transAxes)
-            plots.plotc(ax[1],a[param][gd,3],abun,a['SNR'][gd],xr=[-2.5,1.0],yr=[-0.5,1],zr=[50,200],xt='[M/H]',colorbar=True,zt='S/N',yt='['+el+'/M]')
+            plots.plotc(ax[1],a[param][gd,3],abun[gd],a['SNR'][gd],xr=[-2.5,1.0],yr=[-0.5,1],zr=[50,200],
+                        xt='[M/H]',colorbar=True,zt='S/N',yt=ytit)
+            plots.plotc(ax[2],a[param][gd,3],abun[gd],vhelio[gd],xr=[-2.5,1.0],yr=[-0.5,1],zr=[-200,200],
+                        xt='[M/H]',colorbar=True,zt='vhelio',yt=ytit)
             if out is not None :
                 outfile=out+el+'_{:1d}.png'.format(icol)
                 fig.savefig(outfile)
@@ -115,8 +127,62 @@ def plotelems(hdulist,title=None,out=None,calib=False) :
             plt.close(fig)
             icol+=1
             xt.append('{:6.0f}&lt;Teff&lt;{:6.0f} {:6.1f}&lt;logg&lt;{:6.1f}'.format(te[0],te[1],logg[0],logg[1]))
+        #plot as f(Teff) for giants
+        gd = np.where((a[param][:,1] >= -1) & (a[param][:,1] <= 3.8) )[0]
+        fig,ax=plots.multi(1,3,hspace=0.001,figsize=(8,8))
+        plots.plotc(ax[0],a[param][gd,0],abun[gd],a[param][gd,3],xr=[3000,5000],yr=[-0.5,1],zr=[-2,0.5],
+                    xt='Teff',colorbar=True,zt='[M/H]',ytit)
+        plots.plotc(ax[1],a[param][gd,0],abun[gd],a['SNR'][gd],xr=[3000,5000],yr=[-0.5,1],zr=[50,200],
+                    xt='Teff',colorbar=True,zt='S/N',ytit)
+        plots.plotc(ax[2],a[param][gd,0],abun[gd],vhelio[gd],xr=[3000,5000],yr=[-0.5,1],zr=[-200,200],
+                    xt='Teff',colorbar=True,zt='vhelio',ytit)
+        xt.append('{:6.1f}&lt;logg&lt;{:6.1f}'.format(-0.5,3.8))
+        outfile=out+el+'_teff.png'
+        fig.savefig(outfile)
+        plt.close(fig)
+        row.append(os.path.basename(outfile))
         grid.append(row)
     if out is not None : html.htmltab(grid,file=out+'elem_chem.html',ytitle=yt,xtitle=xt)
+
+def plotparam_errs(hdulist,title=None,out=None) :
+    """ Plot uncertainties
+    """
+    a=hdulist[1].data
+    els=hdulist[3].data['PARAM_SYMBOL'][0]
+    grid=[]
+    yt=[]
+    dwarfs=np.where(a['FPARAM'][:,1] > 3.8)[0]
+    giants=np.where(a['FPARAM'][:,1] < 3.8)[0]
+
+    for iel,el in enumerate(els) :
+        gfig,gax=plots.multi(1,2,hspace=0.001)
+        plots.plotc(gax[0],a['PARAM'][giants,0],a['X_H_ERR'][giants,iel],a[param][giants,3],
+                    xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+        try :
+            plots.plotc(gax[1],a[param][giants,0],a['FELEM_ERR'][giants,0,iel],a[param][giants,3],
+                        xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+        except :
+            plots.plotc(gax[1],a[param][giants,0],a['FELEM_ERR'][giants,iel],a[param][giants,3],
+                        xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+        dfig,dax=plots.multi(1,2,hspace=0.001)
+        plots.plotc(dax[0],a[param][dwarfs,0],a['X_H_ERR'][dwarfs,iel],a[param][dwarfs,3],
+                    xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+        try :
+            plots.plotc(dax[1],a[param][dwarfs,0],a['FELEM_ERR'][dwarfs,0,iel],a[param][dwarfs,3],
+                        xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+        except :
+            plots.plotc(dax[1],a[param][dwarfs,0],a['FELEM_ERR'][dwarfs,iel],a[param][dwarfs,3],
+                        xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+        if out is not None :
+            goutfile=out+'giant_'+el+'_err.png'
+            gfig.savefig(goutfile)
+            plt.close(gfig)
+            doutfile=out+'dwarf_'+el+'_err.png'
+            dfig.savefig(doutfile)
+            plt.close(dfig)
+            grid.append([os.path.basename(goutfile),os.path.basename(doutfile)])
+            yt.append(el) 
+    if out is not None : html.htmltab(grid,file=out+'elem_errs.html',ytitle=yt,xtitle=['giants','dwarfs'])
 
 def plotelem_errs(hdulist,title=None,out=None,calib=False) :
     """ Plot uncertainties
@@ -159,7 +225,7 @@ def plotelem_errs(hdulist,title=None,out=None,calib=False) :
             plt.close(dfig)
             grid.append([os.path.basename(goutfile),os.path.basename(doutfile)])
             yt.append(el) 
-    if out is not None : html.htmltab(grid,file=out+'elem_err.html',ytitle=yt,xtitle=['giants','dwarfs'])
+    if out is not None : html.htmltab(grid,file=out+'elem_errs.html',ytitle=yt,xtitle=['giants','dwarfs'])
 
 def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
     """ Plot parameter differences between two different runs
@@ -285,12 +351,34 @@ def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
     html.tail(fp)
     return 
     
-def dr14comp(a,out=None,elem=True) :
+def dr14comp(a,out=None,elem=True,domiss=False) :
     """ Comparisons to DR14
     """
     apl=apload.ApLoad(dr='dr14')
     dr14=apl.allStar()
     plotparamdiffs(a,dr14,out=out+'dr14_',elem=elem)
+
+    if domiss :
+        miss=set(dr14[1].data['APOGEE_ID'])-set(a[1].data['APOGEE_ID'])
+        print('{:d} stars in DR14 missing from current data'.format(len(miss)))
+
+        bad=[]
+        bad1m=[]
+        for m in miss :
+            j=np.where(dr14[1].data['APOGEE_ID'] == m)[0]
+            for v,jj in zip(dr14[1].data['VISITS'][j],j) :
+                for vv in v.split(',') :
+                    mjd=vv.split('-')[2]
+                    try: 
+                        if int(mjd) > 55800 : 
+                            bad.append(m)
+                            #print(m,vv,mjd,dr14[1].data['FIELD'][jj],dr14[1].data['LOCATION_ID'][jj])   
+                    except: 
+                        bad1m.append(m)
+                        #print(m,vv)
+        print('not 1m',len(bad),len(set(bad)))
+        print('1m',len(bad1m),len(set(bad1m)))
+
 
 def m67(allstar,out='./') :
     """ M67 abundances

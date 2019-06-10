@@ -528,7 +528,7 @@ def multihr(a,param='FPARAM',colorbar=False,hard=None,xr=[8000,3000],yr=[6,-1],s
         fig.savefig(hard)
         plt.close()
 
-def plot(wave,spec,color=None,figax=None,ax=None,hard=None,sum=False,title=None,alpha=None,yr=None,lineids=None,multipage=False, refline=None, figsize=(8,11)) :
+def plot(wave,spec,color=None,figax=None,ax=None,hard=None,sum=False,title=None,alpha=None,yr=None,lineids=None,multipage=False, refline=None, figsize=(8,11), textsize=8) :
     """  Multipanel plots of APOGEE spectra
     """
     # set up plots
@@ -553,7 +553,7 @@ def plot(wave,spec,color=None,figax=None,ax=None,hard=None,sum=False,title=None,
         if lineids is not None :
             gd = np.where( (lines['wave'] > 15000+i*200) & ( lines['wave'] < 15200+i*200) ) [0]
             for line in lines[gd] :
-                ax[i].text(line['wave'],lineids,line['label'],rotation=90,size=8,ha='center',va='bottom')
+                ax[i].text(line['wave'],lineids,line['label'],rotation=90,size=textsize,ha='center',va='bottom')
         if refline is not None :
             # plot a reference horizontal line
             plots.plotl(ax[i],wave,spec*0.+refline,xr=[15000+i*200,15200+i*200],color=color,linewidth=0.3,alpha=alpha,yr=yr,ls=':')
@@ -749,3 +749,30 @@ def repeat(data,out=None) :
         pdb.set_trace()
     plt.close(fig)
     plt.close(efig)
+
+
+def average(a,ind,apred='r12',aspcap='l33', median=False) :
+    ''' Average together multiple aspcapStar spectra
+    '''
+
+    load=apload.ApLoad(apred=apred,aspcap=aspcap)
+
+    spec=np.zeros([8575])
+    err=np.zeros([8575])
+    ratio=np.zeros([8575])
+    spec=[]
+    err=[]
+    ratio=[]
+    for j in ind :
+        load.settelescope(a['TELESCOPE'][j])
+        z=load.aspcapStar(a['FIELD'][j],a['APOGEE_ID'][j])
+        spec.append(z[1].data)
+        err.append(z[2].data)
+        ratio.append(z[1].data/z[3].data)
+    spec=np.array(spec)
+    err=np.array(err)
+    ratio=np.array(ratio)
+
+    if median: return np.median(spec,axis=0), np.median(err,axis=0), np.median(ratio,axis=0)
+    else : return spec.mean(axis=0) ,err.mean(axis=0), ratio.mean(axis=0)
+

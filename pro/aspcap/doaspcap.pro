@@ -1,6 +1,6 @@
 ; doaspcap is master routine for running ASPCAP pipline: pre-processing, FERRE, and post-processing
 
-pro doaspcap,planfile,mjd=mjd,nruns=nruns,queue=queue,clobber=clobber,old=old,ncpus=ncpus,errbar=errbar,renorm=renorm,obscont=obscont,aspcap_vers=aspcap_vers,results_vers=results_vers,nstars=nstars,hmask=hmask,maskfile=maskfile,obspixmask=obspixmask,pixmask=pixmask,highbad=highbad,skyerr=skyerr,starlist=starlist,lowbad=lowbad,higherr=higherr,conthighbad=conthighbad,contlowbad=contlowbad,conthigherr=conthigherr,qaspcap=qaspcap,redux_root=redux_root,red_vers=red_vers,noplot=noplot,vacuum=vacuum,commiss=commiss,nored=nored,visits=visits,aspcap_config=aspcap_config,fits=fits,symlink=symlink,doelemplot=doelemplot,noelem=noelem,maxwind=maxwind,caldir=caldir,persist=persist,npar=npar,nelem=nelem,mask_telluric=mask_telluric,altmaskdir=altmaskdir,testmjd=testmjd,notie=notie,no_version_check=no_version_check
+pro doaspcap,planfile,mjd=mjd,nruns=nruns,queue=queue,clobber=clobber,old=old,ncpus=ncpus,errbar=errbar,renorm=renorm,obscont=obscont,aspcap_vers=aspcap_vers,results_vers=results_vers,nstars=nstars,hmask=hmask,maskfile=maskfile,obspixmask=obspixmask,pixmask=pixmask,highbad=highbad,skyerr=skyerr,starlist=starlist,lowbad=lowbad,higherr=higherr,conthighbad=conthighbad,contlowbad=contlowbad,conthigherr=conthigherr,qaspcap=qaspcap,redux_root=redux_root,red_vers=red_vers,noplot=noplot,vacuum=vacuum,commiss=commiss,nored=nored,visits=visits,aspcap_config=aspcap_config,fits=fits,symlink=symlink,doelemplot=doelemplot,noelem=noelem,maxwind=maxwind,caldir=caldir,persist=persist,npar=npar,nelem=nelem,mask_telluric=mask_telluric,altmaskdir=altmaskdir,testmjd=testmjd,notie=notie,no_version_check=no_version_check,badpixfrac=badpixfrac
 
 TIC
 ; read plan file and required fields: apvisit and plateid/mjd or field
@@ -37,6 +37,7 @@ if not keyword_set(conthigherr) then conthigherr=apsetpar(planstr,'conthigherr',
 if not keyword_set(highbad) then highbad=apsetpar(planstr,'highbad',1.1)
 if not keyword_set(lowbad) then lowbad=apsetpar(planstr,'lowbad',0.001)
 if not keyword_set(higherr) then higherr=apsetpar(planstr,'higherr',1.e10)
+if not keyword_set(badpixfrac) then badpixfrac=apsetpar(planstr,'badpixfrac',0.4)
 if not keyword_set(commiss) then commiss=apsetpar(planstr,'commiss',0)
 if not keyword_set(nored) then nored=apsetpar(planstr,'nored',0)
 if not keyword_set(minerr) then minerr=apsetpar(planstr,'minerr',0.005)
@@ -289,7 +290,7 @@ for idir=0,n_elements(datadir)-1 do begin
             mask=intarr(n_elements(out))+1
             bad=where(out eq 0 or outinvar le 0 or finite(outinvar) eq 0,nbad)
             if nbad gt 0 then mask[bad]=0
-            if float(nbad)/n_elements(out) gt 0.4 then begin
+            if float(nbad)/n_elements(out) gt badpixfrac then begin
               print,'badfrac 1 rejected: ', ichip,indir+files[i]
               goto,badfrac
             endif
@@ -308,7 +309,7 @@ for idir=0,n_elements(datadir)-1 do begin
               if nbad gt 0 then mask[bad]=0
             endif
             bad=where(mask eq 0,nbad)
-            if float(nbad)/n_elements(out) gt 0.4 then begin
+            if float(nbad)/n_elements(out) gt badpixfrac then begin
               print,'badfrac 2 rejected: ', ichip,indir+files[i]
               goto,badfrac
             endif

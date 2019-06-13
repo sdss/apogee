@@ -25,6 +25,8 @@ def add_gaia(data,gaia_1='gaia_2mass_xmatch.fits.gz', gaia_2='gaia_posn_xmatch.f
     out_names=[]
     for name in in_names: out_names.append(('gaia_'+name).upper())
     newcols=Table(np.zeros([len(tab),len(out_names)])-9999.,names=out_names,dtype=dtypes)
+    # for source_id, default to 0, not -9999.
+    newcols['source_id'] = 0
     # get rid of targetting proper motions to avoid confusion!
     tab.remove_columns(['PMRA','PMDEC','PM_SRC'])
     # add unpopulated columns
@@ -34,7 +36,8 @@ def add_gaia(data,gaia_1='gaia_2mass_xmatch.fits.gz', gaia_2='gaia_posn_xmatch.f
     gaia=fits.open(gaia_1)[1].data
     print('number in GAIA-2MASS xmatch catalog: ',len(gaia),len(set(gaia['original_ext_source_id'])))
     while True :
-        j=np.where(tab['GAIA_SOURCE_ID'] == -9999)[0]
+        # loop for matches since we have repeats and want them all matched
+        j=np.where(tab['GAIA_SOURCE_ID'] == 0)[0]
         print('Number missing gaia_source_id: ', len(j))
         m1,m2=match.match(np.core.defchararray.replace(tab['APOGEE_ID'][j],'2M',''),gaia['original_ext_source_id'])
         print('Number matched by 2MASS: ', len(m1))
@@ -46,10 +49,11 @@ def add_gaia(data,gaia_1='gaia_2mass_xmatch.fits.gz', gaia_2='gaia_posn_xmatch.f
     j=np.where(tab['GAIA_SOURCE_ID'] > 0)[0]
     print('number of unique APOGEE_ID matches: ',len(set(tab['APOGEE_ID'][j])))
 
-    j=np.where(tab['GAIA_SOURCE_ID'] == -9999)[0]
+    j=np.where(tab['GAIA_SOURCE_ID'] == 0)[0]
     print('missing sources after 2MASS matches: ',len(j))
     gaia=fits.open(gaia_2)[1].data
     h=htm.HTM()
+    # now do a positional match, take the brightest object within 3 arcsec (which is the max from the GAIA crossmatch)
     maxrad=3./3600.
     m1,m2,rad=h.match(tab['RA'][j],tab['DEC'][j],gaia['RA'],gaia['DEC'],maxrad,maxmatch=10)
     for m in set(m1) :
@@ -60,8 +64,13 @@ def add_gaia(data,gaia_1='gaia_2mass_xmatch.fits.gz', gaia_2='gaia_posn_xmatch.f
         #print(ii)
         for inname,outname in zip(in_names,out_names) :
             tab[outname][j[m]] = gaia[inname][m2[jj[ii[0]]]]
-    j=np.where(tab['GAIA_SOURCE_ID'] == -9999)[0]
+    j=np.where(tab['GAIA_SOURCE_ID'] == 0)[0]
     print('missing sources after second match: ',len(j))
+
+    # replace NaNs
+    for name in out_names :
+        bd = np.where(np.isnan(tab[outname]))[0]
+        tab[outname][j] = -9999.
 
     return tab
 

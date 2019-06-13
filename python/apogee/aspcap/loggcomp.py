@@ -211,7 +211,6 @@ def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3000,7500],a
     mserrpar = err.errfit(tfit,np.clip(snrfit,0.,249.),mhfit,diff-msfit(tfit,mhfit),
                           out=out+'_ms',title='log g',zr=[0,0.2])
     #mserrpar=np.zeros([4])
-    pdb.set_trace()
 
     # plot the relation
     tfit=np.arange(teffrange[0],teffrange[1],10)

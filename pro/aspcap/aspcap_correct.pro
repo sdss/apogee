@@ -409,9 +409,9 @@ if nelem gt 0 then begin
       if nj gt 0 then str[giants[j]].elemflag[i]=str[giants[j]].elemflag[i] or paramflagval('PARAM_MISMATCH_WARN')
     endif
     if el eq 'Fe' then begin
-      j=where(abs(str[giants].felem[i]-str[giants].fparam[3]) gt 0.25,nj)
+      j=where(abs(str[giants].felem[i]-str[giants].fparam[3]) gt 0.1,nj)
       if nj gt 0 then str[giants[j]].elemflag[i]=str[giants[j]].elemflag[i] or paramflagval('PARAM_MISMATCH_WARN')
-      j=where(abs(str[giants].felem[i]-str[giants].fparam[3]) gt 0.5,nj)
+      j=where(abs(str[giants].felem[i]-str[giants].fparam[3]) gt 0.25,nj)
       if nj gt 0 then str[giants[j]].elemflag[i]=str[giants[j]].elemflag[i] or paramflagval('PARAM_MISMATCH_BAD')
     endif
 

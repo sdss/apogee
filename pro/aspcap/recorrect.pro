@@ -6,7 +6,7 @@ a=mrdfits(file+'.fits',1)
 b=mrdfits(file+'.fits',2)
 c=mrdfits(file+'.fits',3)
 aspcap_correct,a,c.elem_symbol,caldir,rgblinear=rgblinear
-for i=0,n_elements(a) do aspcapflags[i]=aspcapflag(aspcap[i].aspcapflag,0)
+for i=0,n_elements(a)-1 do a[i].aspcapflags=aspcapflag(a[i].aspcapflag,0)
 
 aspcap_namedtags,a,c
 

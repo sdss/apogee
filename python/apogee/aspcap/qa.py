@@ -94,7 +94,7 @@ def plotelems(hdulist,title=None,out=None,calib=False,main=True,named=False) :
             ytit='['+el+'/Fe]'
         elif calib :
             abun=a['X_M'][:,iel]
-            ytit='['+el+'/M]'
+            ytit='['+el+'/M] (cal)'
         else :
             try:
                 if etoh[iel] == 1 : abun=a['FELEM'][:,0,iel]-a['FPARAM'][:,3]
@@ -102,6 +102,7 @@ def plotelems(hdulist,title=None,out=None,calib=False,main=True,named=False) :
             except:
                 if etoh[iel] == 1 : abun=a['FELEM'][:,iel]-a['FPARAM'][:,3]
                 else : abun = a['FELEM'][:,iel]
+            ytit='['+el+'/M] (uncal)'
         row=[]
         xt=[]
         yt.append(el)
@@ -131,11 +132,11 @@ def plotelems(hdulist,title=None,out=None,calib=False,main=True,named=False) :
         gd = np.where((a[param][:,1] >= -1) & (a[param][:,1] <= 3.8) )[0]
         fig,ax=plots.multi(1,3,hspace=0.001,figsize=(8,8))
         plots.plotc(ax[0],a[param][gd,0],abun[gd],a[param][gd,3],xr=[3000,5000],yr=[-0.5,1],zr=[-2,0.5],
-                    xt='Teff',colorbar=True,zt='[M/H]',ytit)
+                    xt='Teff',colorbar=True,zt='[M/H]',yt=ytit)
         plots.plotc(ax[1],a[param][gd,0],abun[gd],a['SNR'][gd],xr=[3000,5000],yr=[-0.5,1],zr=[50,200],
-                    xt='Teff',colorbar=True,zt='S/N',ytit)
+                    xt='Teff',colorbar=True,zt='S/N',yt=ytit)
         plots.plotc(ax[2],a[param][gd,0],abun[gd],vhelio[gd],xr=[3000,5000],yr=[-0.5,1],zr=[-200,200],
-                    xt='Teff',colorbar=True,zt='vhelio',ytit)
+                    xt='Teff',colorbar=True,zt='vhelio',yt=ytit)
         xt.append('{:6.1f}&lt;logg&lt;{:6.1f}'.format(-0.5,3.8))
         outfile=out+el+'_teff.png'
         fig.savefig(outfile)

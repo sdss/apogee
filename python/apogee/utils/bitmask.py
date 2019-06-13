@@ -172,8 +172,8 @@ class ParamBitMask(BitMask):
     BitMask class for APOGEE ASPCAP bitmask (APOGEE_ASPCAPFLAG)
     '''
     name =['GRIDEDGE_BAD','CALRANGE_BAD','OTHER_BAD','FERRE_BAD','PARAM_MISMATCH_BAD','','','',
-           'GRIDEDGE_WARN','CALRANGE_WARN','OTHER_WARN','FERRE_WARN','PARAM_MISMATCH_WARN','OPTICAL_WARN','ERR_WARN','',
-           'PARAM_FIXED','','','','','','','',
+           'GRIDEDGE_WARN','CALRANGE_WARN','OTHER_WARN','FERRE_WARN','PARAM_MISMATCH_WARN','OPTICAL_WARN','ERR_WARN','FAINT_WARN',
+           'PARAM_FIXED','RV_WARN','','','','','','',
            'LOGG_CAL_RC','LOGG_CAL_RGB','LOGG_CAL_MS','LOGG_CAL_RGB_MS','','','','']
 
 
@@ -187,7 +187,7 @@ class ParamBitMask(BitMask):
      'Parameter outside valid range of calibration determination ',
      'Other error condition ',
      'Failed solution in FERRE ',
-     'Elemental abundance from window differs from parameter abundance ',
+     'Elemental abundance from window differs significantly from parameter abundance ',
      ' ',
      ' ',
      ' ',
@@ -195,12 +195,12 @@ class ParamBitMask(BitMask):
      'Parameter in possibly unreliable range of calibration determination ',
      'Other warning condition ',
      'FERRE warning (not implemented?) ',
-     'Elemental abundance from window differs significantly from parameter abundance ',
+     'Elemental abundance from window differs from parameter abundance ',
      'Comparison with optical abundances suggests problem ',
      'Large expected uncertainty or upper limit based on location in parameter space (Teff, [M/H], S/N) ',
-     ' ',
+     'Warning based on faint star/RV combination ',
      'Parameter set at fixed value, not fit',
-     ' ',
+     'RV puts important line off of chip ',
      ' ',
      ' ',
      ' ',
@@ -261,7 +261,7 @@ class Apogee2Target1(BitMask) :
               'APOGEE2_ONEBIN_GT_0_3','APOGEE2_WASH_NOCLASS','APOGEE2_STREAM_MEMBER','APOGEE2_STREAM_CANDIDATE',
               'APOGEE2_DSPH_MEMBER','APOGEE2_DSPH_CANDIDATE','APOGEE2_MAGCLOUD_MEMBER','APOGEE2_MAGCLOUD_CANDIDATE',
               'APOGEE2_RRLYR','APOGEE2_BULGE_RC','APOGEE2_SGR_DSPH','APOGEE2_APOKASC_GIANT',
-              'APOGEE2_APOKASC_DWARF','APOGEE2_FAINT_EXTRA','APOGEE2_APOKASC','APOGEE_CHECKED'])
+              'APOGEE2_APOKASC_DWARF','APOGEE2_FAINT_EXTRA','APOGEE2_APOKASC',''])
 
 class Apogee2Target2(BitMask) :
     '''
@@ -274,7 +274,7 @@ class Apogee2Target2(BitMask) :
               'APOGEE2_GAIA_OVERLAP','APOGEE2_GALAH_OVERLAP','APOGEE2_RAVE_OVERLAP','APOGEE2_COMMIS_SOUTH_SPEC',
               'APOGEE2_HALO_MEMBER','APOGEE2_HALO_CANDIDATE','APOGEE2_1MTARGET','APOGEE2_MOD_BRIGHT_LIMIT',
               'APOGEE2_CIS','APOGEE2_CNTAC','APOGEE2_EXTERNAL','APOGEE2_CVZ_AS4_OBAF',
-              'APOGEE2_CVZ_AS4_GI','APOGEE2_CVZ_AS4_CTL','APOGEE2_CVZ_AS4_GIANT','APOGEE_CHECKED'])
+              'APOGEE2_CVZ_AS4_GI','APOGEE2_CVZ_AS4_CTL','APOGEE2_CVZ_AS4_GIANT',''])
 
 class Apogee2Target3(BitMask) :
     '''
@@ -300,7 +300,7 @@ class ApogeeTarget1(BitMask) :
               'APOGEE_FIRST_LIGHT','APOGEE_ANCILLARY','APOGEE_M31_CLUSTER','APOGEE_MDWARF',
               'APOGEE_HIRES','APOGEE_OLD_STAR','APOGEE_DISK_RED_GIANT','APOGEE_KEPLER_EB',
               'APOGEE_GC_PAL1','APOGEE_MASSIVE_STAR','APOGEE_SGR_DSPH','APOGEE_KEPLER_SEISMO',
-              'APOGEE_KEPLER_HOST','APOGEE_FAINT_EXTRA','APOGEE_SEGUE_OVERLAP','APOGEE_CHECKED '])
+              'APOGEE_KEPLER_HOST','APOGEE_FAINT_EXTRA','APOGEE_SEGUE_OVERLAP',''])
 
 class ApogeeTarget2(BitMask) :
     '''
@@ -313,7 +313,7 @@ class ApogeeTarget2(BitMask) :
               'APOGEE_KEPLER_COOLDWARF','APOGEE_MIRCLUSTER_STAR','APOGEE_RV_MONITOR_IC348','APOGEE_RV_MONITOR_KEPLER',
               'APOGEE_GES_CALIBRATE','APOGEE_BULGE_RV_VERIFY','APOGEE_1MTARGET','APOGEE_',
               'APOGEE_','APOGEE_','APOGEE_','APOGEE_',
-              'APOGEE_','APOGEE_','APOGEE_','APOGEE_CHECKED'])
+              'APOGEE_','APOGEE_','APOGEE_',''])
 
 class ApogeeTarget3(BitMask) :
     '''
@@ -324,3 +324,14 @@ class ApogeeTarget3(BitMask) :
               '','','','','','','','',
               '','','','','','','',''])
 
+def targflags(targ1,targ2,targ3,survey='apogee2') :
+
+    if 'apogee2' in survey :
+        mask1=Apogee2Target1()
+        mask2=Apogee2Target2()
+        mask3=Apogee2Target3()
+        return ','.join([mask1.getname(targ1),mask2.getname(targ2),mask3.getname(targ3)]).strip(',')
+    else :
+        mask1=ApogeeTarget1()
+        mask2=ApogeeTarget2()
+        return ','.join([mask1.getname(targ1),mask2.getname(targ2)]).strip(',')

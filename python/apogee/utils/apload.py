@@ -466,7 +466,7 @@ class ApLoad :
         else :
             try :
                 file = self.allfile(
-                   'aspcapStar',location=args[0],obj=args[1])
+                   'aspcapStar',field=args[0],obj=args[1])
                 return self._readhdu(file,**kwargs)
             except :
                 self.printerror()

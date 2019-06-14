@@ -28,6 +28,7 @@ if __name__ == '__main__' :
     parser.add_argument('planfile', type=str, help='Plan file')
     parser.add_argument("--done")
     parser.add_argument("--host")
+    parser.add_argument("--cal", type=str, help='calibration dir (and calibrate only')
     #parser.add_argument("--clobber")
     parser.add_argument('--noelem', help='Skip elemental abundances?',action="store_true")
     parser.add_argument('--noplot', help='Skip plots?',action="store_true")
@@ -44,7 +45,9 @@ if __name__ == '__main__' :
     else : noplot=''
     if args.elemplot: elemplot=',/elemplot'
     else : elemplot=''
-    subprocess.call(["idl","-e","aspcaprun,'"+args.planfile+"','"+args.flag+"','"+clobber+"'"+noelem+noplot+elemplot])
+    if args.cal is not None : cal=',cal="'+args.cal+'"'
+    else :  cal=''
+    subprocess.call(["idl","-e","aspcaprun,'"+args.planfile+"','"+args.flag+"','"+clobber+"'"+noelem+noplot+elemplot+cal])
 
     if args.done is not None :
         subprocess.call(['setdone',args.done])

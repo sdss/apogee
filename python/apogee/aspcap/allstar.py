@@ -26,7 +26,7 @@ def add_gaia(data,gaia_1='gaia_2mass_xmatch.fits.gz', gaia_2='gaia_posn_xmatch.f
     for name in in_names: out_names.append(('gaia_'+name).upper())
     newcols=Table(np.zeros([len(tab),len(out_names)])-9999.,names=out_names,dtype=dtypes)
     # for source_id, default to 0, not -9999.
-    newcols['source_id'] = 0
+    newcols['GAIA_SOURCE_ID'] = 0
     # get rid of targetting proper motions to avoid confusion!
     tab.remove_columns(['PMRA','PMDEC','PM_SRC'])
     # add unpopulated columns

@@ -59,7 +59,8 @@ endfor
 
 ; do initial flags star by star
 ferreflag=paramflagval('GRIDEDGE_BAD')+paramflagval('GRIDEDGE_WARN')+$
-          paramflagval('FERRE_BAD')+paramflagval('FERRE_WARN')
+          paramflagval('FERRE_BAD')+paramflagval('FERRE_WARN')+$
+          paramflagval('PARAM_FIXED')
 for i=0L,n_elements(str)-1 do begin
   if i mod 1000 eq 0 then print,'flag: ',i, ' of ',n_elements(str)
   teff=str[i].fparam[0]

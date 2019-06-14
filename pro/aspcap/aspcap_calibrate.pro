@@ -1,4 +1,4 @@
-pro aspcap_calibrate, planfile, caldir=caldir
+pro aspcap_calibrate, planfile, caldir=caldir, test=test
 
  aploadplan,planfile,planstr,struct='ASPCAP'
 
@@ -26,8 +26,10 @@ pro aspcap_calibrate, planfile, caldir=caldir
    aspcap_correct,param,finalstr.lib.elem_symbol,aspcap_root+planstr.apred_vers+'/'+planstr.aspcap_vers+'/'+caldir+'/'
    finalstr.param=param
 
-   resultsdir=resultsdir+'test/'
-   file_mkdir,resultsdir
+   if keyword_set(test) then begin
+     resultsdir=resultsdir+'test/'
+     file_mkdir,resultsdir
+   endif
 
    ; output HTML pages
    aspcap_writehtml,finalstr,resultsdir,oname[idir],/bestclass,npar=npar

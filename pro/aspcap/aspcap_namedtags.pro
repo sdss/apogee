@@ -17,7 +17,7 @@ for iparam=0,n_elements(params)-1 do begin
   if ntag gt 0 then allstar.(ierrtag)= -999.99
   if ntag gt 0 and index[iparam] ge 0 then begin
     if nfaint gt 0 then $
-      for ifaint=0,nfaint-1 do allstar[ifaint].paramflag[index[iparam]] = allstar[ifaint].paramflag[index[iparam]] or paramflagval('FAINT_WARN')
+      for ifaint=0,nfaint-1 do allstar[faint[ifaint]].paramflag[index[iparam]] = allstar[faint[ifaint]].paramflag[index[iparam]] or paramflagval('FAINT_WARN')
     if ngd gt 0 then begin
       allstar[gd].(itag)=allstar[gd].param[index[iparam]]
       gd1 = where(allstar[gd].param_cov[index[iparam],index[iparam]] gt 0,ngd1)
@@ -65,11 +65,12 @@ for ielem=0,n_elements(elems)-1 do begin
           allstar[bd].elemflag[eindex[ielem]] = allstar[bd].elemflag[eindex[ielem]] or paramflagval('RV_WARN')
         endif
      endif
-     allstar.(iflagtag) = allstar.elemflag[eindex[ielem]]
+     ; set FAINT_WARN
      if nfaint gt 0 then $
-       for ifaint=0,nfaint-1 do allstar[ifaint].(iflagtag) = allstar[ifaint].(iflagtag) or paramflagval('FAINT_WARN')
-     ; decision for DR16: only populate named tags with zero warnings for this element AND for Fe and H<14.6
-     named=where(allstar.elemflag[eindex[ielem]] eq 0 and allstar.elemflag[eindex[ife]] eq 0 and allstar.h lt 14.6,n)
+       for ifaint=0,nfaint-1 do allstar[faint[ifaint]].elemflag[eindex[ielem]] = allstar[faint[ifaint]].elemflag[eindex[ielem]] or paramflagval('FAINT_WARN')
+     allstar.(iflagtag) = allstar.elemflag[eindex[ielem]]
+     ; decision for DR16: only populate named tags with zero warnings for this element AND for Fe
+     named=where(allstar.elemflag[eindex[ielem]] eq 0 and allstar.elemflag[eindex[ife]] eq 0,n)
      if n gt 0 then begin
       if ielem eq ife then begin
         ; Fe is special, since we don't want [Fe/Fe]!

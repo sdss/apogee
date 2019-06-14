@@ -22,6 +22,16 @@ pro aspcap_calibrate, planfile, caldir=caldir, test=test
    lib=mrdfits(resultsdir+'/'+ofile+'-'+strcompress(oname[idir],/remove_all)+'.fits',3)
    finalstr={param: param, spec: spec, lib: lib}
 
+   ; repair PARAM_FIXED bits that were corrupted by previous aspcap_correct
+   param.paramflag[8] = param.paramflag[8] or paramflagval('PARAM_FIXED')
+   j=where(param.class eq 'BA')
+   param[j].paramflag[4] = param[j].paramflag[4] or paramflagval('PARAM_FIXED')
+   param[j].paramflag[5] = param[j].paramflag[5] or paramflagval('PARAM_FIXED')
+   param[j].paramflag[6] = param[j].paramflag[6] or paramflagval('PARAM_FIXED')
+   param[j].paramflag[7] = param[j].paramflag[7] or paramflagval('PARAM_FIXED')
+   j=where(strpos(param.class, 'GKg') eq 0 or strpos(param.class,'Mg') eq 0)
+   param[j].paramflag[7] = param[j].paramflag[7] or paramflagval('PARAM_FIXED')
+
    print,'caldir: ', caldir
    aspcap_correct,param,finalstr.lib.elem_symbol,aspcap_root+planstr.apred_vers+'/'+planstr.aspcap_vers+'/'+caldir+'/'
    finalstr.param=param

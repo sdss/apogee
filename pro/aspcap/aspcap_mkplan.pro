@@ -48,7 +48,7 @@ if not keyword_set(apvisit) then begin
       ;printf,out,'idlwrap_version  ',idlwrap_version()
       ;printf,out,'speclib_version  ',speclib_version()
       ;printf,out,'ferre_version  ',ferre_version()
-      printf,out,'apogee_version  ',getenv('APOGEE_VER')
+      printf,out,'apogee_ver  ',getenv('APOGEE_VER')
       printf,out,'apvisit    0'
       printf,out,'apred_vers ''',apred_vers,'''
       printf,out,'telescope ''',telescope,'''

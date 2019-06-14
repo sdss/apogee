@@ -21,7 +21,7 @@
 ; By J.Holtzman  Feb 2012
 ;-
 
-pro aspcaprun,planfile,flag,sclobber,noelem=noelem,noplot=noplot,elemplot=elemplot
+pro aspcaprun,planfile,flag,sclobber,noelem=noelem,noplot=noplot,elemplot=elemplot,cal=cal
 
 clobber=intarr(1)
 reads,sclobber,clobber
@@ -45,7 +45,8 @@ if (not override) and tag_exist(planstr,'apogee_ver') then $
  if planstr.apogee_ver ne getenv('APOGEE_VER') and getenv('APOGEE_OVERRIDE_VERSION') ne getenv('APOGEE_VER') then $
  stop,'APOGEEREDUCE version does not match planfile!'
 
-doaspcap,planfile,clobber=clobber,noelem=noelem,noplot=noplot,doelemplot=elemplot,/no_version_check
+if keyword_set(cal) then aspcap_calibrate,planfile,caldir=cal $
+else doaspcap,planfile,clobber=clobber,noelem=noelem,noplot=noplot,doelemplot=elemplot,/no_version_check
 ;doaspcap,planfile
 print,'doaspcap completed successfully'
 

@@ -161,7 +161,7 @@ str.param=-9999.99
 str.param_cov=-999.99
 ; calibrate Teff: note DR13 used teff, while DR14 uses mh
 ; giants
-str.paramflag[0]=str.paramflag[0] or paramflagval('CALRANGE_BAD')
+;str.paramflag[0]=str.paramflag[0] or paramflagval('CALRANGE_BAD')
 flag=str.paramflag[0]
 teffclip=aspcap_clip(str.fparam[0],giant_tepar.temin,giant_tepar.temax,flag)
 mhclip=aspcap_clip(str.fparam[3],giant_tepar.mhmin,giant_tepar.mhmax,flag)
@@ -174,8 +174,9 @@ if ngd gt 0 then begin
     str[giants[tcal]].param[0]=str[giants[tcal]].fparam[0]-(giant_tepar.par[0]+giant_tepar.par[1]*mhclip[giants[tcal]]+giant_tepar.par[2]*mhclip[giants[tcal]]^2)
   str[giants[tcal]].param_cov[0,0]=giant_tepar.rms^2
   str[giants[tcal]].param_cov[0,0]=aspcap_elemerr(giant_tepar.errpar,str[giants[tcal]].fparam[0]-4500,str[giants[tcal]].fparam[3],snrerr[giants[tcal]]-100.)^2
-  str[giants[tcal]].paramflag[0]=str[giants[tcal]].paramflag[0] and not(paramflagval('CALRANGE_BAD'))
+  ;str[giants[tcal]].paramflag[0]=str[giants[tcal]].paramflag[0] and not(paramflagval('CALRANGE_BAD'))
 endif
+if nbd gt 0 then str[giants[tbd]].paramflag[0]=str[giants[tbd]].paramflag[0] or paramflagval('CALRANGE_BAD')
 
 ; dwarfs
 flag=str.paramflag[0]
@@ -190,8 +191,9 @@ if ngd gt 0 then begin
     str[dwarfs[tcal]].param[0]=str[dwarfs[tcal]].fparam[0]-(dwarf_tepar.par[0]+dwarf_tepar.par[1]*mhclip[dwarfs[tcal]]+dwarf_tepar.par[2]*mhclip[dwarfs[tcal]]^2) 
   str[dwarfs[tcal]].param_cov[0,0]=dwarf_tepar.rms^2
   str[dwarfs[tcal]].param_cov[0,0]=aspcap_elemerr(dwarf_tepar[0].errpar,str[dwarfs[tcal]].fparam[0]-4500,str[dwarfs[tcal]].fparam[3],snrerr[dwarfs[tcal]]-100.)^2
-  str[dwarfs[tcal]].paramflag[0]=str[dwarfs[tcal]].paramflag[0] and not(paramflagval('CALRANGE_BAD'))
+  ;str[dwarfs[tcal]].paramflag[0]=str[dwarfs[tcal]].paramflag[0] and not(paramflagval('CALRANGE_BAD'))
 endif
+if nbd gt 0 then str[dwarfs[tbd]].paramflag[0]=str[dwarfs[tbd]].paramflag[0] or paramflagval('CALRANGE_BAD')
 
 ; calibrate logg, giants only
 teff=str.fparam[0]
@@ -251,7 +253,7 @@ ms=where(str[gd].fparam[1] gt dwarf_loggpar.calloggmin,nms)
 if  nms gt 0 then begin
   ms=gd[ms]
   str[ms].param[1]=str[ms].fparam[1]-ms_corr[ms]
-;  str[ms].param_cov[1,1]=aspcap_elemerr(dwarf_loggpar.errpar,str[ms].fparam[0]-4500,str[ms].fparam[3],snrerr[ms]-100.)^2
+  str[ms].param_cov[1,1]=aspcap_elemerr(dwarf_loggpar.errpar,str[ms].fparam[0]-4500,str[ms].fparam[3],snrerr[ms]-100.)^2
 ;  old=(exp(dwarf_loggpar.errpar[0]+dwarf_loggpar.errpar[1]*(str[ms].fparam[0]-4500)+dwarf_loggpar.errpar[3]*str[ms].fparam[3]+dwarf_loggpar.errpar[2]*(snrerr[ms]-100.)))^2
 ;diff=str[ms].param_cov[1,1]-old
 ;print,min(diff/old),max(diff/old)

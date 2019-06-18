@@ -522,7 +522,7 @@ def flags(hdulist,out='./',alpha=0.005) :
                     plots.plotc(ax,hdulist[1].data['FPARAM'][:,0],hdulist[1].data['FPARAM'][:,1],hdulist[1].data['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
                     plots.plotc(ax,hdulist[1].data['FPARAM'][j,0],hdulist[1].data['FPARAM'][j,1],hdulist[1].data['FPARAM'][j,3],
                                 xr=[10000,3000],yr=[6,-1],zr=[-2,0.5],xt='Teff (raw)',yt='logg (raw)')
-                    outfile=out+'flag_param_{:d}.png'.format(i)
+                    outfile=out+'flag_param_{:d}_{:d}.png'.format(iparam,i)
                     fig.savefig(outfile)
                     plt.close()
                     row.append('<a href={:s}> {:d} </a>'.format(os.path.basename(outfile),len(j)))

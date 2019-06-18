@@ -613,7 +613,7 @@ for idir=0,n_elements(datadir)-1 do begin
                ;print,outindex,str.param[istar].fparam[outindex],finalstr.param[j].fparam[outindex]
                finalstr.param[j].fparam[outindex]=str.param[istar].fparam[outindex]
                finalstr.param[j].fparam_cov[outindex,outindex] = str.param[istar].fparam_cov[outindex,outindex]
-               finalstr.param[j].paramflag=str.param[istar].paramflag[outindex]
+               finalstr.param[j].paramflag[outindex]=str.param[istar].paramflag[outindex]
              endif
            endfor
            ; rewrite input file

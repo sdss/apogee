@@ -381,8 +381,8 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
         ax.add_artist(circle)
 
         if hard is not None :
-            print(hard+'/'+clust[ic].name+'_pos.jpg')
-            fig.savefig(hard+'/'+clust[ic].name+'_pos.jpg')
+            print(hard+'/'+clust[ic].name+'_pos.png')
+            fig.savefig(hard+'/'+clust[ic].name+'_pos.png')
             plt.close()
         else :
             pdb.set_trace()
@@ -407,7 +407,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
         fig.suptitle('{:s} RV: {:4.2f} +/- {:4.2f}'.format(cluster,clust[ic].rv,clust[ic].drv))
         ax.set_xlabel('RV')
         if hard is not None :
-            fig.savefig(hard+'/'+clust[ic].name+'_rv.jpg')
+            fig.savefig(hard+'/'+clust[ic].name+'_rv.png')
             plt.close()
         else :
             plt.draw()
@@ -446,7 +446,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
         plots.plotp(ax,vra[i2[j]],vdec[i2[j]],color='g',size=30)
         fig.suptitle('{:s} PM (km/s): {:4.2f} +/- {:4.2f}  {:4.2f} +/ {:4.2f}'.format(cluster,med_vra,clust[ic].drv, med_vdec,clust[ic].drv))
         if hard is not None :
-            fig.savefig(hard+'/'+clust[ic].name+'_pm.jpg')
+            fig.savefig(hard+'/'+clust[ic].name+'_pm.png')
             plt.close()
         else :
             pdb.set_trace()
@@ -481,7 +481,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
         ax.set_xlabel('Parallax')
         fig.suptitle('{:s} Parallax : {:4.2f} +/- {:4.2f} '.format(cluster,med_par, 3*med_par_error))
         if hard is not None :
-            fig.savefig(hard+'/'+clust[ic].name+'_parallax.jpg')
+            fig.savefig(hard+'/'+clust[ic].name+'_parallax.png')
             plt.close()
         else :
             plt.draw()
@@ -543,7 +543,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
     if plot :
         plots.plotp(ax,data['J'][jc]-data['K'][jc],data['K'][jc],color='b',size=30,draw=False)
         if hard is not None :
-            fig.savefig(hard+'/'+clust[ic].name+'_cmd.jpg')
+            fig.savefig(hard+'/'+clust[ic].name+'_cmd.png')
             plt.close()
         else :
             plt.draw()
@@ -573,11 +573,11 @@ def clusters(data,dir='clusters/') :
         # clusters to exclude here
         f.write('<TR><TD><A HREF='+clust[ic].name+'.txt>'+clust[ic].name+'</A><TD>{:12.6f}<TD>{:12.6f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
                 clust[ic].ra,clust[ic].dec,clust[ic].rad,clust[ic].rv,clust[ic].drv))
-        f.write('<TD><A HREF='+clust[ic].name+'_pos.jpg><IMG SRC='+clust[ic].name+'_pos.jpg width=300></A>\n')
-        f.write('<TD><A HREF='+clust[ic].name+'_rv.jpg><IMG SRC='+clust[ic].name+'_rv.jpg width=300></A>\n')
-        f.write('<TD><A HREF='+clust[ic].name+'_pm.jpg><IMG SRC='+clust[ic].name+'_pm.jpg width=300></A>\n')
-        f.write('<TD><A HREF='+clust[ic].name+'_parallax.jpg><IMG SRC='+clust[ic].name+'_parallax.jpg width=300></A>\n')
-        f.write('<TD><A HREF='+clust[ic].name+'_cmd.jpg><IMG SRC='+clust[ic].name+'_cmd.jpg width=300></A>\n')
+        f.write('<TD><A HREF='+clust[ic].name+'_pos.png><IMG SRC='+clust[ic].name+'_pos.png width=300></A>\n')
+        f.write('<TD><A HREF='+clust[ic].name+'_rv.png><IMG SRC='+clust[ic].name+'_rv.png width=300></A>\n')
+        f.write('<TD><A HREF='+clust[ic].name+'_pm.png><IMG SRC='+clust[ic].name+'_pm.png width=300></A>\n')
+        f.write('<TD><A HREF='+clust[ic].name+'_parallax.png><IMG SRC='+clust[ic].name+'_parallax.png width=300></A>\n')
+        f.write('<TD><A HREF='+clust[ic].name+'_cmd.png><IMG SRC='+clust[ic].name+'_cmd.png width=300></A>\n')
         np.savetxt(dir+'/'+clust[ic].name+'.txt',data[j]['APOGEE_ID'],fmt='%s')
         for star in data[j]['APOGEE_ID'] : fstars.write('{:s} {:s}\n'.format(star,clust[ic].name))
     html.tail(f)

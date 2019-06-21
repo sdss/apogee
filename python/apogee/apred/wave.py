@@ -265,7 +265,7 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
         if hard :
             try : os.mkdir(os.path.dirname(root))
             except : pass
-            fig.savefig(root+'.jpg')
+            fig.savefig(root+'.png')
 
     return pars
 
@@ -310,7 +310,7 @@ def plot_apWave(nums,apred='current',inst='apogee-n',out=None,hard=False) :
     if hard :
         try : os.mkdir(os.path.dirname(root))
         except : pass
-        fig2.savefig(root+'_chiploc.jpg')
+        fig2.savefig(root+'_chiploc.png')
         plt.close()
 
     # summary figure of chip locations
@@ -341,7 +341,7 @@ def plot_apWave(nums,apred='current',inst='apogee-n',out=None,hard=False) :
     fig.suptitle(rootname)
     fig.colorbar(aximage,cax=cb_ax2,orientation='vertical')
     if hard: 
-        fig.savefig(root+'_sum.jpg')
+        fig.savefig(root+'_sum.png')
         plt.close()
 
     if rms is not None :
@@ -353,7 +353,7 @@ def plot_apWave(nums,apred='current',inst='apogee-n',out=None,hard=False) :
         aximage=ax[1].imshow(sig,vmin=0.,vmax=0.05,cmap='viridis',interpolation='nearest',aspect='auto')
         fig.colorbar(aximage,cax=cb_ax2,orientation='vertical')
         if hard : 
-            fig.savefig(root+'_rms.jpg')
+            fig.savefig(root+'_rms.png')
             plt.close()
 
     wgroup=[]
@@ -388,7 +388,7 @@ def plot_apWave(nums,apred='current',inst='apogee-n',out=None,hard=False) :
     for i in range(4) : wgroup[:,i]-=np.median(wgroup[:,i])
     wfit.extend(wgroup)
 
-    grid.append(['../plots/'+rootname+'.jpg','../plots/'+rootname+'_chiploc.jpg','../plots/'+rootname+'_sum.jpg','../plots/'+rootname+'_rms.jpg'])
+    grid.append(['../plots/'+rootname+'.png','../plots/'+rootname+'_chiploc.png','../plots/'+rootname+'_sum.png','../plots/'+rootname+'_rms.png'])
     yt.append('{:08d}'.format(num))
 
   mjd=np.array(mjd)
@@ -402,13 +402,13 @@ def plot_apWave(nums,apred='current',inst='apogee-n',out=None,hard=False) :
       plt.close()
       if out is None : root = os.path.dirname(outname)+'/plots/'+os.path.basename(outname).replace('.fits','')
       else : root = os.path.dirname(outname)+'/plots/'+out
-      fig.savefig(root+'_history.jpg')
+      fig.savefig(root+'_history.png')
       if out is None : root = os.path.dirname(outname)+'/html/'+os.path.basename(outname).replace('.fits','')
       else : root = os.path.dirname(outname)+'/html/'+out
       try : os.mkdir(os.path.dirname(root))
       except : pass
       header=('<TABLE BORDER=2> <TR><TD> Parameters from wavecals <TD>Parameters from exposures (relative to wavecal)'
-              '<TR><TD><IMG SRC=../plots/'+os.path.basename(root)+'_history.jpg>'+
+              '<TR><TD><IMG SRC=../plots/'+os.path.basename(root)+'_history.png>'+
               '<TD><IMG SRC=../plots/'+os.path.basename(root)+'_exposures.png></TABLE>')
       html.htmltab(grid,file=root+'.html',xtitle=xtit,ytitle=yt,header=header)
   else: 
@@ -813,9 +813,9 @@ def skycal(planfile,out=None,inst=None,waveid=None,group=-1,skyfile='airglow',ve
                 ax.text(0.1,0.9,label,transform=ax.transAxes)
             if type(plot) is str or type(plot) is unicode: 
                 wfig.tight_layout()
-                wfig.savefig(plot+'_wave.jpg')
-                fig.savefig(plot+'.jpg')
-                grid.append(['../plots/'+os.path.basename(plot)+'.jpg','../plots/'+os.path.basename(plot)+'_wave.jpg'])
+                wfig.savefig(plot+'_wave.png')
+                fig.savefig(plot+'.png')
+                grid.append(['../plots/'+os.path.basename(plot)+'.png','../plots/'+os.path.basename(plot)+'_wave.png'])
                 ytit.append(name)
             else : 
                 plt.show()
@@ -854,7 +854,7 @@ def skycal(planfile,out=None,inst=None,waveid=None,group=-1,skyfile='airglow',ve
                     plots.plotl(ax,xx,pfit[0]*xx+pfit[1],color=colors[ichip])
                 label = 'Frame: {:8d}  Waveid: {:8d}'.format(int(name),refnum)
                 ax.text(0.1,0.9,label,transform=ax.transAxes)
-            fig.savefig(dirname+'/plots/skydithershift-'+name+'.jpg')
+            fig.savefig(dirname+'/plots/skydithershift-'+name+'.png')
             plt.close()
     if plot is not None : 
         try: os.mkdir(dirname+'/html')
@@ -1088,11 +1088,11 @@ def compare(npoly=4,lco=False) :
         else : tit='Year: {:d}'.format(year)
         ytit.append(tit)
         name=root+'year{:1d}'.format(year)
-        fig.savefig(name+'.jpg'.format(year))
+        fig.savefig(name+'.png'.format(year))
         plt.close()
         t=tv.TV(aspect='auto')
         t.cmap='viridis'
-        row=[name+'.jpg']
+        row=[name+'.png']
         names=['pixraw','pix','chipa','chipc','chipafit','chipcfit']
         for i,im in enumerate([pixraw,pix,chipa,chipc,chipafit,chipcfit]) :
             t.ax.cla()
@@ -1101,8 +1101,8 @@ def compare(npoly=4,lco=False) :
                 for ifile,f in enumerate(gdfiles) :
                     t.ax.text(ifile+0.5,-1.,str(f),ha='right',rotation=90,fontsize=8)
             t.fig.suptitle(tit)
-            t.fig.savefig(root+name+names[i]+'.jpg'.format(year))
-            row.append(root+name+names[i]+'.jpg')
+            t.fig.savefig(root+name+names[i]+'.png'.format(year))
+            row.append(root+name+names[i]+'.png')
         plt.close()
         grid.append(row)
     html.htmltab(grid,file=out+'.html',ytitle=ytit)
@@ -1146,8 +1146,8 @@ def allplots() :
         ax[3].set_ylabel('b-g gap')
         fig.suptitle('{:08d}'.format(cal))
         fig.colorbar(aximage,cax=cb_ax2,orientation='vertical')
-        fig.savefig('plots/'+root+'_sum.jpg'.format(cal))
-        grid.append([root+'.jpg',root+'_chiploc.jpg',root+'_sum.jpg'])
+        fig.savefig('plots/'+root+'_sum.png'.format(cal))
+        grid.append([root+'.png',root+'_chiploc.png',root+'_sum.png'])
         ytit.append(root)
         pdb.set_trace()
     html.htmltab(grid,file='plots/all.html',ytitle=ytit)
@@ -1183,9 +1183,9 @@ def ditherplots(planfile,vers=None,inst=None) :
 
     grid = []
     for frame in p['APEXP']['name'] :
-        grid.append(['../plots/skypixshift-'+frame+'-airglow.jpg',
-                     '../plots/skypixshift-'+frame+'-airglow_wave.jpg',
-                     '../plots/skydithershift-'+frame+'.jpg',
+        grid.append(['../plots/skypixshift-'+frame+'-airglow.png',
+                     '../plots/skypixshift-'+frame+'-airglow_wave.png',
+                     '../plots/skydithershift-'+frame+'.png',
                      '../plots/dithershift-'+frame+'.gif'])
     html.htmltab(grid,file=dirname+'/html/shift.html')
 

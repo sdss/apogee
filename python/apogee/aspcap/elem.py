@@ -341,9 +341,9 @@ def plot(a,elem,etoh,dwarf=False,suffix='',gcal=None,dcal=None,glon=None,glat=No
                     refstar+'   ASPCAP: {:4.2f}+/-{:4.2f}'.format(refval[0],referr[0])+'   lit: '+'{:4.2f}'.format(reflit),color='r')
 
             #plt.show()
-            plt.savefig(fname+'{:1d}.jpg'.format(iplot))
+            plt.savefig(fname+'{:1d}.png'.format(iplot))
             plt.close()
-            file.append(name+'{:1d}.jpg'.format(iplot))
+            file.append(name+'{:1d}.png'.format(iplot))
 
         ytit.append(name)
 
@@ -372,9 +372,9 @@ def elemindex() :
       for prefix in [ 'g','d' ] :
        for suffix in [ '', 'gal' ] :
         name=prefix+el
-        file = [prefix+'1mh'+suffix+el+'2.jpg',prefix+'1emh'+suffix+el+'2.jpg',prefix+'1eemh'+suffix+el+'2.jpg',
-                prefix+'2mh'+suffix+el+'2.jpg',prefix+'2emh'+suffix+el+'2.jpg',prefix+'2eemh'+suffix+el+'2.jpg',
-                prefix+'3mh'+suffix+el+'2.jpg',prefix+'3emh'+suffix+el+'2.jpg',prefix+'3eemh'+suffix+el+'2.jpg']
+        file = [prefix+'1mh'+suffix+el+'2.png',prefix+'1emh'+suffix+el+'2.png',prefix+'1eemh'+suffix+el+'2.png',
+                prefix+'2mh'+suffix+el+'2.png',prefix+'2emh'+suffix+el+'2.png',prefix+'2eemh'+suffix+el+'2.png',
+                prefix+'3mh'+suffix+el+'2.png',prefix+'3emh'+suffix+el+'2.png',prefix+'3eemh'+suffix+el+'2.png']
         xtit = ['Linear 4000-5250','Linear 3750-5250','Linear 3500-5250',
                'Quadratic 4000-5250','Quadratic 3750-5250','Quadratic 3500-5250',
                'Cubic 4000-5250','Cubic 3750-5250','Cubic 3500-5250']
@@ -878,7 +878,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                         # send all points to generic errfit function (not rms within each bin) for alternative approach and to get plots
                         try:
                             soln2 = err.errfit(np.array(tedata),np.array(sndata),np.array(mhdata),np.array(val),out=hard+el.strip(),mkhtml=False)
-                            grid.append([os.path.basename(hard+el.strip()+'_err.jpg'),os.path.basename(hard+el.strip()+'_err_sn.jpg')])
+                            grid.append([os.path.basename(hard+el.strip()+'_err.png'),os.path.basename(hard+el.strip()+'_err_sn.png')])
                             yt.append(el.strip())
                         except: 
                             print('errfit failed: ',el)
@@ -1036,7 +1036,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                     #if iline == nlines : iplot+=1
                     #if not sepplot and cal != 'inter' : pdb.set_trace()
                     if iline == nlines and hard is not None : 
-                        fig.savefig(hard+el.strip()+'.jpg')
+                        fig.savefig(hard+el.strip()+'.png')
                         plt.close(fig)
                         if sepplot: 
                             fig1.savefig(hard+el+'.pdf')
@@ -1044,7 +1044,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                             plt.close(fig1)
                             plt.close(fig2)
                         if nlines > 0 : 
-                            linefig.savefig(hard+el+'_lines.jpg')
+                            linefig.savefig(hard+el+'_lines.png')
                             linefig.savefig(hard+el+'_lines.pdf')
                             plt.close(linefig)     
            
@@ -1087,12 +1087,12 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
         plt.setp(ticklabels, visible=True)
  
     if plot and hard is not None and len(doels) > 2: 
-        allfig.savefig(hard+'all.jpg')
-        if len(solar) > 0 : allsolarfig.savefig(hard+'allsolar.jpg')
+        allfig.savefig(hard+'all.png')
+        if len(solar) > 0 : allsolarfig.savefig(hard+'allsolar.png')
     if errpar and hard is not None :
         try: html.htmltab(grid,ytitle=yt,file=hard+'err_all.html')
         except: pass
-        errfig.savefig(hard+'err_all.jpg')
+        errfig.savefig(hard+'err_all.png')
         plt.close(errfig)
 
     return rec

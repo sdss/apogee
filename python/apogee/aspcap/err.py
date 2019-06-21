@@ -82,9 +82,9 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
 
             ax[0,iplt].text(0.98,0.98,title+' S/N={:4.0f}'.format(sn),va='top',ha='right',transform=ax[0,iplt].transAxes)
 
-        fig.savefig(out+'_err.jpg')
+        fig.savefig(out+'_err.png')
         plt.close()
-        figs.append([os.path.basename(out+'_err.jpg')])
+        figs.append([os.path.basename(out+'_err.png')])
 
         if snplot :
             fig,ax=plots.multi(len(tebins),len(mhbins),wspace=0.001,hspace=0.001,figsize=(2*len(tebins),2*len(mhbins)))
@@ -100,9 +100,9 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
                     ax[iy,ix].plot(x,elemerr(soln,tebins[ix]+dte/2.-4500,x-100,mhbins[iy]+dmh/2., quad=quad))
                 except: pass
                 ax[iy,ix].text(0.98,0.98,'{:8.0f} {:8.2f}'.format(tebins[ix]+dte/2.,mhbins[iy]+dmh/2.),ha='right',va='top',transform=ax[iy,ix].transAxes)
-            fig.savefig(out+'_err_sn.jpg')
+            fig.savefig(out+'_err_sn.png')
             plt.close()
-            figs.append([os.path.basename(out+'_err_sn.jpg')])
+            figs.append([os.path.basename(out+'_err_sn.png')])
 
         if mkhtml : html.htmltab(figs,file=out+'_err.html',header=title+' empirical uncertainties')
 

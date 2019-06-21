@@ -319,11 +319,11 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
             if (clust[ic].name not in ['OmegaCen','Pal1','Pal6','Pal5','Terzan12'])  and (len(j) >= 5): jc.extend(j)
             f.write('<TR><TD><A HREF='+clust[ic].name+'.txt>'+clust[ic].name+'</A><TD>{:12.6f}<TD>{:12.6f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
                     clust[ic].ra,clust[ic].dec,clust[ic].rad,clust[ic].rv,clust[ic].drv))
-            f.write('<TD><A HREF='+clust[ic].name+'_pos.jpg><IMG SRC='+clust[ic].name+'_pos.jpg width=300></A>\n')
-            f.write('<TD><A HREF='+clust[ic].name+'_rv.jpg><IMG SRC='+clust[ic].name+'_rv.jpg width=300></A>\n')
-            f.write('<TD><A HREF='+clust[ic].name+'_pm.jpg><IMG SRC='+clust[ic].name+'_pm.jpg width=300></A>\n')
-            f.write('<TD><A HREF='+clust[ic].name+'_parallax.jpg><IMG SRC='+clust[ic].name+'_parallax.jpg width=300></A>\n')
-            f.write('<TD><A HREF='+clust[ic].name+'_cmd.jpg><IMG SRC='+clust[ic].name+'_cmd.jpg width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_pos.png><IMG SRC='+clust[ic].name+'_pos.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_rv.png><IMG SRC='+clust[ic].name+'_rv.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_pm.png><IMG SRC='+clust[ic].name+'_pm.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_parallax.png><IMG SRC='+clust[ic].name+'_parallax.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_cmd.png><IMG SRC='+clust[ic].name+'_cmd.png width=300></A>\n')
             np.savetxt(dir+'/'+clust[ic].name+'.txt',data[jc]['APOGEE_ID'],fmt='%s')
             for star in data[jc]['APOGEE_ID'] : fstars.write('{:s} {:s}\n'.format(star,clust[ic].name))
         html.tail(f)
@@ -512,8 +512,8 @@ def docal(infile,clobber=False,hr=True,teff=True,logg=True,vmicro=True,vmacro=Tr
         if calib : param='PARAM'
         else : param='FPARAM'
         plots.plotc(ax,c[param][:,0],c[param][:,1],c[param][:,3],xr=[6000,3000],yr=[5,-1],zr=[-2,0.5])
-        plt.savefig(out+'hr.jpg')                                                                                                 
-        figs.append(['hr.jpg','hr.jpg'])
+        plt.savefig(out+'hr.png')                                                                                                 
+        figs.append(['hr.png','hr.png'])
         ytitle.append('HR')
 
     allcal={}
@@ -527,11 +527,11 @@ def docal(infile,clobber=False,hr=True,teff=True,logg=True,vmicro=True,vmacro=Tr
             struct.wrfits(struct.dict2struct(allcal['giant_teffcal']),out+'giant_tecal.fits')
             struct.wrfits(struct.dict2struct(allcal['dwarf_teffcal']),out+'dwarf_tecal.fits')
         if stp : pdb.set_trace()
-    figs.append(['tecal.jpg','tecal_b.jpg'])
+    figs.append(['tecal.png','tecal_b.png'])
     ytitle.append('Teff all together')
-    figs.append(['giant_tecal.jpg','dwarf_tecal.jpg'])
+    figs.append(['giant_tecal.png','dwarf_tecal.png'])
     ytitle.append('Teff, giants and dwarfs')
-    figs.append(['giant_tecal_b.jpg','dwarf_tecal_b.jpg'])
+    figs.append(['giant_tecal_b.png','dwarf_tecal_b.png'])
     ytitle.append('Teff, giants and dwarfs')
 
     # log g vs asteroseismic
@@ -544,9 +544,9 @@ def docal(infile,clobber=False,hr=True,teff=True,logg=True,vmicro=True,vmacro=Tr
                             out+'giant_loggcal.fits')
             struct.wrfits(struct.dict2struct(allcal['dwarf_loggcal']),out+'dwarf_loggcal.fits')
         if stp : pdb.set_trace()
-    figs.append(['rcrgbsep.jpg','rcrgb_loggcal.jpg'])
+    figs.append(['rcrgbsep.png','rcrgb_loggcal.png'])
     ytitle.append('log g, RGB/RC')
-    figs.append(['rcrgb_loggcal_b.jpg','logg_dwarfs.png'])
+    figs.append(['rcrgb_loggcal_b.png','logg_dwarfs.png'])
     ytitle.append('log g, RGB/RC and dwarfs')
     figs.append(['logg_all.png','logg_all.png'])
     ytitle.append('log g ')
@@ -584,11 +584,11 @@ def docal(infile,clobber=False,hr=True,teff=True,logg=True,vmicro=True,vmacro=Tr
             struct.wrfits(allcal['giant_abuncal'],out+'giant_abuncal.fits')
             struct.wrfits(allcal['dwarf_abuncal'],out+'dwarf_abuncal.fits')
         if stp : pdb.set_trace()
-    figs.append(['giants_all.jpg','dwarfs_all.jpg'])
+    figs.append(['giants_all.png','dwarfs_all.png'])
     ytitle.append('clusters')
-    figs.append(['giants_allsolar.jpg','dwarfs_allsolar.jpg'])
+    figs.append(['giants_allsolar.png','dwarfs_allsolar.png'])
     ytitle.append('solar circle')
-    figs.append(['giants_M.jpg','dwarfs_M.jpg'])
+    figs.append(['giants_M.png','dwarfs_M.png'])
     ytitle.append('cluster [M/H]')
     figs.append(['giants_clust_key.png','dwarfs_clust_key.png'])
     ytitle.append('cluster ID')
@@ -609,7 +609,7 @@ def comp(plots=['hr','giant_teffcomp','dwarf_teffcomp','rcrgbsep','loggcomp_b','
     for plot in plots :
         y=[]
         for run in runs :
-            y.append(run+'/'+run+out+plot+'.jpg')
+            y.append(run+'/'+run+out+plot+'.png')
         grid.append(y)
             
     html.htmltab(grid,file=out,ytitle=plots,xtitle=runs)
@@ -632,7 +632,7 @@ def compstars(d1,d2,out=None) :
     plots.plotc(ax[5],v1['FPARAM'][i1,0],v2['FPARAM'][i2,5]-v1['FPARAM'][i1,5],v1['FPARAM'][i1,3],zr=[-2,0.5],colorbar=True,zt='[M/H]',yt=r'$\Delta [N/M]$',yr=[-0.75,0.75],xt='Teff')
     plots.plotc(ax[6],v1['FPARAM'][i1,0],v2['FPARAM'][i2,6]-v1['FPARAM'][i1,6],v1['FPARAM'][i1,3],zr=[-2,0.5],colorbar=True,zt='[M/H]',yt=r'$\Delta \alpha/M]$',yr=[-0.75,0.75],xt='Teff')
     if out is not None:
-        plt.savefig(out+'.jpg')
+        plt.savefig(out+'.png')
 
     # plots as a function of delta logvmicro
     fig,ax=plots.multi(1,7,hspace=0.001,figsize=(8,20))
@@ -644,7 +644,7 @@ def compstars(d1,d2,out=None) :
     plots.plotc(ax[5],v1['FPARAM'][i1,2]-v2['FPARAM'][i2,2],v2['FPARAM'][i2,5]-v1['FPARAM'][i1,5],v1['FPARAM'][i1,3],zr=[-2,0.5],colorbar=True,zt='[M/H]',yt=r'$\Delta [N/M]$',yr=[-0.75,0.75],xt=r'$\Delta log vmicro$' )
     plots.plotc(ax[6],v1['FPARAM'][i1,2]-v2['FPARAM'][i2,2],v2['FPARAM'][i2,6]-v1['FPARAM'][i1,6],v1['FPARAM'][i1,3],zr=[-2,0.5],colorbar=True,zt='[M/H]',yt=r'$\Delta \alpha/M]$',yr=[-0.75,0.75],xt=r'$\Delta log vmicro$' )
     if out is not None:
-        plt.savefig(out+'_dvmicro.jpg')
+        plt.savefig(out+'_dvmicro.png')
 
 def starcomp(ref='l31a',comps=['l31b','l31b_vm4','l30b_vm4','l31a_asset'],out=None) :
     '''
@@ -653,7 +653,7 @@ def starcomp(ref='l31a',comps=['l31b','l31b_vm4','l30b_vm4','l31a_asset'],out=No
     grid=[]
     for comp in comps :
         compstars(ref,comp,out='comp/'+ref+'_'+comp)
-        y=[ref+'_'+comp+'.jpg',ref+'_'+comp+'_dvmicro.jpg']
+        y=[ref+'_'+comp+'.png',ref+'_'+comp+'_dvmicro.png']
         grid.append(y)
     html.htmltab(np.asarray(grid).T.tolist(),file=out,xtitle=comps)
 
@@ -667,7 +667,7 @@ def errcomp(vers=['dr14','dr13','dr12'],els=['alpha','O','Mg','Ni','M'],out='com
         ytit=[]
         for el in els :
           for plot in ['err','err_sn','clusterr_all'] :
-             y.append('../'+ver+'/cal/'+el+'_'+plot+'.jpg')
+             y.append('../'+ver+'/cal/'+el+'_'+plot+'.png')
              ytit.append(el+'_'+plot)
         grid.append(y)
     html.htmltab(np.asarray(grid).T.tolist(),file=out,xtitle=vers,ytitle=ytit)

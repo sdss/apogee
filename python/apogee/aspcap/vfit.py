@@ -108,7 +108,7 @@ def fit_vmicro(data,teffrange=[3550,5500],mhrange=[-2.5,1],loggrange=[-0.5,4.75]
 #    #plots.plotc(ax[2,0],logg,10.**vmicro,mh,zr=[-2.5,0.5],xr=[-1,5],size=1)
 ##
 #    fig.tight_layout()
-#    fig.savefig(out+'.jpg')
+#    fig.savefig(out+'.png')
 #
 #    fig,ax=plots.multi(1,3,figsize=(6,10))
 #    plots.plotc(ax[0],teff[gd],10.**vmicro[gd]-10.**fit1d(logg[gd]),logg[gd],xt='Teff',yt=r'$\Delta vmicro$',xr=[3500,6000],yr=[-1,1],zr=[0,5],zt='log g',size=5)
@@ -118,7 +118,7 @@ def fit_vmicro(data,teffrange=[3550,5500],mhrange=[-2.5,1],loggrange=[-0.5,4.75]
 #    plots.plotc(ax[2],meanfib[gd],10.**vmicro[gd]-10.**fit1d(logg[gd]),logg[gd],xt='mean fiber',yt=r'$\Delta vmicro$',xr=[0,300],yr=[-1,1],zr=[0,5],zt='log g',size=5)
 #    plots.plotc(ax[2],meanfib,10.**vmicro-10.**fit1d(logg),logg,xt='mean fiber',yt=r'$\Delta vmicro$',xr=[0,300],yr=[-1,1],zr=[0,5],zt='log g',colorbar=True,size=1)
 #    fig.tight_layout()
-#    fig.savefig(out+'_res.jpg')
+#    fig.savefig(out+'_res.png')
 #
     #fig,ax=plots.multi(1,2)
     #xr=[
@@ -177,7 +177,7 @@ def fit_vmicro(data,teffrange=[3550,5500],mhrange=[-2.5,1],loggrange=[-0.5,4.75]
                 xr=[-0.5,5.],yr=[-1,1],zr=[-2.0,0.5],zt='[M/H]',colorbar=True,size=1)
 
     fig.tight_layout()
-    fig.savefig(out+'_res.jpg')
+    fig.savefig(out+'_res.png')
 
     #summary plots
     #plot(teff, logg, mh, meanfib, vmicro, vrange, fit1d, fit2d, vt='vmicro')
@@ -300,7 +300,7 @@ def fit_vmacro(data,teffrange=[3550,5500],mhrange=[-2.5,1.], loggrange=[-1,3.8],
     #fit1d = fit.fit1d(logg[gd], vmacro[gd],degree=degree,plot=ax[1,0],xt='log g', yt='vmacro',ydata=meanfib[gd],colorbar=True,zt='mean fib',reject=reject,log=True)
     #fit1d = fit.fit1d(logg[gd], vmacro[gd],degree=degree,plot=ax[1,1],xt='log g', yt='vmacro',ydata=type[gd],colorbar=True,zt='RGB/RC',reject=reject,log=True)
     #fig.tight_layout()
-    #fig.savefig(out+'.jpg')
+    #fig.savefig(out+'.png')
 
     #fig,ax=plots.multi(1,2)
     fig,ax=plots.multi(2,3,figsize=(12,8))
@@ -328,7 +328,7 @@ def fit_vmacro(data,teffrange=[3550,5500],mhrange=[-2.5,1.], loggrange=[-1,3.8],
     #dr13fit.parameters=[0.741,-0.0998,-0.225]
     #junk = fit.fit2d(logg[gd], mh[gd], vmacro[gd],degree=degree,plot=ax[1],xt='log g', yt='[M/H]',zt='log(vmacro)',pfit=dr13fit)
     fig.tight_layout()
-    fig.savefig(out+'_2d.jpg')
+    fig.savefig(out+'_2d.png')
 
     # single plot with 1D fit
     fig,ax=plots.multi(1,1,figsize=(12,4))
@@ -436,7 +436,7 @@ def litplot(mass=1, feh=0, out='litvmacro') :
     #p.colorbar(axim)
 
     p.tight_layout()
-    p.savefig(out+'_'+str(mass)+'.jpg')
+    p.savefig(out+'_'+str(mass)+'.png')
 
 def vmacro_massarotti(teff,logl,feh) :
     '''

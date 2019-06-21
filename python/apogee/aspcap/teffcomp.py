@@ -159,7 +159,7 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,trange=[3750,5500],loggrange=[-1,6],mhra
         print('hi alpha: ', len(gdhi))
 
     fig.tight_layout()
-    fig.savefig(out+'.jpg')
+    fig.savefig(out+'.png')
     plt.close()
     plt.rc('font',size=14)
     plt.rc('axes',titlesize=14)
@@ -178,7 +178,7 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,trange=[3750,5500],loggrange=[-1,6],mhra
     pfit = fit.fit1d(mh,teff-ghb,ydata=teff,plot=ax[1,0],zr=[-500,200],xt='[M/H]',yt='$\Delta Teff$',xr=[-2.7,0.9],yr=[3500,5000],colorbar=True,zt='Teff')
     pfit = fit.fit1d(teff,teff-ghb,ydata=mh,plot=ax[1,1],zr=[-500,200],xt='Teff',xr=trange,yr=[-2.5,0.5],colorbar=True,zt='[M/H]')
     fig.tight_layout()
-    fig.savefig(out+'_b.jpg')
+    fig.savefig(out+'_b.png')
     plt.close()
    
     # do some test 2D and 1D fits and plots 
@@ -253,7 +253,7 @@ def irfm(allstar,trange=[4000,5000],mhrange=[-2.5,0.75],out='dteff') :
     plots.plotp(ax[1,1],bins,mean,marker='o',size=40)
     ax[1,1].text(0.1,0.9,'SFD',transform=ax[1,1].transAxes)
 
-    fig.savefig(out+'_mh.jpg')
+    fig.savefig(out+'_mh.png')
 
     # plot diff color-coded by gravity as f([M/H])
     fig,ax=plots.multi(2,2,hspace=0.001,wspace=0.001)
@@ -286,7 +286,7 @@ def irfm(allstar,trange=[4000,5000],mhrange=[-2.5,0.75],out='dteff') :
     plots.plotp(ax[1,1],bins,mean,marker='o',size=40)
     ax[1,1].text(0.1,0.9,'SFD',transform=ax[1,1].transAxes)
 
-    fig.savefig(out+'_teff.jpg')
+    fig.savefig(out+'_teff.png')
 
     # do 2D fits with Teff and [M/H], and 1D fits with each
 

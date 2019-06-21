@@ -130,7 +130,7 @@ def rcrgb(allstar,apokasc='APOKASC_cat_v3.6.0.fits',logg='LOGG_SYD_SCALING',rcli
 
     plt.tight_layout()
     if out is not None :
-        plt.savefig(out+'.jpg')
+        plt.savefig(out+'.png')
         plt.close(fig)
 
     fig,ax=plots.multi(2,1)
@@ -325,7 +325,7 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
     ax[1].text(0.98,0.98,'rms: {:5.3f}'.format(rcrms),transform=ax[1].transAxes,va='top',ha='right')
     fig.tight_layout()
     if out is not None :
-        fig.savefig(out+'.jpg')
+        fig.savefig(out+'.png')
         plt.close()
 
     # set up plots
@@ -422,9 +422,9 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
         #    allstar['FPARAM'][i1[rc],3],xr=[0,5],yr=[-1,1],xt='seismic log g',zr=[-2,0.5])
     fig.tight_layout()
     if out is not None :
-        fig.savefig(out+'_b.jpg')
+        fig.savefig(out+'_b.png')
         plt.close(fig)
-        fig2.savefig(out+'_c.jpg')
+        fig2.savefig(out+'_c.png')
         plt.close(fig2)
 
     return {'calloggmin' : calloggrange[0], 'calloggmax' : calloggrange[1], 'loggmin' : loggmin, 'loggmax' : loggmax, 

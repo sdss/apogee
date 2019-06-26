@@ -37,6 +37,7 @@ if __name__ == '__main__' :
     parser.add_argument("--renorm",type=int,default=0)
     parser.add_argument("--maxwind",type=int,default=0)
     parser.add_argument("--unitweight",type=int,default=0)
+    parser.add_argument("--minmjdlast",type=int,default=0)
     parser.add_argument("--fields",type=str,nargs='+',help='list of fields',default=[])
     args=parser.parse_args()
 
@@ -58,6 +59,7 @@ if __name__ == '__main__' :
              ",nored={:d}".format(args.nored)+
              ",visits={:d}".format(args.visits)+
              ",npar={:d}".format(args.npar)+
+             ",minmjdlast={:d}".format(args.minmjdlast)+
              ",renorm={:d}".format(args.renorm)+
              ",maxwind={:d}".format(args.maxwind)]
         print(cmd)

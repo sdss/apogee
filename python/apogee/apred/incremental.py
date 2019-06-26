@@ -43,7 +43,14 @@ def link(oldver='r12',dates='58*',newver='r13',fields='*') :
         files =glob.glob(os.environ['APOGEE_REDUX']+'/'+oldver+'/cal/'+caldir+'/*')
         mklinks(files,-3,-1,oldver=oldver)
 
-def mklinks(dirs,start,last,oldver='r12',absolute=False,newver=None) :
+def aspcap(oldver='r12',newver='r13',oldaspcap='l33',newaspcap='l33',fields='*') :
+
+    # visit/TELESCOPE/FIELD/PLATE/MJD directories and visit/TELESCOPE/FIELD/*VisitSum files
+    for tel in ['lco25m','apo1m','apo25m' ] :
+        files=glob.glob(os.environ['APOGEE_ASPCAP']+'/'+oldver+'/'+oldaspcap+'/'+tel+'/'+fields+'/*')
+        mklinks(files,-4,-1,oldver=oldver,newver=newver)
+
+def mklinks(dirs,start,last,oldver='r12',absolute=False,newver=None,test=False) :
     """ Routine that actually does the linking
     """
     
@@ -62,12 +69,13 @@ def mklinks(dirs,start,last,oldver='r12',absolute=False,newver=None) :
             for i in range(nlevels) : refdir='../'+refdir
             ref=refdir+out+'/'+dir.split('/')[last]
         new =  out+'/'+dir.split('/')[last]
-        if newver is not None :
+        new=new.replace('-'+oldver+'-','-'+newver+'-')
+        if newver is not None and not test:
             try: os.remove(new)
             except: pass
             print(new)
-            new=new.replace('-'+oldver+'-','-'+newver+'-')
         print('linking: ',ref, new,oldver,newver)
-        try: os.remove(new)
-        except: pass
-        os.symlink(ref,new)
+        if not test :
+            try: os.remove(new)
+            except: pass
+            os.symlink(ref,new)

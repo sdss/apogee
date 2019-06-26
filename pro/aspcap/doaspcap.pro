@@ -1,6 +1,6 @@
 ; doaspcap is master routine for running ASPCAP pipline: pre-processing, FERRE, and post-processing
 
-pro doaspcap,planfile,mjd=mjd,nruns=nruns,queue=queue,clobber=clobber,old=old,ncpus=ncpus,errbar=errbar,renorm=renorm,obscont=obscont,aspcap_vers=aspcap_vers,results_vers=results_vers,nstars=nstars,hmask=hmask,maskfile=maskfile,obspixmask=obspixmask,pixmask=pixmask,highbad=highbad,skyerr=skyerr,starlist=starlist,lowbad=lowbad,higherr=higherr,conthighbad=conthighbad,contlowbad=contlowbad,conthigherr=conthigherr,qaspcap=qaspcap,redux_root=redux_root,red_vers=red_vers,noplot=noplot,vacuum=vacuum,commiss=commiss,nored=nored,visits=visits,aspcap_config=aspcap_config,fits=fits,symlink=symlink,doelemplot=doelemplot,noelem=noelem,maxwind=maxwind,caldir=caldir,persist=persist,npar=npar,nelem=nelem,mask_telluric=mask_telluric,altmaskdir=altmaskdir,testmjd=testmjd,notie=notie,no_version_check=no_version_check,badpixfrac=badpixfrac
+pro doaspcap,planfile,mjd=mjd,nruns=nruns,queue=queue,clobber=clobber,old=old,ncpus=ncpus,errbar=errbar,renorm=renorm,obscont=obscont,aspcap_vers=aspcap_vers,results_vers=results_vers,nstars=nstars,hmask=hmask,maskfile=maskfile,obspixmask=obspixmask,pixmask=pixmask,highbad=highbad,skyerr=skyerr,starlist=starlist,lowbad=lowbad,higherr=higherr,conthighbad=conthighbad,contlowbad=contlowbad,conthigherr=conthigherr,qaspcap=qaspcap,redux_root=redux_root,red_vers=red_vers,noplot=noplot,vacuum=vacuum,commiss=commiss,nored=nored,visits=visits,aspcap_config=aspcap_config,fits=fits,symlink=symlink,doelemplot=doelemplot,noelem=noelem,maxwind=maxwind,caldir=caldir,persist=persist,npar=npar,nelem=nelem,mask_telluric=mask_telluric,altmaskdir=altmaskdir,testmjd=testmjd,notie=notie,no_version_check=no_version_check,badpixfrac=badpixfrac,minmjdlast=minmjdlast
 
 TIC
 ; read plan file and required fields: apvisit and plateid/mjd or field
@@ -58,6 +58,7 @@ if n_elements(indv) eq 0 then indv=apsetpar(planstr,'indv',0)
 if not keyword_set(nstars) then nstars=apsetpar(planstr,'nstars',0)
 if not keyword_set(starlist) then starlist=apsetpar(planstr,'starlist',0)
 if n_elements(clobber) eq 0 then clobber=apsetpar(planstr,'clobber',0)
+if ~keyword_set(minmjdlast) then minmjdlast=apsetpar(planstr,'minmjdlast',0)
 if keyword_set(qaspcap) then begin
   conthighbad=1.1
   contlowbad=0.001
@@ -157,13 +158,14 @@ for idir=0,n_elements(datadir)-1 do begin
    nstars=0
  endif else begin
    print,indir,field[idir]
-   list =mrdfits(apogee_filename('Field',field=field[idir]),1,status=status)
+   list =mrdfits(apogee_filename('Field',field=file_basename(field[idir])),1,status=status)
    if keyword_set(commiss) then $
    list=mrdfits(indir+'apFieldC-'+strtrim(file_basename(field[idir]),2)+'.fits',1,status=status) 
    if status lt 0 or size(list,/type) eq 3 then $
      files=file_basename(file_search(indir+fits,test_symlink=symlink)) else begin
        files=strtrim(list.file,2)
-       list=mrdfits(indir+'apFieldVisits-'+strtrim(file_basename(field[idir]),2)+'.fits',1)
+       list =mrdfits(apogee_filename('FieldVisits',field=file_basename(field[idir])),1,status=status)
+       ;list=mrdfits(indir+'apFieldVisits-'+strtrim(file_basename(field[idir]),2)+'.fits',1)
        mjdlast=max(list[uniq(list.mjd,sort(list.mjd))].mjd)
        mjddir=strtrim(mjdlast,2)
      endelse
@@ -173,9 +175,10 @@ for idir=0,n_elements(datadir)-1 do begin
  ; see if we've already done this up to latest MJD
  print,outdir[idir], mjddir,file_test(resultsdir+mjddir)
  if keyword_set(testmjd) then printf,done,outdir[idir], mjddir,file_test(resultsdir+mjddir)
- if mjddir ne '' and file_test(resultsdir+mjddir) then goto,nextdir
+ if mjddir ne '' and (file_test(resultsdir+mjddir) or mjdlast lt minmjdlast) then goto,nextdir
  if files[0] eq '' then goto,nextdir
  if keyword_set(testmjd) then goto,nextdir
+ if minmjdlast gt 0 then file_delete,outdir[idir],/recursive
 
  nclass=n_elements(class)
  first=1

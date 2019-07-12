@@ -228,6 +228,8 @@ for ichip=0,n_elements(chips)-1 do begin
 
 endfor
 
+apgundef,red
+
 ; write the summary log information
 file=dirs.prefix+string(format='("Dark-",i8.8)',i1) 
 mwrfits,darklog,caldir+'darkcorr/'+file+'.tab',/create

@@ -20,14 +20,14 @@ class TV:
            tv=TV()  to set up a new TV object (display window)
     """
  
-    def __init__(self, img=np.zeros([5,5]), fig=None):
+    def __init__(self, img=np.zeros([5,5]), fig=None, aspect='equal'):
     
         """
         Initialize TV object
         """
     
         # create new figure,set title, margins, and facecolor
-        tv = plt.figure(figsize=(8,8.5))
+        tv = plt.figure(figsize=(10,8.5))
         self.fig = tv
         tv.canvas.set_window_title('Image display window')
         tv.set_facecolor('darkred')
@@ -38,6 +38,7 @@ class TV:
         self.ax = ax
         ax.axis('off')
         self.axis = False
+        self.aspect = aspect
 
         # set up initial img and header lists
         self.current = -1
@@ -66,6 +67,7 @@ class TV:
         def format_coord(x, y):
             x = int(x + 0.5)
             y = int(y + 0.5)
+            if x< 0 or y<0 : return " "
 
             try:
                 self.img
@@ -79,7 +81,7 @@ class TV:
                     except:
                        object=None
                     return "[x,y]=[%4d, %4d] val=%8.5g   [%s %s]=[%10.6f,%10.6f]   OBJECT: %s" % (x,y, self.img[y, x], mywcs.wcs.ctype[0],mywcs.wcs.ctype[1],world[0,0], world[0,1], object)
-		except:
+                except:
                     mywcs=None
                 try:
                     return "[x,y]\n [%4i, %4i] val=%8.5g OBJECT: %s" % (x,y, self.img[y, x], object)
@@ -364,8 +366,11 @@ class TV:
         # set figure and axes
         plt.figure(self.fig.number)
         plt.axes(self.ax)
-        #self.fig.clf()
+        #self.ax.cla()
+        #self.ax.axis('off')
 
+        # make last image not visible so we don't see anything if new image is smaller
+        if self.axlist[self.current] is not None: self.axlist[self.current].set_visible(False)
         # load new image data onto rolling stack
         current= (self.current+1) % 4
         self.images += 1
@@ -387,9 +392,13 @@ class TV:
         if min is None : 
            min = 0.
         if max is None : 
-           sky = mmm.mmm(data)
-           min = sky[0]-5*sky[1]
-           max = sky[0]+20*sky[1]
+           try :
+               sky = mmm.mmm(data)
+               min = sky[0]-5*sky[1]
+               max = sky[0]+20*sky[1]
+           except :
+               min = np.median(data)-5*data.std()
+               max = np.median(data)+20*data.std()
         self.scale = [min,max]
         self.scalelist.pop(current)
         self.scalelist.insert(current,self.scale)
@@ -404,7 +413,8 @@ class TV:
         self.ax.set_ylim(dim[0]/2.-size/2.,dim[0]/2.+size/2.)
         #self.ax.set_xlim(-0.5,dim[1]-0.5)
         #self.ax.set_ylim(-0.5,dim[0]-0.5)
-        self.aximage = self.ax.imshow(data,vmin=min,vmax=max,cmap=self.cmap,interpolation='nearest')
+        #print('aspect: ', self.aspect,' xlim: ', self.ax.get_xlim(),' ylim: ',self.ax.get_ylim(), data.shape)
+        self.aximage = self.ax.imshow(data,vmin=min,vmax=max,cmap=self.cmap,interpolation='nearest',aspect=self.aspect)
         old=self.axlist.pop(current)
         # if we had a previous image, reload the data with a single value
         # so we don't continually accumulate memory (matplotlib doesn't

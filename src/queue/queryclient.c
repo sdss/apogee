@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
-#define MAXLEN 1000000
+#define MAXLEN 2000000
     char buffer[MAXLEN];
     if (argc < 3) {
        fprintf(stderr,"usage %s hostname portno\n", argv[0]);

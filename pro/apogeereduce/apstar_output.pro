@@ -347,36 +347,22 @@ sxaddhist,leadstr+' HDU8 - LSF coefficients',header
 sxaddhist,leadstr+' HDU9 - RV and CCF structure',header
 
 ; Put files into subdirectories by Location ID
-if ~keyword_set(locationdir) then locationdir = strtrim(string(format='(i4)',locid),2)
-outdir=stars_dir+locationdir+'/' 
-if keyword_set(localdir) then plotdir=localdir+'/'+locationdir else plotdir=outdir
+outfile=apogee_filename('Star',field=locationdir,obj=objid)
+outdir=file_dirname(outfile)
 file_mkdir,outdir
-file_mkdir,plotdir
 
 ; Create filename
 ;-----------------
 ;  apStar-OBJID-MJD.fits
 ;  Need to append the last of the LAST visit
 MJD = max(visitstr.jd - 2400000.5 )  ; last visit
-mjd5 = long(mjd)  ; clip the decimals
-if keyword_set(commiss) then begin
-  root='apStarC-'
-  lsfroot='apStarLSFC-'
-endif else begin
-  root='apStar-'
-  lsfroot='apStarLSF-'
-endelse
-if keyword_set(apstar_vers) then begin
-  root=root+apstar_vers+'-'
-  lsfroot=lsfroot+apstar_vers+'-'
-endif
-outfile = outdir+root+strtrim(objid,2)+'-'+strtrim(mjd5,2)+'.fits' 
 
 if not keyword_set(silent) then $
   print,' Writing apStar frame to ',outfile
 
 ; HDU #0 = Header only
 ;----------------------
+file_delete,outfile,/allow
 FITS_WRITE,outfile,0,header
   
 ; HDU #1 = Flux in units of 10^(-17) erg/s/cm^2/Ang [FLOAT]
@@ -556,15 +542,6 @@ endif
 if tag_exist(starstr,'AUTOCF') then rvstr=create_struct(rvstr,'autocf',starstr.autocf)
 MWRFITS,rvstr,outfile,/silent
 
-; Create symbolic links to these files
-;--------------------------------------
-symfile = outdir+root+strtrim(objid,2)+'.fits'
-print,' Creating symbolic link from ',symfile
-FILE_DELETE,symfile,/allow_nonexistent
-;;SPAWN,'ln -s '+outfile+' '+symfile,out
-SPAWN,'ln -s '+file_basename(outfile)+' '+symfile,out  ; use relative path
-
-
 if not keyword_set(nolsf) then begin
 
 ;################################
@@ -574,7 +551,9 @@ if not keyword_set(nolsf) then begin
 ; Create filename
 ;-----------------
 ;   apLSF-STAR8.fits
-outlsffile = outdir+lsfroot+strtrim(objid,2)+'-'+strtrim(mjd5,2)+'.fits'
+outlsffile=apogee_filename('StarLSF',field=locationdir,obj=objid)
+file_delete,outlsffile,/allow
+
 if not keyword_set(silent) then $
   print,' Writing combined LSF to ',outlsffile
 
@@ -625,17 +604,7 @@ sxaddhist,'             coefficients for parameter i.  The Hermite parameters',h
 sxaddhist,'             start with H1 since we fix H0=1.',header2
 MWRFITS,lcoef,outlsffile,header2,/silent
 
-
-; Create symbolic links to these files
-;--------------------------------------
-symlsffile = outdir+lsfroot+strtrim(objid,2)+'.fits'
-print,' Creating symbolic link from ',symlsffile
-FILE_DELETE,symlsffile,/allow_nonexistent
-;SPAWN,'ln -s '+outlsffile+' '+symlsffile,out
-SPAWN,'ln -s '+file_basename(outlsffile)+' '+symlsffile,out  ; use relative path
-
 endif
-
 
 pl=1
 if keyword_set(pl) then begin
@@ -645,9 +614,10 @@ if keyword_set(pl) then begin
   combsky=starstr.sky
   combmask=starstr.mask
   wave_final=starstr.wave/1.e4
-  file_mkdir,plotdir+'/plots'
+  if keyword_set(localdir) then plotdir=localdir+'/'+locationdir+'/plots/' else plotdir=outdir+'/plots/'
+  file_mkdir,plotdir
   set_plot,'PS'
-  device,file=plotdir+'/plots/'+root+strtrim(objid,2)+'.eps',/encap,xsize=48,ysize=12,/color
+  device,file=plotdir+file_basename(outfile,'.fits')+'.eps',/encap,xsize=48,ysize=12,/color
   smcolor
   ;!p.multi=[0,1,2]
   ;erase
@@ -673,14 +643,13 @@ if keyword_set(pl) then begin
   ;multiplot
   device,/close
 
-  device,file=plotdir+'/plots/'+root+strtrim(objid,2)+'SN.eps',/encap,xsize=48,ysize=6,/color
+  device,file=plotdir+file_basename(outfile,'.fits')+'SN.eps',/encap,xsize=48,ysize=12,/color
   plot,wave_final,combspec[*,0]/comberr[*,0],yrange=[0,2*median(combspec[*,0]/comberr[*,0])],charsize=2,thick=2,ytitle='S/N'
   for i=2,n_elements(comberr[0,*])-1 do oplot,wave_final,combspec[*,i]/comberr[*,i],color=(2+(i mod 6))
 ;  oplot,wave_final,combspec[*,1]/comberr[*,0],thick=2,color=3
 ;  oplot,wave_final,combspec[*,0]/comberr[*,0],thick=2
   ;multiplot,/reset
   device,/close
-;  ps2gif,plotdir+'/plots/apStar-'+strtrim(objid,2)+'.eps',/delete,chmod='664'o,/eps
   set_plot,'X'
 endif
 

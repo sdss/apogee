@@ -3,7 +3,7 @@
 #
 # @Author: Jon Holtzman
 # @Date: March 2018
-# @Filename: mkgrid
+# @Filename: mkgridlsf
 # @License: BSD 3-Clause
 # @Copyright: Jon Holtzman
 
@@ -26,9 +26,13 @@ if __name__ == '__main__' :
 
     parser = argparse.ArgumentParser(
         prog=os.path.basename(sys.argv[0]),
-        description='Makes a synthetic spectral grid')
+        description='Convolves a synthetic spectral grid with LSF')
 
     parser.add_argument('planfile', type=str, help='Plan file')
+    parser.add_argument("--prefix", type=str, default=None, help='Prefix for input files (default=None)')
+    parser.add_argument("--apred", type=str, default=None, help='apred version for lsf/wave (default=None)')
+    parser.add_argument("--telescope", type=str, default=None, help='telescope for lsf/wave (default=None)')
+    parser.add_argument("--flag",default='11111')
     parser.add_argument("--done")
     parser.add_argument("--host")
     parser.add_argument('--clobber', help='Overwrite files?',action="store_true")
@@ -42,7 +46,7 @@ if __name__ == '__main__' :
     #if args.clobber: clobber=',/clobber'
     #else : clobber=''
     #subprocess.call(["idl","-e","speclib_mkgrid,'"+args.planfile+"'"+clobber])
-    synth.mkgridlsf(args.planfile)
+    synth.mkgridlsf(args.planfile,prefix=args.prefix,apred=args.apred,telescope=args.telescope)
     now = datetime.datetime.now()
     print("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     print("elapsed: ",time.time()-start)

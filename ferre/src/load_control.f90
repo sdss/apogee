@@ -1,7 +1,7 @@
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine	load_control
+subroutine	load_control(filename)
 
 !reading control namelist
 !this routine is to be run serial -- no openmp critical protection provided
@@ -11,6 +11,7 @@ implicit none
 
 !locals
 integer :: i
+character(*) :: filename
 		
 namelist / lista / ndim,nov,indv
 namelist / lista / ntie,indtie,typetie,ttie0,ttie
@@ -23,14 +24,15 @@ namelist / lista / optimize,impact,mforce,chiout,trkout,nfilter,init
 namelist / lista / nruns,errbar,covprint,indi,winter,twinter
 namelist / lista / inter,mono,algor,scope,stopcr,simp,nthreads
 namelist / lista / pcaproject,pcachi,lsf,nlsf
-namelist / lista / cont,ncont,obscont
+namelist / lista / cont,ncont,obscont,rejectcont
 namelist / lista / ext_chain_filename,ext_gr_filename
 namelist / lista / chain_num, gen_num, burnin_limit
 
 
-indini(1:maxndim)=-1
+indini(1:maxndim)=-10
 indi(1:maxndim)=-1
-open(1,file='input.nml',delim='apostrophe',recl=siobuffer)
+write(*,*) 'in load_control',len(filename), filename
+open(1,file=filename,delim='apostrophe',recl=siobuffer)
 read(1,nml=lista)
 close(1)
 
@@ -107,6 +109,11 @@ if (ncont < 0) then
 	write(*,*) 'ncont = ',ncont,' must be >=0'
 	stop
 endif
+if (rejectcont <= 0.) then 
+	write(*,*) 'load_control: ERROR'
+	write(*,*) 'rejectcont = ',rejectcont,' must be >0'
+	stop
+endif
 !mforce >=0 and <=2
 if (mforce < 0 .or. mforce > 2) then
 	write(*,*) 'load_control: ERROR'
@@ -123,25 +130,25 @@ endif
 !default is start searching at grid center
 !for nruns=1 (default) or at random for nruns>1
 !but user may customize this behavior using inini(1:nov)
-if (maxval(indini(1:nov)) < 0) then
+if (maxval(indini(1:nov)) == -10) then
 	indini(1:nov)=1
 	if (abs(nruns)>1) indini(1:nov)=0
 endif
-if (minval(indini(1:nov)) < 0) then
+if (minval(indini(1:nov)) < -1) then
 	write(*,*) 'load_control: ERROR'
 	write(*,*) 'indini is not defined for all variable  parameters'
-	write(*,*) '(it contains entries < 1)'
+	write(*,*) '(it contains entries < -1)'
 	stop
 endif
-if (product(indini(1:nov)) < nruns .and. product(indini(1:nov)) > 0) then
+if (product(abs(indini(1:nov))) < nruns .and. product(abs(indini(1:nov))) > 0) then
 	write(*,*) 'load_control: ERROR'
-	write(*,*) 'nruns [=',nruns,']  > product(indini(1:nov)) [=',product(indini(1:nov)),']' 
+	write(*,*) 'nruns [=',nruns,']  > product(abs(indini(1:nov))) [=',product(abs(indini(1:nov))),']' 
 	write(*,*) 'there is not enough starting points! '
 	stop
 endif 
-if (product(indini(1:nov)) .ne. nruns .and. product(indini(1:nov)) > 0) then
+if (product(abs(indini(1:nov))) .ne. nruns .and. product(abs(indini(1:nov))) > 0) then
 	write(*,*) 'load_control: WARNING'
-	write(*,*) 'nruns [=',nruns,']  < product(indini(1:nov)) [=',product(indini(1:nov)),']'
+	write(*,*) 'nruns [=',nruns,']  < product(abs(indini(1:nov))) [=',product(abs(indini(1:nov))),']'
 	write(*,*) 'not all the defined starting points will be used!'
 endif
 

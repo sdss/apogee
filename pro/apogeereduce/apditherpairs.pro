@@ -114,7 +114,6 @@ isort=indgen(nframes)
 verbose=1
 For j=0,nframes-1 do begin
   i=isort[j]
-
   ; Not paired up yet
   if framestr[i].nused eq 0 then begin
 

@@ -21,6 +21,35 @@ def tail(f) :
     f.write('</HTML>\n')
     if f is not sys.stdout : f.close()
 
+def table(data, xtitle=None, ytitle=None, size=100, plots=True, formstr=':8.3f',border=2) :
+    """ Returns HTML for a table of input figures
+    """
+    p=np.array(data)
+    nx=p.shape[1]
+    ny=p.shape[0]
+    out='<TABLE BORDER={:d}>\n'.format(border)
+    if xtitle is not None :
+        out+='<TR>\n'
+        if ytitle is not None :
+            out+='<TD>\n'
+        for ix in range(nx) :
+            out+='<TD>'+xtitle[ix]+'\n'
+    for iy in range(ny) :
+        out+='<TR>\n'
+        if ytitle is not None :
+            out+='<TD>'+ytitle[iy]+'\n'
+        for ix in range(nx) :
+            out+='<TD>\n'
+            if plots :
+                out+=('<A HREF='+p[iy][ix]+'>'+
+                    '<IMG SRC='+p[iy][ix]+' WIDTH='+str(size)+'%></A>\n')
+            else :
+                out+=('{'+formstr+'}').format(p[iy][ix])
+            out+='</TD>\n'
+    out+='</TABLE>\n'
+    return out
+
+
 def htmltab(plots, file=None, xtitle=None, ytitle=None, size=100, header=None) :
     """
     Given 2D list of plots, generates HTML that displays these in a table, with optional

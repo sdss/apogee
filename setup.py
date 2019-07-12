@@ -4,16 +4,13 @@
 #
 
 
-from __future__ import division
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import unicode_literals
+from __future__ import absolute_import, division, print_function
 
-from setuptools import setup, find_packages
-
-import os
 import argparse
+import os
 import sys
+
+from setuptools import find_packages, setup
 
 
 # The NAME variable should be of the format "sdss-apogee".

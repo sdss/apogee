@@ -30,6 +30,7 @@ if __name__ == '__main__' :
 
     parser.add_argument('planfile', type=str, help='Plan file')
     parser.add_argument('--save', help='Save intermediate file?',action="store_true")
+    parser.add_argument("--flag",default='11111')
     parser.add_argument("--done")
     parser.add_argument("--host")
     args=parser.parse_args()

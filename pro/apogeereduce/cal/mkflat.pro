@@ -94,14 +94,21 @@ pro mkflat,ims,cmjd=cmjd,darkid=darkid,clobber=clobber,kludge=kludge,nrep=nrep,d
   if nrep gt 1 then flatsum+=median(flats[*,*,*,ii:ii+nrep-1],dimension=4) $
   else flatsum+=flats[*,*,*,ii]
  endfor
- 
+
+ ; normalize the flatsums to roughly avoid discontinuities across chips
+ ; normalize center of middle chip to unity
+ norm = median(flatsum[x1norm:x2norm,y1norm:y2norm,1])
+ flatsum[*,*,1] /= norm
+ flatsum[*,*,0] /= median(flatsum[1950:2044,500:1500,0])/median(flatsum[5:100,500:1500,1])
+ flatsum[*,*,2] /= median(flatsum[5:100,500:1500,2])/median(flatsum[1950:2044,500:1500,1])
+
  ; create the superflat 
  for ichip=0,2 do begin
   flat=flatsum[*,*,ichip]
  
-   ; normalize
-  norm=median(flat[x1norm:x2norm,y1norm:y2norm])
-  flat/=norm
+   ; normalize now done above to match chips
+  ;norm=median(flat[x1norm:x2norm,y1norm:y2norm])
+  ;flat/=norm
   ; create mask
   sz=size(flat)
   mask=bytarr(sz[1],sz[2])
@@ -174,16 +181,27 @@ pro mkflat,ims,cmjd=cmjd,darkid=darkid,clobber=clobber,kludge=kludge,nrep=nrep,d
  ; if not dithered, still take out spectral signature
    rows=intarr(2048)+1
    cols=fltarr(2048)
+
+   ; spectral signature from median of each column
    for icol=0,2047 do cols[icol]=median(flat[icol,*])
-   cols=medfilt1d(cols,100)
-   smrows=rows##cols
+   ; medfilt doesn't do much if intensity is varying across cols
+   smrows=rows##medfilt1d(cols,100)
+   sflat=smrows
 
-   ;spec=total(flat,2,/nan)
-   ;rows=intarr(2048)+1
-   ;smrows=rows##(total(flat,2,/nan)/2048)
-   flat/=smrows
+   ; Dec 2018: don't take out median spectral signature, this leaves 
+   ;  structure in spectra that is hard to normalize out
+   ; instead, take out a low order polynomial fit to estimate spectral signature
+   x=indgen(2048)
+   gd=where(finite(cols))
+   coef=robust_poly_fit(x[gd],cols[gd],2)
+   smrows=rows##poly(x,coef)
+   sflat=smrows
+
+   ; Feb 2019: polynomial fit introduces spurious signal, so just don't bother with spectral signature!
+   ; divide out estimate of spectral signature
+   ;flat/=smrows
+
  endelse
-
  ; set bad values to -100 before writing to avoid NaNs in output file
  bad=where(finite(flat) eq 0,nbad)
  if nbad gt 0 then flat[bad]=0.
@@ -209,9 +227,9 @@ pro mkflat,ims,cmjd=cmjd,darkid=darkid,clobber=clobber,kludge=kludge,nrep=nrep,d
  flatlog[ichip].num=i1
  flatlog[ichip].nframes=nframes
 
-; flat=0
-; time=systime(/seconds)
-; print,'done '+chip[ichip],time-time0
+	; flat=0
+	; time=systime(/seconds)
+	; print,'done '+chip[ichip],time-time0
 endfor
 
 ; write out flat summary information

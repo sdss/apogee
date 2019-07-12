@@ -44,8 +44,10 @@ ENDELSE
  apvisitcomb,allstr,allvisits,starstr,/nolsffit,sinc=sinc,log=log,/quick
  ;GET SYNTHETIC GRID TO MAKE TEMPLATES 
  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
- synthfile = 'apg_rvsynthgrid_v2.fits'
- apgetgrid,synthfile,grid=grid,wave=starstr.wave
+ ;synthfile = 'apg_rvsynthgrid_v2.fits'
+ ;apgetgrid,synthfile,grid=grid,wave=starstr.wave
+ synthfile = 'apg_synthgrid.fits'
+ apgetgrid,synthfile,grid=grid,/apstar
  IF keyword_set(trimgrid) THEN grid = aptrimgrid(grid, allvisits[0])
  ;DOES THIS NEED TO BE INSIDE THE WHILE? Don't think the pixel limits update. 
  if tag_exist(grid,'PIXLIM') eq 0 then add_tag,grid,'PIXLIM',starstr.pixlim_overlap,grid else begin

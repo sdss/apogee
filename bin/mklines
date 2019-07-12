@@ -1,0 +1,54 @@
+#!/usr/bin/env python
+# encoding: utf-8
+#
+# @Author: Jon Holtzman
+# @Date: March 2018
+# @Filename: mklines
+# @License: BSD 3-Clause
+# @Copyright: Jon Holtzman
+
+
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import unicode_literals
+
+import argparse
+import os
+import sys
+import subprocess
+import pdb
+from astropy.io import ascii
+import numpy as np
+
+if __name__ == '__main__' :
+
+    parser = argparse.ArgumentParser(
+        prog=os.path.basename(sys.argv[0]),
+        description='Creates apLines files')
+
+    parser.add_argument('planfile', type=str, help='Plan file')
+    parser.add_argument("--done")
+    parser.add_argument("--host")
+    args=parser.parse_args()
+
+    # read planfile to get frame name and instrument
+    data=ascii.read(args.planfile)
+    j=np.where(data['col1'] == 'frame')[0][0]
+    frame=data['col2'][j]
+    j=np.where(data['col1'] == 'instrument')[0][0]
+    instrument=data['col2'][j]
+
+    # call IDL to reduce frame and find the lines
+    cmd=['idl','-e','makecal,wave={:s},file='.format(frame)+os.environ['APOGEE_DIR']+'/data/cal/'+instrument+'-wave.par,/nofit']
+    #subprocess.call(['idl','-e','makecal,wave={:s},file='+os.environ['APOGEE_DIR']+'/data/cal/'+instrument+'-wave.par,/nofit'])
+
+    if args.done is not None :
+        subprocess.call(['setdone',args.done])
+        try: 
+            subprocess.call(['setdone',done])
+        except: pass
+        print('host', args.host)
+        if args.host is not None :
+            try: os.remove(args.done+'.'+args.host)
+            except: pass

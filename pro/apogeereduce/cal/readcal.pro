@@ -30,6 +30,7 @@
 ; darkstr = { mjd1: mjd1, mjd2: mjd2, name: name, frames: frames }
 ; flatstr = { mjd1: mjd1, mjd2: mjd2, name: name, frames: frames, nrep: nrep, dithered: dithered}
 ; wavestr = { mjd1: mjd1, mjd2: mjd2, name: name, frames: frames, psfid: psfid}
+; multiwavestr = { mjd1: mjd1, mjd2: mjd2, name: name, frames: frames}
 ; lsfstr = { mjd1: mjd1, mjd2: mjd2, name: name, frames: frames , psfid: psfid}
 ; detstr = { mjd1: mjd1, mjd2: mjd2, name: name, linid: linid}
 ; bpmstr = { mjd1: mjd1, mjd2: mjd2, name: name, darkid: darkid, flatid: flatid}
@@ -41,7 +42,7 @@
 ; sparsestr = { mjd1: mjd1, mjd2: mjd2, name: name, frames: frames, darkframes: darkframes, dmax: dmax, maxread: maxread}
 ;         
 
-pro readcal,file,darkstr,flatstr,sparsestr,fiberstr,badfiberstr,fixfiberstr,wavestr,lsfstr,bpmstr,fluxstr,detstr,littrowstr,persiststr,persistmodelstr,responsestr
+pro readcal,file,darkstr,flatstr,sparsestr,fiberstr,badfiberstr,fixfiberstr,wavestr,lsfstr,bpmstr,fluxstr,detstr,littrowstr,persiststr,persistmodelstr,responsestr,multiwavestr
 
 ; read all the lines in the calibration listfile
 openr, lun, /get_lun, file
@@ -56,7 +57,7 @@ free_lun,lun
 
 ; establish generic variable types
 mjd1=0L & mjd2=0L & name=0L & frames='' & darkframes='' & nframes=0 & nrep=0 & dithered=0 & maxread=''
-darkid=0L & flatid=0L & psfid=0L & fluxid=0L & linid=0L & fixfiberid=0L
+darkid=0L & flatid=0L & psfid=0L & fluxid=0L & linid=0L & fixfiberid=0L & waveid=0 & multiwaveid=0
 
 ; extract the darks information and load dark structure
 darks=where(strpos(line,'dark') eq 0)
@@ -154,8 +155,22 @@ for i=0,n_elements(waves)-1 do begin
     reads,fields[3],name
     reads,fields[4],frames
     reads,fields[5],psfid
-    str = { mjd1: mjd1, mjd2: mjd2, name: name, frames: frames, psfid: psfid}
+    str = { mjd1: mjd1, mjd2: mjd2, name: string(name,format='(i8.8)'), frames: frames, psfid: psfid}
     if i eq 0 then wavestr=str else wavestr = struct_append(wavestr,str)
+  endif
+endfor
+
+; extract the multiwavecal information
+waves=where(strpos(line,'multiwave') eq 0)
+for i=0,n_elements(waves)-1 do begin
+  if waves[i] ge 0 then begin
+    fields=strsplit(line(waves[i]),/extract)
+    reads,fields[1],mjd1
+    reads,fields[2],mjd2
+    reads,fields[3],name
+    reads,fields[4],frames
+    str = { mjd1: mjd1, mjd2: mjd2, name: string(name,format='(i8.8)'), frames: frames}
+    if i eq 0 then multiwavestr=str else multiwavestr = struct_append(multiwavestr,str)
   endif
 endfor
 

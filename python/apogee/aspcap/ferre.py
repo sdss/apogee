@@ -13,8 +13,11 @@ from __future__ import unicode_literals
 
 import numpy as np
 import pdb
-#from apogee.tools import match
+from tools import match
 from apogee.aspcap import aspcap
+import glob
+try: import corner
+except: pass
 
 def writespec(name,data) :
     """ Writes FERRE 'spectrum' file with input data, one line per star
@@ -22,7 +25,7 @@ def writespec(name,data) :
     f=open(name,'w')
     for spec in data :
         for pix in np.arange(spec.shape[0]) :
-            f.write('{:12.6f}'.format(spec[pix]))
+            f.write('{:14.6e}'.format(spec[pix]))
         f.write('\n')
     f.close()
     return 
@@ -72,6 +75,7 @@ def writenml(outfile,file,libhead,ncpus=2,nruns=1,interord=3,direct=1,pca=1,errb
         f.write(' NRUNS = {:2d}\n'.format(nruns))
     if stopcr is not None : f.write(' STOPCR = {:f}\n'.format(stopcr))
     f.write(' NTHREADS = {:2d}\n'.format(ncpus))
+    f.write(' COVPRINT = 1\n')
     f.write(' PCAPROJECT = 0\n')
     f.write(' PCACHI = 0\n')
     f.write(' INTER = {:d}\n'.format(interord))
@@ -79,6 +83,20 @@ def writenml(outfile,file,libhead,ncpus=2,nruns=1,interord=3,direct=1,pca=1,errb
     f.write(' F_ACCESS = {:d}\n'.format(f_access))
     f.write(' /\n')
     f.close()
+
+def clip(x,lim,eps=None) :
+    """ Utility routine to clip values within limits, and move slightly off edges if requested
+    """
+    # set negative zero to zero
+    if np.isclose(x,0.) : x=0.
+    # clip to limits
+    tmp=np.max([lim[0],np.min([lim[1],x])])
+    # move off limit if requested
+    if eps is not None :
+        if np.isclose(tmp,lim[0]) : tmp+=eps
+        if np.isclose(tmp,lim[1]) : tmp-=eps
+    return tmp
+
 
 def writeipf(name,libfile,stars,param=None) :
     """ Writes FERRE input file
@@ -92,6 +110,7 @@ def writeipf(name,libfile,stars,param=None) :
     index=np.zeros(nparams,dtype=int)
     for i in range(nparams) :
         index[i] = np.where(params == libhead0['LABEL'][i])[0]
+        print(i,index[i])
     # if input parameters aren't specified, use zeros
     if param is None :
         param=np.zeros([len(stars),len(params)])
@@ -100,12 +119,32 @@ def writeipf(name,libfile,stars,param=None) :
     for i,star in enumerate(stars) :
         f.write('{:<40s}'.format(star))
         for ipar in range(nparams) : 
-            f.write('{:12.3f}'.format(param[i][index[ipar]]))
+            lims = [libhead0['LLIMITS'][ipar],libhead0['LLIMITS'][ipar]+libhead0['STEPS'][ipar]*libhead0['N_P'][ipar]]
+            f.write('{:12.3f}'.format(clip(param[i][index[ipar]],lims,eps=0.001)))
         f.write('\n')
     f.close()
         
+def readmcmc(name,libfile,nov=None,burn=500) :
+    libhead0, libhead=rdlibhead(libfile)
+
+    files=glob.glob(name+'.chain*.dat')
+    print(files)
+    alldat=[]
+    for file in files :
+        a=np.loadtxt(file,skiprows=1)
+        alldat.extend(a[burn:,:])
+    alldat=np.array(alldat)
+    if nov is None : nov = np.arange(libhead0['N_OF_DIM'])+1
+    pdb.set_trace()
+    # transform from normalized to true parameters
+    labels=[]
+    for i,ipar in enumerate(nov) :
+        alldat[:,i+2] = libhead0['LLIMITS'][ipar-1] + alldat[:,i+2]*libhead0['STEPS'][ipar-1]*(libhead0['N_P'][ipar-1]-1)
+        labels.append(libhead0['LABEL'][ipar-1])
+    corner.corner(alldat[:,2:],labels=labels,show_titles=True)
 
 def read(name,libfile) :
+
     """ Read all of the FERRE files associated with a FERRE run
     """
     # get library headers and load wavelength array
@@ -301,12 +340,13 @@ def wrhead(planstr,file,npca=None,npix=None,wchip=None,cont=None) :
     steps=[]
     n=[]
     idim = 0
-    for dim in ['vt','cm','nm','am','mh','rot','logg','teff'] :
+    for dim in ['oa','vt','cm','nm','am','rot','mh','logg','teff'] :
         if int(planstr['n'+dim]) > 1 : 
             ndim+=1
             n.append(int(planstr['n'+dim]))
             llimits.append(float(planstr[dim+'0']))
             steps.append(float(planstr['d'+dim]))
+            if dim == 'oa' : name.append('O')
             if dim == 'vt' : name.append('LOG10VDOP')
             if dim == 'cm' : name.append('C')
             if dim == 'nm' : name.append('N')

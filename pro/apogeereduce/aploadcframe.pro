@@ -75,6 +75,7 @@ For i=0,2 do begin
   if message11 eq '0' then message11=''  ; status=0 is success
   plughdr = MRDFITS(files[i],12,head12,status=status,/silent)            ; plugmap
   tellstar = MRDFITS(files[i],13,head13,status=status,/silent)            ; plugmap
+  shiftstr = MRDFITS(files[i],14,head14,status=status,/silent)            ; plugmap
 
   ; Errors occurred
   if message0+message1+message2+message3+message4+message5+message6+message7+$
@@ -104,7 +105,7 @@ End
 
 ; Combine the chip data
 ;-----------------------
-outstr = {chipa:chipa,chipb:chipb,chipc:chipc,tellstar:tellstar}
+outstr = {chipa:chipa,chipb:chipb,chipc:chipc,shift:shiftstr,tellstar:tellstar}
 
 ;; Reconstruct the plugmap structure
 ;;-----------------------------------

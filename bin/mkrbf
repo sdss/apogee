@@ -32,7 +32,7 @@ if __name__ == '__main__' :
     # command line arguments
     parser = argparse.ArgumentParser(
         prog=os.path.basename(sys.argv[0]),
-        description='Makes a synthetic spectral grid')
+        description='Fills holes in a synthetic spectral grid with RBF interpolation')
     parser.add_argument('planfile', type=str, help='Plan file')
     parser.add_argument('--dir', type=str, help='directory')
     parser.add_argument('--grid', type=str, help='grid')
@@ -45,6 +45,7 @@ if __name__ == '__main__' :
     parser.add_argument('--cmrange', type=float, nargs='+', help='list of [C/M]')
     parser.add_argument('--nmrange', type=float, nargs='+', help='list of [N/M]')
     parser.add_argument('--vtrange', type=float, nargs='+', help='list of vmicro')
+    parser.add_argument("--flag",default='11111')
     parser.add_argument("--done")
     parser.add_argument("--host")
     args=parser.parse_args()

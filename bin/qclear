@@ -4,6 +4,6 @@ shift
 foreach file ( $* )
   echo $file
   set base=`basename $file`
-  rm log/"$base".*
+  rm "$base".*
   queryclient apogee $port clear $base
 end

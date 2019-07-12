@@ -121,7 +121,7 @@ For i=0,2 do begin
   ; Add extension explanations
   ;----------------------------
   leadstr = 'AP1DVISIT: '
-  sxaddpar,header,'V_APRED',svn_vers,'apogeereduce software version'
+  sxaddpar,header,'V_APRED',svn_vers,'apogee software version'
   sxaddhist,leadstr+systime(0),header
   info = GET_LOGIN_INFO()
   sxaddhist,leadstr+info.user_name+' on '+info.machine_name,header

@@ -1,0 +1,56 @@
+#!/usr/bin/env python
+# encoding: utf-8
+#
+# @Author: Jon Holtzman
+# @Date: November 2018
+# @Filename: apmultiwavecal
+# @License: BSD 3-Clause
+# @Copyright: Jon Holtzman
+
+
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import unicode_literals
+
+import argparse
+import datetime
+import time
+import os
+import sys
+import subprocess
+import matplotlib
+import numpy as np
+import pdb
+matplotlib.use('Agg')
+
+from apogee.apred import wave
+
+if __name__ == '__main__' :
+
+    parser = argparse.ArgumentParser(
+        prog=os.path.basename(sys.argv[0]),
+        description='Does wavelength calibration from arc frames')
+
+    parser.add_argument("frames", type=int, help='List of frames',nargs='+')
+    parser.add_argument("--vers", type=str, help='redux version', default='current')
+    parser.add_argument("--rows", type=int, help='list of rows to fit', default=np.arange(300),nargs='+')
+    parser.add_argument("--inst", type=str, help='Instrument (default=apogee-n', default='apogee-n')
+    parser.add_argument("--name", type=int, help='Name', default=None)
+    parser.add_argument("--npoly", type=int, help='Polynomial order', default=4)
+    parser.add_argument("--nofit", help='Skip fit (find lines only)?', action="store_true")
+    parser.add_argument("--plot", help='Create plot?', action="store_true")
+    parser.add_argument("--hard", help='Hardcopy?' ,action="store_true")
+    parser.add_argument("--clobber", help='Redo line finding?', action="store_true")
+    parser.add_argument("--verbose", help='Verbose output?', action="store_true")
+    parser.add_argument("--init", help='Use initial quadratic guess?', action="store_true")
+    args=parser.parse_args()
+
+    now = datetime.datetime.now()
+    start = time.time()
+    print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
+    wave.wavecal(args.frames,rows=args.rows,name=args.name,npoly=args.npoly,inst=args.inst,plot=args.plot,hard=args.hard,
+                 nofit=args.nofit,verbose=args.verbose,clobber=args.clobber,init=args.init,vers=args.vers)
+    now = datetime.datetime.now()
+    print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
+    print("elapsed: ",time.time()-start)

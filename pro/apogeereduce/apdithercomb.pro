@@ -169,7 +169,11 @@ FOR p=0,npairs-1 do begin
   frame1 = allframes[ipairstr.index[0]]
   frame2 = allframes[ipairstr.index[1]]
   shift = ipairstr.relshift
-
+  ; reference frame is first frame of first pari
+  i0=pairstr[0].index[0]
+  ; indices of the frames for this pair
+  i1=ipairstr.index[0]
+  i2=ipairstr.index[1]
   print,'Combining Pair ',strtrim(p+1,2),' - ',ipairstr.framename[0],' + ',ipairstr.framename[1]
 
   ; Initialize combframe structure. Need 2x as many pixels
@@ -214,14 +218,12 @@ FOR p=0,npairs-1 do begin
   Endfor ; chip loop
   combtags = tag_names(combframe.(0))
 
-
   ;----------------------
   ; COMBINE THE FRAMES
   ;----------------------
 
-  shift_rnd = round(shift*1000.0)/1000.0  ; round to nearest 1/1000th of a pixel
-  shift=shift_rnd
-
+;  shift_rnd = round(shift*1000.0)/1000.0  ; round to nearest 1/1000th of a pixel
+;  shift=shift_rnd
 
   ; Combine the data with SINC interlacing
   ;------------------------------------------
@@ -352,6 +354,23 @@ FOR p=0,npairs-1 do begin
       ; What is the relative shift between this pair and the ABSOLUTE
       ; frame?
       abs_shift = ipairstr.refshift
+      ;print,ichip,j,shift,abs_shift
+
+      ; Dec 2018: use chip and fiber dependent shifts
+      ; shifts are all measured in the reverse direction from the maximum shift (which is put in first pair, see apditherpairs)
+      ;new_abs_shift = allframes[i0].shift.shiftfit[0] - allframes[i1].shift.shiftfit[0]
+      ;new_shift = allframes[i0].shift.shiftfit[0] - allframes[i2].shift.shiftfit[0] - new_abs_shift
+      ;shift_i0 = allframes[i0].shift.shiftfit[0]
+      ;shift_i1 = allframes[i1].shift.shiftfit[0]
+      ;shift_i2 = allframes[i2].shift.shiftfit[0]
+      shift_i0 = allframes[i0].shift.chipfit[0]*j+allframes[i0].shift.chipfit[ichip+1] 
+      shift_i1 = allframes[i1].shift.chipfit[0]*j+allframes[i1].shift.chipfit[ichip+1] 
+      shift_i2 = allframes[i2].shift.chipfit[0]*j+allframes[i2].shift.chipfit[ichip+1] 
+      new_abs_shift = shift_i0 - shift_i1
+      new_shift = shift_i1 - shift_i2
+      ;print,new_shift,new_abs_shift
+      shift = new_shift
+      abs_shift = new_abs_shift
 
       ; if abs_shift is positive then we are to the RIGHT of the
       ; absolute frame and we want pixels to the LEFT
@@ -463,9 +482,9 @@ FOR p=0,npairs-1 do begin
       combframe.(ichip).mask[*,j]=0
       getmaskvals,flag,badflag,maskcontrib
       for ibit=0,n_elements(flag)-1 do begin
-        maskval=2^ibit
-        mask1=(data1.mask and maskval)<1
-        mask2=(data2.mask and maskval)<1
+        vmask=2^ibit
+        mask1=(data1.mask and vmask)<1
+        mask2=(data2.mask and vmask)<1
         junk=where(mask1 gt 0,nmask1)
         junk=where(mask2 gt 0,nmask2)
         ; only continue if we have any of these bits set!
@@ -484,7 +503,7 @@ FOR p=0,npairs-1 do begin
           combmask[1:npix*2-1:2] = spec_rthalf[npad:npad+npix-1]
           ; any pixel that has more than allowed contribution from a bad pixel gets this mask set
           bd=where(abs(combmask) gt maskcontrib[ibit],nbd)
-          if nbd gt 0 then combframe.(ichip).mask[bd,j]=combframe.(ichip).mask[bd,j] OR maskval
+          if nbd gt 0 then combframe.(ichip).mask[bd,j]=combframe.(ichip).mask[bd,j] OR vmask
         endif
       endfor
       ; if this maskval corresponds to a bad pixel, inflate the error
@@ -868,9 +887,9 @@ if not keyword_set(nodither) then begin
   for i=0,npairs-1 do begin
     apaddpar,outframe,leadstr+'Pair '+strtrim(i+1,2),/history
     apaddpar,outframe,leadstr+file_basename(allcombframes[i].(0).filename1),/history
-    apaddpar,outframe,leadstr+'Shift='+strtrim(pairstr[i].shift[0],2),/history
+    apaddpar,outframe,leadstr+'Shift='+strtrim(pairstr[i].shift[0],2)+' at row 0',/history
     apaddpar,outframe,leadstr+file_basename(allcombframes[i].(0).filename2),/history
-    apaddpar,outframe,leadstr+'Shift='+strtrim(pairstr[i].shift[1],2),/history
+    apaddpar,outframe,leadstr+'Shift='+strtrim(pairstr[i].shift[1],2)+' at row 0',/history
   end
   ; Add frame names to header
   apgundef,framenames

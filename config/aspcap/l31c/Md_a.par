@@ -1,0 +1,24 @@
+class Md_a
+lib turbospec/marcs/solarisotopes/tdM_150714_lsfa/p_apstdM_150714_lsfa_w123
+holefile marcs/edvarsson/MARCS_M_holefile.fits
+nov        6
+indv  1 2 3 4 5 6
+init  1 
+indini  1 1 1 2 2 3
+initpar       0.0000      0.0000      0.0000      0.0000      0.0000      0.0000
+pmin    -99999.00   -99999.00   -99999.00      -10.00        3.50     2000.00
+pmax     99999.00    99999.00    99999.00       10.00       10.00     4000.00
+fibermin            1
+fibermax           38
+inter 3
+mask   global.mask
+typedef struct {
+  char lock[16];
+  float const;
+  float te_coef;
+  float logg_coef[3];
+  float mh_coef;
+} PLOCK;
+PLOCK O   0.0000  0.0000 {  0.0000  0.0000  0.0000 }   0.0000      #  oxygen
+PLOCK C   0.0000  0.0000 {  0.0000  0.0000  0.0000 }   0.0000      #  oxygen
+PLOCK N   0.0000  0.0000 {  0.0000  0.0000  0.0000 }   0.0000      #  oxygen

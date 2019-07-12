@@ -1,0 +1,60 @@
+#!/usr/bin/env python
+# encoding: utf-8
+#
+# @Author: Jon Holtzman
+# @Date: March 2018
+# @Filename: aspcap
+# @License: BSD 3-Clause
+# @Copyright: Jon Holtzman
+
+
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import unicode_literals
+
+import argparse
+import os
+import sys
+import subprocess
+import pdb
+
+if __name__ == '__main__' :
+
+    parser = argparse.ArgumentParser(
+        prog=os.path.basename(sys.argv[0]),
+        description='Runs ASPCAP IDL routine')
+
+    parser.add_argument('planfile', type=str, help='Plan file')
+    parser.add_argument("--done")
+    parser.add_argument("--host")
+    parser.add_argument("--cal", type=str, help='calibration dir (and calibrate only')
+    #parser.add_argument("--clobber")
+    parser.add_argument('--noelem', help='Skip elemental abundances?',action="store_true")
+    parser.add_argument('--noplot', help='Skip plots?',action="store_true")
+    parser.add_argument('--elemplot', help='Add elemental plots (lots!)?',action="store_true")
+    parser.add_argument('--clobber', help='Overwrite files?',action="store_true")
+    parser.add_argument("--flag",default='11111')
+    args=parser.parse_args()
+
+    if args.clobber: clobber='1'
+    else : clobber='0'
+    if args.noelem: noelem=',/noelem'
+    else : noelem=''
+    if args.noplot: noplot=',/noplot'
+    else : noplot=''
+    if args.elemplot: elemplot=',/elemplot'
+    else : elemplot=''
+    if args.cal is not None : cal=',cal="'+args.cal+'"'
+    else :  cal=''
+    subprocess.call(["idl","-e","aspcaprun,'"+args.planfile+"','"+args.flag+"','"+clobber+"'"+noelem+noplot+elemplot+cal])
+
+    if args.done is not None :
+        subprocess.call(['setdone',args.done])
+        try: 
+            subprocess.call(['setdone',done])
+        except: pass
+        print('host', args.host)
+        if args.host is not None :
+            try: os.remove(args.done+'.'+args.host)
+            except: pass

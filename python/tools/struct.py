@@ -3,6 +3,7 @@ Utilities for numpy structured arrays
 """
 
 import numpy as np
+import os
 import glob
 import sys
 import pdb
@@ -97,9 +98,11 @@ def add_cols(a,b):
         name= names[i]
         desc= descrs[i]
         if i < len(a.dtype.names) :
-            shape= a[name][0].shape
+            try : shape= a[name][0].shape
+            except :shape= a[name].shape
         else :
-            shape= b[name][0].shape
+            try :shape= b[name][0].shape
+            except :shape= b[name].shape
         if len(desc) > 2 :
             newdtype.append((desc[0],desc[1],shape))
         else :
@@ -148,7 +151,7 @@ def append(a,b) :
     # unforutantely, broadcasting of the ND array in np.append doesn't seem to work!
     return np.append(a.astype(dt),b.astype(dt)), dt
 
-def concat(files,hdu=1,verbose=False) :
+def concat(files,hdu=1,verbose=False,fixfield=False) :
     '''
     Create concatenation of structures from an input list of files files; structures must have identical tags
 
@@ -176,12 +179,16 @@ def concat(files,hdu=1,verbose=False) :
     for file in allfiles :
         if verbose: print(file)
         a=fits.open(file)[hdu].data
+        if fixfield : 
+            a = add_cols(a,np.zeros(len(a),dtype=[('ALTFIELD','S24')]))
+            a['ALTFIELD'] = os.path.basename(os.path.dirname(file))
+
         if file == allfiles[0] :
             app=a
         else :
             app,dt=append(app,a)
         ntot+=len(a)
-        if verbose: print len(app), len(a)
+        if verbose: print(len(app), len(a))
 
     # since broadcasting in np.append doesn't seem to work, create an empty structure using the maximal
     #    dtype, and load it up line by line, and field by field
@@ -191,6 +198,9 @@ def concat(files,hdu=1,verbose=False) :
     for file in allfiles :
         if verbose: print(file)
         a=fits.open(file)[hdu].data
+        if fixfield : 
+            a = add_cols(a,np.zeros(len(a),dtype=[('ALTFIELD','S24')]))
+            a['ALTFIELD'] = os.path.basename(os.path.dirname(file))
         for i in range(len(a)) :
           for name in all.dtype.names :
             # strings and chararrays need to behandled properly
@@ -199,7 +209,7 @@ def concat(files,hdu=1,verbose=False) :
             except:
               all[name][j] = a[name][i][0]
           j+=1
-        if verbose: print len(all), len(a)
+        if verbose: print(len(all), len(a))
 
     return all
 
@@ -228,12 +238,12 @@ def dict2struct(d) :
             l = 1
         if isinstance(val,str) : 
             tt = 'S{:d}'.format(len(val))
-        if isinstance(val,int) : 
+        if isinstance(val,int) or isinstance(val,np.integer) : 
             if l == 1 :
                 tt = 'i4'.format(l)
             else :
                 tt = '{:d}d4'.format(l)
-        if isinstance(val,float) : 
+        if isinstance(val,float) or isinstance(val,np.floating) : 
             if l == 1 :
                 tt = 'f4'.format(l)
             else :
@@ -247,3 +257,7 @@ def dict2struct(d) :
 
     return(rec)
 
+def rmfield( a, *fieldnames_to_remove ):
+    """ Remove fields from structure
+    """
+    return a[ [ name for name in a.dtype.names if name not in fieldnames_to_remove ] ]

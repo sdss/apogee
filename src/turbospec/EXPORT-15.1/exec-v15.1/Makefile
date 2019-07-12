@@ -146,8 +146,8 @@ Loader  = ifort
 SOURCE = source-v15.1
 
 
-OPT1     = -B/usr/lib64 -convert big_endian -fp-model precise   -O3 -fpe3 -ftz -traceback -fp-speculationoff -opt-report  -save  
-LINKOPT        = -B/usr/lib64 -convert big_endian -fp-model precise   -O3 -fpe3 -ftz -traceback -fp-speculationoff -opt-report -save 
+OPT1     = -B/usr/lib64 -convert big_endian -fp-model precise   -O3 -fpe3 -ftz -traceback -fp-speculationoff -qopt-report  -save  
+LINKOPT        = -B/usr/lib64 -convert big_endian -fp-model precise   -O3 -fpe3 -ftz -traceback -fp-speculationoff -qopt-report -save 
 #OPT1     = -B/usr/lib -convert big_endian -fp-model precise   -O3 -fpe0 -ftz -traceback -fp-speculationoff -opt-report  -save  
 #LINKOPT        = -B/usr/lib -convert big_endian -fp-model precise   -O3 -fpe0 -ftz -traceback -fp-speculationoff -opt-report -save 
 

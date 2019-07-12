@@ -58,6 +58,14 @@ function barycentric, ra, dec, epoch, jd=jd, tai=tai, $
    if (NOT keyword_set(latitude)) then latitude = 32.780361
    if (NOT keyword_set(altitude)) then altitude = 2788.
 
+   dirs=getdir()
+   if dirs.telescope eq 'lco25m' then begin
+     print,'lco'
+     longitude = 360. - (70 + 41/60. + 33.36/3600.)
+     latitdue = -1 * (29 +52.56/3600.)
+     altitude = 2380.
+   endif
+
    if (NOT keyword_set(jd)) then begin
       if (keyword_set(tai)) then begin
          jd = 2400000.5D + tai / (24.D*3600.D)

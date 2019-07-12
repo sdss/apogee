@@ -123,9 +123,8 @@ For i=0,2 do begin
   endif else begin
     outframe = CREATE_STRUCT(outframe,'chip'+chiptag[i],chstr)
   endelse
-
 end
-
+if tag_exist(frame,'shift') then outframe = CREATE_STRUCT(outframe,'shift',frame.shift)
 
 ; No SHIFT, just use wavelength coefficients as is
 if keyword_set(noshift) then begin
@@ -498,7 +497,6 @@ if keyword_set(plot) then begin
     ps2gif,pfile+'.eps',/delete,/eps,chmod='664'o
   endif
 endif
-
 
 ; Add median shift to the header
 apaddpar,outframe,'AP1DWAVECAL: Wavelength calibration',/history

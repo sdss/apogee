@@ -12,10 +12,10 @@ def mjdcube(mjd, darkid=None, write=False, apred='current', clobber=False) :
   Optionally, write out individual uncompressed data cubes
   """
 
-  print 'mjd: ', mjd
-  print 'apred: ', apred
-  print 'write: ', write
-  print 'darkid: ', darkid
+  print('mjd: ', mjd)
+  print('apred: ', apred)
+  print('write: ', write)
+  print('darkid: ', darkid)
   datadir=os.getenv('APOGEE_DATA')
   outdir=os.getenv('APOGEE_REDUX')+'/'+apred+'/exposures/apogee-n/'+str(mjd)+'/'
 
@@ -36,8 +36,8 @@ def mjdcube(mjd, darkid=None, write=False, apred='current', clobber=False) :
 
     # loop over all files
     for file in files :
-      print file
-      print 'file: ',file
+      print(file)
+      print('file: ',file)
       if write :
         # output file name for individual uncompressed images
         outfile = os.path.basename(file.strip('apz')+'fits')
@@ -79,22 +79,22 @@ def mjdcube(mjd, darkid=None, write=False, apred='current', clobber=False) :
  
       # compute and add the cdsframe, subtract dark if we have one
       cds = (data[0:2048,0:2048] - first[0:2048,0:2048] ).astype(float)
-      print cds.shape
+      print(cds.shape)
       if darkid is not None :
-          print dark.shape,nreads
+          print(dark.shape,nreads)
           # if we don't have enough reads in the dark, do nothing
           try :
               cds -= (dark[nreads-1,:,:] - dark[2,:,:])
           except:
-              print 'not halting: not enough reads in dark, skipping dark subtraction for mjdcube'
+              print('not halting: not enough reads in dark, skipping dark subtraction for mjdcube')
               pass
       out.append(fits.ImageHDU(cds,header))
       if write :
-        hdout.writeto(outfile,clobber=True, checksum = True, output_verify='fix')
+        hdout.writeto(outfile,overwrite=True, checksum = True, output_verify='fix')
         hd.close()
 
     # write out the CDS frame
-    out.writeto(outfile,clobber=True, checksum = True, output_verify='fix')
+    out.writeto(outfile,overwrite=True, checksum = True, output_verify='fix')
     out.close()
 
 if __name__ == "__main__" :

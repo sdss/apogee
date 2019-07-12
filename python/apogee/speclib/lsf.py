@@ -18,6 +18,7 @@ from astropy.io import fits
 import matplotlib.pyplot as plt
 
 from apogee.utils import apload
+load=apload.ApLoad()
 
 _SQRTTWO= numpy.sqrt(2.)
 
@@ -31,7 +32,7 @@ def showtime(string) :
     print(string+' {:8.2f}'.format(time.time()))
     sys.stdout.flush()
 
-def get(lsfid,waveid,fiber,highres=9,apred=None) :
+def get(lsfid,waveid,fiber,highres=9,apred=None,telescope=None) :
     """  Return standard sparsified LSF
 
     Args:
@@ -45,7 +46,8 @@ def get(lsfid,waveid,fiber,highres=9,apred=None) :
         l () : output LSF
 
     """
-    if apred is not None: apload.apred = apred
+    if apred is not None: load.apred = apred
+    if telescope is not None: load.settelescope(telescope)
     x=numpy.arange(-15.,15.01,1./highres)
     x=numpy.arange(-7.,7.01,1./highres)
     l=eval(x,fiber=fiber,waveid=waveid,lsfid=lsfid)
@@ -53,7 +55,7 @@ def get(lsfid,waveid,fiber,highres=9,apred=None) :
 
 def convolve(wav,spec,
              lsf=None,xlsf=None,dxlsf=None,fiber='combo',
-             vmacro=6.,vrot=None):
+             vmacro=6.,vrot=None, highout=False):
     """ convolve an input spectrum with APOGEE LSF and resample to APOGEE's apStar wavelength grid
     Args:
        wav - wavelength array (linear in wavelength in \AA)
@@ -73,17 +75,28 @@ def convolve(wav,spec,
     if lsf is None:
         xlsf= numpy.linspace(-7.,7.,43)
         lsf= eval(xlsf,fiber=fiber)
-    if not isinstance(lsf,sparse.dia_matrix):
-        lsf= sparsify(lsf)
     if dxlsf is None:
         dx= xlsf[1]-xlsf[0]
     else:
         dx= dxlsf
     hires= int(round(1./dx))
-    l10wav= numpy.log10(aspcap.apStarWave())
+    waveout=aspcap.apStarWave()
+    if wav[0]-waveout[0] > 10 :
+        # if first wavelength is far from first apStar wavelength, minigrid: trim the output and LSF 
+        gd = numpy.where((waveout > wav[0]) & (waveout < wav[-1]) )[0]
+    else :
+        gd=numpy.arange(len(waveout))
+    l10wav= numpy.log10(waveout[gd])
     dowav= l10wav[1]-l10wav[0]
     tmpwav= 10.**numpy.arange(l10wav[0],l10wav[-1]+dowav/hires,dowav/hires)
     tmp= numpy.empty(len(l10wav)*hires)   
+    # for minigrid, extract same length for LSF
+    if wav[0]-waveout[0] > 10 :
+        lsf = lsf[gd[0]*hires:gd[0]*hires+len(tmpwav),:]
+
+    # sparsify, need to do after trimming lsf for minigrid
+    if not isinstance(lsf,sparse.dia_matrix):
+        lsf= sparsify(lsf)
 
     # Interpolate the input spectrum, starting from a polynomial baseline
     if len(spec.shape) == 1: spec= numpy.reshape(spec,(1,len(spec)))
@@ -113,7 +126,10 @@ def convolve(wav,spec,
         # Use sparse representations to quickly calculate the convolution
         tmp= sparse.csr_matrix(tmp)
 
-    return lsf.dot(tmp.T).T.toarray()[:,::hires]
+    if highout :
+        return lsf.dot(tmp.T).T.toarray(),waveout[gd]
+    else :
+        return lsf.dot(tmp.T).T.toarray()[:,::hires],waveout[gd]
 
 def sparsify(lsf):
     """convert an LSF matrix calculated with eval [ncen,npixoff] to a sparse [ncen,ncen] matrix with the LSF on the diagonals (for quick convolution with the LSF)
@@ -187,7 +203,7 @@ def eval(x,fiber='combo',lsfid=5440020,waveid=2420038,sparse=False):
     # Hi-res wavelength for output
     hireswav= 10.**numpy.arange(l10wav[0],l10wav[-1]+dowav/hires,dowav/hires)
     out= numpy.zeros((len(hireswav),len(x)))
-    lsfpars=apload.apLSF(lsfid,hdu=0)[0]
+    lsfpars=load.apLSF(lsfid,hdu=0)[0]
     for chip in ['a','b','c']:
         # Get pixel array for this chip, use fiber[0] for consistency if >1 fib
         pix= wave2pix(hireswav,chip,fiber=300-fiber[0],waveid=waveid)
@@ -378,7 +394,7 @@ def wave2pix(wave,chip,fiber=300,waveid=2420038):
         2015-02-27 - Written - Bovy (IAS)
     """
 # Load wavelength solutions
-    wave0 =apload.apWave(waveid,hdu=2)[0][chip][300-fiber]
+    wave0 =load.apWave(waveid,hdu=2)[0][chip][300-fiber]
     pix0= numpy.arange(len(wave0))
     # Need to sort into ascending order
     sindx= numpy.argsort(wave0)
@@ -406,7 +422,7 @@ def pix2wave(pix,chip,fiber=300,waveid=2420038):
     HISTORY:
         2015-02-27 - Written - Bovy (IAS)
     """
-    wave0 =apload.apWave(waveid,hdu=2)[0][chip][300-fiber]
+    wave0 =load.apWave(waveid,hdu=2)[0][chip][300-fiber]
     pix0= numpy.arange(len(wave0))
     # Need to sort into ascending order
     sindx= numpy.argsort(pix0)

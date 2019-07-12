@@ -11,10 +11,16 @@ cd $APOGEE_REDUX
 mkvers $apred_vers 
 cd $apred_vers
 
+mkslurm "apred visit/*/*/*/*/a?Plan*.par" --maxrun=8 --idlthreads=4
+mkslurm 'apred visit/*/*/*/*/a?Plan*.par' --maxrun=8 --idlthreads=4 --name='ap3d' --queryport 1060 --flag 0001
+mkslurm 'apred visit/*/*/*/*/a?Plan*.par' --maxrun=12 --idlthreads=2 --name='ap2d' --queryport 1061 --flag 0010
+mkslurm 'apred visit/*/*/*/*/a?Plan*.par' --maxrun=32 --idlthreads=1 --name='ap1dvisit' --queryport 1062 --flag 1100
+mkslurm "mkcal $apred_vers apo25m" --name mkcal-n --norunplans --idlthreads 4
+mkslurm "mkcal $apred_vers lco25m" --name mkcal-s --norunplans --idlthreads 4
+
 idl  << endidl
   apmkallplan,$mjdstart,$mjdend,vers='$apred_vers'
   @allplan
 endidl
 
 echo "Remember to copy apPersistModel files !"
-mkslurm apred "visit/*/*/*/*/a?Plan*.par"

@@ -57,7 +57,7 @@ def mark(fig) :
     return _x, _y, _button
 
 
-def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,xt=None,yt=None,zt=None,label=None,linewidth='0',marker='o',draw=True,orientation='vertical',labelcolor='k',tit=None,nxtick=None,nytick=None,rasterized=None) :
+def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,xt=None,yt=None,zt=None,label=None,linewidth='0',marker='o',draw=True,orientation='vertical',labelcolor='k',tit=None,nxtick=None,nytick=None,rasterized=None,alpha=None) :
     """
     Plots a scatter plot with point color-coded by z data
 
@@ -87,14 +87,16 @@ def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',color
       aximage
 
     """
+    global _data_x, _data_y
+
     set_limits_ticks(ax,xr,yr,nxtick,nytick)
     if xt is not None : ax.set_xlabel(xt) 
     if yt is not None : ax.set_ylabel(yt)
     if tit is not None : ax.set_title(tit)
     if zr is None :
-        scat=ax.scatter(x,y,c=z,s=size,cmap=cmap,linewidth=linewidth,marker=marker,rasterized=rasterized)
+        scat=ax.scatter(x,y,c=z,s=size,cmap=cmap,linewidth=linewidth,marker=marker,rasterized=rasterized,alpha=alpha)
     else :
-        scat=ax.scatter(x,y,c=z,vmin=zr[0],vmax=zr[1],s=size,cmap=cmap,linewidth=linewidth,marker=marker,rasterized=rasterized)
+        scat=ax.scatter(x,y,c=z,vmin=zr[0],vmax=zr[1],s=size,cmap=cmap,linewidth=linewidth,marker=marker,rasterized=rasterized,alpha=alpha)
 
     if yerr is not None :
         ax.errorbar(x,y,yerr=yerr,fmt='none',capsize=0,ecolor='k')
@@ -150,7 +152,7 @@ def plotrow(ax,img,r,norm=True,draw=True) :
             ax.plotl(np.sum(img[r[0]:r[1],:],axis=1))
     if draw : plt.draw()
 
-def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='o',size=5,linewidth='0',color='r',facecolors=None,xt=None,yt=None,draw=True,xerr=None,yerr=None,label=None,text=None,labelcolor='k',linewidths=None,nxtick=None,nytick=None,tit=None,contour=None,levels=None,alpha=None) :
+def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='o',size=5,linewidth='0',color='r',facecolors=None,xt=None,yt=None,draw=True,xerr=None,yerr=None,label=None,text=None,labelcolor='k',linewidths=None,nxtick=None,nytick=None,tit=None,contour=None,levels=None,alpha=None,rasterized=None) :
     '''
     Plot points, optionally with a series of different markers/sizes keyed to z data
 
@@ -175,6 +177,8 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
         labelcolor=  : color for label
        
     '''
+    global _data_x, _data_y
+
     set_limits_ticks(ax,xr,yr,nxtick,nytick)
     if xt is not None : ax.set_xlabel(xt) 
     if yt is not None : ax.set_ylabel(yt)
@@ -210,24 +214,25 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
             else : facecol = col
             if z is not None :
                 if zr is not None :
-                    ax.scatter(x[gd],y[gd],c=z[gd],s=sz,marker=mark,vmin=zr[0],vmax=zr[1],linewidths=linewidths)
+                    ax.scatter(x[gd],y[gd],c=z[gd],s=sz,marker=mark,vmin=zr[0],vmax=zr[1],linewidths=linewidths,rasterized=rasterized)
                 else :
-                    ax.scatter(x[gd],y[gd],c=z[gd],s=sz,marker=mark,linewidths=linewidths)
+                    ax.scatter(x[gd],y[gd],c=z[gd],s=sz,marker=mark,linewidths=linewidths,rasterized=rasterized)
             else :
-                ax.scatter(x[gd],y[gd],s=sz,marker=mark,facecolors=facecol,edgecolors=col,linewidths=linewidths)
+                ax.scatter(x[gd],y[gd],s=sz,marker=mark,facecolors=facecol,edgecolors=col,linewidths=linewidths,rasterized=rasterized)
             if yerr is not None :
-                ax.errorbar(x[gd],y[gd],marker=mark,yerr=yerr[gd],fmt='none',capsize=0,ecolor=col)
+                ax.errorbar(x[gd],y[gd],marker=mark,yerr=yerr[gd],fmt='none',capsize=0,ecolor=col,rasterized=rasterized)
     elif contour is not None:
         if contour <= 0 :
-            gd = np.where((x > xr[0]) & (x < xr[1]) & (y>yr[0]) & (y<yr[1]) )[0]
+            gd = np.where((x > np.array(xr).min()) & (x < np.array(xr).max()) & (y>np.array(yr).min()) & (y<np.array(yr).max()) )[0]
             data = np.vstack([x[gd],y[gd]])
-            kde = gaussian_kde(data,bw_method=abs(contour))
-            xgrid = np.linspace(xr[0], xr[1], 40)
-            ygrid = np.linspace(yr[0], yr[1], 40)
+            kde = gaussian_kde(data)
+            #kde = gaussian_kde(data,bw_method=abs(contour))
+            xgrid = np.linspace(np.array(xr).min(), np.array(xr).max(), 40)
+            ygrid = np.linspace(np.array(yr).min(), np.array(yr).max(), 40)
             Xgrid, Ygrid = np.meshgrid(xgrid, ygrid)
             Z = kde.evaluate(np.vstack([Xgrid.ravel(), Ygrid.ravel()]))
             # Plot the result as an image
-            ax.imshow(np.log(Z).reshape(Xgrid.shape), origin='lower', aspect='auto',vmin=0,
+            ax.imshow(np.log(Z).reshape(Xgrid.shape), origin='lower', aspect='auto',vmin=np.log(Z).min(),vmax=np.log(Z).max(),
                        extent=[xr[0], xr[1], yr[0], yr[1]], cmap='Blues')
         else :
             im = np.histogram2d(y,x,range=[yr,xr],bins=20)
@@ -236,7 +241,7 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
             ax.contour((im[2][0:-1]+im[2][1:])/2.,(im[1][0:-1]+im[1][1:])/2.,im[0],
                colors=color,levels=levels,alpha=alpha)
     else :
-        ax.scatter(x,y,marker=marker,s=size,linewidth=linewidth,facecolors=facecolors,edgecolors=color,linewidths=linewidths,alpha=alpha,label=label)
+        ax.scatter(x,y,marker=marker,s=size,linewidth=linewidth,facecolors=facecolors,edgecolors=color,linewidths=linewidths,alpha=alpha,label=label,rasterized=rasterized)
         _data_x = x[np.isfinite(x)]
         _data_y = y[np.isfinite(y)]
         if xerr is not None or yerr is not None :
@@ -249,19 +254,20 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
     if draw : plt.draw()
 
 
-def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None,ls=None,semilogy=False,linewidth=1.,tit=None,nxtick=None,nytick=None) :
+def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None,ls=None,semilogy=False,linewidth=1.,tit=None,nxtick=None,nytick=None,linestyle='-',alpha=None) :
     '''
     Plot connected points
     '''
+    if ls is not None : linestyle = ls
     set_limits_ticks(ax,xr,yr,nxtick,nytick)
     if xt is not None : ax.set_xlabel(xt) 
     if yt is not None : ax.set_ylabel(yt)
     if tit is not None : ax.set_title(tit)
     if ls is None : ls='-'
     if semilogy :
-        line = ax.semilogy(x,y,color=color,label=label,ls=ls,linewidth=linewidth)
+        line = ax.semilogy(x,y,color=color,label=label,ls=ls,linewidth=linewidth,linestyle=linestyle,alpha=alpha)
     else :
-        line = ax.plot(x,y,color=color,label=label,ls=ls,linewidth=linewidth)
+        line = ax.plot(x,y,color=color,label=label,ls=ls,linewidth=linewidth,linestyle=linestyle,alpha=alpha)
     if draw : plt.draw()
     return line
     
@@ -317,19 +323,18 @@ def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False,squeeze
                 for j in range(ny) : 
                     ticklabels = ticklabels + ax[j,i].get_yticklabels()
         plt.setp(ticklabels, visible=False)
-
-    if xtickrot is not None:
+    if xtickrot is not None :
       for i in range(nx) :
-        for j in range(0,ny) :
+        for j in range(0,ny) : 
           if nx == 1 and ny == 1:
               print('setting rotation')
-              for tick in ax.get_xticklabels(): tick.set_rotation( xtickrot )
+              for tick in ax.get_xticklabels(): tick.set_rotation( xtickrot ) 
           elif nx>1 and ny == 1:
-              for tick in ax[i].get_xticklabels(): tick.set_rotation( xtickrot )
+              for tick in ax[i].get_xticklabels(): tick.set_rotation( xtickrot ) 
           elif ny>1 and nx == 1:
-              for tick in ax[j].get_xticklabels(): tick.set_rotation( xtickrot )
+              for tick in ax[j].get_xticklabels(): tick.set_rotation( xtickrot ) 
           else :
-              for tick in ax[j,i].get_xticklabels(): tick.set_rotation( xtickrot )
+              for tick in ax[j,i].get_xticklabels(): tick.set_rotation( xtickrot ) 
       fig.subplots_adjust(bottom=0.2)
     return fig,ax
 

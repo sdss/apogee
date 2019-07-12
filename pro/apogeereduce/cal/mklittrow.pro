@@ -41,7 +41,15 @@ pro mklittrow,littrowid,cmjd=cmjd,darkid=darkid,flatid=flatid,sparseid=sparseid,
   tmp=a[1200:1500,*]*0 & tmp[l]=1 & tmp[nl]=0
   litt[1250:1450,*]=tmp[50:250,*]
   file=apogee_filename('Littrow',num=littrowid,chip='b')
-  mwrfits,litt,file
+
+  MKHDR,head,litt   ;,/image
+  leadstr = 'APMKLITTROW: '
+  sxaddhist,leadstr+systime(0),head
+  info = GET_LOGIN_INFO()
+  sxaddhist,leadstr+info.user_name+' on '+info.machine_name,head
+  sxaddhist,leadstr+'IDL '+!version.release+' '+!version.os+' '+!version.arch,head
+  sxaddhist,leadstr+' APOGEE Reduction Pipeline Version: '+getvers(),head
+  mwrfits,litt,file,head
 
   ; move PSFs to littrow directory since they are not a standard PSF!
   outdir=caldir+'littrow/'+cmjd+'/'

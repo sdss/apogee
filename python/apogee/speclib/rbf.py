@@ -25,6 +25,7 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
         print('{:s} does not exist'.format(planfile))
         return
     p=yanny.yanny(planfile,np=True)
+    if p.get('r0') : r0 = float(p['r0'])
 
     # input directory 
     if dir is None :
@@ -44,24 +45,11 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
 
     # get configuration for grid
     # sizes of subgrids for RBF interpolation in [alpha/M], [M/H], logg, and Teff
-    if int(p['nteff']) == 11 : teffsize = [4,3,4]
-    else :  
-        print('unknown nteff config')
-        pdb.set_trace()
-    if int(p['nam']) == 8 : amsize = [4,4]
-    else :  
-        print('unknown nam config')
-        pdb.set_trace()
-    if int(p['nmh']) == 15 : mhsize = [3,3,3,3,3]
-    else :  
-        print('unknown nmh config')
-        pdb.set_trace()
-    if int(p['nlogg']) == 10 : loggsize = [4,3,3]
-    elif int(p['nlogg']) == 8 : loggsize = [4,4]
-    elif int(p['nlogg']) == 7 : loggsize = [4,3]
-    else :  
-        print('unknown nlogg config')
-        pdb.set_trace()
+
+    teffsize = subgrid(int(p['nteff']))
+    amsize = subgrid(int(p['nam']))
+    mhsize = subgrid(int(p['nmh']))
+    loggsize = subgrid(int(p['nlogg']))
 
     if grid is None :
         if p['specdir'].find('GK_') >= 0 : grid = 'GK'
@@ -211,9 +199,37 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
            hout=fits.ImageHDU(np.squeeze(holes.data[hcm,ham,:,:,:]))
            for idim in range(1,4) :
                spectra.add_dim(hout.header,holes.header['CRVAL'+str(idim)],holes.header['CDELT'+str(idim)],1,holes.header['CTYPE'+str(idim)],idim) 
-           grid.append(hout)
-           grid.writeto(indir+out+file,overwrite=True)
+           new = fits.HDUList()
+           new.append(grid[0])
+           new.append(hout)
+           new.writeto(indir+out+file,overwrite=True)
+           #grid.append(hout)
+           #grid.writeto(indir+out+file,overwrite=True)
          #holes.writeto(out+holefile,overwrite=True)
+
+def subgrid(n) :
+    ''' return subgrid sizes for input dimension '''
+    if n <=4 :
+        return [n]
+    elif n<=8 :
+        return [4,n-4]
+    elif n==9 :
+        return [3,3,3]
+    elif n==10 :
+        return [3,4,3]
+    elif n==11 :
+        return [4,4,3]
+    elif n==12 :
+        return [4,4,4]
+    elif n==13 :
+        return [3,3,4,3]
+    elif n==14 :
+        return [3,4,4,3]
+    elif n==15 :
+        return [3,3,3,3,3]
+    else :  
+        print('unknown subgrid config')
+        pdb.set_trace()
 
 def dorbf(pars) :
     """ Routine that actually does one RBF interpolation
@@ -230,12 +246,13 @@ def dorbf(pars) :
     print('doing rbf',name,ndim,holes.shape)
 
     # if we have no good models at the lowest logg, trim it off
-    gd=np.where(holes[:,:,0,:] < 1.e-4)[0]
-    if len(gd) == 0 :
-        print('Skipping lowest logg....')
-        logg1 = 1
-    else :
-        logg1 = 0
+    logg1 = 0
+    #gd=np.where(holes[:,:,0,:] < 1.e-4)[0]
+    #if len(gd) == 0 :
+    #    print('Skipping lowest logg....')
+    #    logg1 = 1
+    #else :
+    #    logg1 = 0
 
     nhole=0
     nsynhole=0
@@ -255,6 +272,7 @@ def dorbf(pars) :
               fhole.write(('{:8.2f} '*4+'\n').format(iam/(ndim[0]-1.),imh/(ndim[1]-1.),ilogg/(ndim[2]-1.),iteff/(ndim[3]-1.)))
               nhole+=1
             else : 
+              #normalize spectrum
               spec/=np.nanmean(spec)
               fgood.write(('{:8.2f} '*4).format(iam/(ndim[0]-1.),imh/(ndim[1]-1.),ilogg/(ndim[2]-1.),iteff/(ndim[3]-1.)))
               for i in range(ndim[-1]) : fgood.write('{:12.6f}'.format(spec[i]))
@@ -406,6 +424,20 @@ def comp(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',grid='
 
     html.htmltab(figs,file=out+'.html')
 
+def mkhtml(n=24,r0s=['1.25','1.00','0.75','0.50','0.25']) :
+
+    files=[]
+    for i in range(1,n+1) :
+      f=[]
+      xtit=[]
+      for r0 in r0s :
+        f.append('rbf'+r0+'_{:02d}.png'.format(i))
+        xtit.append(r0)
+      files.append(f)
+
+    html.htmltab(files,file='rbf.html',xtitle=xtit)
+
+
 def extend(start,end,vector,holevector) :
     """ Extend the subgrids one point if possible, to avoid edges
     """
@@ -414,7 +446,7 @@ def extend(start,end,vector,holevector) :
     hs=np.max([0,np.where(np.isclose(holevector,vector[s]))[0][0]])
     he=np.min([len(holevector),np.where(np.isclose(holevector,vector[e-1]))[0][0]+1])
     if e-s != he-hs :
-        print('ERROR: inconsistent size of data and hole grids')
+        print('ERROR: inconsistent size of data and hole grids',s,e,hs,he)
         pdb.set_trace()
 
     return s,e,hs,he

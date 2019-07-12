@@ -1,0 +1,140 @@
+import numpy as np
+from esutil import htm
+from astropy.table import Table
+from astropy.io import fits
+from apogee.utils import bitmask
+from tools import match
+import pdb
+ 
+def mkcoord(file='allStar-r12-l33-58358.fits') :
+    """ Create coordinate CSV from allStar file, to use for GAIA cross-match
+    """
+    hdulist=fits.open(file)
+    data=hdulist[1].data
+    coords=np.vstack((data['RA'],data['DEC'])).T
+    np.savetxt('coords.csv',coords,delimiter=',',header='ra,dec')
+
+def add_gaia(data,gaia_1='gaia_2mass_xmatch.fits.gz', gaia_2='gaia_posn_xmatch.fits.gz') :
+    """ Add GAIA data to allStar file, with coordinate match to (cross-matched) GAIA reference file
+    """
+    tab=Table(data)
+    in_names=('source_id','parallax','parallax_error','pmra','pmra_error','pmdec','pmdec_error',
+              'phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag',
+              'radial_velocity','radial_velocity_error','r_est','r_lo','r_hi')
+    dtypes=('i8','f8','f8','f8','f8','f8','f8','f4','f4','f4','f8','f8','f8','f8','f8')
+    out_names=[]
+    for name in in_names: out_names.append(('gaia_'+name).upper())
+    newcols=Table(np.zeros([len(tab),len(out_names)])-9999.,names=out_names,dtype=dtypes)
+    # for source_id, default to 0, not -9999.
+    newcols['GAIA_SOURCE_ID'] = 0
+    # get rid of targetting proper motions to avoid confusion!
+    tab.remove_columns(['PMRA','PMDEC','PM_SRC'])
+    # add unpopulated columns
+    tab.add_columns(newcols.columns.values())
+
+    # read gaia 2MASS matched file, match by 2MASS ID, and populate
+    gaia=fits.open(gaia_1)[1].data
+    print('number in GAIA-2MASS xmatch catalog: ',len(gaia),len(set(gaia['original_ext_source_id'])))
+    while True :
+        # loop for matches since we have repeats and want them all matched
+        j=np.where(tab['GAIA_SOURCE_ID'] == 0)[0]
+        print('Number missing gaia_source_id: ', len(j))
+        m1,m2=match.match(np.core.defchararray.replace(tab['APOGEE_ID'][j],'2M',''),gaia['original_ext_source_id'])
+        print('Number matched by 2MASS: ', len(m1))
+        if len(m1) == 0 : break
+        for inname,outname in zip(in_names,out_names) :
+            tab[outname][j[m1]] = gaia[inname][m2]
+        #if len(m1) < 100 : 
+        #    for i in m1 : print(tab['APOGEE_ID'][j[m1]])
+    j=np.where(tab['GAIA_SOURCE_ID'] > 0)[0]
+    print('number of unique APOGEE_ID matches: ',len(set(tab['APOGEE_ID'][j])))
+
+    j=np.where(tab['GAIA_SOURCE_ID'] == 0)[0]
+    print('missing sources after 2MASS matches: ',len(j))
+    gaia=fits.open(gaia_2)[1].data
+    h=htm.HTM()
+    # now do a positional match, take the brightest object within 3 arcsec (which is the max from the GAIA crossmatch)
+    maxrad=3./3600.
+    m1,m2,rad=h.match(tab['RA'][j],tab['DEC'][j],gaia['RA'],gaia['DEC'],maxrad,maxmatch=10)
+    for m in set(m1) :
+        jj=np.where(m1 == m)[0]
+        ii=np.argsort(gaia['phot_rp_mean_mag'][m2[jj]])
+        #print(tab['RA'][j[m]],tab['DEC'][j[m]],tab['TARGET_ID'][j[m]])
+        #print(gaia['RA'][m2[jj]],gaia['DEC'][m2[jj]],gaia['PHOT_RP_MEAN_MAG'][m2[jj]])
+        #print(ii)
+        for inname,outname in zip(in_names,out_names) :
+            tab[outname][j[m]] = gaia[inname][m2[jj[ii[0]]]]
+    j=np.where(tab['GAIA_SOURCE_ID'] == 0)[0]
+    print('missing sources after second match: ',len(j))
+
+    # replace NaNs
+    for name in out_names :
+        bd = np.where(np.isnan(tab[outname]))[0]
+        tab[outname][j] = -9999.
+
+    return tab
+
+def add_spec(data) :
+    tab=Table(data)
+    names=['TEFF_SPEC','LOGG_SPEC']
+    newcols=Table(np.zeros([len(tab),len(names)])-9999.,names=names)
+    tab.add_columns(newcols.columns.values())
+    tab['TEFF_SPEC'] = tab['FPARAM'][:,0]
+    tab['LOGG_SPEC'] = tab['FPARAM'][:,1]
+
+    return(tab)
+
+        
+def trimfile(data) :
+    """ Write a 'lite' allStar file, removing some of the big space users
+    """
+    tab=Table(data)
+    remove=['ALL_VISITS','VISITS','ALL_VISIT_PK','VISIT_PK','FPARAM_CLASS','CHI2_CLASS',
+            'FPARAM','FELEM','FPARAM_COV','PARAM','PARAM_COV','ELEMFLAG','FELEM_ERR',
+            'APSTAR_ID','TARGET_ID','ASPCAP_ID','FILE','LOCATION_ID']
+    out=fits.HDUList()
+    tab.remove_columns(remove)
+
+    return tab
+
+def new(infile='allStar-r12-l33-58358.fits',new='allStar-r12-l33.fits',trim='allStarLite-r12-l33.fits') :
+    """ take allStar file, add GAIA info and new _spec columns, outpu
+        also output allStarLite version
+    """
+    hdulist=fits.open(infile)
+    gd=np.where(np.core.defchararray.strip(hdulist[1].data['APOGEE_ID']) != '')[0]
+    print('adding gaia....')
+    tab=add_gaia(hdulist[1].data[gd])
+    print('adding _SPEC columns....')
+    tab=add_spec(tab)
+    # populate TARGFLAG for 1m observations
+    t2a=bitmask.ApogeeTarget2()
+    t2b=bitmask.Apogee2Target2()
+    j=np.where(tab['TELESCOPE'] == 'apo1m')[0]
+    tab['APOGEE2_TARGET2'][j] |= t2a.getval('APOGEE_1MTARGET')
+    tab['APOGEE_TARGET2'][j] |= t2b.getval('APOGEE2_1MTARGET')
+    # repopulate TARGFLAGS with latest bitmask info
+    for i in range(len(tab)) :
+        if i%10000 == 0 : print('repopulating targflags: ',i)
+        if 'apogee2' in tab['SURVEY'][i] :
+            tab['TARGFLAGS'][i] = bitmask.targflags(
+                                      tab['APOGEE2_TARGET1'][i],
+                                      tab['APOGEE2_TARGET2'][i],
+                                      tab['APOGEE2_TARGET3'][i],survey='apogee2')
+        else :
+            tab['TARGFLAGS'][i] = bitmask.targflags(
+                                      tab['APOGEE_TARGET1'][i],
+                                      tab['APOGEE_TARGET2'][i],0,survey='apogee')
+
+    # write out the modified file
+    print('writing file ',new)
+    out=fits.HDUList()
+    out.append(fits.BinTableHDU(tab))
+    out.append(hdulist[2])
+    out.append(hdulist[3])
+    out.writeto(new,overwrite=True)
+
+    print('writing file ',trim)
+    out=fits.HDUList()
+    out.append(fits.BinTableHDU(trimfile(tab)))
+    out.writeto(trim,overwrite=True)

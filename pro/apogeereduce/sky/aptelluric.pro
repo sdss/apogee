@@ -62,7 +62,7 @@ endif
 
 ; Checking the tags of the input structure
 tags = tag_names(frame)
-needtags1 = ['CHIPA','CHIPB','CHIPC']
+needtags1 = ['CHIPA','CHIPB','CHIPC','SHIFT']
 for i=0,n_elements(needtags1)-1 do begin
   if (where(tags eq needtags1[i]))[0] eq -1 then begin
     print,'TAG ',needtags1[i],' NOT FOUND in input structure'
@@ -123,6 +123,7 @@ For i=0,2 do begin
     outframe = CREATE_STRUCT(outframe,'chip'+chiptag[i],chstr)
   endelse
 endfor
+outframe = CREATE_STRUCT(outframe,'shift',frame.shift)
 
 species = ['CH4','CO2','H2O']
 nspecies = n_elements(species)

@@ -1,0 +1,21 @@
+class Fcoarse
+lib turbospec/kurucz/solarisotopes/tsF_150714_lsfcombo5/p_apstsF_150714_lsfcombo5_w123
+holefile kurucz/KURUCZ_F_holefile.fits
+nov        6
+indv  2 3 4 5 6
+indini  1 1 2 2 3
+initpar       0.0000      0.0000      0.0000      0.0000      0.0000      0.0000
+coarse 1 
+noplot 1 
+inter 3
+mask   global.mask
+typedef struct {
+  char lock[16];
+  float const;
+  float te_coef;
+  float logg_coef[3];
+  float mh_coef;
+} PLOCK;
+PLOCK O   0.0000  0.0000 {  0.0000  0.0000  0.0000 }   0.0000      #  oxygen
+PLOCK C   0.0000  0.0000 {  0.0000  0.0000  0.0000 }   0.0000      #  oxygen
+PLOCK N   0.0000  0.0000 {  0.0000  0.0000  0.0000 }   0.0000      #  oxygen

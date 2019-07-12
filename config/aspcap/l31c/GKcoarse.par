@@ -1,0 +1,20 @@
+class GKcoarse
+lib turbospec/kurucz/giantisotopes/tgGK_150714_lsfcombo5_l31c/p_apstgGK_150714_lsfcombo5_l31c_w123
+holefile kurucz/KURUCZ_GK_holefile.fits
+nov        7
+indv  4 5 6 7
+indini  1 2 2 3
+initpar       0.0000      0.0000      0.0000      0.0000      0.0000      0.0000      0.0000
+coarse 1 
+noplot 1 
+inter 3
+mask   global.mask
+typedef struct {
+  char lock[16];
+  float const;
+  float te_coef;
+  float logg_coef[3];
+  float mh_coef;
+} PLOCK;
+PLOCK LGVSINI   0.4708  0.0000 {  0.0000  0.0000  0.0000 }  -0.2541      #  rotation/vmacro
+PLOCK O   0.0000  0.0000 {  0.0000  0.0000  0.0000 }   0.0000      #  oxygen

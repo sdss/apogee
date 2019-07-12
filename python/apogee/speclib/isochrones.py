@@ -1,7 +1,10 @@
 import os
+import pdb
 import numpy as np
 from astropy.io import ascii
 import astropy.table as table
+from tools import plots
+import matplotlib.pyplot as plt
 
 def read(infile,columns=None,agerange=[0,20.]) :
     """
@@ -45,4 +48,20 @@ def read(infile,columns=None,agerange=[0,20.]) :
 
     return data
 
+def plot(ax,iso,x,y,xr=None,yr=None,color=None,dx=0.,dy=0.,isoadj=False,alpha=None) :
+    ''' plotting routine that handles tip of RGB '''
+    mdiff = iso['mini'][0:-1]-iso['mini'][1:]
+    j=np.where(abs(mdiff) < 1.e-8)[0]
+    if len(j) > 0 :
+        j=j[0]
+        if isoadj :
+            a=116.
+            b=155.
+            c=-22.
+            dx = a + b*iso['feh'][0:j] + c*iso['logg'][0:j]
+        line = plots.plotl(ax,iso[x][0:j]+dx,iso[y][0:j]+dy,xr=xr,yr=yr,color=color,alpha=alpha)
+        plots.plotl(ax,iso[x][j+1:],iso[y][j+1:],color=line[0].get_color(),alpha=alpha)
+    else :
+        line = plots.plotl(ax,iso[x]+dx,iso[y]+dy,xr=xr,yr=yr,color=color,alpha=alpha)
+    plt.draw()
 

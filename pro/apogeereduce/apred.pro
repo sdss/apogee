@@ -51,7 +51,8 @@ aploadplan,planfile,planstr
 override=0
 if getenv('APOGEE_OVERRIDE_VERSION') eq '1' then override=1
 if (not override) and tag_exist(planstr,'apogee_ver') then $
- if planstr.apogee_ver ne getenv('APOGEE_VER') and planstr.apogee_ver ne 'test' then  stop,'APOGEEREDUCE version does not match planfile!'
+ if planstr.apogee_ver ne getenv('APOGEE_VER') and getenv('APOGEE_OVERRIDE_VERSION') ne getenv('APOGEE_VER') then $
+ stop,'APOGEEREDUCE version does not match planfile!'
 if tag_exist(planstr,'telescope') then telescope=planstr.telescope else telescope='apo25m'
 if tag_exist(planstr,'apred_vers') then apsetver,vers=planstr.apred_vers,telescope=telescope
 

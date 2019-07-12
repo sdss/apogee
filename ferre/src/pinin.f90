@@ -33,7 +33,6 @@ real (dp), intent(inout) :: p(nov)
 !locals
 integer   :: j,ii,kk   		
 
-
 if (opti == 0) then !regular run
 
  !initialization for the amoeba
@@ -44,9 +43,11 @@ if (opti == 0) then !regular run
    	 	do j=1,nov
 			if (indini(j) == 0) then
 				call random_number(p(j))
-			else
-          		p(j)=uu(j,i)/dble(indini(j)) + 1._dp/(2._dp*indini(j))
-        	endif   
+			elseif (indini(j) == -1) then 
+				p(j)=pf(indv(j))
+			else 
+                                p(j)=uu(j,i)/dble(indini(j)) + 1._dp/(2._dp*indini(j))
+        	        endif   
 	  	enddo
 	  case default
 	    write(*,*)'init has an illegal value'

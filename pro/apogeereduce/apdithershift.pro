@@ -1,4 +1,4 @@
-pro apdithershift,frame1,frame2,shift,shifterr,xcorr=xcorr,lines=lines,object=object,plot=plot,pfile=pfile,stp=stp,shiftarr=shiftarr,plugmap=plugmap,nofit=nofit
+function apdithershift,frame1,frame2,shift,shifterr,xcorr=xcorr,lines=lines,object=object,plot=plot,pfile=pfile,stp=stp,shiftarr=shiftarr,plugmap=plugmap,nofit=nofit,mjd=mjd
 
 ;+
 ;
@@ -36,7 +36,7 @@ nframe2 = n_elements(frame2)
 ; Not enough inputs
 if nframe1 eq 0 or nframe2 eq 0 then begin
   print,'Syntax - apdithershift,frame1,frame2,shift,shifterr,xcorr=xcorr,lines=lines,object=object,pl=pl,stp=stp'
-  return
+  return,-1
 endif
 
 
@@ -46,7 +46,7 @@ needtags1 = ['CHIPA','CHIPB','CHIPC']
 for i=0,n_elements(needtags1)-1 do begin
   if (where(tags eq needtags1[i]))[0] eq -1 then begin
     print,'TAG ',needtags1[i],' NOT FOUND in input structure'
-    return
+    return,-1
   end
 end
 needtags2 = ['HEADER','FLUX','ERR','MASK']
@@ -55,7 +55,7 @@ for i=0,2 do begin
   for j=0,n_elements(needtags2)-1 do begin
     if (where(tags2 eq needtags2[j]))[0] eq -1 then begin
       print,'TAG ',needtags2[j],' NOT FOUND in input structure'
-      return
+      return,-1
     end
   end
 end
@@ -66,7 +66,7 @@ needtags1 = ['CHIPA','CHIPB','CHIPC']
 for i=0,n_elements(needtags1)-1 do begin
   if (where(tags eq needtags1[i]))[0] eq -1 then begin
     print,'TAG ',needtags1[i],' NOT FOUND in input structure'
-    return
+    return,-1
   end
 end
 needtags2 = ['HEADER','FLUX','ERR','MASK']
@@ -75,7 +75,7 @@ for i=0,2 do begin
   for j=0,n_elements(needtags2)-1 do begin
     if (where(tags2 eq needtags2[j]))[0] eq -1 then begin
       print,'TAG ',needtags2[j],' NOT FOUND in input structure'
-      return
+      return,-1
     end
   end
 end
@@ -88,6 +88,10 @@ f2 = frame2
 sz = size(f1.chipa.flux[*,*])
 npix = sz[1]
 nfibers = sz[2]
+
+
+chipshift=fltarr(3,2)
+pars=fltarr(4)
 
 ;-------------------------
 ; Using CROSS-CORRELATION
@@ -228,23 +232,64 @@ if keyword_set(xcorr) then begin
 ;  end
 
   if keyword_set(shiftarr) then shiftarr=xshiftarr
-  ; Measure final shift
+  ; Measure mean shift
   gd = where(xshiftarr gt -99)
   ROBUST_MEAN,xshiftarr[gd],shift,shiftsig
   shifterr = shiftsig/sqrt(nfibers*3)
 ; Printing the results
   print,'Shift = ',strtrim(shift,2),'+/-',strtrim(shifterr,2),' pixels'
 
-  ; do a linear fit to the shifts
-  ; don't use blue fibers in superpersistence region
+
+  ;if nofit, we only have one row, so return chip offsets
   if keyword_set(nofit) then begin
+   pars=[0.]
+   for ichip=0,2 do begin
+     gd=where(xshiftarr[*,ichip] gt -99)
+     robust_mean,xshiftarr[gd,ichip],tmp,tmpsig
+     pars=[pars,tmp]
+   endfor
+   print,pars
    shift=[shift,0.]
    goto, fitend
   endif
 
+  ; do linear fits to the shifts
+  ; don't use blue fibers in superpersistence region
+  if mjd lt 56860 then begin
+    bd=where(chip eq 2 and fiber gt 200,n)
+    if n gt 0 then xshiftarr[bd]=-100
+  endif
+
+  ; single slope and offset
   bad=where(xshiftarr lt -99 or (chip eq 2 and fiber gt 200),complement=gd)
   shift = AP_ROBUST_POLY_FIT(fiber[gd],xshiftarr[gd],1)
+  ; slope and offset for each chip
   print,'Fit coefficients: ', shift
+  for ichip=0,2 do begin
+    bad=where(xshiftarr[*,ichip] lt -99 ,complement=gd)
+    chipshift[ichip,*] = AP_ROBUST_POLY_FIT(fiber[gd,ichip],xshiftarr[gd,ichip],1)
+  endfor
+  ; global fit for slope with row and 3 independent chip offsets
+  for iter=0,2 do begin
+   gd = where(xshiftarr gt -99)
+   print,'n: ',n_elements(gd)
+   design=fltarr(n_elements(gd),4)
+   design[*,0] = fiber[gd]
+   for ichip=0,2 do begin
+     j=where(chip[gd] eq ichip)
+     design[j,ichip+1] = 1.
+   endfor
+   y=xshiftarr[gd]
+   a=matrix_multiply(design,design,/atranspose)
+   b=matrix_multiply(design,y,/atranspose)
+   pars=invert(a)#b
+   res=y-matrix_multiply(pars,design,/btrans)
+   bd=where(abs(res) gt 5*mad(res))
+   print,pars
+   print,'mad: ', mad(res)
+   xshiftarr[bd]=-100
+  endfor
+
   ; Plot all the xcorr shifts
   ;plot = 1 ;1
   if keyword_set(plot) then begin
@@ -258,11 +303,21 @@ if keyword_set(xcorr) then begin
     ;yr = [min(xshiftarr),max(xshiftarr)]
     yr = [-3,3]*mad(xshiftarr)+median(xshiftarr)
   xr=[0,nfibers]
-  yr=[-0.6,0.6]
+  yr = [-0.1,0.1]+median(xshiftarr)
+  ;yr=[-0.6,0.6]
     plot,indgen(nfibers),POLY(findgen(nfibers),shift),xtit='Spectrum #',ytit='Pixel Shift',xr=xr,yr=yr,xs=1,ys=1,thick=3
     oplot,xshiftarr[0:nfibers-1],color=2,ps=1
     oplot,xshiftarr[nfibers:2*nfibers-1],color=3,ps=1
     oplot,xshiftarr[2*nfibers:3*nfibers-1],color=4,ps=1
+    for ichip=0,2 do begin
+      if ichip eq 0 then color=2
+      if ichip eq 1 then color=3
+      if ichip eq 2 then color=4
+      oplot,indgen(nfibers),POLY(findgen(nfibers),chipshift[ichip,*]),color=color
+    endfor
+    f1=strsplit(file_basename(frame1.chipa.filename,'.fits'),'-',/ext)
+    f2=strsplit(file_basename(frame2.chipa.filename,'.fits'),'-',/ext)
+    xyouts,0.05,-0.09+median(xshiftarr),'ref: '+f1[2] +'    frame: '+ f2[2]
     ;oplot,[300,300],[-10,10],linestyle=2
     ;xyouts,150,-0.12,'Chip a',align=0.5,charsize=1.3
     ;oplot,[600,600],[-10,10],linestyle=2
@@ -385,12 +440,15 @@ Endif else begin
   ; Printing the results
   print,'Shift = ',strtrim(shift,2),'+/-',strtrim(shifterr,2),' pixels'
   ; This should be accurate to ~0.001 if there are ~18 lines per fiber
+  shift=[shift,0.]
 
   ;stop
 
 Endelse  ; using emission lines
 
+shiftstr = { shiftfit: shift, chipshift: chipshift,  chipfit: pars }
 
 if keyword_set(stp) then stop
 
+return,shiftstr
 end

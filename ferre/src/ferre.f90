@@ -24,7 +24,8 @@ real(dp), allocatable	   :: sfit(:)		! vector of fit model fluxes
 !locals
 integer(longenough)        :: j				!counter
 integer                    :: i,k,l			!+counters
-integer                    :: tid,nthreads_env			  			   !omp
+integer                    :: istat			!allocate status var
+integer                    :: tid,nthreads_env		   !omp
 !$ integer                 :: omp_get_thread_num, omp_get_num_threads  !omp
 integer	                   :: ii,jj,kk,ii1,ii2,offset,stlen   !temp variables
 real(dp)                   :: ulimit,ulimit2    !temp variables
@@ -62,11 +63,51 @@ character(len=80)          :: iqh 		 	!singe-line header holder
 character(len=48)          :: iqmargin		!margin preceding flux data
 character(len=2000000)     :: dummyline     !string to hold the first line of wfile
 integer		               :: status			!object status
+character(len=128)          :: inputnames(100), inputfile
 !=0 ok
 !<0 issue with a particular object, skip object and go on
 !-1: frd,  -2: ipf,   -3: err,   -10: j< only_object(1)
 !>0 end of file or error, quit
 !1: eof frd,2: eof ipf,3: eof err, 10: j> only_object(2)
+
+character(len=128)           :: arg
+integer		            :: ifile,nfiles
+
+! Parse command line arguments
+!  no arguments: use input.nml for single input file
+!  one argument: use command line argument for single input file
+!  two arguments with -l filename: use filename to provide line of input files
+!  otherwise, error
+if (command_argument_count() .eq. 0) then
+  nfiles= 1
+  inputnames(1) = 'input.nml  '
+else if (command_argument_count() .eq. 1) then
+  call get_command_argument(1,arg)
+  nfiles= 1
+  inputnames(1) = arg
+else if (command_argument_count() .eq. 2) then
+  call get_command_argument(1,arg)
+  if ( arg .ne. '-l' ) then
+    write(*,*) 'Must either provide:'
+    write(*,*) '   no argument to use input.nml'
+    write(*,*) '   one argument with input file name'
+    write(*,*) '   two arguments with -l listname'
+  endif
+  call get_command_argument(2,arg)
+  open(1,file=arg)
+  nfiles =0
+  DO
+    READ(1, '(a128)', IOSTAT=istat) inputnames(nfiles+1)
+    IF (istat < 0) EXIT
+      nfiles = nfiles + 1
+  END DO
+else 
+  stop 'unrecognized command line arguments'
+endif
+
+synthfile0=''
+do ifile = 1, nfiles
+    write(*,*) ifile, inputnames(ifile)
 
 write(*,*)'-----------------------------------------------------------------'
 write(*,'(20x,a10,10x,a12)')' f e r r e',ver
@@ -79,11 +120,12 @@ write(*,*)'-----------------------------------------------------------------'
 
 
 !zero ttie0 and ttie
+indtie(1:maxndim)=0
 ttie0(1:maxndim)=0._dp
 ttie(1:maxndim,1:maxndim)=0._dp
 
-
-call load_control				!read control file
+write(*,*) trim(inputnames(ifile)),len(trim(inputnames(ifile)))
+call load_control(trim(inputnames(ifile)))				!read control file
 
 !set nthreads: OMP_NUM_THREADS is used unless specified in control file
 nthreads_env=1
@@ -93,12 +135,15 @@ nthreads_env=1
 if (nthreads == 0) nthreads=nthreads_env
 
 				
-
+write(*, '(a,a)') 'synthfile: ', trim(synthfile(1)), trim(synthfile0)
+if (trim(synthfile(1)) .ne. trim(synthfile0)) then
 call start_timer
 npca(:)=0					!reset all elements of npca to 0
 call read_f					!load synth grid (find out ndim,npix)
 call ellapsed_time(etime)
 write(*,*)'Done reading!'
+synthfile0 = synthfile(1)
+endif
 
 !check for consistency between inter and n_p
 !inter<min(n_p)
@@ -111,16 +156,19 @@ endif
 
 
 
-allocate (probe(ndim))		!allocate variables in share module (shared for omp)
+allocate (probe(ndim),stat=istat)	!allocate variables in share module (shared for omp)
+call checkstat(istat,'probe')
 probe(:)=  0.2_dp			!probe > 0. ( and normally<0.5)
 
 !setup wavelength scale, if needed
 if (winter > 0) then
 	if (npca(1) > 0) then 
-		allocate(lambda_syn(totalnpca))
+		allocate(lambda_syn(totalnpca),stat=istat)
+		call checkstat(istat,'lambda_syn')
 		call setuplambda(lambda_syn,totalnpca)
 	else
-		allocate(lambda_syn(npix))
+		allocate(lambda_syn(npix),stat=istat)
+		call checkstat(istat,'lambda_syn')
 		call setuplambda(lambda_syn,npix)
 	endif
 endif
@@ -175,7 +223,8 @@ case (1)  !interpolate observations
 case (2)  !interpolate library
 	nlambda1=nlambda
 end select
-allocate (wref(nlambda1))
+allocate (wref(nlambda1),stat=istat)
+call checkstat(istat,'wref')
 wref(:) =  1.0_dp
 
 !adopt wref from filter file if provided
@@ -234,7 +283,8 @@ if (nov > 0) then !1st nov if
 	endif
 	
 	!allocate waveline
-	allocate (waveline(nlambda))
+	allocate (waveline(nlambda),stat=istat)
+	call checkstat(istat,'waveline')
 	waveline(:) = 0.0_dp		
 	
 	!read wavelength line
@@ -289,13 +339,15 @@ end select
 
 if (lsf > 0 .and. lsf < 10) then !lsf is the same for all objects
 	if (lsf < 3) then !is read from file
-		allocate(lsfarr(mlsf,nlsf))
+		allocate(lsfarr(mlsf,nlsf),stat=istat)
+		call checkstat(istat,'lsfarr')
 		lsfarr(:,:)=0.0_dp
 		open(9,file=lsffile,status='old',recl=xliobuffer,action='read')
 		read(9,*,iostat=ierr) lsfarr
 		close(9)
 	else  ! we read lsfcof from file
-		allocate(lsfcof(mlsf,dlsf))
+		allocate(lsfcof(mlsf,dlsf),stat=istat)
+		call checkstat(istat,'lsfcof')
 		lsfcof(:,:)=0.0_dp
 		open(9,file=lsffile,status='old',recl=xliobuffer,action='read')
 		read(9,*,iostat=ierr) lsfcof
@@ -303,7 +355,8 @@ if (lsf > 0 .and. lsf < 10) then !lsf is the same for all objects
 		close(9)
 		nlsf=ceiling(1.4*maxval(lsfcof(:,1)))*2+1 !set nlsf
 		write(*,*)'main         -> nlsf = ',nlsf 
-		allocate(lsfarr(mlsf,nlsf))
+		allocate(lsfarr(mlsf,nlsf),stat=istat)
+		call checkstat(istat,'lsfarr')
 		lsfarr(:,:)=0.0_dp		
 		!and calculate lsfarr
 		call getlsf(lsfcof,lsfarr)
@@ -313,7 +366,8 @@ endif
 !if lsfarr is parametrized and depends on the object, we
 !need to scan the entire set of coefficients to decide on nlsf
 if (lsf == 13 .or. lsf == 14) then
-	allocate(lsfcof(mlsf,dlsf))
+	allocate(lsfcof(mlsf,dlsf),stat=istat)
+	call checkstat(istat,'lsfcof')
 	lsfcof(:,:)=0.0_dp
 	open(9,file=lsffile,status='old',recl=xliobuffer,action='read')
 	j=0
@@ -333,8 +387,9 @@ write(*,*)'about to enter parallel region!'
 
 !$omp parallel num_threads(nthreads)                            	&
 !$omp	default(none)                                    	        &
-!$omp   private(pf,pf0,spf,pt,obs,mobs,e_obs,w,fit,sfit,              &
+!$omp   private(pf,pf0,spf,pt,obs,mobs,e_obs,w,fit,sfit,                &
 !$omp		 j,i,k,l,    						&
+!$omp   	 istat,                               		        & 
 !$omp	         tid,nthreads_env,					&
 !$omp		 ii,ii1,ii2,jj,kk,offset,stlen,                       	&
 !$omp            ulimit,ulimit2,cphot,ierr,opterr,	                &
@@ -361,7 +416,7 @@ write(*,*)'about to enter parallel region!'
 !$omp		 opfile,offile,sffile,lsffile,wfile,       	    	&
 !$omp            f_format,f_access,fformat,snr,only_object,         	&
 !$omp            ycutoff,wphot,balance,optimize,impact,             	&
-!$omp            mforce,chiout,trkout,cont,ncont,obscont,              	&
+!$omp            mforce,chiout,trkout,cont,ncont,obscont,rejectcont,	&
 !$omp            nfilter,init,nruns,errbar,covprint,indi,    	&
 !$omp            inter,mono,algor,scope,stopcr,simp,                	&
 !$omp            nlambda1,winter,                                   	&
@@ -384,18 +439,32 @@ tid=1
 write(*,*)'main         -> tid =',tid
 
 !allocate locals that are private for omp
-allocate (pf(ndim))
-allocate (pf0(ndim))
-allocate (spf(ndim))
-if (errbar == -2 .and. nruns > 1) allocate(pt(nruns,nov))
-allocate (opf(ndim))
-allocate (ospf(ndim))
-allocate (bestpf(ndim))
-allocate (bestspf(ndim))
-allocate (cov(nov,nov))
-allocate (bestcov(nov,nov))
-if (covprint == 1) allocate (ocov(ndim,ndim))
-
+allocate (pf(ndim),stat=istat)
+call checkstat(istat,'pf')
+allocate (opf(ndim),stat=istat)
+call checkstat(istat,'opf')
+allocate (pf0(ndim),stat=istat)
+call checkstat(istat,'pf0')
+allocate (spf(ndim),stat=istat)
+call checkstat(istat,'spf')
+if (errbar == -2 .and. nruns > 1) then
+	allocate(pt(nruns,nov),stat=istat)
+	call checkstat(istat,'pt')
+endif
+allocate (ospf(ndim),stat=istat)
+call checkstat(istat,'ospf')
+allocate (bestpf(ndim),stat=istat)
+call checkstat(istat,'bestpf')
+allocate (bestspf(ndim),stat=istat)
+call checkstat(istat,'bestspf')
+allocate (cov(nov,nov),stat=istat)
+call checkstat(istat,'cov')
+allocate (bestcov(nov,nov),stat=istat)
+call checkstat(istat,'bestcov')
+if (covprint == 1) then
+	allocate (ocov(ndim,ndim),stat=istat)
+	call checkstat(istat,'ocov')
+endif
 
 !allocate w,obs,e_obs,fit, and obs_in/lambda_obs when needed
 select case (winter)
@@ -404,28 +473,41 @@ case (0)  !data and library share the same wavelength array
 case (1)  !interpolate observations 
 	!nlambda1=totalnpca when lsf>0 and npca grid
 	!nlambda1=npix otherwise
-	allocate(lambda_obs(nlambda))
-	allocate(obs_in(nlambda))
-	allocate(e_obs_in(nlambda))
+	allocate(lambda_obs(nlambda),stat=istat)
+	call checkstat(istat,'lambda_obs')
+	allocate(obs_in(nlambda),stat=istat)
+	call checkstat(istat,'obs_in')
+	allocate(e_obs_in(nlambda),stat=istat)
+	call checkstat(istat,'e_obs_in')
 case (2)  !interpolate library
 	!nlambda1=nlambda
-	allocate(lambda_obs(nlambda))
+	allocate(lambda_obs(nlambda),stat=istat)
+	call checkstat(istat,'lambda_obs')
 end select
 	
-allocate (w(nlambda1))			
-allocate (obs(nlambda1))		
-allocate (e_obs(nlambda1))		
-allocate (fit(nlambda1))
-allocate (sfit(npix))
+allocate (w(nlambda1),stat=istat)			
+call checkstat(istat,'w')
+allocate (obs(nlambda1),stat=istat)		
+call checkstat(istat,'obs')
+allocate (e_obs(nlambda1),stat=istat)		
+call checkstat(istat,'e_obs')
+allocate (fit(nlambda1),stat=istat)
+call checkstat(istat,'fit')
+allocate (sfit(npix),stat=istat)
+call checkstat(istat,'sfit')
 
 if (npca(1) > 0) then 
-	allocate(obspca(totalnpca))
-	allocate(e_obspca(totalnpca))
+	allocate(obspca(totalnpca),stat=istat)
+	call checkstat(istat,'obspca')
+	allocate(e_obspca(totalnpca),stat=istat)
+	call checkstat(istat,'e_obspca')
 endif
 
 !allocate object-specific lsfarr1 when needed
-allocate(lsfarr1(mlsf,nlsf))
-allocate(lsfcof1(mlsf,dlsf))
+allocate(lsfarr1(mlsf,nlsf),stat=istat)
+call checkstat(istat,'lsfarr1')
+allocate(lsfcof1(mlsf,dlsf),stat=istat)
+call checkstat(istat,'lsfcof1')
 if (lsf > 10) open(9,file=lsffile,status='old',recl=xliobuffer,action='read')
 
 !processing
@@ -614,7 +696,7 @@ do j=1,nobj
  	      endif	   	
  	   endif
 	endif	! 2nd nov if
-	  
+
 	!$omp end critical
 
         !write(*,*) 'status,tid,pf=',status,tid,pf
@@ -710,7 +792,7 @@ do j=1,nobj
 	    	
 	
 			!set e_obs to 1 when w=0 to ensure those data are not considered in chi2	
-			where (w == 0.0_dp) e_obs=1._dp
+!			where (w == 0.0_dp) e_obs=1._dp
 			
 
 			chiscale=sum(w/e_obs**2)/real(nlambda1)
@@ -748,7 +830,7 @@ do j=1,nobj
 	
 	    !continuum normalization
 	    if (cont>0 .and. obscont /= 0) then 
-	      call continuum(obs,lambda_obs,e_obs,fit,nlambda1,cont,ncont)
+	      call continuum(obs,lambda_obs,e_obs,fit,nlambda1,cont,ncont,rejectcont)
               where (fit /= 0._dp)
 	          obs=obs/fit
 	          e_obs=e_obs/fit
@@ -1036,6 +1118,43 @@ if (f_access == 1) close(10)
 
 !sort output files when nthreads>1
 if (nthreads > 1) call fsort()
+
+if ( allocated( pf) ) deallocate(pf)
+if ( allocated( pf0) ) deallocate(pf0)
+if ( allocated( spf) ) deallocate(spf)
+if ( allocated( pt) ) deallocate(pt)
+if ( allocated( obs) ) deallocate(obs)
+if ( allocated( e_obs) ) deallocate(e_obs)
+if ( allocated( w) ) deallocate(w)
+if ( allocated( fit) ) deallocate(fit)
+if ( allocated( sfit) ) deallocate(sfit)
+if ( allocated( cov) ) deallocate(cov)
+if ( allocated( ocov) ) deallocate(ocov)
+if ( allocated( bestpf) ) deallocate(bestpf)
+if ( allocated( bestspf) ) deallocate(bestspf)
+if ( allocated( bestcov) ) deallocate(bestcov)
+if ( allocated( opf) ) deallocate(opf)
+if ( allocated( ospf) ) deallocate(ospf)
+if ( allocated( lambda_obs) ) deallocate(lambda_obs)
+if ( allocated( obs_in) ) deallocate(obs_in)
+if ( allocated( e_obs_in) ) deallocate(e_obs_in)
+if ( allocated( obspca) ) deallocate(obspca)
+if ( allocated( e_obspca) ) deallocate(e_obspca)
+if ( allocated( lsfcof1) ) deallocate(lsfcof1)
+if ( allocated( lsfarr1) ) deallocate(lsfarr1)
+if ( allocated( lambda_syn) ) deallocate(lambda_syn)
+if ( allocated( lsfcof) ) deallocate(lsfcof)
+if ( allocated( lsfarr) ) deallocate(lsfarr)
+if (  allocated( probe) ) deallocate(probe)
+if ( allocated( ee) ) deallocate(ee)
+if ( allocated( aa) ) deallocate(aa)
+if ( allocated( uu) ) deallocate(uu)
+if ( allocated( imap) ) deallocate(imap)
+if (  allocated( wref) ) deallocate(wref)
+if ( allocated( waveline) ) deallocate(waveline)
+
+
+end do
 
 call quit(status)
 

@@ -32,8 +32,10 @@ outdir=file_dirname(planfile)+'/'
 if not file_test(outdir,/dir) then file_mkdir,outdir
 
 ; get calibration files for this date
-if keyword_set(fixfiberid) then fix0=fixfiberid else undefine,fix0
-getcal,mjd,calfile,darkid=darkid,flatid=flatid,bpmid=bpmid,waveid=waveid,responseid=responseid,lsfid=lsfid,detid=detid,sparseid=sparseid,fiberid=fiberid,badfiberid=badfiberid,fixfiberid=fixfiberid,littrowid=littrowid,persistid=persistid,persistmodelid=persistmodelid
+if n_elements(fixfiberid) gt 0 then fix0=fixfiberid else undefine,fix0
+getcal,mjd,calfile,darkid=darkid,flatid=flatid,bpmid=bpmid,waveid=waveid,multiwaveid=multiwaveid,$
+     responseid=responseid,lsfid=lsfid,detid=detid,sparseid=sparseid,fiberid=fiberid,badfiberid=badfiberid,$
+     fixfiberid=fixfiberid,littrowid=littrowid,persistid=persistid,persistmodelid=persistmodelid
 if n_elements(fix0) gt 0 then fixfiberid=fix0
 
 ; outplan plan file name
@@ -147,7 +149,7 @@ printf,fplan,'fixfiberid ',fixfiberid
 printf,fplan,'psfid ', psfid
 printf,fplan,'fluxid ', fluxid
 printf,fplan,'responseid ', responseid
-printf,fplan,'waveid ', waveid
+printf,fplan,'waveid ', multiwaveid
 printf,fplan,'lsfid ', lsfid
 
 ; define plan structure

@@ -40,13 +40,30 @@ will compare the PCA spectra to the raw ones for a representative sample of
 spectra (from existing test.ipf file), and run some FERRE fits to see how well 
 parameters are recovered.
 
+.. automodule:: apogee.speclib.pca
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
 rbf.py
+
+.. automodule:: apogee.speclib.rbf
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 
 sample.py
 
 Routines for creating sample of test parameters/abundances to be used for
 testing of FERRE and/or for construction of training sample for an interpolator,
 etc.
+
+.. automodule:: apogee.speclib.sample
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 sim.py
 
@@ -57,21 +74,25 @@ level routine mkturbospec does a single Turbospectrum synthesis and returns the
 resulting spectra (both raw and normalized). This is used by several higher
 level routines: 
 
- - mkgrid will make a regular grid of synthetic spectra, as specified
-by an input planfile. These are used as the basis for the libraries used
-by FERRE, after (optionally) hole filling, convolution with an LSF, PCA compression, and 
-bundling into a FERRE format library.
+ mkgrid will make a regular grid of synthetic spectra, as specified
+ by an input planfile. These are used as the basis for the libraries used
+ by FERRE, after (optionally) hole filling, convolution with an LSF, PCA compression, and 
+ bundling into a FERRE format library.
 
- - mksynth will make a series of synthetic spectra as specified by
-an input file with parameters and abundances on each line. These might
-be used as an input into a neural network interpolator..
+ mksynth will make a series of synthetic spectra as specified by
+ an input file with parameters and abundances on each line. These might
+ be used as an input into a neural network interpolator..
 
 synth also includes a number of utility routines to accomplish the above
 tasks.
 
+.. automodule:: apogee.speclib.synth
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 welem.py
 
 window.py
-
 
 

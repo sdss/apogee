@@ -118,17 +118,43 @@ for i=0,n_elements(mjds)-1 do begin
           openw,out,dir+cmjd+'.plans' ,/get_lun
           for j=0,n_elements(planfiles)-1 do printf,out,planfiles[j]
           free_lun,out
-          openw,out,dir+cmjd+'.csh',/get_lun
+          openw,out,dir+cmjd+'.slurm',/get_lun
           printf,out,'#!/bin/csh'
+          printf,out,'#SBATCH --account=sdss-kp'
+          printf,out,'#SBATCH --partition=sdss-kp'
+          printf,out,'#SBATCH --ntasks=16'
+          printf,out,'#SBATCH --time=240:00:00'
+          printf,out,'#SBATCH --nodes=1'
+          printf,out,'#SBATCH -o '+cmjd+'.out'
+          printf,out,'#SBATCH -e '+cmjd+'.out'
+          printf,out,'setenv QUERYHOST apogee'
+          printf,out,'setenv QUERYPORT 1050'
+          printf,out,'setenv APOGEE_MAXRUN 8'
+          printf,out,'setenv APOGEE_FLAG 1111111'
+          printf,out,'setenv IDL_CPU_TPOOL_NTHREADS 4'
+          printf,out,'cd $APOGEE_REDUX/'+vers
           printf,out,'idl << endidl'
           printf,out," vers='"+vers+"'"
           printf,out,' apsetver,vers=vers'
           printf,out,' @'+telescope+'_'+cmjd+'.pro'
           printf,out,'endidl'
-          printf,out,'cd $APOGEE_REDUX/'+vers
-          if ~keyword_set(norun) then printf,out,'runapred '+vers+' visit/'+telescope+'/*/*/'+cmjd+'/'+prefix+'Plan*.par'+' cal/'+instrument+'/'+cmjd+'/*Plan*.par'
+          if ~keyword_set(norun) then printf,out,'runplans apred visit/'+telescope+'/*/*/'+cmjd+'/a?Plan*.par'+' cal/'+instrument+'/'+cmjd+'/*Plan*.par'
+          printf,out,'wait'
+          printf,out,'echo DONE'
           free_lun,out
-          spawn,'csh '+dir+cmjd+'.csh >&'+dir+cmjd+'.log &'
+          spawn,'sbatch '+dir+cmjd+'.slurm'
+
+          ;openw,out,dir+cmjd+'.csh',/get_lun
+          ;printf,out,'#!/bin/csh'
+          ;printf,out,'idl << endidl'
+          ;printf,out," vers='"+vers+"'"
+          ;printf,out,' apsetver,vers=vers'
+          ;printf,out,' @'+telescope+'_'+cmjd+'.pro'
+          ;printf,out,'endidl'
+          ;printf,out,'cd $APOGEE_REDUX/'+vers
+          ;if ~keyword_set(norun) then printf,out,'runapred '+vers+' visit/'+telescope+'/*/*/'+cmjd+'/'+prefix+'Plan*.par'+' cal/'+instrument+'/'+cmjd+'/*Plan*.par'
+          ;free_lun,out
+          ;spawn,'csh '+dir+cmjd+'.csh >&'+dir+cmjd+'.log &'
         endif else print,cmjd+' not done, but still transferring'
       endif else print,'no data log file yet...'
     endelse

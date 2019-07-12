@@ -29,11 +29,13 @@
 ; Modifications J. Holtzman 2011+
 ;-
 
-pro ap1dvisit,planfiles,clobber=clobber,verbose=verbose,stp=stp,newwave=newwave,test=test,mapper_data=mapper_data,halt=halt
+pro ap1dvisit,planfiles,clobber=clobber,verbose=verbose,stp=stp,newwave=newwave,test=test,mapper_data=mapper_data,halt=halt,dithonly=dithonly,ap1dwavecal=ap1dwavecal
 
 common telluric,convolved_telluric
 
 undefine,convolved_telluric
+
+if keyword_set(ap1dwavecal) then newwave=1
  
 ;setdisp,/silent
 if n_elements(verbose) eq 0 then verbose=0  ; NOT verbose by default
@@ -171,12 +173,14 @@ FOR i=0L,nplanfiles-1 do begin
   if file_test(file) and not keyword_set(clobber) then begin
     print,'File already exists: ', file
     goto,dorv
-  endif
+  endif else print,'cant find file: ', file
 
   ; Process each frame
   ;-------------------
   shiftstr = REPLICATE({index:-1L,framenum:'',$
-               shift:999999.0,shifterr:999999.0,pixshift:0.,sn:-1.},nframes)
+               shift:999999.0,shifterr:999999.0,$
+               shiftfit:fltarr(2),chipshift:fltarr(3,2),chipfit:fltarr(4),$
+               pixshift:0.,sn:-1.},nframes)
 
   ; assume no dithering until we see that a dither has been commanded from the
   ;   header cards
@@ -261,12 +265,13 @@ FOR i=0L,nplanfiles-1 do begin
 
         if keyword_set(newwave) then begin
           remove_tags, chstr,'WCOEF',newstr
-          chstr=newstr
+          remove_tags, newstr,'WAVELENGTH',chstr
         endif
         ; Add to the chip structure
         ; Wavelength calibration data already added by ap2dproc with ap1dwavecal
         ;if tag_exist(frame0.(0),'WCOEF') and not keyword_set(newwave) then begin
         if tag_exist(chstr,'WCOEF') and not keyword_set(newwave) then begin
+          print,'using WCOEF from 1D...'
           chstr = CREATE_STRUCT(temporary(chstr),'LSFFILE',lsffiles[k],'LSFCOEF',$
                                 lsfcoef,'WAVE_DIR',plate_dir,'WAVEFILE',wavefiles[k])
         ; Need wavelength information
@@ -305,12 +310,14 @@ FOR i=0L,nplanfiles-1 do begin
             plot=1
             pfile=plate_dir+'/plots/dithershift-'+framenum 
           endif else begin
-            pfile=0 & plot=0
+            ;pfile=0 & plot=0
+            plot=1
+            pfile=plate_dir+'/plots/dithershift-'+framenum 
           endelse
         endif
            
         if planstr.platetype eq 'single' then nofit=1 else nofit=0
-        APDITHERSHIFT,ref_frame,frame,shift,shifterr,/xcorr,pfile=pfile,plot=plot,plugmap=plugmap,nofit=nofit
+        shiftout=APDITHERSHIFT(ref_frame,frame,shift,shifterr,/xcorr,pfile=pfile,plot=plot,plugmap=plugmap,nofit=nofit,mjd=planstr.mjd)
         if keyword_set(stp) then stop
         print,'Measured dither shift: ',ashift,shift
 
@@ -322,6 +329,7 @@ FOR i=0L,nplanfiles-1 do begin
         shifterr = 0.0 & ashifterr=0.0
         if dither_commanded ne 0 then ref_dither_commanded = dither_commanded
         print,'Shift = 0.0'
+        shiftout = {shiftfit:fltarr(2),chipshift:fltarr(3,2),chipfit:fltarr(4)}
       endelse
       apaddpar,frame,'APDITHERSHIFT: Measuring the dither shift',/history
       if shift[0] eq 0.0 then apaddpar,frame,'APDITHERSHIFT: This is the REFERENCE FRAME',/history
@@ -330,6 +338,7 @@ FOR i=0L,nplanfiles-1 do begin
       apaddpar,frame,'EDITHSH',shifterr,' Dither shift error (pixels)'
       ;apaddpar,frame,'ADITHSH',ashift,' Measured dither shift (pixels)'
       ;apaddpar,frame,'AEDITHSH',ashifterr,' Dither shift error (pixels)'
+      ADD_TAG,frame,'SHIFT',shiftout,frame_shift
       
       writelog,logfile,'  dithershift '+string(format='(f8.2)',systime(1)-t1)+string(format='(f8.2)',systime(1)-t0)
 
@@ -339,17 +348,22 @@ FOR i=0L,nplanfiles-1 do begin
       ;----------------------------------
       ; STEP 2:  Wavelength Calibrate
       ;----------------------------------
-      ; THIS IS NOW DONE AS PART OF AP2DPROC, CAN RERUN AS A TEST OR NEEDED IF NEWWAVE IS SPECIFIED...
-      print,'STEP 2: Wavelength Calibrating with AP1DWAVECAL'
-      plotfile = plate_dir+'/plots/pixshift-'+framenum 
-      if planstr.platetype eq 'twilight' then $
-      AP1DWAVECAL,frame,frame_wave,/verbose,/plot,pfile=plotfile else $
-      AP1DWAVECAL,frame,frame_wave,plugmap=plugmap,/verbose,/plot,pfile=plotfile
+      ; THIS IS NOW DONE AS PART OF AP2DPROC, USING PYTHON ROUTINES
+      if keyword_set(ap1dwavecal) then begin
+        print,'STEP 2: Wavelength Calibrating with AP1DWAVECAL'
+        plotfile = plate_dir+'/plots/pixshift_chip-'+framenum 
+        if keyword_set(dithonly) then AP1DWAVECAL_REFIT,frame,frame_wave,plugmap=plugmap,/verbose,/plot,pfile=plotfile
+        plotfile = plate_dir+'/plots/pixshift-'+framenum 
+        if planstr.platetype eq 'twilight' then $
+        AP1DWAVECAL,frame_shift,frame_wave,/verbose,/plot,pfile=plotfile else $
+        AP1DWAVECAL,frame_shift,frame_wave,plugmap=plugmap,/verbose,/plot,pfile=plotfile
 
-      apgundef,frame  ; free up memory
-      writelog,logfile,'  wavecal '+string(format='(f8.2)',systime(1)-t1)+string(format='(f8.2)',systime(1)-t0)
+        apgundef,frame  ; free up memory
+        writelog,logfile,'  wavecal '+string(format='(f8.2)',systime(1)-t1)+string(format='(f8.2)',systime(1)-t0)
+      endif else frame_wave = frame_shift
 
-      ;stop
+      ;if keyword_set(dithonly) then goto, BOMB1
+      if keyword_set(stp) then stop
 
       ;----------------------------------
       ; STEP 3:  Airglow Subtraction
@@ -406,6 +420,7 @@ FOR i=0L,nplanfiles-1 do begin
       ;-----------------------
       print,'Writing output apCframe files'
       outfiles = apogee_filename('Cframe',chip=chiptag,num=framenum,plate=planstr.plateid,mjd=planstr.mjd)
+      if keyword_set(stp) then stop
       APVISIT_OUTCFRAME,frame_telluric,plugmap,outfiles,/silent
 
     endif  ; correcting and calibrating ap1D files
@@ -452,6 +467,9 @@ FOR i=0L,nplanfiles-1 do begin
     shiftstr[j].shift = shift
     shiftstr[j].shifterr = shifterr
     shiftstr[j].pixshift = pixshift
+    shiftstr[j].shiftfit = frame_telluric.shift.shiftfit
+    shiftstr[j].chipshift = frame_telluric.shift.chipshift
+    shiftstr[j].chipfit = frame_telluric.shift.chipfit
     ; get S/N of brightest non-saturated object, just for sorting by S/N
     if planstr.platetype eq 'single' then obj=where(plugmap.fiberdata.objtype ne 'SKY' and plugmap.fiberdata.spectrographid eq 2) else $
     obj=where(plugmap.fiberdata.objtype ne 'SKY' and plugmap.fiberdata.spectrographid eq 2 and plugmap.fiberdata.mag[1] gt 7.5 and plugmap.fiberdata.fiberid ne 195)
@@ -475,6 +493,8 @@ FOR i=0L,nplanfiles-1 do begin
 
 
   ENDFOR  ; frame loop
+
+  if keyword_set(dithonly) then return
 
 
   ; write summary telluric file
@@ -547,6 +567,7 @@ FOR i=0L,nplanfiles-1 do begin
   ; Radial velocity measurements for this visit
   ;--------------
   dorv:
+
   if tag_exist(planstr,'platetype') then $
     if planstr.platetype ne 'normal' and planstr.platetype ne 'single' then goto,BOMB
   print,'Radial velocity measurements'
@@ -573,6 +594,14 @@ FOR i=0L,nplanfiles-1 do begin
   targ1 = plugmap.fiberdata[objind].target1
   targ2 = plugmap.fiberdata[objind].target2
   targ3 = plugmap.fiberdata[objind].target3
+
+  if keyword_set(single) then begin
+    visitfile=apread('Visit',plate=planstr.plateid,mjd=planstr.mjd,fiber=objdata[0].fiberid,reduction=obj)
+    header0=visitfile[0].hdr
+  endif else begin
+    finalframe=apread('Plate',mjd=planstr.mjd,plate=planstr.plateid)
+    header0=finalframe[0].hdr
+  endelse
 
   plate = plugmap.plateid
   mjd = plugmap.mjd
@@ -619,7 +648,7 @@ FOR i=0L,nplanfiles-1 do begin
     visitstr.ak_targ_method=plugmap.fiberdata[objind[istar]].ak_targ_method
     visitstr.ak_wise=plugmap.fiberdata[objind[istar]].ak_wise
     visitstr.sfd_ebv=plugmap.fiberdata[objind[istar]].sfd_ebv
-    aprv,visitfile,visitstr,/save,dir_plots=plots_dir
+    aprv,visitfile,visitstr,/save,dir_plots=plots_dir,/trimgrid
     MWRFITS,visitstr,visitfile,/silent
     PUSH,allvisitstr,visitstr
   endfor
@@ -631,15 +660,15 @@ FOR i=0L,nplanfiles-1 do begin
   MKHDR,head0,0
   sxaddpar,head0,'PLATEID',planstr.plateid
   sxaddpar,head0,'MJD',planstr.mjd
-  sxaddpar,head0,'EXPTIME',sxpar(finalframe.(0).header,'EXPTIME'),'Total visit exptime per dither pos'
-  sxaddpar,head0,'JD-MID',sxpar(finalframe.(0).header,'JD-MID'),' JD at midpoint of visit'
-  sxaddpar,head0,'UT-MID',sxpar(finalframe.(0).header,'UT-MID'),' Date at midpoint of visit'
-  ncombine = sxpar(finalframe.(0).header,'NCOMBINE',count=num_ncombine)
+  sxaddpar,head0,'EXPTIME',sxpar(header0,'EXPTIME'),'Total visit exptime per dither pos'
+  sxaddpar,head0,'JD-MID',sxpar(header0,'JD-MID'),' JD at midpoint of visit'
+  sxaddpar,head0,'UT-MID',sxpar(header0,'UT-MID'),' Date at midpoint of visit'
+  ncombine = sxpar(header0,'NCOMBINE',count=num_ncombine)
   if num_ncombine eq 0 then ncombine=1
   sxaddpar,head0,'NCOMBINE',ncombine
-  sxaddpar,head0,'ZEROPT',zero
-  for j=0,ncombine-1 do sxaddpar,header,'FRAME'+strtrim(j+1,2),sxpar(finalframe.(0).header,'FRAME'+strtrim(j+1,2)),'Constituent frame'
-  sxaddpar,head0,'NPAIRS',sxpar(finalframe.(0).header,'NPAIRS'),' Number of dither pairs combined'
+  ;sxaddpar,head0,'ZEROPT',zero
+  for j=0,ncombine-1 do sxaddpar,header,'FRAME'+strtrim(j+1,2),sxpar(header0,'FRAME'+strtrim(j+1,2)),'Constituent frame'
+  sxaddpar,head0,'NPAIRS',sxpar(header0,'NPAIRS'),' Number of dither pairs combined'
 
   leadstr = 'AP1DVISIT: '
   sxaddpar,head0,'V_APRED',getvers()

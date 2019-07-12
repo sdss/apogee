@@ -26,7 +26,6 @@ endfor
 sz=size(grid.data)
 if sz[0] gt 1 then ntemp=sz[1] else ntemp=1
 for i=0,ntemp-1 do begin
-
   ; chip loop
   for j=0,2 do begin
     lo=pixlim[0,j] & hi=pixlim[1,j]

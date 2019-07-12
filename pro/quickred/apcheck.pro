@@ -64,6 +64,8 @@ outdir=apogee_filename('R',num=(mjd-55562)*10000,chip='a',/dir)
 ;if keyword_set(do1m) then outdir='/data/apogee/archive1m/'+cmjd+'/' else $
 ;outdir='/data/apogee/archive/'+cmjd+'/'
 if not file_test(outdir,/dir) then file_mkdir,outdir
+openw,1,outdir+cmjd+'.dummy'
+close,1
 
 ; input directory for annotated frames
 icsdir='/data-ics/'+string(format='(i4.4)',mjd-55562)+'/'
@@ -83,6 +85,7 @@ if not keyword_set(loop) then condition=0
 print,'icsdir: ', icsdir
 files=file_search(icsdir+'*.fits') 
 if files[0] eq '' and not keyword_set(force) then goto,md5sum
+file_delete,outdir+cmjd+'.dummy'
 openw,1,rawdir+'/missingannotated'
 openw,2,outdir+'/'+cmjd+'.missingannotated'
 for i=0,n_elements(files)-1 do begin

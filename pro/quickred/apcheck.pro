@@ -59,21 +59,21 @@ endif else if not keyword_set(mjd) then begin
 endif
 cmjd=string(format='(i5.5)',mjd)
 
+; output directory to go to archive
+outdir=apogee_filename('R',num=(mjd-55562)*10000,chip='a',/dir)
+;if keyword_set(do1m) then outdir='/data/apogee/archive1m/'+cmjd+'/' else $
+;outdir='/data/apogee/archive/'+cmjd+'/'
+if not file_test(outdir,/dir) then file_mkdir,outdir
+
 ; input directory for annotated frames
 icsdir='/data-ics/'+string(format='(i4.4)',mjd-55562)+'/'
-if not file_test(icsdir,/dir) and not keyword_set(force) then return
+if not file_test(icsdir,/dir) and not keyword_set(force) then goto,md5sum
 
 ; input directory for annotated frames
 rawdir=apogee_filename('Raw',num=(mjd-55562)*10000,read=0,/dir)
 ;if keyword_set(do1m) then rawdir='/data-ql/data/'+cmjd+'/1m/' else $
 ;rawdir='/data-ql/data/'+cmjd+'/'
 if not file_test(rawdir,/dir) then file_mkdir,rawdir
-
-; output directory to go to archive
-outdir=apogee_filename('R',num=(mjd-55562)*10000,chip='a',/dir)
-;if keyword_set(do1m) then outdir='/data/apogee/archive1m/'+cmjd+'/' else $
-;outdir='/data/apogee/archive/'+cmjd+'/'
-if not file_test(outdir,/dir) then file_mkdir,outdir
 
 condition=1
 while (condition) do begin
@@ -82,7 +82,7 @@ if not keyword_set(loop) then condition=0
 ; check for complete list of annotated frames
 print,'icsdir: ', icsdir
 files=file_search(icsdir+'*.fits') 
-if files[0] eq '' and not keyword_set(force) then return
+if files[0] eq '' and not keyword_set(force) then goto,md5sum
 openw,1,rawdir+'/missingannotated'
 openw,2,outdir+'/'+cmjd+'.missingannotated'
 for i=0,n_elements(files)-1 do begin
@@ -193,6 +193,7 @@ files=file_search(outdir+'apzip.*')
 if n_elements(files) gt 0 and files[0] ne '' then file_delete,files
 
 ; make a checksum of all of the files
+md5sum:
 if not keyword_set(nomd5) then begin
   file_delete,outdir+cmjd+'.md5sum',/allow_nonexistent
   ;spawn,'md5sum '+outdir+'*',result

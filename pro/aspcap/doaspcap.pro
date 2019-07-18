@@ -58,7 +58,7 @@ if n_elements(indv) eq 0 then indv=apsetpar(planstr,'indv',0)
 if not keyword_set(nstars) then nstars=apsetpar(planstr,'nstars',0)
 if not keyword_set(starlist) then starlist=apsetpar(planstr,'starlist',0)
 if n_elements(clobber) eq 0 then clobber=apsetpar(planstr,'clobber',0)
-if ~keyword_set(minmjdlast) then minmjdlast=apsetpar(planstr,'minmjdlast',0)
+if n_elements(minmjdlast) eq 0 then minmjdlast=apsetpar(planstr,'minmjdlast',0)
 if keyword_set(qaspcap) then begin
   conthighbad=1.1
   contlowbad=0.001
@@ -174,7 +174,7 @@ for idir=0,n_elements(datadir)-1 do begin
 
  ; see if we've already done this up to latest MJD
  print,outdir[idir], mjddir,file_test(resultsdir+mjddir)
- if keyword_set(testmjd) then printf,done,outdir[idir], mjddir,file_test(resultsdir+mjddir)
+ if keyword_set(testmjd) then printf,done,outdir[idir], mjddir,file_test(resultsdir+mjddir),mjdlast
  if mjddir ne '' and (file_test(resultsdir+mjddir) or mjdlast lt minmjdlast) then goto,nextdir
  if files[0] eq '' then goto,nextdir
  if keyword_set(testmjd) then goto,nextdir

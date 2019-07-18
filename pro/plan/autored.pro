@@ -72,7 +72,7 @@ for i=0,n_elements(mjds)-1 do begin
           openw,out,dir+cmjd+'.csh',/get_lun
           printf,out,'#!/bin/csh'
           printf,out,'cd $APOGEE_REDUX/'+vers
-          printf,out,'runapred '+vers+' exposures/'+instrument+'/'+cmjd+'/plan/'+prefix+'MJD*.par'
+          printf,out,'apred exposures/'+instrument+'/'+cmjd+'/plan/'+prefix+'MJD*.par'
           free_lun,out
           print,'running apMJD...'
           if ~keyword_set(norun) then spawn,'csh '+dir+cmjd+'.csh >&'+dir+cmjd+'.log'

@@ -62,7 +62,7 @@ def elemsens(teffs=[3500,4500,5500],loggs=[1.0,3.0,5.0],mhs=[0.0]) :
                     f.write(out+'\n')
     return files
 
-def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,logglim=[-0.5,5.5],mhlim=[-2.5,0.75],nmlim=[-0.5,2.],cmlim=[-1.5,1.],emlim=[-0.5,1.],vmicrolim=[0.3,4.8],amlim=[-0.5,1.],vrotlim=[1.5,96.],rot=True,nsamp=1,niso=None) :
+def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,logglim=[-0.5,5.5],mhlim=[-2.5,0.75],nmlim=[-0.5,2.],cmlim=[-1.5,1.],emlim=[-0.5,1.],vmicrolim=[0.3,4.8],amlim=[-0.5,1.],vrotlim=[1.5,96.],rot=True,nsamp=1,niso=None,elems='all',fact=1.0,grid=True) :
     """ Generate a test sample of parameters and abundances from isochrones
     """
 
@@ -162,7 +162,9 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
     # output file
     f=open(name,'w')
     fipf=open(name+'.ipf','w')
-    f.write("#   Teff   logg    [M/H] [alpha/M] [C/M]   [N/M]  vmicro  vrot")
+    pars = ['Teff','logg','[M/H]','[alpha/M]','[C/M]','[N/M]','vmicro','vrot']
+    f.write("# ")
+    for par in pars: f.write(' {:s}'.format(par))
     allteff=[]
     alllogg=[]
     allmh=[]
@@ -179,9 +181,20 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
     nel=len(els)
     for i,x in enumerate(grid) :
       for j in range(nsamp) :
-        teff=x[0]
-        logg=x[1]
-        mh=x[2]
+        if grid :
+            teff=x[0]
+            logg=x[1]
+            mh=x[2]
+        else :
+            if a['teff'][i] < 4000 : dt=dtlo
+            elif a['teff'][i] > 8000 : dt=dtvhot
+            elif a['teff'][i] > 5500 : dt=dthot
+            teff=x[0]+np.random.random(-dt/2.,dt/2.)
+            logg=x[1]+np.random.random(-dlogg/2.,dlogg/2.)
+            mh=x[2]+np.random.random(-dmh/2.,dmh/2.)
+            teff=clip(teff,tefflim)
+            logg=clip(logg,logglim)
+            mh=clip(mh,mhlim)
         vmicro=10.**(0.226-0.0228*logg+0.0297*logg**2-0.0113*logg**3)+np.random.normal(0.,0.3)
         vmicro=clip(vmicro,vmicrolim)
         if (gridclass == 'rv') : 
@@ -191,27 +204,27 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         vrot=0.
         if (logg < 3) & (teff<6000) :
             # for giants, use vmacro relation + small rotation
-            if rot : vrot = np.max([0.,np.random.normal(1.5,0.5)])
+            if rot : vrot = np.max([0.,np.random.normal(1.5,0.5*fact)])
             # carbon and nitrogen with significant range
-            cm=np.random.normal(0.,0.5)
-            cm = (int(round(cm/0.25)))*0.25
-            nm=np.random.normal(0.3,1.0)
+            cm=np.random.normal(0.,0.5*fact)
+            if grid: cm = (int(round(cm/0.25)))*0.25
+            nm=np.random.normal(0.3,1.0*fact)
             # no need to pin [N/M] to grid since it is varied in synthesis!
             #nm = (int(round(nm/0.5)))*0.5
         else :
             # for dwarfs, use significant rotation
-            if rot : vrot=abs(np.random.normal(0.,30))
+            if rot : vrot=abs(np.random.normal(0.,30*fact))
             # carbon and nitrogen with small range
-            cm=np.random.normal(0.,0.3)
-            cm = (int(round(cm/0.25)))*0.25
-            nm=np.random.normal(0.,0.3)
+            cm=np.random.normal(0.,0.3*fact)
+            if grid: cm = (int(round(cm/0.25)))*0.25
+            nm=np.random.normal(0.,0.3*fact)
         cm=clip(cm,cmlim)
         nm=clip(nm,nmlim)
         # for RV grid, enhance N for giants
         if (gridclass == 'rv') & (logg < 3) & (teff<6000) : nm=0.25
         # draw a random alpha/M
         am=np.random.uniform(-0.25,0.5)
-        am = (round(am/dam))*dam
+        if grid: am = (round(am/dam))*dam
         am=clip(am,amlim)
         allteff.append(teff)
         alllogg.append(logg)
@@ -224,8 +237,10 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
 
         out = '{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}'.format(teff,logg,mh,am,cm,nm,vmicro,vrot)      
         # individual elemental abundances
-        el=np.random.normal(0.,0.2,size=nel)
-        for ie,e in enumerate(el): el[ie]=clip(e,emlim)
+        el=np.random.normal(0.,0.2*fact,size=nel)
+        for ie,e in enumerate(el): 
+            if elems == 'all' or els[ie] in elems : el[ie]=clip(e,emlim)
+            else : el[ie] = 0.
         el[els_alpha] += am
         for e in el :
           # add element abundances

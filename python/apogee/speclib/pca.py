@@ -241,12 +241,6 @@ def dopca(pars) :
     rawsynth=p['rawsynth']
     prefix=p['prefix']
 
-    if p['incremental'] :
-        print('using incremental PCA')
-        pca = IncrementalPCA(n_components=npca,whiten=whiten,batch_size=1000)
-    else :
-        pca = PCA(n_components=npca,whiten=whiten)
-
     # load data for this piece
     pcadata=np.zeros([int(p['noa'])*int(p['nam'])*int(p['ncm'])*int(p['nnm'])*int(p['nvt'])*
                       int(p['nrot'])*int(p['nmh'])*int(p['nlogg'])*int(p['nteff']),npix],dtype=np.float32)
@@ -301,6 +295,11 @@ def dopca(pars) :
 
     # do the PCA decomposition 
     if npca > 0 :
+        if p['incremental'] :
+            print('using incremental PCA')
+            pca = IncrementalPCA(n_components=npca,whiten=whiten,batch_size=1000)
+        else :
+            pca = PCA(n_components=npca,whiten=whiten)
         print(pcadata.shape)
         showtime('start pca: '+str(ipiece))
         model=pca.fit_transform(pcadata)
@@ -308,6 +307,7 @@ def dopca(pars) :
         eigen = pca.components_
         mean = pca.mean_
     else :
+        pca = 0
         eigen = 0.
         mean = 0.
 

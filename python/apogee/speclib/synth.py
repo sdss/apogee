@@ -944,6 +944,7 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',te
         plot (bool) : plot each spectrum (default=False)
         lines (list) : specify limited range of input lines to calculate (default=None, i.e. all lines)
     """
+    names=ascii.read(file).colnames
     pars=np.loadtxt(file)
     if lines is not None :
         pars = pars[lines[0]:lines[1]]
@@ -1008,7 +1009,10 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',te
 
     # write the spectra out
     hdu=fits.HDUList()
-    hdu.append(fits.ImageHDU(outpar))
+    h=fits.ImageHDU(outpar)
+    h.header['NPAR' ] = len(names)
+    for ipar,par in enumerate(names) : h.header['PAR{:d}'.format(ipar)] = par
+    hdu.append(h)
     hdu.append(fits.ImageHDU(out))
     h=fits.ImageHDU(conv)
     h.header['CRVAL1'] = np.log10(wa[0])

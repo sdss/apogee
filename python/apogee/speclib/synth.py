@@ -123,6 +123,335 @@ def marcs2turbo(infile,outfile,trim=0,fill=True) :
                 fout.write(line)
     return 0
 
+def get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type='marcs',atmosroot=None,nskip=0,fill=True,workdir='./',atmosdir=None) :
+    """ Copy atmosphere file to working directory in Turbospec format,  trimming as requested
+    """
+    # directory setup
+    if atmosroot is None : atmosroot=os.environ['APOGEE_SPECLIB']+'/atmos/'
+ 
+    # atmosphere and filename set up 
+    geo = 'p'
+    if atmos_type == 'kurucz' : 
+        atmoscode= 'k'
+        model = 'Kurucz'
+        if atmosdir is None : atmosdir = '/kurucz/'
+    elif atmos_type == 'marcs' : 
+        atmoscode = 'm'
+        model = 'MARCS'
+        if atmosdir is None : atmosdir = '/marcs/MARCS_v3_2016/'
+        if logg <= 3.001 : geo = 's'
+    else :
+        print('unknown atmos_type: ', atmos_type)
+        pdb.set_trace()
+    atmosdir=atmosroot+'/'+atmosdir+'/'
+    atmod=atmosdir+atmos.filename(teff,logg,mh,cm,am,model=model)
+
+    # atmosphere: make local copy in Turbospectrum input format, allowing for trimmed layers
+    # note that [N/M] is solar for atmospheres (since it doesn't have a big effect)
+    outmod = workdir+'/'+os.path.basename(atmod)
+    if atmos_type == 'kurucz' :
+        if nskip == 0 : trim=0
+        if nskip == 1 : trim=7
+        if nskip == 2 : trim=15
+        if nskip > 2 : return 0.,0.
+        kurucz2turbo(atmod,outmod,trim=trim )
+    else :
+        try :        
+            ret = marcs2turbo(atmod,outmod,trim=nskip,fill=fill )
+            if not fill and ret<0 : return ret
+        except:
+            return -2
+    return outmod
+
+def get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=False,save=False,elemgrid=None,vmicro=1.) :
+    """ Create work directory name for synthesis
+    """
+    if atmos_type == 'kurucz' : 
+        atmoscode= 'k'
+    elif atmos_type == 'marcs' : 
+        atmoscode = 'm'
+    else :
+        print('unknown atmosphere type: ', atmos_type)
+        pdb.set_trace()
+
+    if abs(solarisotopes)==1: prefix=atmoscode+'d' 
+    else : prefix=atmoscode+'g'
+
+    if save :
+        workdir=(prefix+'m{:s}a{:s}c{:s}n{:s}v{:s}'+elemgrid).format(
+                 atmos.cval(mh),atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(vmicro))
+        workdir=os.environ['APOGEE_LOCALDIR']+'/'+workdir
+        try: os.mkdir(workdir)
+        except: pass
+    else :
+        workdir=tempfile.mkdtemp(dir=os.environ['APOGEE_LOCALDIR'],suffix=os.environ['HOSTNAME'])
+
+    return workdir
+
+def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
+    els=None,atmod=None,atmos_type='marcs',atmosroot=None,atmosdir=None,nskip=0,fill=True,
+    linelist='20180901',h2o=None,linelistdir=None,atoms=True,molec=True, save=False,run=True) :
+    """ Do synthesis
+
+    Args:
+        teff (int) : Effective temperature
+        logg (float) : log(surface gravity)
+        mh (float ) : [M/H]
+        am (float ) : [alpha/M]
+        cm (float ) : [C/M]
+        nm (float ) : [N/M]
+        wrange (list) : wavelength range (default [15100,17000.])
+        dw (float)  : wavelength spacing (default 0.05 A)
+        vmicro (float ) : microturbulent velocity (default 2.0 km/s)
+        solarisotopes (bool) : use solar isotope ratios, else "giant" isotope ratios ( default False )
+        elemgrid (str) :  name of element for minigrid calculation
+        welem (str) :  NOT IMPLEMENTED set of wavelength ranges
+        els (list of pairs) : list of [element name, abundance] pairs
+        atmod (str) : name of atmosphere model (default=None, model is determined from input parameters)
+        atmosroot (str) : root atmosphere directory (default=None --> $APOGEE_SPECLIB/atmos)
+        atmosdir (str) :  atmosphere directory under atmosroot (default=None --> kurucz or marcs/MARCS_v3_2016, depending on kurucz boolean)
+        nskip (int)  : number of layers to strip (for kurucz, nskip*7), default=0
+        fill (bool)  : use filled atmosphere hole if model requests it ( default = True), else skip synthesis
+        linelist (str) : name of linelist (default='20150714')
+        linelistdir (str) : directory for linelist (default=None --> $APOGEE_SPECLIB/linelists)
+        h2o (int or None) : H2O linelist to use: 0=none, 1=8.5V, 2=9.5V, None-->chooses by Teff and [alpha/H]
+        save (bool ) : save temporary directory and files for synthesis (default=False)
+        run (bool) :  actually do the synthesis (default=True)
+
+    Returns:
+        spec (np.array) : synthetic spectrum
+        specnorm (np.array) : synthetic spectrum, normalized
+    """
+ 
+    # output directory and filename
+    workdir = get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=solarisotopes,save=save,elemgrid=elemgrid,vmicro=vmicro)
+    root=(atmos_type+'_t{:04d}g{:s}m{:s}a{:s}c{:s}n{:s}v{:s}'+elemgrid).format(int(teff), atmos.cval(logg), 
+                      atmos.cval(mh), atmos.cval(am), atmos.cval(cm), atmos.cval(nm),atmos.cval(vmicro))
+    print(root)
+
+    # atmosphere: make local copy in Turbospectrum input format, allowing for trimmed layers
+    # note that [N/M] is solar for atmospheres (since it doesn't have a big effect)
+    atmod = get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type=atmos_type,nskip=nskip, atmosroot=atmosroot,atmosdir=atmosdir,workdir=workdir)
+    if type(atmod) is int :
+        if atmod == -1 :        
+            print('HOLE NOT SYNTHESIZED: ', atmod)
+            return 0.,0.
+        else :
+            print('PROBLEM: ',atmod)
+            fail('mkturbospec problem: '+atmod)
+            return 0.,0.
+
+    # linelists
+    if linelistdir is None : linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/' 
+    linelists = []
+    n_HI = len(open(linelistdir+'/turbospec.'+linelist+'.Hlinedata').readlines())
+    if n_HI > 2 : linelists.append(linelistdir+'/turbospec.'+linelist+'.Hlinedata')
+    if atoms : linelists.append(linelistdir+'/turbospec.'+linelist+'.atoms')
+    if molec : linelists.append(linelistdir+'/turbospec.'+linelist+'.molec')
+
+    tfactor=1
+    if h2o is None : 
+      if teff < 4000 :
+        if mh+am < -1.5 or teff > 3250 :
+            linelists.append(linelistdir+'/turbospec.h2o-BC8.5V'+'.molec')
+            tfactor=2
+        else  :
+            linelists.append(linelistdir+'/turbospec.h2o-BC9.5V'+'.molec')
+            tfactor=5
+    elif h2o == 1 :
+        linelists.append(linelistdir+'/turbospec.h2o-BC8.5V'+'.molec')
+        tfactor=2
+    elif h2o == 2 :
+        linelists.append(linelistdir+'/turbospec.h2o-BC9.5V'+'.molec')
+        tfactor=5
+
+    # default abundances
+    abundances = atomic.solar()
+    abundances[2:] += mh
+    abundances[6-1] += cm
+    abundances[7-1] += nm
+    for i in [8,10,12,14,16,18,20,22] : abundances[i-1] += am
+
+    # abundance overrides from els, given as [X/M]
+    if els is not None :
+        for el in els :
+            atomic_num = atomic.periodic(el[0])
+            abundances[atomic_num-1] = atomic.solar(el[0]) + mh + el[1] 
+
+    if elemgrid != '' :
+        elemnum=atomic.periodic(elemgrid)[0]
+        elem0=abundances[elemnum-1]
+        eabun=np.arange(-0.75,1.20,0.25)
+    else :
+        eabun=np.array([0.])
+
+    cwd = os.getcwd()
+    os.chdir(workdir)
+    out = do_turbospec(root,atmod,linelists,mh,am,abundances,wrange,dw,save=save,run=run,solarisotopes=solarisotopes,bsyn=False,atmos_type=atmos_type,vmicro=vmicro)
+
+    # if this is an elemgrid, loop over abundances
+    for ielem,abun in enumerate(eabun) :
+        file = root+'{:02d}'.format(ielem)
+        if elemgrid != '' :
+            abundances[elemnum-1] = elem0+abun
+     
+        if code == 'turbospec' :
+            if atmos_type == 'marcs' and logg <= 3.001 :  spherical= True
+            else : spherical = False
+            if ielem == 0 : 
+                wave,flux,fluxnorm = do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,
+                                                  save=save,run=run,solarisotopes=solarisotopes,
+                                                  babsma=root+'opac',atmos_type=atmos_type,spherical=spherical,tfactor=tfactor)
+                spec=out[:,2]
+                specnorm=out[:,1]
+            else :
+                out = do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,
+                                   save=save,run=run,solarisotopes=solarisotopes,
+                                   babsma=root+'opac',atmos_type=atmos_type,spherical=spherical,tfactor=tfactor)
+        elif code == 'synspec' :
+            wave,flux,cont = synple.syn(atmod,wrange,linelist=linelists,dw=dw,abu=abundancers,save=save)
+            fluxnorm = flux/cont
+        else :
+            print('unknown synth code!')
+            pdb.set_trace()
+
+        # load into final arrays
+        if ielem == 0 :
+            spec = flux
+            specnorm = fluxnorm
+        else :
+            spec=np.vstack([spec,flux])
+            specnorm=np.vstack([specnorm,fluxnorm])
+
+    os.chdir(cwd)
+    if run :
+        if not save : shutil.rmtree(workdir)
+        return spec, specnorm
+    pdb.set_trace()
+
+
+def do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,save=False,run=True,solarisotopes=False,babsma=None,bsyn=True,atmos_type='marcs',spherical=True,vmicro=1.0,tfactor=1.) :
+    """ Runs Turbospectrum for specified input parameters
+
+    Args:
+
+    Returns:
+    """
+
+    # Turbospectrum setup
+    try: os.symlink(os.environ['APOGEE_DIR']+'/src/turbospec/DATA','./DATA')
+    except: pass
+
+    if save : stdout = None
+    else : stdout = open(os.devnull, 'w')
+
+    # individual element grid?
+    nels = len(abundances)
+
+    welem=np.array(wrange)
+    # only compute opacities for a single nominal abundance
+    if babsma is None :
+        fout=open(file+'_babsma.csh','w')
+        fout.write("#!/bin/csh -f\n")
+        fout.write("{:s}/bin/babsma_lu << EOF\n".format(os.environ['APOGEE_DIR']))
+        fout.write("'LAMBDA_MIN:'   '{:12.3f}'\n".format(welem.min()-dw))
+        fout.write("'LAMBDA_MAX:'   '{:12.3f}'\n".format(welem.max()+dw))
+        fout.write("'LAMBDA_STEP:'  '{:8.3f}'\n".format(dw))
+        fout.write("'MODELINPUT:'  '{:s}'\n".format(os.path.basename(atmod)))
+        if atmos_type != 'marcs' : fout.write("'MARCS-FILE:'  '.false.'\n")
+        fout.write("'MODELOPAC:'  '{:s}opac'\n".format(os.path.basename(file)))
+        fout.write("'METALLICITY:'  '{:8.3f}'\n".format(mh))
+        fout.write("'ALPHA/Fe:'  '{:8.3f}'\n".format(am))
+        fout.write("'HELIUM:'  '{:8.3f}'\n".format(0.00))
+        fout.write("'R-PROCESS:'  '{:8.3f}'\n".format(0.00))
+        fout.write("'S-PROCESS:'  '{:8.3f}'\n".format(0.00))
+        fout.write("'INDIVIDUAL ABUNDANCES:'  '{:2d}'\n".format(nels))
+        for iel,abun in enumerate(abundances) :
+            fout.write("{:5d}  {:8.3f}\n".format(iel+1,abun))
+        if not solarisotopes :
+          fout.write("'ISOTOPES:'  '2'\n")
+          # adopt ratio of 12C/13C=15
+          fout.write("   6.012 0.9375\n")
+          fout.write("   6.013 0.0625\n")
+        fout.write("'XIFIX:'  'T'\n")
+        fout.write("{:8.3f}\n".format(vmicro))
+        fout.write("EOF\n")
+        fout.close()
+        if run :
+            os.chmod(file+'_babsma.csh', 0o777)
+            subprocess.call(['time','./'+os.path.basename(file)+'_babsma.csh'],stdout=stdout)
+        babsma = os.path.basename(file)+'opac'
+
+    if not bsyn : return
+
+    # create bsyn control file
+    bsynfile = file
+    fout = open(bsynfile+'.inp','w')
+    fout.write("'LAMBDA_STEP:'  '{:8.3f}'\n".format(dw))
+    fout.write("'LAMBDA_MIN:'   '{:12.3f}'\n".format(welem.min()))
+    fout.write("'LAMBDA_MAX:'   '{:12.3f}'\n".format(welem.max()))
+    fout.write("'INTENSITY/FLUX:'  'Flux'\n")
+    fout.write("'COS(THETA):'  '1.00'\n")
+    fout.write("'ABFIND:'  '.false.'\n")
+    fout.write("'MODELINPUT:'  '{:s}'\n".format(os.path.basename(atmod)))
+    if atmos_type != 'marcs' : fout.write("'MARCS-FILE:'  '.false.'\n")
+    fout.write("'MODELOPAC:'  '{:s}'\n".format(babsma))
+    fout.write("'RESULTFILE:'  '{:s}'\n".format(os.path.basename(file)))
+    fout.write("'METALLICITY:'  '{:8.3f}'\n".format(mh))
+    fout.write("'ALPHA/Fe:'  '{:8.3f}'\n".format(am))
+    fout.write("'HELIUM:'  '{:8.3f}'\n".format(0.00))
+    fout.write("'R-PROCESS:'  '{:8.3f}'\n".format(0.00))
+    fout.write("'S-PROCESS:'  '{:8.3f}'\n".format(0.00))
+    fout.write("'INDIVIDUAL ABUNDANCES:'  '{:2d}'\n".format(len(abundances)))
+    for iel,abun in enumerate(abundances) :
+        fout.write("{:5d}  {:8.3f}\n".format(iel+1,abun))
+    if  not solarisotopes :
+        fout.write("'ISOTOPES:'  '2'\n")
+        # adopt ratio of 12C/13C=15
+        fout.write("   6.012 0.9375\n")
+        fout.write("   6.013 0.0625\n")
+    fout.write("'NFILES:'  '{:4d}'\n".format(len(linelists)))
+    for linelist in linelists: 
+        fout.write(linelist+"\n")
+    if spherical: fout.write("'SPHERICAL:'  'T'\n")
+    else : fout.write("'SPHERICAL:'  'F'\n")
+    fout.write("30\n")
+    fout.write("300.00\n")
+    fout.write("15\n")
+    fout.write("1.3\n")
+    fout.close()
+
+    # control file, with special handling in case bsyn goes into infinite loop ...
+    fout = open(file+"_bsyn.csh",'w')
+    fout.write("#!/bin/csh -f\n")
+    fout.write("{:s}/bin/bsyn_lu < {:s} &\n".format(os.environ['APOGEE_DIR'],os.path.basename(bsynfile)+'.inp'))
+    fout.write('set bsynjob = $!\n')
+    fout.write("set ok = 0\n")
+    fout.write("set runtime = `ps -p $bsynjob -o cputime | tail -1 | awk -F: '{print ($1*3600)+($2*60)+$3}'`\n")
+    tmax=120*int(.05/min([0.05,dw]))*tfactor
+    fout.write('while ( $runtime < {:d} && $ok == 0 )\n'.format(tmax))
+    fout.write('  usleep 200000\n')
+    fout.write("  set runtime = `ps -p $bsynjob -o cputime | tail -1 | awk -F: '{print ($1*3600)+($2*60)+$3}'`\n")
+    fout.write('  if ( `ps -p $bsynjob -o comm=` == "" ) then\n')
+    fout.write('    echo process done, exiting!\n')
+    fout.write('    set ok = 1\n')
+    fout.write('  endif\n')
+    fout.write('end\n')
+    fout.write('if ( $ok == 0 ) then\n')
+    fout.write('  echo expired, killing job\n')
+    fout.write('  kill $bsynjob\n')
+    fout.write('endif\n')
+    fout.close()
+    if run :
+        os.chmod(file+'_bsyn.csh', 0o777)
+        subprocess.call(['time','./'+os.path.basename(file)+'_bsyn.csh'],stdout=stdout)
+        try:
+            out=np.loadtxt(file)
+        except :
+            print('failed...',file,atmod,mh,am)
+            return 0.,0.
+        return out
+
 def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
     els=None,atmod=None,kurucz=True,atmosroot=None,atmosdir=None,nskip=0,fill=True,
     linelist='20150714',h2o=None,linelistdir=None,atoms=True,molec=True,

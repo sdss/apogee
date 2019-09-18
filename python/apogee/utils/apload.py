@@ -35,6 +35,7 @@ class ApLoad :
         elif dr == 'dr12' : self.dr12()
         elif dr == 'dr13' : self.dr13()
         elif dr == 'dr14' : self.dr14()
+        elif dr == 'dr16' : self.dr16()
         # set up 
         self.sdss_path=path.Path()
         self.http_access=HttpAccess(verbose=verbose)
@@ -68,6 +69,10 @@ class ApLoad :
         self.apred='r8'
         self.aspcap='l31c'
         self.results='l31c.2'
+
+    def dr16(self) :
+        self.apred='r12'
+        self.aspcap='l33'
 
     def printerror(self) :
         print('cannot find file: do you have correct version? permission? wget authentication?')

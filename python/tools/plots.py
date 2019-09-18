@@ -57,7 +57,7 @@ def mark(fig) :
     return _x, _y, _button
 
 
-def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,xt=None,yt=None,zt=None,label=None,linewidth='0',marker='o',draw=True,orientation='vertical',labelcolor='k',tit=None,nxtick=None,nytick=None,rasterized=None,alpha=None) :
+def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,xt=None,yt=None,zt=None,label=None,linewidth=0,marker='o',draw=True,orientation='vertical',labelcolor='k',tit=None,nxtick=None,nytick=None,rasterized=None,alpha=None) :
     """
     Plots a scatter plot with point color-coded by z data
 
@@ -77,7 +77,7 @@ def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',color
       marker : marker type (default='o')
       cmap : colormap (default='rainbow')
       size : point size(s) in points (default=5)
-      linewidth : linewidth (default='0')
+      linewidth : linewidth (default=0)
       colorbar (bool) : draw a colorbar? (default=False)
       orientation : colorbar orientation (default='vertical')
       label [x,y,text] : label plot with text at position x,y in relative (0:1,0:1) coordinates
@@ -152,7 +152,7 @@ def plotrow(ax,img,r,norm=True,draw=True) :
             ax.plotl(np.sum(img[r[0]:r[1],:],axis=1))
     if draw : plt.draw()
 
-def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='o',size=5,linewidth='0',color='r',facecolors=None,xt=None,yt=None,draw=True,xerr=None,yerr=None,label=None,text=None,labelcolor='k',linewidths=None,nxtick=None,nytick=None,tit=None,contour=None,levels=None,alpha=None,rasterized=None) :
+def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='o',size=5,linewidth=0,color='r',facecolors=None,xt=None,yt=None,draw=True,xerr=None,yerr=None,label=None,text=None,labelcolor='k',linewidths=None,nxtick=None,nytick=None,tit=None,contour=None,levels=None,alpha=None,rasterized=None) :
     '''
     Plot points, optionally with a series of different markers/sizes keyed to z data
 
@@ -301,7 +301,7 @@ def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False,squeeze
     fig.subplots_adjust(hspace=hspace,wspace=wspace)
     if (hspace < 0.01) & (ny>1):
         # if we are vertical stacking, turn off xticks for all except bottom
-        if nx == 1 :
+        if squeeze and nx == 1 :
             ticklabels = ax[0].get_xticklabels()
             for i in range(1,ny-1) : 
                 ticklabels = ticklabels + ax[i].get_xticklabels()
@@ -313,7 +313,7 @@ def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False,squeeze
         plt.setp(ticklabels, visible=False)
     if (wspace < 0.01) & (nx> 1):
         # if we are horizontal stacking, turn off yticks for all except left
-        if ny == 1 :
+        if squeeze and ny == 1 :
             ticklabels = ax[1].get_yticklabels()
             for i in range(2,nx) : 
                 ticklabels = ticklabels + ax[i].get_yticklabels()
@@ -326,12 +326,12 @@ def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False,squeeze
     if xtickrot is not None :
       for i in range(nx) :
         for j in range(0,ny) : 
-          if nx == 1 and ny == 1:
+          if squeeze and nx == 1 and ny == 1:
               print('setting rotation')
               for tick in ax.get_xticklabels(): tick.set_rotation( xtickrot ) 
-          elif nx>1 and ny == 1:
+          elif squeeze and nx>1 and ny == 1:
               for tick in ax[i].get_xticklabels(): tick.set_rotation( xtickrot ) 
-          elif ny>1 and nx == 1:
+          elif squeeze and ny>1 and nx == 1:
               for tick in ax[j].get_xticklabels(): tick.set_rotation( xtickrot ) 
           else :
               for tick in ax[j,i].get_xticklabels(): tick.set_rotation( xtickrot ) 

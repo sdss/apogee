@@ -1,4 +1,4 @@
-pro mkhtmlsum,apred_vers=apred_vers,all=all,nocheck=nocheck,apstar_vers=apstar_vers,aspcap_vers=aspcap_vers,results_vers=results_vers,mjdmin=mjdmin,mjdmax=mjdmax,fieldfile=fieldfile,mjdfile=mjdfile,nomjd=nomjd
+pro mkhtmlsum,apred_vers=apred_vers,all=all,nocheck=nocheck,apstar_vers=apstar_vers,aspcap_vers=aspcap_vers,results_vers=results_vers,mjdmin=mjdmin,mjdmax=mjdmax,fieldfile=fieldfile,mjdfile=mjdfile,nomjd=nomjd,suffix=suffix
 
 ; make summary HTML pages both by MJD and by field
 
@@ -40,7 +40,7 @@ logs=logs[s]
 
 ; MJD web page
 if ~keyword_set(mjdfile) then mjdfile='mjd'
-openw,html,/get_lun,spectrodir+'/'+mjdfile+'.html'
+openw,html,/get_lun,spectrodir+'/'+mjdfile+'.html.tmp'
 printf,html,'<HTML><BODY>'
 printf,html,'<HEAD><script type=text/javascript src=html/sorttable.js></script></head>'
 printf,html,'<p><A HREF=fields.html> FIELDS view </a><p>'
@@ -165,6 +165,7 @@ printf,html,'</UL>'
 
 printf,html,'</body></html>'
 free_lun,html
+file_move,spectrodir+'/'+mjdfile+'.html.tmp',spectrodir+'/'+mjdfile+'.html',/overwrite
 
 dofield:
 
@@ -172,7 +173,7 @@ if ~keyword_set(fieldfile) then fieldfile='fields'
 plates=file_search(spectrodir+'/visit/*/*/*/*/'+'*PlateSum*.fits')
 
 ; fields view
-openw,html,/get_lun,spectrodir+'/'+fieldfile+'.html'
+openw,html,/get_lun,spectrodir+'/'+fieldfile+'.html.tmp'
 printf,html,'<HTML><BODY>'
 printf,html,'<HEAD><script type=text/javascript src=html/sorttable.js></script></head>'
 printf,html,'<A HREF=mjd.html> MJD view</A>'
@@ -251,7 +252,7 @@ printf,html,'<img src=sky.gif width=45%>'
 printf,html,'<img src=galactic.gif width=45%>'
 printf, html,'<p>Summary files:'
 
-suffix='-'+apred_vers+'-'+aspcap_vers+'.fits'
+if ~keyword_set(suffix) then suffix='-'+apred_vers+'-'+aspcap_vers+'.fits'
 printf,html,'<a href=../../aspcap/'+apred_vers+'/'+aspcap_vers+'/allStar'+suffix+'> allStar'+suffix+' file </a> '
 printf,html,' and <a href=../../aspcap/'+apred_vers+'/'+aspcap_vers+'/allVisit'+suffix+'> allVisit'+suffix+' file </a>'
 
@@ -354,7 +355,8 @@ print,'doing plate: ',plates[i]
 endfor
 printf,html,'</TABLE>'
 printf,html,'</BODY></HTML>'
-close,html
+free_lun,html
+file_move,spectrodir+'/'+fieldfile+'.html.tmp',spectrodir+'/'+fieldfile+'.html',/overwrite
 ;close,2
 
 file_delete,spectrodir+'index.html.lock',/allow_nonexistent

@@ -13,6 +13,11 @@ def mkcoord(file='allStar-r12-l33-58358.fits') :
     data=hdulist[1].data
     coords=np.vstack((data['RA'],data['DEC'])).T
     np.savetxt('coords.csv',coords,delimiter=',',header='ra,dec')
+    # now get the 2MASS object IDs for GAIA crossmatch
+    j=np.where(np.core.defchararray.find(data['APOGEE_ID'],'2M') == 0)[0]
+    out=np.unique(np.core.defchararray.replace(data['APOGEE_ID'][j],'2M',''))
+    np.savetxt('twomass.txt',out,fmt='%s')
+
 
 def add_gaia(data,gaia_1='gaia_2mass_xmatch.fits.gz', gaia_2='gaia_posn_xmatch.fits.gz') :
     """ Add GAIA data to allStar file, with coordinate match to (cross-matched) GAIA reference file
@@ -97,14 +102,15 @@ def trimfile(data) :
 
     return tab
 
-def new(infile='allStar-r12-l33-58358.fits',new='allStar-r12-l33.fits',trim='allStarLite-r12-l33.fits') :
+def new(infile='allStar-r12-l33-58358.fits',new='allStar-r12-l33.fits',trim='allStarLite-r12-l33.fits',
+        gaia_1='gaia_2mass_xmatch.fits.gz', gaia_2='gaia_posn_xmatch.fits.gz') :
     """ take allStar file, add GAIA info and new _spec columns, outpu
         also output allStarLite version
     """
     hdulist=fits.open(infile)
     gd=np.where(np.core.defchararray.strip(hdulist[1].data['APOGEE_ID']) != '')[0]
     print('adding gaia....')
-    tab=add_gaia(hdulist[1].data[gd])
+    tab=add_gaia(hdulist[1].data[gd],gaia_1=gaia_1,gaia_2=gaia_2)
     print('adding _SPEC columns....')
     tab=add_spec(tab)
     # populate TARGFLAG for 1m observations

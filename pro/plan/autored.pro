@@ -5,10 +5,11 @@
 ;      runs runapred if plate not already done
 ;      runs mkhtml,mkhtmlsum,mkmonitor when all plates for a given MJD are done
 ;-
-pro autored,mjds,vers=vers,norun=norun,apogees=apogees,override=override
+pro autored,mjds,vers=vers,norun=norun,apogees=apogees,override=override,aspcap=aspcap,suffix=suffix
 
 ; setup version and directories
 if keyword_set(vers) then apsetver,vers=vers else stop,'need to set vers'
+if ~keyword_set(aspcap) then aspcap='a'
 
 if keyword_set(apogees) then begin
   prefix='as' 
@@ -175,7 +176,7 @@ if dosum then begin
 ;  print,'running summary...'
 ;  if ~keyword_set(norun) then spawn,'csh '+dir+'sum.csh >&'+dir+'sum.log'
 mkmonitor
-mkhtmlsum,/nocheck,apred=vers,apstar='stars',aspcap='a',results='v'
+mkhtmlsum,/nocheck,apred=vers,apstar='stars',aspcap=aspcap,results='v',suffix=suffix
 endif
 
 end

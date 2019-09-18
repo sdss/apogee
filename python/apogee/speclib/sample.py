@@ -62,7 +62,7 @@ def elemsens(teffs=[3500,4500,5500],loggs=[1.0,3.0,5.0],mhs=[0.0]) :
                     f.write(out+'\n')
     return files
 
-def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,logglim=[-0.5,5.5],mhlim=[-2.5,0.75],nmlim=[-0.5,2.],cmlim=[-1.5,1.],emlim=[-0.5,1.],vmicrolim=[0.3,4.8],amlim=[-0.5,1.],vrotlim=[1.5,96.],rot=True,nsamp=1,niso=None,elems='all',fact=1.0,grid=True) :
+def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,logglim=[-0.5,5.5],mhlim=[-2.5,0.75],nmlim=[-0.5,2.],cmlim=[-1.5,1.],emlim=[-0.5,1.],vmicrolim=[0.3,4.8],amlim=[-0.5,1.],vrotlim=[1.5,96.],rot=True,nsamp=1,niso=None,elems='all',fact=1.0,offgrid=False,extracool=1.) :
     """ Generate a test sample of parameters and abundances from isochrones
     """
 
@@ -180,21 +180,23 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
     f.write('\n')
     nel=len(els)
     for i,x in enumerate(grid) :
-      for j in range(nsamp) :
-        if grid :
-            teff=x[0]
-            logg=x[1]
-            mh=x[2]
-        else :
+      if a['teff'][i] <= 4000 : nf=extracool
+      else : nf=1
+      for j in range(nsamp*nf) :
+        if offgrid :
             if a['teff'][i] < 4000 : dt=dtlo
             elif a['teff'][i] > 8000 : dt=dtvhot
             elif a['teff'][i] > 5500 : dt=dthot
-            teff=x[0]+np.random.random(-dt/2.,dt/2.)
-            logg=x[1]+np.random.random(-dlogg/2.,dlogg/2.)
-            mh=x[2]+np.random.random(-dmh/2.,dmh/2.)
+            teff=x[0]+np.random.uniform(-dt/2.,dt/2.)
+            logg=x[1]+np.random.uniform(-dlogg/2.,dlogg/2.)
+            mh=x[2]+np.random.uniform(-dmh/2.,dmh/2.)
             teff=clip(teff,tefflim)
             logg=clip(logg,logglim)
             mh=clip(mh,mhlim)
+        else :
+            teff=x[0]
+            logg=x[1]
+            mh=x[2]
         vmicro=10.**(0.226-0.0228*logg+0.0297*logg**2-0.0113*logg**3)+np.random.normal(0.,0.3)
         vmicro=clip(vmicro,vmicrolim)
         if (gridclass == 'rv') : 
@@ -202,29 +204,29 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
             vmicro=10.**(int(round(vmicro/0.30103))*0.30103 - 0.522878)
 
         vrot=0.
-        if (logg < 3) & (teff<6000) :
+        if (logg < 3.5) & (teff<6000) :
             # for giants, use vmacro relation + small rotation
             if rot : vrot = np.max([0.,np.random.normal(1.5,0.5*fact)])
             # carbon and nitrogen with significant range
-            cm=np.random.normal(0.,0.5*fact)
-            if grid: cm = (int(round(cm/0.25)))*0.25
-            nm=np.random.normal(0.3,1.0*fact)
+            cm=np.random.normal(-0.20,.5*fact)
+            if not offgrid: cm = (int(round(cm/0.25)))*0.25
+            nm=np.random.normal(0.3,0.7*fact)
             # no need to pin [N/M] to grid since it is varied in synthesis!
             #nm = (int(round(nm/0.5)))*0.5
         else :
             # for dwarfs, use significant rotation
             if rot : vrot=abs(np.random.normal(0.,30*fact))
             # carbon and nitrogen with small range
-            cm=np.random.normal(0.,0.3*fact)
-            if grid: cm = (int(round(cm/0.25)))*0.25
-            nm=np.random.normal(0.,0.3*fact)
+            cm=np.random.normal(0.,0.25*fact)
+            if not offgrid: cm = (int(round(cm/0.25)))*0.25
+            nm=np.random.normal(0.,0.25*fact)
         cm=clip(cm,cmlim)
         nm=clip(nm,nmlim)
         # for RV grid, enhance N for giants
         if (gridclass == 'rv') & (logg < 3) & (teff<6000) : nm=0.25
         # draw a random alpha/M
         am=np.random.uniform(-0.25,0.5)
-        if grid: am = (round(am/dam))*dam
+        if not offgrid: am = (round(am/dam))*dam
         am=clip(am,amlim)
         allteff.append(teff)
         alllogg.append(logg)
@@ -263,7 +265,7 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
         logg=clip(logg,logglim,eps=eps)
         mh=clip(mh,mhlim,eps=eps)
         cm=clip(cm,cmlim,eps=eps)
-        nm=(round(nm/0.5))*0.5
+        if not offgrid : nm=(round(nm/0.5))*0.5
         nm=clip(nm,nmlim,eps=eps)
         am=clip(am,amlim,eps=eps)
         vmicro=round((np.log10(vmicro)-math.log10(vmicrolim[0]))/math.log10(2.))*math.log10(2.)+math.log10(vmicrolim[0])

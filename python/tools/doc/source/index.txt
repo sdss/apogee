@@ -6,6 +6,19 @@
 Welcome to tools's documentation!
 =================================
 
+A variety of relatively simple Python convenience routines to simplify some frequently-used
+tasks.
+
+plots provides a set of one-line routines to make plots, allowing multiple plot
+attributes (limits, labels, etc.) to be specified with a single call
+
+html provides some routines to generate HTML, in particular, HTML tables of
+figures.
+
+struct provides some routines related to numpy structured arrays
+
+match provides a routine for matching two numpy arrays.
+
 Contents:
 
 .. toctree::

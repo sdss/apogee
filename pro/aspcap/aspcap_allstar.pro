@@ -677,6 +677,7 @@ stop
  
 
       push,allvisitloc,tmp_allvisitloc,count=count
+
       if count lt 0 then $
          message, 'Error in pushing'
    endfor
@@ -769,9 +770,14 @@ stop
       for k=0L, n_elements(tmp_allstarloc)-1L do begin
          if (size(allvisitloc,/type) gt 0) then begin
            ; fill all_visits and visits (latter only gives good visits) - NOW DONE BELOW
-           pk=where(allvisitloc.(objind) eq tmp_allstarloc[k].apogee_id,nk)
+           pk=where(strtrim(allvisitloc.(objind),2) eq strtrim(tmp_allstarloc[k].apogee_id,2),nk)
            if nk gt maxvisit then begin
-              message, 'Error: need to increase maxvisit! '+ maxvisit+ nk
+              printf,missing,'Problem: too many visits? '+ tmp_allstarloc[k].apogee_id+string(maxvisit)+string(nk)
+           endif
+           if nk eq 0 then begin
+             print,'missing selection visit: ',tmp_allstarloc[k].apogee_id
+             printf,dup,'missing selection visit: ',tmp_allstarloc[k].apogee_id
+             printf,missing,'missing selection visit: ',tmp_allstarloc[k].apogee_id
            endif
            ;if nk gt 0 then visits = strmid(file_basename(allvisitloc[pk].file,'.fits'),8) else visits = ' '
            ;tmp_allstarloc[k].all_visits = strjoin(visits,',')
@@ -910,6 +916,7 @@ stop
       if n_elements(files) gt 1 then printf,missing,'using multiple apogeeObject files: '+ files
 
       for ifile=0,n_elements(files)-1 do begin
+print,files[ifile]
        objects=mrdfits(files[ifile],1)
 ;   endif else begin
 ;    objects=mrdfits(objectfile,1)
@@ -960,6 +967,10 @@ stop
          catmin[istar]=dmin
          if strtrim(allvisitloc[stars[istar]].apogee_id,2) ne strtrim(objects[iobject].apogee_id,2) then begin
            printf,altname, 'alt name: ',field,' ',$
+                allvisitloc[stars[istar]].(locind),' ',$
+                allvisitloc[stars[istar]].(objind),' ', $
+                objects[iobject].apogee_id
+           print, 'alt name: ',field,' ',$
                 allvisitloc[stars[istar]].(locind),' ',$
                 allvisitloc[stars[istar]].(objind),' ', $
                 objects[iobject].apogee_id

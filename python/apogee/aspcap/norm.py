@@ -23,14 +23,14 @@ from scipy.ndimage.filters import median_filter
 from scipy import interpolate
 from tools import plots
 
-def cont(spec,specerr,chips=False,order=4,poly=True) :
+def cont(spec,specerr,chips=False,order=4,poly=True,apstar=True) :
     """ Returns continuum normalized spectrum
     """
     x = np.arange(0,len(spec))
    
     if chips :
         cont=np.full_like(spec,np.nan)
-        pranges=aspcap.gridPix(apStar=True)
+        pranges=aspcap.gridPix(apStar=apstar)
         for prange in pranges :
             s = spec[prange[0]:prange[1]]
             serr = specerr[prange[0]:prange[1]]

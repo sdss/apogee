@@ -197,6 +197,5 @@ def dr16fix(a,dr16file='allStar-r12-l33-58358.fits') :
         ind.append(match)
     print(len(ind),len(set(ind)))
     print(set(range(len(a)))-set(ind))
-    pdb.set_trace()
     return a[ind]
 

@@ -39,7 +39,50 @@
 ;
 function catalog_info_blank
 
-  cat0=create_struct('reduction_id',' ',$
+  cat0=create_struct('alt_id',' ',$
+                     'src_h', ' ', $
+                     'wash_m', 0.,$
+                     'wash_m_err', 0.,$
+                     'wash_t2', 0., $
+                     'wash_t2_err', 0., $
+                     'ddo51', 0., $
+                     'ddo51_err', 0., $
+                     'irac_3_6', 0., $
+                     'irac_3_6_err', 0., $
+                     'irac_4_5', 0., $
+                     'irac_4_5_err', 0., $
+                     'irac_5_8', 0., $
+                     'irac_5_8_err', 0., $
+                     'irac_8_0', 0., $
+                     'irac_8_0_err', 0., $
+                     'wise_4_5', 0., $
+                     'wise_4_5_err', 0., $
+                     'targ_4_5', 0., $
+                     'targ_4_5_err', 0., $
+                     'ak_targ', -9999.99, $
+                     'ak_targ_method', '', $
+                     'ak_wise', -9999.99, $
+                     'sfd_ebv', -9999.99, $
+                     'wash_ddo51_giant_flag', 0, $
+                     'wash_ddo51_star_flag', 0, $
+                     'pmra', 0., $
+                     'pmdec', 0., $
+                     'pm_src', ' ')
+  return, cat0
+end
+; tags in common between apogeeObject apogee2Object apogee1mObject
+function catalog_info_common
+
+  cat0=create_struct('apogee_id',' ',$
+                     'ra', 0.d0,$
+                     'dec', 0.d0,$
+                     'j', 0.,$
+                     'j_err', 0.,$
+                     'h', 0.,$
+                     'h_err', 0.,$
+                     'k', 0.,$
+                     'k_err', 0.,$
+                     'alt_id',' ',$
                      'src_h', ' ', $
                      'wash_m', 0.,$
                      'wash_m_err', 0.,$
@@ -277,27 +320,6 @@ function allvisit_blank, apfieldvisit0, unsafe_synth=unsafe_synth
                          'min_jk', -9999.99, $
                          'max_jk', 9999.99, $
                          catalog_info_blank())
-;                         'wash_m', 0., $
-;                         'wash_m_err', 0., $
-;                         'wash_t2', 0., $
-;                         'wash_t2_err', 0., $
-;                         'ddo51', 0., $
-;                         'ddo51_err', 0., $
-;                         'irac_3_6', 0., $
-;                         'irac_3_6_err', 0., $
-;                         'mag_4_5', 0., $
-;                         'mag_4_5_err', 0., $
-;                         'irac_5_8', 0., $
-;                         'irac_5_8_err', 0., $
-;                         'irac_8_0', 0., $
-;                         'irac_8_0_err', 0., $ 
-;                         'wise_4_5', 0., $
-;                         'wise_4_5_err', 0., $
-;                         'giant', 0, $
-;                         'star', 0,$ 
-;                         'pmra', 0., $
-;                         'pmdec', 0., $
-;                         'pmcat', ' ')
 
   if(keyword_set(unsafe_synth)) then $
      allvisit0=struct_trimtags(allvisit0, $
@@ -720,7 +742,6 @@ stop
 
       ; make location id compatible types -- should be done in reduction
       if size(str.location_id,/type) eq 2 then begin
-;stop
         locid=long(str[0].location_id)
         remove_tags,str,['location_id'],new
         str=new
@@ -779,12 +800,6 @@ stop
              printf,dup,'missing selection visit: ',tmp_allstarloc[k].apogee_id
              printf,missing,'missing selection visit: ',tmp_allstarloc[k].apogee_id
            endif
-           ;if nk gt 0 then visits = strmid(file_basename(allvisitloc[pk].file,'.fits'),8) else visits = ' '
-           ;tmp_allstarloc[k].all_visits = strjoin(visits,',')
-           ;pk=where(allvisitloc.(objind) eq tmp_allstarloc[k].apogee_id and $
-           ;        (finite(allvisitloc.vrel) eq 1) and (allvisitloc.commiss eq tmp_allstarloc[k].commiss),nk)
-           ;if nk gt 0 then visits = strmid(file_basename(allvisitloc[pk].file,'.fits'),8) else visits = ' '
-           ;tmp_allstarloc[k].visits = strjoin(visits,',')
 
            ; fix NVISIT=1 RVs for s3
            if tmp_allstarloc[k].nvisits eq 1 and (apstar_version eq 's3' or apstar_version eq 's') then begin
@@ -864,16 +879,6 @@ stop
          endif 
 
       endfor
-      ; move targflags for apogee2, now already done in apstar!
-      ;fix = where(strpos(str.survey,'apogee2') ge 0, nfix)
-      ;if nfix gt 0 then begin
-      ;  tmp_allstarloc[fix].apogee2_target1 = tmp_allstarloc[fix].apogee_target1
-      ;  tmp_allstarloc[fix].apogee2_target2 = tmp_allstarloc[fix].apogee_target2
-      ;  tmp_allstarloc[fix].apogee2_target3 = tmp_allstarloc[fix].apogee_target3
-      ;  tmp_allstarloc[fix].apogee_target1 = 0
-      ;  tmp_allstarloc[fix].apogee_target2 = 0
-      ;  tmp_allstarloc[fix].apogee_target3 = 0
-      ;endif
 
       PUSH,allstarloc,tmp_allstarloc,count=count
    endfor
@@ -886,70 +891,46 @@ stop
    catmin=fltarr(n_elements(stars))+9999.99
    
    ; get apogeeObject catalog info for this field
-;   if strpos(allvisitloc[0].survey,'apogee2') ge 0 then apogeeobject='apogee2Object' $
-;     else if strpos(allvisitloc[0].survey,'apo1m') ge 0 then apogeeobject='apogee1mObject' else $
-;     apogeeobject='apogeeObject'
-;   objectfile=targetdir+'/'+apogeeobject+'/'+apogeeobject+'_'+strtrim(apogee_field(allvisitloc[0].(locind),allvisitloc[0].plate,/addloc),2)+'.fits' 
+   ; find all matching apogeeObject files and loop through them looking for matches
+   files=file_search(getenv('APOGEE_TARGET')+'/apogee*Object/*'+field+'*')
+   if files[0] eq '' then begin
+     print,'cant find apogeeObject file: '+field, allvisitloc[0].(locind), allvisitloc[0].plate
+     printf,missing,'cant find apogeeObject file: '+ field, allvisitloc[0].(locind), allvisitloc[0].plate
+   endif else begin
+     if n_elements(files) gt 1 then printf,missing,'using multiple apogeeObject files: '+ files
 
-   ;if itelescope eq 0 then $
-   ;objectfile=targetdir+'/'+apogeeobject+'/'+apogeeobject+'_'+strtrim(apogee_field(allvisitloc[0].(locind),allvisitloc[0].plate,/addloc),2)+'.fits' else $
-   ;objectfile=targetdir+'/apogeeObject/apogeeObject_'+strtrim(field,2)+'.fits'
-   ;if not file_test(objectfile) then begin
-   ;  ;print,'cant find apogeeObject file: ', objectfile, allvisitloc[0].(locind), allvisitloc[0].plate
-   ;  ;printf,missing,'cant find apogeeObject file: ', objectfile, allvisitloc[0].(locind), allvisitloc[0].plate
-   ;  ; try apogeeObject
-   ;  objectfile=targetdir+'/apogeeObject/apogeeObject_'+strtrim(apogee_field(allvisitloc[0].(locind),allvisitloc[0].plate),2)+'.fits' 
-   ;endif 
-;   if not file_test(objectfile) then begin
+     ; we will only save tags we will use, to avoid conflict between apogeeObject and apogee2Object
+     objects=[]
+     for ifile=0,n_elements(files)-1 do begin
+       print,files[ifile]
+       tmpobject=mrdfits(files[ifile],1)
+       tmp_cat= replicate(catalog_info_common(),n_elements(tmpobject))
+       struct_assign, tmpobject, tmp_cat
+       print,n_elements(tmpobject)
+       objects=[objects,tmp_cat]
+     endfor
 
-     ; find all matching apogeeObject files and loop through them looking for matches
-     files=file_search(getenv('APOGEE_TARGET')+'/apogee*Object/*'+field+'*')
-     if files[0] eq '' then begin
-       print,'cant find apogeeObject file: '+field, allvisitloc[0].(locind), allvisitloc[0].plate
-       printf,missing,'cant find apogeeObject file: '+ field, allvisitloc[0].(locind), allvisitloc[0].plate
-     endif else begin
-       ;objects=mrdfits(files[0],1)
-       ;for ifile=1,n_elements(files)-1 do begin
-       ;  tmp=mrdfits(files[ifile],1)
-       ;  objects=[objects,tmp]
-       ;endfor
-      if n_elements(files) gt 1 then printf,missing,'using multiple apogeeObject files: '+ files
+     ; fix NaNs, etc.
+     aspcap_fixobject,objects
 
-      for ifile=0,n_elements(files)-1 do begin
-print,files[ifile]
-       objects=mrdfits(files[ifile],1)
-;   endif else begin
-;    objects=mrdfits(objectfile,1)
-;    locid=allvisitloc[0].(locind)
-;    if locid eq 2111 or locid eq  2119 or locid eq  2120 or locid eq  2121 or locid eq  2122 or locid eq  2382 then begin
-;      files=file_search(getenv('APOGEE_TARGET')+'/apogee2Object/*'+string(format='(i4.4)',locid)+'*')
-;      objects=mrdfits(files[0],1)
-;      for ifile=1,n_elements(files)-1 do begin
-;        tmp=mrdfits(files[ifile],1)
-;        objects=[objects,tmp]
-;      endfor
-;    endif
+     ; fix any negative RAs
+     ra=allvisitloc.ra
+     dec=allvisitloc.dec
+     bd=where(ra lt 0, nbd)
+     if nbd gt 0 then ra[bd] = 0.
+     if nbd gt 0 then dec[bd] = 0.
+     spherematch,objects.ra,objects.dec,ra,dec,2./3600.,match1,match2,dist,maxmatch=nplates
 
-    ; fix NaNs, etc.
-    aspcap_fixobject,objects
-
-    ; fix any negative RAs
-    ra=allvisitloc.ra
-    dec=allvisitloc.dec
-    bd=where(ra lt 0, nbd)
-    if nbd gt 0 then ra[bd] = 0.
-    if nbd gt 0 then dec[bd] = 0.
-    ;spherematch,objects.ra,objects.dec,ra,dec,10./3600.,match1,match2,dist,maxmatch=nplates
-    spherematch,objects.ra,objects.dec,ra,dec,2./3600.,match1,match2,dist,maxmatch=nplates
-
-    for istar=0L,n_elements(stars)-1L do begin
+     for istar=0L,n_elements(stars)-1L do begin
       if istar mod 20 eq 0 then $
          splog,istar,n_elements(stars)
       ; first try to match by position (in case names are screwed up)
       j=where(match2 eq stars[istar],nj)
       if allvisitloc[stars[istar]].ra gt 0 and nj gt 0 then begin
         ; if more than one match, take the closest
-        if nj gt 1 then junk=min(dist(j),jj) else jj=0
+        if nj gt 1 then begin
+          junk=min(dist(j),jj)
+        endif else jj=0
         if dist[j[jj]] lt catmin[istar] then begin
           iobject=match1[j[jj]] 
           dmin=dist[j[jj]]
@@ -959,7 +940,10 @@ print,files[ifile]
         iobject=where((strtrim(objects.apogee_id,2) eq strtrim(allvisitloc[stars[istar]].apogee_id,2)) or $
                       (strtrim(objects.alt_id,2) eq strtrim(allvisitloc[stars[istar]].apogee_id,2)),nj) 
         dmin=-1
-        if nj gt 1 then printf,missing,'more than one object found by name!'
+        if nj gt 1 then begin
+          printf,missing,'more than one object found by name!'
+          iobject=iobject[0]
+        endif
         if nj eq 0 then iobject=-1
       endelse
       objname=strtrim(allvisitloc[stars[istar]].apogee_id,2)
@@ -969,11 +953,11 @@ print,files[ifile]
            printf,altname, 'alt name: ',field,' ',$
                 allvisitloc[stars[istar]].(locind),' ',$
                 allvisitloc[stars[istar]].(objind),' ', $
-                objects[iobject].apogee_id
+                objects[iobject].apogee_id,objects[iobject].alt_id
            print, 'alt name: ',field,' ',$
                 allvisitloc[stars[istar]].(locind),' ',$
                 allvisitloc[stars[istar]].(objind),' ', $
-                objects[iobject].apogee_id
+                objects[iobject].apogee_id,objects[iobject].alt_id
            have_altname = 1 
          endif else have_altname=0
          cat=objects[iobject]
@@ -994,18 +978,14 @@ print,files[ifile]
             struct_assign, tmp_cat, tmp_allvisitloc, /nozero
             catalog_info_replace,cat,tmp_allvisitloc,missing=missing
             allvisitloc[jjj]= tmp_allvisitloc
-            allvisitloc[jjj].reduction_id = allvisitloc[jjj].apogee_id
             if have_altname then begin
-              allvisitloc[jjj].target_id = allvisitloc[jjj].apogee_id
-              allvisitloc[jjj].apogee_id = cat.apogee_id
-            endif
+              allvisitloc[jjj].alt_id = strtrim(allvisitloc[jjj].apogee_id,2)
+              allvisitloc[jjj].apogee_id = strtrim(cat.apogee_id,2)
+            endif else $
+              allvisitloc[jjj].alt_id = strtrim(cat.alt_id,2)
          endfor
      
          if nstarfiles gt 0 then begin
-            ;j=where((strtrim(allvisitloc.(objind),2) eq strtrim(allvisitloc[stars[istar]].(objind),2)) and $
-            ;         (allvisitloc.vtype gt 0),nj)
-            ;if nj gt 0 then visits = strmid(file_basename(allvisitloc[j].file,'.fits'),8)
-            
             j=where(strtrim(allstarloc.apogee_id,2) eq objname,nj)
             if nj eq 0 then begin
                splog,'No apstar found for object ',allvisitloc[stars[istar]].(objind),allvisitloc[stars[istar]].mjd
@@ -1025,26 +1005,15 @@ print,files[ifile]
                struct_assign, tmp_cat, tmp_allstarloc, /nozero
                catalog_info_replace,cat,tmp_allstarloc,missing=missing
                allstarloc[jjj]= tmp_allstarloc
-               allstarloc[jjj].reduction_id = allstarloc[jjj].apogee_id
                if have_altname then begin
-                 allstarloc[jjj].apogee_id = cat.apogee_id
-               endif
+                 allstarloc[jjj].alt_id = strtrim(allstarloc[jjj].apogee_id,2)
+                 allstarloc[jjj].apogee_id = strtrim(cat.apogee_id,2)
+               endif else $
+                  allstarloc[jjj].alt_id = strtrim(cat.alt_id)
             endfor
          endif
-      endif ;else begin
-      ;   splog,'missing ',allvisitloc[stars[istar]].(objind),' ', $
-      ;         allvisitloc[stars[istar]].(locind)
-      ;   printf,missing, 'missing: ', $
-      ;          field,' ',$
-      ;          allvisitloc[stars[istar]].(locind),' ',$
-      ;          allvisitloc[stars[istar]].(objind),' ',$
-      ;          allvisitloc[stars[istar]].ra,' ',$
-      ;          allvisitloc[stars[istar]].dec,' ',$
-      ;          allvisitloc[stars[istar]].h,' ',$
-      ;          allvisitloc[stars[istar]].snr
-      ;endelse
+      endif 
      endfor  ; loop over stars
-    endfor  ; loop over object files
     for istar=0,n_elements(stars)-1 do begin
       if catmin[istar] gt 9999 then begin
          splog,'missing ',allvisitloc[stars[istar]].(objind),' ', $
@@ -1107,6 +1076,7 @@ for k=0L,n_elements(allstar)-1 do begin
    allstar[k].target_id= $
             apogee_target_id(telescope=allstar[k].telescope, $
                              star= allstar[k].apogee_id, $
+                             locid= allstar[k].location_id, $
                              field= allstar[k].field)
    allstar[k].aspcap_id= $
             apogee_aspcap_id(locid=allstar[k].field, $
@@ -1120,6 +1090,7 @@ for k=0L,n_elements(allvisit)-1 do begin
    allvisit[k].target_id= $
             apogee_target_id(telescope=allvisit[k].telescope, $
                              star= allvisit[k].apogee_id, $
+                             locid= allvisit[k].location_id, $
                              field= allvisit[k].field)
    allvisit[k].visit_id= $
          apogee_visit_id(plate=allvisit[k].plate, $
@@ -1149,8 +1120,8 @@ if n_elements(u) ne n_elements(allstar) then begin
     junk=where(u eq i,nj)
     if nj eq 0 then begin
       j=where(allstar[u].apstar_id eq allstar[i].apstar_id)
-      printf,dup,'bad dup: ',i,' ',allstar[i].apogee_id,' ',allstar[i].reduction_id,' ',allstar[i].location_id,' ',allstar[i].field
-      printf,dup,'           ',allstar[u[j]].apogee_id,' ',allstar[u[j]].reduction_id,' ',allstar[u[j]].location_id,' ',allstar[u[j]].field
+      printf,dup,'bad dup: ',i,' ',allstar[i].apogee_id,' ',allstar[i].alt_id,' ',allstar[i].location_id,' ',allstar[i].field
+      printf,dup,'           ',allstar[u[j]].apogee_id,' ',allstar[u[j]].alt_id,' ',allstar[u[j]].location_id,' ',allstar[u[j]].field
     endif
   endfor
   allstar=allstar[u]
@@ -1164,8 +1135,8 @@ if n_elements(u) ne n_elements(allstar) then begin
     junk=where(u eq i,nj)
     if nj eq 0 then begin
       j=where(allstar[u].apogee_id eq allstar[i].apogee_id)
-      printf,dup,'dup: ',i,' ',allstar[i].apogee_id,' ',allstar[i].reduction_id,' ',allstar[i].location_id,' ',allstar[i].field,allstar[i].snr
-      printf,dup,'           ',allstar[u[j]].apogee_id,' ',allstar[u[j]].reduction_id,' ',allstar[u[j]].location_id,' ',allstar[u[j]].field,allstar[u[j]].snr
+      printf,dup,'dup: ',i,' ',allstar[i].apogee_id,' ',allstar[i].alt_id,' ',allstar[i].location_id,' ',allstar[i].field,allstar[i].snr
+      printf,dup,'           ',allstar[u[j]].apogee_id,' ',allstar[u[j]].alt_id,' ',allstar[u[j]].location_id,' ',allstar[u[j]].field,allstar[u[j]].snr
       ; if stars are from same field, are they just commissioning?
       if allstar[i].location_id ne allstar[u[j]].location_id or $
          allstar[i].field ne allstar[u[j]].field then $

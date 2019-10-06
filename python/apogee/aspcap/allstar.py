@@ -103,14 +103,21 @@ def trimfile(data) :
     return tab
 
 def new(infile='allStar-r12-l33-58358.fits',new='allStar-r12-l33.fits',trim='allStarLite-r12-l33.fits',
-        gaia_1='gaia_2mass_xmatch.fits.gz', gaia_2='gaia_posn_xmatch.fits.gz') :
+        gaia_1='gaia/gaia_2mass_xmatch.fits.gz', gaia_2='gaia/gaia_posn_xmatch.fits.gz',dr16new=False) :
     """ take allStar file, add GAIA info and new _spec columns, outpu
         also output allStarLite version
     """
-    hdulist=fits.open(infile)
-    gd=np.where(np.core.defchararray.strip(hdulist[1].data['APOGEE_ID']) != '')[0]
+    if dr16new :
+        hdulist=fits.open('testStar-r12-l33-58358.fits')
+        tab=dr16fix(hdulist[1].data,dr16file='sav/allStar-r12-l33-58358.fits')
+        new='newStar-r12-l33.fits'
+        trim='newStarLite-r12-l33.fits'
+    else :
+        hdulist=fits.open(infile)
+        tab=hdulist[1].data
+    gd=np.where(np.core.defchararray.strip(tab['APOGEE_ID']) != '')[0]
     print('adding gaia....')
-    tab=add_gaia(hdulist[1].data[gd],gaia_1=gaia_1,gaia_2=gaia_2)
+    tab=add_gaia(tab[gd],gaia_1=gaia_1,gaia_2=gaia_2)
     print('adding _SPEC columns....')
     tab=add_spec(tab)
     # populate TARGFLAG for 1m observations
@@ -144,3 +151,52 @@ def new(infile='allStar-r12-l33-58358.fits',new='allStar-r12-l33.fits',trim='all
     out=fits.HDUList()
     out.append(fits.BinTableHDU(trimfile(tab)))
     out.writeto(trim,overwrite=True)
+
+
+def dr16fix(a,dr16file='allStar-r12-l33-58358.fits') :
+    """  Routine to take a modified allStar file plus the original DR16 allStarfile
+         and return the new version, but with the stars in the exact same order/location
+         as the original DR16 file. Written after fixes for better apogeeObject target
+         matching (which led to incorrect matches in original DR16 file), and changes
+         for TARGET_ID and some of the selection function tags
+    """
+
+    # get old and new files
+    old=fits.open(dr16file)[1].data
+
+    # loop over the old file entries, and find the matching entry in new file
+    #   based on a number of tags (but not necessarily APOGEE_ID
+    ind=[]
+    for i in range(len(old)) :
+        if ((a['APOGEE_ID'][i] != old['APOGEE_ID'][i]) or
+            (a['FIELD'][i] != old['FIELD'][i]) or
+            (a['TEFF'][i] != old['TEFF'][i]) or
+            (a['FPARAM'][i,0] != old['FPARAM'][i,0]) or
+            (a['FPARAM'][i,1] != old['FPARAM'][i,1]) or
+            (a['STARFLAG'][i] != old['STARFLAG'][i]) or
+            (a['SNR'][i] != old['SNR'][i]) or
+            (a['TELESCOPE'][i] != old['TELESCOPE'][i]) or
+            (a['MEANFIB'][i] != old['MEANFIB'][i]) 
+            ) :
+            match=-1
+            for j in range(-10,10) :
+                if ((a['FIELD'][i+j] == old['FIELD'][i]) and
+                    (a['TEFF'][i+j] == old['TEFF'][i]) and
+                    (a['FPARAM'][i+j,0] == old['FPARAM'][i,0]) and
+                    (a['FPARAM'][i+j,1] == old['FPARAM'][i,1]) and
+                    (a['STARFLAG'][i+j] == old['STARFLAG'][i]) and
+                    (a['SNR'][i+j] == old['SNR'][i]) and
+                    (a['TELESCOPE'][i+j] == old['TELESCOPE'][i]) and
+                    (a['MEANFIB'][i+j] == old['MEANFIB'][i])
+                    ) :
+                    #print(i,i+j,a['APOGEE_ID'][i],old['APOGEE_ID'][i],a['TEFF'][i],old['TEFF'][i])
+                    match=i+j
+                    break
+            if match < 0 : print('no match: ',old['APOGEE_ID'][i])
+        else : match = i
+        ind.append(match)
+    print(len(ind),len(set(ind)))
+    print(set(range(len(a)))-set(ind))
+    pdb.set_trace()
+    return a[ind]
+

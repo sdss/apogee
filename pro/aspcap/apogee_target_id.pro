@@ -15,9 +15,9 @@
 ;   J. Holtzman, June 2013
 ;                April 2019
 ;-
-function apogee_target_id, telescope=telescope, star=star, field=field
+function apogee_target_id, telescope=telescope, star=star, field=field, locid=locid
 
-id=strtrim(string(telescope),2)+'.'+strtrim(field,2)+'.'+strtrim(star,2) 
+id=strtrim(string(telescope),2)+'.'+strtrim(string(locid),2)+'.'+strtrim(field,2)+'.'+strtrim(star,2) 
 
 return, id
 

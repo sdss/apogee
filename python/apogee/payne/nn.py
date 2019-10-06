@@ -463,7 +463,8 @@ def test(pmn, pstd, mn, std, weights, biases,n=100, t0=[3750.,4500.], g0=2., mh0
         if i == 0 : ax[i,it0].set_title('{:8.0f}{:7.2f}{:7.2f}'.format(t0[it0],g0,mh0))
     fig.tight_layout()
 
-def fitinput(file,model,threads=8,nfit=8,dofit=True,order=4,pixel_model=False,normalize=False,raw=False, mcmc=False,err=0.005,ferre=False,plotspec=False) :
+def fitinput(file,model,threads=8,nfit=8,dofit=True,order=4,pixel_model=False,normalize=False,raw=False, 
+             validation=True,mcmc=False,err=0.005,ferre=False,plotspec=False) :
     """ Solves for parameters using input spectra and NN model
     """
     if pixel_model: mod=get_model_pixel(model)
@@ -472,9 +473,18 @@ def fitinput(file,model,threads=8,nfit=8,dofit=True,order=4,pixel_model=False,no
         else : aspcappix=False
         mod=get_model(model,aspcappix=aspcappix)
 
-    if ferre :s, p = readferre(file, label_names=mod['label_names'])
+    if ferre : s, p = readferre(file, label_names=mod['label_names'])
     else : s, p = read(file,raw=raw, label_names=mod['label_names'])
     if nfit == 0 : nfit = p.shape[0]
+
+    nfit = NN_coeffs['nfit']
+    ind_shuffle = NN_coeffs['ind_shuffle']
+    pdb.set_trace()
+    s = s[ind_shuffle]
+    p = p[ind_shuffle]
+    if validation:
+        s=s[nfit:]
+        p=p[nfit:]
 
     nlab=len(mod['label_names'])
     init=np.zeros(nlab)
@@ -498,13 +508,15 @@ def fitinput(file,model,threads=8,nfit=8,dofit=True,order=4,pixel_model=False,no
                 cont = norm.cont(obs,specerr,poly=True,order=order,chips=True,apstar=not aspcappix)
                 specs.append((obs/cont, specerr, init, (bounds_lo,bounds_hi), order))
             else:
-                specs.append((obs, specerr, init, (bounds_lo,bounds_hi), order))
+                specs.append((obs, specerr, init, (bounds_lo,bounds_hi), 0))
 
         if threads==0 :
+            pdb.set_trace()
             output=[]
             for i in range(nfit) :
+                print('true: ',p[i])
                 out=solve(specs[i])
-            output.append(out)
+                output.append(out)
         else :
             pool = mp.Pool(threads)
             output = pool.map_async(solve, specs).get()
@@ -658,10 +670,13 @@ def solve(spec) :
     try:
         # do a least squares pass, which doesn't accomodate passing specerr for continuum
         try : fpars,fcov = curve_fit(spectrum,pix[gd],s[gd],sigma=serr[gd],p0=init,bounds=bounds)
-        except : fpars = init
+        except : 
+            print('curve_fit failed...')
+            fpars = init
         newbounds=[]
         for i in range(len(bounds[0])) : newbounds.append((bounds[0][i],bounds[1][i]))
-        res = minimize(func,fpars,args=(s[gd],serr[gd],order),bounds=newbounds)
+        try: res = minimize(func,fpars,args=(s[gd],serr[gd],order),bounds=newbounds)
+        except: print('minimize failed')
     except ValueError:
         print("Error - value error")
         print(init)
@@ -671,7 +686,8 @@ def solve(spec) :
         fpars=init*0.
 
     #return fpars
-    return res.x
+    try : return res.x
+    except: return 0
 
 
 def fitfield(model,field,stars=None,nfit=0,order=4,threads=8,plot=False,write=True,telescope='apo25m') :
@@ -681,10 +697,11 @@ def fitfield(model,field,stars=None,nfit=0,order=4,threads=8,plot=False,write=Tr
     # get model and list of stars
     mod = get_model(model,aspcappix=True)
     nlab=len(mod['label_names'])
-    init=np.zeros(nlab)
     bounds_lo=mod['x_min']
     bounds_hi=mod['x_max']
 
+    # set initial guess
+    init=np.zeros(nlab)
     j=np.where(np.core.defchararray.strip(mod['label_names']) == 'Teff')[0]
     init[j] = 4000.
     j=np.where(np.core.defchararray.strip(mod['label_names']) == 'logg')[0]
@@ -773,7 +790,7 @@ def fitfield(model,field,stars=None,nfit=0,order=4,threads=8,plot=False,write=Tr
     if write : out.write('nn-'+field+'-'+telescope+'.fits',format='fits',overwrite=True)
     return out
 
-def aspcap_comp(model,fields,plot=True,save=None,loggmax=99,telescope='apo25m') :
+def aspcap_comp(model,fields,plot=True,save=None,loggmax=99,telescope='apo25m',indir='./') :
     """ Compare NN results with ASPCAP 
     """
 
@@ -787,7 +804,7 @@ def aspcap_comp(model,fields,plot=True,save=None,loggmax=99,telescope='apo25m') 
       print(field)
 
       try :
-        out=fits.open('nn-'+field+'.fits')[1].data
+        out=fits.open(indir+'/nn-'+field+'.fits')[1].data
         nfit = len(out)
         print(field,nfit)
         if 'lco25m' in field : load.settelescope('lco25m')
@@ -861,7 +878,7 @@ def aspcap_comp(model,fields,plot=True,save=None,loggmax=99,telescope='apo25m') 
     if save is not None :
         fig.savefig(save+'.png')
 
-    return npars_all
+    return npars_all, apars_all
 
 def pprint(pars) :
     fmt='{:8.1f}'
@@ -981,7 +998,7 @@ def readferre(file,raw=True,label_names=None) :
 
     return spectra, labels
 
-def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=True,training=True,
+def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=True,
          teff=[0,10000],logg=[-1,6],mh=[-3,1],am=[-1,1],cm=[-2,2],nm=[-2,2]) :
     ''' plots to assess quality of a model
     '''
@@ -991,15 +1008,16 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
     # read spectra and labels, and get indices for training and validation set
     true,labels = read(file,raw=raw,label_names=NN_coeffs['label_names'])
 
-    gd=np.where((labels[:,0]>=teff[0]) & (labels[:,0]<=teff[1]) &
-                (labels[:,1]>=logg[0]) & (labels[:,1]<=logg[1]) &
-                (labels[:,2]>=mh[0]) & (labels[:,2]<=mh[1]) &
-                (labels[:,3]>=am[0]) & (labels[:,3]<=am[1]) &
-                (labels[:,4]>=cm[0]) & (labels[:,4]<=cm[1])  &
-                (labels[:,5]>=nm[0]) & (labels[:,5]<=nm[1]) 
-               )[0]
-    true = true[gd]
-    labels = labels[gd]
+    #gd=np.where((labels[:,0]>=teff[0]) & (labels[:,0]<=teff[1]) &
+    #            (labels[:,1]>=logg[0]) & (labels[:,1]<=logg[1]) &
+    #            (labels[:,2]>=mh[0]) & (labels[:,2]<=mh[1]) &
+    #            (labels[:,3]>=am[0]) & (labels[:,3]<=am[1]) &
+    #            (labels[:,4]>=cm[0]) & (labels[:,4]<=cm[1])  &
+    #            (labels[:,5]>=nm[0]) & (labels[:,5]<=nm[1]) 
+    #           )[0]
+    #pdb.set_trace()
+    #true = true[gd]
+    #labels = labels[gd]
 
     nfit = NN_coeffs['nfit']
     ind_shuffle = NN_coeffs['ind_shuffle']
@@ -1008,49 +1026,52 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
     if validation:
         true=true[nfit:]
         labels=labels[nfit:]
-    elif training :
+    else :
         true=true[:nfit]
         labels=labels[:nfit]
 
     # loop over the spectra
     if plotspec: plt.figure()
     nn=[]
+    pdb.set_trace()
     for i,lab in enumerate(labels) :
         # calculate model spectrum and accumulate model array
         pix = np.arange(8575)
         spec = spectrum(pix, *lab)
         nn.append(spec)
-        #if plotspec :
-        #    plt.clf()
-        #    plt.plot(true[i,j])
-        #    plt.plot(apstar[j])
-        #    plt.plot(apstar[j]/true[i,j])
-        #    plt.show()
-        #    pdb.set_trace()
+        if plotspec :
+            plt.clf()
+            plt.plot(true[i,j])
+            plt.plot(apstar[j])
+            plt.plot(apstar[j]/true[i,j])
+            plt.show()
+            pdb.set_trace()
         #n=len(np.where(np.abs(apstar[j]-true[i,j]) > 0.05)[0])
     nn=np.array(nn)
 
     # histogram of ratio of nn to true
     print("making nn/raw comparison histogram ...")
     # pixels across sample
-    fig,ax=plots.multi(2,2)
+    fig,ax=plots.multi(2,2,figsize=(12,8))
     # percentiles across wavelength
     fig2,ax2=plots.multi(1,3,hspace=0.001)
     # in parameter space
     fig3,ax3=plots.multi(2,3,hspace=0.001,wspace=0.001)
+    for f in [fig,fig2,fig3] :
+        if validation : f.suptitle('validation set')
+        else : f.title('training set')
 
     # consider full sample and several bins in Teff and [M/H]
-    tbins=[[3000,8000],[3500,4000],[4000,5000],[5000,6000],[3500,4000],[4000,5000],[5000,6000]]
+    tbins=[[3000,8000],[3000,4000],[4000,5000],[5000,6000],[3000,4000],[4000,5000],[5000,6000]]
     mhbins=[[-2.5,1.0],[-0.5,1.0],[-0.5,1.0],[-0.5,1.0],[-2.5,-0.5],[-2.5,-0.5],[-2.5,-0.5]]
-    names=['all','3500<Te<4000, M/H>-0.5','4000<Te<5000, M/H>-0.5','5000<Te<6000, M/H>-0.5',
-                 '3500<Te<4000, M/H<-0.5','4000<Te<5000, M/H<-0.5','5000<Te<6000, M/H<-0.5']
+    names=['all','3000<Te<4000, M/H>-0.5','4000<Te<5000, M/H>-0.5','5000<Te<6000, M/H>-0.5',
+                 '3000<Te<4000, M/H<-0.5','4000<Te<5000, M/H<-0.5','5000<Te<6000, M/H<-0.5']
     colors=['k','r','g','b','c','m','y']
     lws=[3,1,1,1,1,1,1]
 
     for tbin,mhbin,name,color,lw in zip(tbins,mhbins,names,colors,lws) :
-        # validation set
-        gd = np.where( (labels[:,0] > tbin[0]) & (labels[:,0] < tbin[1]) &
-                       (labels[:,2] > mhbin[0]) & (labels[:,2] < mhbin[1])) [0]
+        gd = np.where( (labels[:,0] >= tbin[0]) & (labels[:,0] <= tbin[1]) &
+                       (labels[:,2] >= mhbin[0]) & (labels[:,2] <= mhbin[1])) [0]
         print(tbin,len(gd))
         if len(gd) > 0 :
             t1=nn[gd,:]
@@ -1059,8 +1080,8 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
             # differential fractional error of all pixels
             err=(t1-t2)/t2
             hist,bins=np.histogram(err.flatten(),bins=np.linspace(-0.2,0.2,4001))
-            plots.plotl(ax[0,0],np.linspace(-0.200+0.005,0.2,4000),hist/hist.sum(),semilogy=True,xt='nn/true',
-                        label=name,xr=[-0.2,0.5],color=color,linewidth=lw)
+            plots.plotl(ax[0,0],np.linspace(-0.200+0.005,0.2,4000),hist/hist.sum(),semilogy=True,xt='(nn-true)/true',
+                        label=name,xr=[-0.1,0.25],color=color,linewidth=lw)
             ax[0,0].legend(fontsize='x-small')
 
             # cumulative fractional error of all pixels
@@ -1085,24 +1106,23 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
             plots.plotl(ax[1,0],np.logspace(-7,3,500),np.cumsum(hist)/np.float(hist.sum()),color=color,linewidth=lw,ls='--')
             hist,bins=np.histogram(perc[1,:],bins=np.logspace(-7,3,501))
             plots.plotl(ax[1,0],np.logspace(-7,3,500),np.cumsum(hist)/np.float(hist.sum()),color=color,linewidth=lw)
-            ax[1,0].set_ylabel('Cumulative, perc across models')
+            ax[1,0].set_ylabel('Cumulative, fraction of pixels')
 
             # cumulative of 50 and 95 percentile across wavelengths
             p=[50,95,99,100]
             perc=np.percentile(err,p,axis=1)
-            pdb.set_trace()
             hist,bins=np.histogram(perc[0,:],bins=np.logspace(-7,3,501))
             plots.plotl(ax[1,1],np.logspace(-7,3,500),np.cumsum(hist)/np.float(hist.sum()),color=color,ls=':',linewidth=lw)
             hist,bins=np.histogram(perc[1,:],bins=np.logspace(-7,3,501))
             plots.plotl(ax[1,1],np.logspace(-7,3,500),np.cumsum(hist)/np.float(hist.sum()),color=color,linewidth=lw,ls='--')
             hist,bins=np.histogram(perc[1,:],bins=np.logspace(-7,3,501))
             plots.plotl(ax[1,1],np.logspace(-7,3,500),np.cumsum(hist)/np.float(hist.sum()),color=color,linewidth=lw)
-            ax[1,1].set_ylabel('Cumulative, perc across wave')
+            ax[1,1].set_ylabel('Cumulative, fraction of models')
 
             for ix,iy in zip([1,0,1],[0,1,1]) :
                 ax[iy,ix].set_xlim(0.,0.01)
                 ax[iy,ix].set_ylim(0.,1.0)
-                ax[iy,ix].set_xlabel('|nn-true|')
+                ax[iy,ix].set_xlabel('|(nn-true)/true|')
                 ax[iy,ix].set_xscale('log')
                 ax[iy,ix].set_xlim(1.e-4,0.01)
 
@@ -1138,7 +1158,7 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
     plt.close()
     plt.close()
     plt.close()
-    return nn, true
+    return nn, true, labels
 
 if __name__ == '__main__' :
 

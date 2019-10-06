@@ -42,6 +42,7 @@ import matplotlib.pyplot as plt
 from tools import plots
 from tools import match
 from tools import html
+from synple import synple
 
 colors=['r','g','b','c','m','y']
 
@@ -243,11 +244,21 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
 
     # linelists
     if linelistdir is None : linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/' 
-    linelists = []
-    n_HI = len(open(linelistdir+'/turbospec.'+linelist+'.Hlinedata').readlines())
-    if n_HI > 2 : linelists.append(linelistdir+'/turbospec.'+linelist+'.Hlinedata')
-    if atoms : linelists.append(linelistdir+'/turbospec.'+linelist+'.atoms')
-    if molec : linelists.append(linelistdir+'/turbospec.'+linelist+'.molec')
+    if code == 'turbospec' :
+        linelists = []
+        n_HI = len(open(linelistdir+'/turbospec.'+linelist+'.Hlinedata').readlines())
+        if n_HI > 2 : linelists.append(linelistdir+'/turbospec.'+linelist+'.Hlinedata')
+        if atoms : linelists.append(linelistdir+'/turbospec.'+linelist+'.atoms')
+        if molec : linelists.append(linelistdir+'/turbospec.'+linelist+'_nofeh_noc2.molec')
+    elif code == 'synspec' :
+        linelists = [linelistdir+'/synspec/synspec.'+linelist+'.atoms']
+        if solarisotopes : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'sun.molec')
+        else : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'giant_nofeh_noh2o_noc2.molec')
+        h2o=0
+        #linelists = ['apogeeDR16.20180901.19','apogeeDR16_arc.20']
+    else :
+        print('unknown code!')
+        pdb.set_trace()
 
     tfactor=1
     if h2o is None : 
@@ -287,7 +298,13 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
 
     cwd = os.getcwd()
     os.chdir(workdir)
-    out = do_turbospec(root,atmod,linelists,mh,am,abundances,wrange,dw,save=save,run=run,solarisotopes=solarisotopes,bsyn=False,atmos_type=atmos_type,vmicro=vmicro)
+
+    # if turbospec do the opacity calculations first, then synthesis for all eabun
+    if code == 'turbospec' :
+        out = do_turbospec(root,atmod,linelists,mh,am,abundances,wrange,dw,save=save,run=run,
+                           solarisotopes=solarisotopes,bsyn=False,atmos_type=atmos_type,vmicro=vmicro)
+    elif code == 'synspec' :
+        abundances = 10.**(np.array(abundances)-abundances[0])
 
     # if this is an elemgrid, loop over abundances
     for ielem,abun in enumerate(eabun) :
@@ -302,14 +319,13 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
                 wave,flux,fluxnorm = do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,
                                                   save=save,run=run,solarisotopes=solarisotopes,
                                                   babsma=root+'opac',atmos_type=atmos_type,spherical=spherical,tfactor=tfactor)
-                spec=out[:,2]
-                specnorm=out[:,1]
             else :
                 out = do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,
                                    save=save,run=run,solarisotopes=solarisotopes,
                                    babsma=root+'opac',atmos_type=atmos_type,spherical=spherical,tfactor=tfactor)
         elif code == 'synspec' :
-            wave,flux,cont = synple.syn(atmod,wrange,linelist=linelists,dw=dw,abu=abundancers,save=save)
+            wave,flux,cont = synple.syn(atmod,wrange,linelist=linelists,dw=dw,vmicro=vmicro,save=save)
+            #wave,flux,cont = synple.syn(atmod,wrange,linelist=linelists,dw=dw,abu=abundances,vmicro=vmicro,save=save)
             fluxnorm = flux/cont
         else :
             print('unknown synth code!')
@@ -447,10 +463,13 @@ def do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,save=False,run=
         subprocess.call(['time','./'+os.path.basename(file)+'_bsyn.csh'],stdout=stdout)
         try:
             out=np.loadtxt(file)
+            wave=out[:,1]
+            specnorm=out[:,1]
+            spec=out[:,2]
         except :
             print('failed...',file,atmod,mh,am)
-            return 0.,0.
-        return out
+            return 0.,0.,0.
+        return wave,spec,specnorm
 
 def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
     els=None,atmod=None,kurucz=True,atmosroot=None,atmosdir=None,nskip=0,fill=True,
@@ -792,7 +811,7 @@ def get_vmicro(vmicrofit,vmicro,teff=None,logg=None,mh=None) :
         pdb.set_trace()
     return vm
 
-def mkgrid(planfile,clobber=False,save=False,run=True) :
+def mkgrid(planfile,code=None,clobber=False,save=False,run=True) :
     """ Create a grid of synthetic spectra using Turbospectrum given specifications in  input parameter file
         Outputs results in FITS file
 
@@ -898,11 +917,18 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
                 vout = get_vmicro(vmicrofit,vmicro,teff=teff,logg=logg,mh=mh)
                 print(teff,logg,mh,am,cm,nm,oa,vout)
                 while nskip >= 0 and nskip < 10 :
-                  spec,specnorm=mkturbospec(int(teff),logg,mh,am,cm,nm,els=oa,
-                    wrange=wrange,dw=dw,atmosdir=marcsdir,
-                    elemgrid=elem,linelistdir=linelistdir+'/'+elem+'/',linelist=linelist,vmicro=vout,
-                    solarisotopes=solarisotopes,
-                    nskip=nskip,kurucz=kurucz,run=run,save=save) 
+                  if code is None :
+                      spec,specnorm=mkturbospec(int(teff),logg,mh,am,cm,nm,els=oa,
+                        wrange=wrange,dw=dw,atmosdir=marcsdir,
+                        elemgrid=elem,linelistdir=linelistdir+'/'+elem+'/',linelist=linelist,vmicro=vout,
+                        solarisotopes=solarisotopes,
+                        nskip=nskip,kurucz=kurucz,run=run,save=save) 
+                  else :
+                      spec,specnorm=mk_synthesis(code,int(teff),logg,mh,am,cm,nm,els=oa,
+                        wrange=wrange,dw=dw,atmosdir=marcsdir,
+                        elemgrid=elem,linelistdir=linelistdir+'/'+elem+'/',linelist=linelist,vmicro=vout,
+                        solarisotopes=solarisotopes,
+                        nskip=nskip,atmos_type=p['atmos'],run=run,save=save,h2o=0) 
                   nskip = nskip+dskip if isinstance(spec,float) else -1
                 if nskip > 0 : 
                     print('FAILED Turbospec',nskip)
@@ -1276,7 +1302,7 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',te
     names=ascii.read(file).colnames
     pars=np.loadtxt(file)
     if lines is not None :
-        pars = pars[lines[0]:lines[1]]
+        pars = pars[lines[0]:min([len(pars),lines[1]])]
         suffix = '_{:d}'.format(lines[0])
     else :
         suffix = ''

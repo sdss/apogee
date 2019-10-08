@@ -75,7 +75,7 @@ def add_gaia(data,gaia_1='gaia_2mass_xmatch.fits.gz', gaia_2='gaia_posn_xmatch.f
     # replace NaNs
     for name in out_names :
         bd = np.where(np.isnan(tab[outname]))[0]
-        tab[outname][j] = -9999.
+        tab[outname][bd] = -9999.
 
     return tab
 
@@ -199,3 +199,32 @@ def dr16fix(a,dr16file='allStar-r12-l33-58358.fits') :
     print(set(range(len(a)))-set(ind))
     return a[ind]
 
+def dr16check(file='newStar-r12-l33.fits',dr16file='allStar-r12-l33.fits') :
+
+    new=fits.open(file)[1].data
+    old=fits.open(dr16file)[1].data
+    print(len(old),len(new))
+    nbad=0
+    for i in range(len(old)):
+        if i%1000 == 0 : print(i)
+        if ((new['FIELD'][i] != old['FIELD'][i]) or
+            (new['TEFF'][i] != old['TEFF'][i]) or
+            (new['FPARAM'][i,0] != old['FPARAM'][i,0]) or
+            (new['FPARAM'][i,1] != old['FPARAM'][i,1]) or
+            (new['STARFLAG'][i] != old['STARFLAG'][i]) or
+            (new['TARGFLAGS'][i] != old['TARGFLAGS'][i]) or
+            (new['FE_H'][i] != old['FE_H'][i]) or
+            (new['MG_FE'][i] != old['MG_FE'][i]) or
+            (new['SNR'][i] != old['SNR'][i]) or
+            (new['TELESCOPE'][i] != old['TELESCOPE'][i]) or
+            (new['H'][i] != old['H'][i]) or
+            (new['AK_TARG'][i] != old['AK_TARG'][i]) or
+            (new['AK_WISE'][i] != old['AK_WISE'][i]) or
+            (new['APOGEE_ID'][i] != old['APOGEE_ID'][i]) or
+            (new['MEANFIB'][i] != old['MEANFIB'][i]) 
+           ) :
+             print(i,new['APOGEE_ID'][i],old['APOGEE_ID'][i],new['H'][i],old['H'][i])
+             nbad+=1
+
+    print('nbad:',nbad)
+ 

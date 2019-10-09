@@ -4,6 +4,7 @@ from astropy.table import Table
 from astropy.io import fits
 from apogee.utils import bitmask
 from tools import match
+import os
 import pdb
  
 def mkcoord(file='allStar-r12-l33-58358.fits') :
@@ -108,10 +109,8 @@ def new(infile='allStar-r12-l33-58358.fits',new='allStar-r12-l33.fits',trim='all
         also output allStarLite version
     """
     if dr16new :
-        hdulist=fits.open('testStar-r12-l33-58358.fits')
+        hdulist=fits.open(infile)
         tab=dr16fix(hdulist[1].data,dr16file='sav/allStar-r12-l33-58358.fits')
-        new='newStar-r12-l33.fits'
-        trim='newStarLite-r12-l33.fits'
     else :
         hdulist=fits.open(infile)
         tab=hdulist[1].data
@@ -142,6 +141,9 @@ def new(infile='allStar-r12-l33-58358.fits',new='allStar-r12-l33.fits',trim='all
     # write out the modified file
     print('writing file ',new)
     out=fits.HDUList()
+    hdu=fits.PrimaryHDU()
+    hdu.header.add_comment('APOGEE_VER:'+os.environ['APOGEE_VER'])
+    out.append(hdu)
     out.append(fits.BinTableHDU(tab))
     out.append(hdulist[2])
     out.append(hdulist[3])
@@ -149,6 +151,7 @@ def new(infile='allStar-r12-l33-58358.fits',new='allStar-r12-l33.fits',trim='all
 
     print('writing file ',trim)
     out=fits.HDUList()
+    out.append(hdu)
     out.append(fits.BinTableHDU(trimfile(tab)))
     out.writeto(trim,overwrite=True)
 

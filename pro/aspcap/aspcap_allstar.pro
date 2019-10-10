@@ -1190,7 +1190,10 @@ for i=0L,n_elements(allstarsort)-1 do begin
    junk=where(allvisitsort[i1:i2].(objind) eq allstarsort[i].apogee_id and $
             (finite(allvisitsort[i1:i2].vrel) eq 1) ,nk2)
    if allstarsort[i].nvisits ne nk then printf,missing,'nvisits does not match all visits: ',allstarsort[i].nvisits,nk,nk2
-   pk=where((allvisitsort[i1:i2].target_id eq allstarsort[i].target_id) and $
+   ;pk=where((allvisitsort[i1:i2].target_id eq allstarsort[i].target_id) and $
+   pk=where((allvisitsort[i1:i2].apogee_id eq allstarsort[i].apogee_id) and $
+            (allvisitsort[i1:i2].telescope eq allstarsort[i].telescope) and $
+            (allvisitsort[i1:i2].field eq allstarsort[i].field) and $
             (finite(allvisitsort[i1:i2].vrel) eq 1) and $
             (allvisitsort[i1:i2].vrel lt 99999) and $
             (allvisitsort[i1:i2].commiss eq allstarsort[i].commiss),nk)

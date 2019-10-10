@@ -75,8 +75,8 @@ def add_gaia(data,gaia_1='gaia_2mass_xmatch.fits.gz', gaia_2='gaia_posn_xmatch.f
 
     # replace NaNs
     for name in out_names :
-        bd = np.where(np.isnan(tab[outname]))[0]
-        tab[outname][bd] = -9999.
+        bd = np.where(np.isnan(tab[name]))[0]
+        tab[name][bd] = -9999.
 
     return tab
 
@@ -210,24 +210,46 @@ def dr16check(file='newStar-r12-l33.fits',dr16file='allStar-r12-l33.fits') :
     nbad=0
     for i in range(len(old)):
         if i%1000 == 0 : print(i)
-        if ((new['FIELD'][i] != old['FIELD'][i]) or
-            (new['TEFF'][i] != old['TEFF'][i]) or
-            (new['FPARAM'][i,0] != old['FPARAM'][i,0]) or
-            (new['FPARAM'][i,1] != old['FPARAM'][i,1]) or
-            (new['STARFLAG'][i] != old['STARFLAG'][i]) or
-            (new['TARGFLAGS'][i] != old['TARGFLAGS'][i]) or
-            (new['FE_H'][i] != old['FE_H'][i]) or
-            (new['MG_FE'][i] != old['MG_FE'][i]) or
-            (new['SNR'][i] != old['SNR'][i]) or
-            (new['TELESCOPE'][i] != old['TELESCOPE'][i]) or
-            (new['H'][i] != old['H'][i]) or
-            (new['AK_TARG'][i] != old['AK_TARG'][i]) or
-            (new['AK_WISE'][i] != old['AK_WISE'][i]) or
-            (new['APOGEE_ID'][i] != old['APOGEE_ID'][i]) or
-            (new['MEANFIB'][i] != old['MEANFIB'][i]) 
-           ) :
-             print(i,new['APOGEE_ID'][i],old['APOGEE_ID'][i],new['H'][i],old['H'][i])
-             nbad+=1
+        for col in old.columns.names :
+            if col == 'PARAM_COV' : continue
+            if col == 'FPARAM_COV' : continue
+            if col == 'FPARAM_CLASS' : continue
+            if col == 'REDUCTION_ID' : continue
+            if col == 'TARGET_ID' : continue
+            if col == 'MIN_H' : continue
+            if col == 'MAX_H' : continue
+            if col == 'MIN_JK' : continue
+            if col == 'MAX_JK' : continue
+            if col == 'GAIA_RADIAL_VELOCITY' : continue
+            if col == 'GAIA_RADIAL_VELOCITY_ERROR' : continue
+            try: 
+                for j in range(len(new[col][i])) :
+                    if new[col][i,j] != old[col][i,j] :
+                        print(i,col,new[col][i,j],old[col][i,j],new['FIELD'][i],old['FIELD'][i])
+            except:
+                if new[col][i] != old[col][i] :
+                    print(i,col,new[col][i],old[col][i],new['FIELD'][i],old['FIELD'][i])
+
+        #if ((new['FIELD'][i] != old['FIELD'][i]) or
+        #    (new['TEFF'][i] != old['TEFF'][i]) or
+        #    (new['FPARAM'][i,0] != old['FPARAM'][i,0]) or
+        #    (new['FPARAM'][i,1] != old['FPARAM'][i,1]) or
+        #    (new['STARFLAG'][i] != old['STARFLAG'][i]) or
+        #    (new['TARGFLAGS'][i] != old['TARGFLAGS'][i]) or
+        #    (new['FE_H'][i] != old['FE_H'][i]) or
+        #    (new['MG_FE'][i] != old['MG_FE'][i]) or
+        #    (new['SNR'][i] != old['SNR'][i]) or
+        #    (new['TELESCOPE'][i] != old['TELESCOPE'][i]) or
+        #    (new['H'][i] != old['H'][i]) or
+        #    (new['AK_TARG'][i] != old['AK_TARG'][i]) or
+        #    (new['AK_WISE'][i] != old['AK_WISE'][i]) or
+        #    (new['APOGEE_ID'][i] != old['APOGEE_ID'][i]) or
+        #    (new['MEANFIB'][i] != old['MEANFIB'][i]) 
+        #   ) :
+        #     print(i,new['APOGEE_ID'][i],old['APOGEE_ID'][i],new['H'][i],old['H'][i])
+        #     print('   ',new['AK_TARG'][i],old['AK_TARG'][i],new['FIELD'][i],old['FIELD'][i])
+        #     print('   ',new['AK_TARG_METHOD'][i],old['AK_TARG_METHOD'][i],new['SURVEY'][i],old['SURVEY'][i])
+        #     nbad+=1
 
     print('nbad:',nbad)
  

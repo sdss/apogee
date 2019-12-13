@@ -53,7 +53,6 @@ if (cont == 1) then
 	enddo
 endif
 
-
 do j=1,nsynth		
 	
 	if (abs(hs(j)%res-0._dp) > 1e-6_dp) then	!skip photometry
@@ -93,7 +92,7 @@ do j=1,nsynth
 		          write(*,*) 'It is being ignored!'
 		          nel2=nel
 		          xaxis2(1:nel)=xaxis(1:nel)
-		          x2(1:nel)=x(1:nel)
+		          x2(1:nel)=x(p1:p2)
 		        endif
 		    	if (n == 0) then 
 			    !order 0 is just the mean			    

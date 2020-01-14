@@ -31,11 +31,10 @@ def writespec(name,data) :
     return 
 
 
-def writenml(outfile,file,libhead,ncpus=2,nruns=1,interord=3,direct=1,pca=1,errbar=1,indi=None,indv=None,filterfile=None,f_format=1,f_access=0,
-               init=None,indini=None,renorm=None,obscont=0,algor=1,nov=None,stopcr=None) :
+def writenml(outfile,file,libhead,ncpus=2,nruns=1,inter=3,direct=1,pca=1,errbar=1,indi=None,indv=None,filterfile=None,f_format=1,f_access=0,
+               init=None,indini=None,renorm=None,obscont=0,rejectcont=0,algor=1,nov=None,stopcr=None,ttie=None) :
     """ Writes FERRE control file
     """
-
     f=open(outfile,'w')
     f.write(' &LISTA\n')
     ndim=libhead['N_OF_DIM']
@@ -50,7 +49,7 @@ def writenml(outfile,file,libhead,ncpus=2,nruns=1,interord=3,direct=1,pca=1,errb
         f.write((' NOV = {:2d}\n').format(nov))
         f.write(' INDV = '+np.array2string(np.array(indv)).strip('[]')+'\n')
     f.write(" SYNTHFILE(1) = '"+libhead['FILE']+"'\n")
-    if filterfile is not None : f.write(' FILTERFILE = '+filterfile+'\n')
+    if filterfile is not None : f.write(" FILTERFILE = '"+filterfile+"'\n")
     f.write(" PFILE = '"+file+".ipf'\n")
     f.write(" OFFILE = '"+file+".mdl'\n")
     if nov > 0 :
@@ -61,6 +60,7 @@ def writenml(outfile,file,libhead,ncpus=2,nruns=1,interord=3,direct=1,pca=1,errb
         f.write(' CONT = 1\n')
         f.write(' NCONT = {:d}\n'.format(renorm))
         f.write(' OBSCONT = {:d}\n'.format(obscont))
+        f.write(' REJECTCONT = {:f}\n'.format(rejectcont))
         f.write(" SFFILE = '"+file+".frd'\n")
     elif nov > 0 :
         f.write(" FFILE = '"+file+".frd'\n")
@@ -74,11 +74,19 @@ def writenml(outfile,file,libhead,ncpus=2,nruns=1,interord=3,direct=1,pca=1,errb
             for term in indini : nruns = nruns * term
         f.write(' NRUNS = {:2d}\n'.format(nruns))
     if stopcr is not None : f.write(' STOPCR = {:f}\n'.format(stopcr))
+    if ttie is not None :
+        f.write(' NTIE = {:2d}\n'.format(len(ttie)))
+        f.write(' TYPETIE = 1\n')
+        for i,tie in enumerate(ttie) :
+            f.write(' INDTIE({:d}) = {:d}\n'.format(i+1,tie))
+            f.write(' TTIE0({:d}) = 0.\n'.format(i+1,tie))
+            f.write(' TTIE({:d},{:d}) = -1.\n'.format(i+1,indv[0],tie))
+
     f.write(' NTHREADS = {:2d}\n'.format(ncpus))
     f.write(' COVPRINT = 1\n')
     f.write(' PCAPROJECT = 0\n')
     f.write(' PCACHI = 0\n')
-    f.write(' INTER = {:d}\n'.format(interord))
+    f.write(' INTER = {:d}\n'.format(inter))
     f.write(' F_FORMAT = {:d}\n'.format(f_format))
     f.write(' F_ACCESS = {:d}\n'.format(f_access))
     f.write(' /\n')

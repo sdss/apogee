@@ -208,27 +208,41 @@ def dr16check(file='newStar-r12-l33.fits',dr16file='allStar-r12-l33.fits') :
     old=fits.open(dr16file)[1].data
     print(len(old),len(new))
     nbad=0
+    fp=open('dr16check.txt','w')
     for i in range(len(old)):
         if i%1000 == 0 : print(i)
         for col in old.columns.names :
             if col == 'PARAM_COV' : continue
-            if col == 'FPARAM_COV' : continue
-            if col == 'FPARAM_CLASS' : continue
-            if col == 'REDUCTION_ID' : continue
-            if col == 'TARGET_ID' : continue
-            if col == 'MIN_H' : continue
-            if col == 'MAX_H' : continue
-            if col == 'MIN_JK' : continue
-            if col == 'MAX_JK' : continue
-            if col == 'GAIA_RADIAL_VELOCITY' : continue
-            if col == 'GAIA_RADIAL_VELOCITY_ERROR' : continue
+            elif col == 'FPARAM_COV' : continue
+            elif col == 'FPARAM_CLASS' : continue
+            elif col == 'REDUCTION_ID' : continue
+            elif col == 'TARGET_ID' : continue
+            #elif col == 'MIN_H' : continue
+            #elif col == 'MAX_H' : continue
+            #elif col == 'MIN_JK' : continue
+            #elif col == 'MAX_JK' : continue
+            elif col == 'GAIA_PARALLAX' and np.isnan(old[col][i]) : continue
+            elif col == 'GAIA_PARALLAX_ERROR' and np.isnan(old[col][i]) : continue
+            elif col == 'GAIA_PMRA' and np.isnan(old[col][i]) : continue
+            elif col == 'GAIA_PMRA_ERROR' and np.isnan(old[col][i]) : continue
+            elif col == 'GAIA_PMDEC' and np.isnan(old[col][i]) : continue
+            elif col == 'GAIA_PMDEC_ERROR' and np.isnan(old[col][i]) : continue
+            elif col == 'GAIA_RADIAL_VELOCITY' and np.isnan(old[col][i]) : continue
+            elif col == 'GAIA_RADIAL_VELOCITY_ERROR' and np.isnan(old[col][i]) : continue
+            elif col == 'GAIA_R_EST' and np.isnan(old[col][i]) : continue
+            elif col == 'GAIA_R_LO' and np.isnan(old[col][i]) : continue
+            elif col == 'GAIA_R_HI' and np.isnan(old[col][i]) : continue
+            elif col == 'GAIA_PHOT_BP_MEAN_MAG' and np.isnan(old[col][i]) : continue
+            elif col == 'GAIA_PHOT_RP_MEAN_MAG' and np.isnan(old[col][i]) : continue
             try: 
                 for j in range(len(new[col][i])) :
                     if new[col][i,j] != old[col][i,j] :
                         print(i,col,new[col][i,j],old[col][i,j],new['FIELD'][i],old['FIELD'][i])
+                        fp.write('{:d} {:s} {} {} {:s} {:s}\n'.format(i,col,new[col][i,j],old[col][i,j],new['FIELD'][i],old['FIELD'][i]))
             except:
                 if new[col][i] != old[col][i] :
                     print(i,col,new[col][i],old[col][i],new['FIELD'][i],old['FIELD'][i])
+                    fp.write('{:d} {:s} {} {} {:s} {:s}\n'.format(i,col,new[col][i],old[col][i],new['FIELD'][i],old['FIELD'][i]))
 
         #if ((new['FIELD'][i] != old['FIELD'][i]) or
         #    (new['TEFF'][i] != old['TEFF'][i]) or
@@ -252,4 +266,5 @@ def dr16check(file='newStar-r12-l33.fits',dr16file='allStar-r12-l33.fits') :
         #     nbad+=1
 
     print('nbad:',nbad)
+    fp.close()
  

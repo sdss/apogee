@@ -8,10 +8,14 @@ import multiprocessing as mp
 from scipy.ndimage.filters import gaussian_filter
 from scipy.optimize import curve_fit
 from scipy.optimize import minimize
-from keras import models
-from keras import layers
-from keras import optimizers
-from keras import regularizers
+try:
+    from keras import models
+    from keras import layers
+    from keras import optimizers
+    from keras import regularizers
+except :
+    print('keras not available!')
+
 from astropy.io import fits
 from astropy.io import ascii
 from astropy.table import Table, TableColumns, Column
@@ -464,7 +468,7 @@ def test(pmn, pstd, mn, std, weights, biases,n=100, t0=[3750.,4500.], g0=2., mh0
     fig.tight_layout()
 
 def fitinput(file,model,threads=8,nfit=8,dofit=True,order=4,pixel_model=False,normalize=False,raw=False, 
-             validation=True,mcmc=False,err=0.005,ferre=False,plotspec=False) :
+             validation=True,mcmc=False,err=0.005,ferre=False,plotspec=False,medfilt=400) :
     """ Solves for parameters using input spectra and NN model
     """
     if pixel_model: mod=get_model_pixel(model)
@@ -496,16 +500,22 @@ def fitinput(file,model,threads=8,nfit=8,dofit=True,order=4,pixel_model=False,no
     j=np.where(np.core.defchararray.strip(mod['label_names']) == 'logg')[0]
     init[j] = 2.5
     j=np.where(np.core.defchararray.strip(mod['label_names']) == 'vmicro')[0]
-    init[j] = 1.2
+    if len(j) > 0 : init[j] = 1.2
 
     specerr=np.full_like(s[0,:],err)
+    if order > 0: 
+        poly=True
+        chips=True
+    else : 
+        poly=False
+        chips=False
     if dofit :
         npix=s.shape[1]
         specs=[]
         for i in range(nfit) :
             obs = s[i,:]+specerr*np.random.randn(npix)
             if normalize : 
-                cont = norm.cont(obs,specerr,poly=True,order=order,chips=True,apstar=not aspcappix)
+                cont = norm.cont(obs,specerr,poly=poly,order=order,chips=chips,apstar=not aspcappix,medfilt=medfilt)
                 specs.append((obs/cont, specerr, init, (bounds_lo,bounds_hi), order))
             else:
                 specs.append((obs, specerr, init, (bounds_lo,bounds_hi), 0))
@@ -790,6 +800,83 @@ def fitfield(model,field,stars=None,nfit=0,order=4,threads=8,plot=False,write=Tr
     if write : out.write('nn-'+field+'-'+telescope+'.fits',format='fits',overwrite=True)
     return out
 
+def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',stars=None,nfit=0,order=0,threads=8,plot=False,write=True,telescope='apo25m') :
+    """ Fit observed spectra in an input field, given a model
+    """
+
+    # get model and list of stars
+    mod = get_model(model)
+    nlab=len(mod['label_names'])
+    bounds_lo=mod['x_min']
+    bounds_hi=mod['x_max']
+
+    # set initial guess
+    init=np.zeros(nlab)
+    j=np.where(np.core.defchararray.strip(mod['label_names']) == 'Teff')[0]
+    init[j] = 4000.
+    j=np.where(np.core.defchararray.strip(mod['label_names']) == 'logg')[0]
+    init[j] = 2.5
+
+    # get stars
+    stars=fits.open(field+'.fits')[1].data
+    if nfit > 0 : stars = stars[0:nfit]
+
+    # load up normalized spectra and uncertainties 
+    specs=[]
+    pix = np.arange(0,8575,1)
+    for i,star in enumerate(stars) :
+        print(star['mangaid'])
+        spec = star['flux'][1000:]
+        specerr = np.sqrt(1./star['ivar'][1000:])
+        cont = norm.cont(spec,specerr,poly=False,order=order,chips=True,apstar=False,medfilt=400)
+        nspec = spec/cont
+        nspecerr = specerr/cont
+        bd=np.where(np.isinf(nspec) | np.isnan(nspec) )[0]
+        nspec[bd]=0.
+        nspecerr[bd]=1.e10
+        bd=np.where(np.isinf(nspecerr) | np.isnan(nspecerr) )[0]
+        nspec[bd]=0.
+        nspecerr[bd]=1.e10
+        specs.append((nspec, nspecerr, init, (bounds_lo,bounds_hi), order))
+
+    # do the fits in parallel
+    if threads==0 :
+        output=[]
+        for i in range(len(specs)) :
+            print(i)
+            out=solve(specs[i])
+            output.append(out)
+    else :
+        print('starting pool: ', len(specs))
+        pool = mp.Pool(threads)
+        output = pool.map_async(solve, specs).get()
+        pool.close()
+        pool.join()
+    print('done pool')
+
+    # output FITS table
+    output=np.array(output)
+    out=Table()
+    out['MANGAID']=stars['MANGAID']
+    length=len(out)
+    out.add_column(Column(name='FPARAM',data=output))
+    spec=[]
+    err=[]
+    bestfit=[]
+    chi2=[]
+    for i,star in enumerate(stars) :
+        spec.append(specs[i][0])
+        err.append(specs[i][1])
+        sfit=spectrum(pix, *output[i])
+        bestfit.append(sfit)
+        chi2.append(np.nansum((specs[i][0]-sfit)**2/specs[i][1]**2))
+    out.add_column(Column(name='SPEC',data=np.array(spec)))
+    out.add_column(Column(name='ERR',data=np.array(err)))
+    out.add_column(Column(name='SPEC_BESTFIT',data=np.array(bestfit)))
+    out.add_column(Column(name='CHI2',data=np.array(chi2)))
+    if write : out.write('nn-'+field+'-'+telescope+'.fits',format='fits',overwrite=True)
+    return out
+
 def aspcap_comp(model,fields,plot=True,save=None,loggmax=99,telescope='apo25m',indir='./') :
     """ Compare NN results with ASPCAP 
     """
@@ -894,11 +981,22 @@ def showtime(string) :
 
 
 def train(file='all_noelem',name='test',plot=False,suffix='',fitfrac=0.5, steps=1e5, weight_decay = 0., num_neurons = [300,300], lr=0.001, ind_label=np.arange(9),
-          teff=[0,10000],logg=[-1,6],mh=[-3,1],am=[-1,1],cm=[-2,2],nm=[-2,2],raw=True,rot=False,elem=False,norm=False,elems=None,label_names=None) :
+          teff=[0,10000],logg=[-1,6],mh=[-3,1],am=[-1,1],cm=[-2,2],nm=[-2,2],raw=True,rot=False,elem=False,normalize=False,elems=None,label_names=None) :
     """ Train a neural net model on an input training set
     """
 
     spectra, labels = read(file,raw=raw, label_names=label_names)
+
+    if normalize :
+        print('normalizing...')
+        gdspec=[]
+        for i in range(spectra.shape[0]) :
+            cont = norm.cont(spectra[i,:],spectra[i,:],poly=False,chips=False,medfilt=400)
+            spectra[i,:] /= cont
+            gd = np.where(np.isfinite(spectra[i,:]))[0]
+            if len(gd) == spectra.shape[1] : gdspec.append(i)
+        spectra=spectra[gdspec,1000:]
+        labels=labels[gdspec]
 
     # shuffle them and get fit and validation set
     print('shuffling...')
@@ -908,15 +1006,21 @@ def train(file='all_noelem',name='test',plot=False,suffix='',fitfrac=0.5, steps=
     #----------------------------------------------------------------------------------------
     # choose only a certain labels
 
-    gd=np.where((labels[ind_shuffle,0]>=teff[0]) & (labels[ind_shuffle,0]<=teff[1]) &
-                (labels[ind_shuffle,1]>=logg[0]) & (labels[ind_shuffle,1]<=logg[1]) &
-                (labels[ind_shuffle,2]>=mh[0]) & (labels[ind_shuffle,2]<=mh[1]) &
-                (labels[ind_shuffle,3]>=am[0]) & (labels[ind_shuffle,3]<=am[1]) &
-                (labels[ind_shuffle,4]>=cm[0]) & (labels[ind_shuffle,4]<=cm[1])  &
-                (labels[ind_shuffle,5]>=nm[0]) & (labels[ind_shuffle,5]<=nm[1])
-               )[0]
+    try :
+        gd=np.where((labels[ind_shuffle,0]>=teff[0]) & (labels[ind_shuffle,0]<=teff[1]) &
+                    (labels[ind_shuffle,1]>=logg[0]) & (labels[ind_shuffle,1]<=logg[1]) &
+                    (labels[ind_shuffle,2]>=mh[0]) & (labels[ind_shuffle,2]<=mh[1]) &
+                    (labels[ind_shuffle,3]>=am[0]) & (labels[ind_shuffle,3]<=am[1]) &
+                    (labels[ind_shuffle,4]>=cm[0]) & (labels[ind_shuffle,4]<=cm[1])  &
+                    (labels[ind_shuffle,5]>=nm[0]) & (labels[ind_shuffle,5]<=nm[1])
+                   )[0]
+    except :
+        gd=np.where((labels[ind_shuffle,0]>=teff[0]) & (labels[ind_shuffle,0]<=teff[1]) &
+                    (labels[ind_shuffle,1]>=logg[0]) & (labels[ind_shuffle,1]<=logg[1]) &
+                    (labels[ind_shuffle,2]>=mh[0]) & (labels[ind_shuffle,2]<=mh[1]) &
+                    (labels[ind_shuffle,3]>=am[0]) & (labels[ind_shuffle,3]<=am[1]) 
+                   )[0]
  
-
     nfit = int(fitfrac*len(gd))
     # separate into training and validation set
     training_spectra = spectra[ind_shuffle[gd],:][:nfit,:]
@@ -998,7 +1102,7 @@ def readferre(file,raw=True,label_names=None) :
 
     return spectra, labels
 
-def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=True,
+def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=True,normalize=False,
          teff=[0,10000],logg=[-1,6],mh=[-3,1],am=[-1,1],cm=[-2,2],nm=[-2,2]) :
     ''' plots to assess quality of a model
     '''
@@ -1007,6 +1111,16 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
 
     # read spectra and labels, and get indices for training and validation set
     true,labels = read(file,raw=raw,label_names=NN_coeffs['label_names'])
+    if normalize :
+        print('normalizing...')
+        gdspec=[]
+        for i in range(true.shape[0]) :
+            cont = norm.cont(true[i,:],true[i,:],poly=False,chips=False,medfilt=400)
+            true[i,:] /= cont
+            gd = np.where(np.isfinite(true[i,:]))[0]
+            if len(gd) == true.shape[1] : gdspec.append(i)
+        true=true[gdspec,1000:]
+        labels=labels[gdspec]
 
     #gd=np.where((labels[:,0]>=teff[0]) & (labels[:,0]<=teff[1]) &
     #            (labels[:,1]>=logg[0]) & (labels[:,1]<=logg[1]) &
@@ -1039,11 +1153,12 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
         pix = np.arange(8575)
         spec = spectrum(pix, *lab)
         nn.append(spec)
+        print(i,np.sum((spec-true[i,:])**2))
         if plotspec :
             plt.clf()
-            plt.plot(true[i,j])
-            plt.plot(apstar[j])
-            plt.plot(apstar[j]/true[i,j])
+            plt.plot(true[i,:])
+            plt.plot(spec)
+            plt.plot(spec/true[i,:])
             plt.show()
             pdb.set_trace()
         #n=len(np.where(np.abs(apstar[j]-true[i,j]) > 0.05)[0])
@@ -1059,7 +1174,7 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
     fig3,ax3=plots.multi(2,3,hspace=0.001,wspace=0.001)
     for f in [fig,fig2,fig3] :
         if validation : f.suptitle('validation set')
-        else : f.title('training set')
+        else : f.suptitle('training set')
 
     # consider full sample and several bins in Teff and [M/H]
     tbins=[[3000,8000],[3000,4000],[4000,5000],[5000,6000],[3000,4000],[4000,5000],[5000,6000]]

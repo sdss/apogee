@@ -191,7 +191,7 @@ def get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=False,sav
 
 def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
     els=None,atmod=None,atmos_type='marcs',atmosroot=None,atmosdir=None,nskip=0,fill=True,
-    linelist='20180901',h2o=None,linelistdir=None,atoms=True,molec=True, save=False,run=True) :
+    linelist='20180901',h2o=None,linelistdir=None,atoms=True,molec=True, msuffix='', save=False,run=True) :
     """ Do synthesis
 
     Args:
@@ -249,16 +249,20 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
         n_HI = len(open(linelistdir+'/turbospec.'+linelist+'.Hlinedata').readlines())
         if n_HI > 2 : linelists.append(linelistdir+'/turbospec.'+linelist+'.Hlinedata')
         if atoms : linelists.append(linelistdir+'/turbospec.'+linelist+'.atoms')
-        if molec : linelists.append(linelistdir+'/turbospec.'+linelist+'_nofeh_noc2.molec')
+        if molec : linelists.append(linelistdir+'/turbospec.'+linelist+msuffix+'.molec')
     elif code == 'synspec' :
         linelists = [linelistdir+'/synspec/synspec.'+linelist+'.atoms']
-        if solarisotopes : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'sun.molec')
-        else : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'giant_nofeh_noh2o_noc2.molec')
-        h2o=0
+        if molec :
+            #if solarisotopes : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'sun_nofeh_noh2o_noc2.molec')
+            #else : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'giant_nofeh_noh2o_noc2.molec')
+            if solarisotopes : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'sun'+msuffix+'.molec')
+            else : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'giant'+msuffix+'.molec')
+        h2o=0  
         #linelists = ['apogeeDR16.20180901.19','apogeeDR16_arc.20']
     else :
         print('unknown code!')
         pdb.set_trace()
+    print('linelists: ',linelists)
 
     tfactor=1
     if h2o is None : 
@@ -324,7 +328,7 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
                                    save=save,run=run,solarisotopes=solarisotopes,
                                    babsma=root+'opac',atmos_type=atmos_type,spherical=spherical,tfactor=tfactor)
         elif code == 'synspec' :
-            wave,flux,cont = synple.syn(atmod,wrange,linelist=linelists,dw=dw,vmicro=vmicro,save=save)
+            wave,flux,cont = synple.syn(atmod,wrange,linelist=linelists,dw=dw,vmicro=vmicro,save=save,clean=not save)
             #wave,flux,cont = synple.syn(atmod,wrange,linelist=linelists,dw=dw,abu=abundances,vmicro=vmicro,save=save)
             fluxnorm = flux/cont
         else :

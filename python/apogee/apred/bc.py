@@ -35,7 +35,7 @@ def getbc(ra,dec,jd,obs='APO') :
         pdb.set_trace()
 
     out=barycorrpy.get_BC_vel(JDUTC=jd,ra=ra,dec=dec, 
-                              longi=longitude,lat=latitude,alt=altitude)
+                              longi=longitude,lat=latitude,alt=altitude,leap_update=False)
     return out[0]
 
 def main(args) :

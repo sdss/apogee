@@ -703,7 +703,6 @@ do j=1,nobj
 	!check status
 	if (status == 0) then  !check1 status	
 	  if (nov > 0) then    !3rd nov if
-		
 
 	  	!npca projection
 	  	if (npca(1) > 0 .and. pcaproject == 1) then

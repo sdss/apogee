@@ -23,7 +23,7 @@ from scipy.ndimage.filters import median_filter
 from scipy import interpolate
 from tools import plots
 
-def cont(spec,specerr,chips=False,order=4,poly=True,apstar=True) :
+def cont(spec,specerr,chips=False,order=4,poly=True,apstar=True,medfilt=0) :
     """ Returns continuum normalized spectrum
     """
     x = np.arange(0,len(spec))
@@ -37,9 +37,13 @@ def cont(spec,specerr,chips=False,order=4,poly=True,apstar=True) :
             xx = x[prange[0]:prange[1]]
             if poly :
                 cont[prange[0]:prange[1]] = polyfit(xx,s,serr,order)
+            else :
+                cont[prange[0]:prange[1]] = median_filter(s,[medfilt],mode='reflect')
     else :
         if poly :
             cont = polyfit(x,spec,specerr,order)
+        else :
+            cont=median_filter(spec,[medfilt],mode='reflect')
 
     return cont
 

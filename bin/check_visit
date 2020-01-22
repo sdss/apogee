@@ -1,0 +1,9 @@
+#!/bin/csh
+foreach plan ( $* )
+  set tel = `echo $plan | awk -F/ '{print $1}'`
+  set field = `echo $plan | awk -F/ '{print $2}'`
+  set name = `basename $plan`
+  set plate = `echo $name | awk -F- '{print $2}'`
+  set mjd = `echo $name | awk -F- '{print $3}' | awk -F. '{print $1}'`
+  if ( ! -e $tel/$field/apVisitSum-$plate-$mjd.fits ) echo $plan
+end

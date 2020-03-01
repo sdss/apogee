@@ -932,7 +932,7 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True) :
                         wrange=wrange,dw=dw,atmosdir=marcsdir,
                         elemgrid=elem,linelistdir=linelistdir+'/'+elem+'/',linelist=linelist,vmicro=vout,
                         solarisotopes=solarisotopes,
-                        nskip=nskip,atmos_type=p['atmos'],run=run,save=save,h2o=0) 
+                        nskip=nskip,atmos_type=p['atmos'],run=run,save=save,h2o=None) 
                   nskip = nskip+dskip if isinstance(spec,float) else -1
                 if nskip > 0 : 
                     print('FAILED Turbospec',nskip)
@@ -1006,6 +1006,8 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True) :
             hdunorm.header['BSCALE'] = 1./65534.
             hdulist.append(hdunorm)
             hdulist.writeto(specdir+'/'+p['name']+elem+'.fits',overwrite=True)
+
+          return hdulist
 
 def mkgridlink(planfile,suffix=None) :
     """  DEVELOPMENT : create coarse grid by merging syntheses from multiple grids

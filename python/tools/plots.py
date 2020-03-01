@@ -36,7 +36,7 @@ def event(fig) :
         #distance,index = spatial.KDTree(A).query([event.x,event.y])
         if _data_x is not None and _data_y is not None :
             print('Transform', len(_data_x))
-            A = event.inaxes.transData.transform(zip(_data_x,_data_y))
+            A = event.inaxes.transData.transform(list(zip(_data_x,_data_y)))
             print('KDTree')
             tree=spatial.KDTree(A)
             print('query')
@@ -263,11 +263,10 @@ def plotl(ax,x,y,xr=None,yr=None,color=None,xt=None,yt=None,draw=True,label=None
     if xt is not None : ax.set_xlabel(xt) 
     if yt is not None : ax.set_ylabel(yt)
     if tit is not None : ax.set_title(tit)
-    if ls is None : ls='-'
     if semilogy :
-        line = ax.semilogy(x,y,color=color,label=label,ls=ls,linewidth=linewidth,linestyle=linestyle,alpha=alpha)
+        line = ax.semilogy(x,y,color=color,label=label,linewidth=linewidth,linestyle=linestyle,alpha=alpha)
     else :
-        line = ax.plot(x,y,color=color,label=label,ls=ls,linewidth=linewidth,linestyle=linestyle,alpha=alpha)
+        line = ax.plot(x,y,color=color,label=label,linewidth=linewidth,linestyle=linestyle,alpha=alpha)
     if draw : plt.draw()
     return line
     

@@ -1,5 +1,6 @@
 from apogee.utils import apload
 from apogee.utils import apselect
+from apogee.utils import bitmask
 from apogee.aspcap import elem
 from apogee.aspcap import teffcomp
 from apogee.aspcap import loggcomp
@@ -13,6 +14,7 @@ from tools import plots
 from tools import fit
 try: from tools import vfit
 except: pass
+import copy
 import os
 import shutil
 import pdb
@@ -713,4 +715,84 @@ def allplots() :
     os.chdir('../dr12')
     apl=apload.apLoad(dr='dr12')
     errplots(tags=['PARAM_ALPHA_M','O_H','MG_H','NI_H','PARAM_M_H'])
+
+def check() :
+    """ Check IDL corrections for log g
+    """
+    a=fits.open('allStar-r12-l33.fits')[1].data
+
+    aspcapmask=bitmask.AspcapBitMask()
+    parammask=bitmask.ParamBitMask()
+    starmask=bitmask.StarBitMask()
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
+
+    cal=fits.open('cal/giant_loggcal.fits')[1].data
+    rgbsep=cal['rgbsep'][0]
+    cnsep=cal['cnsep'][0]
+    rclim=cal['rclim'][0]
+    rcfit2=cal['rcfit2'][0]
+    rgbfit2=cal['rgbfit2'][0]
+    calloggmin=cal['calloggmin']
+    calloggmax=cal['calloggmax']
+    calteffmin=cal['calteffmin']
+    calteffmax=cal['calteffmax']
+
+    # for stars that aren't bad, get cn and dt
+    cn=a['FPARAM'][gd,4]-a['FPARAM'][gd,5]
+    dt=a['FPARAM'][gd,0] - (rgbsep[0] + rgbsep[1]*(a['FPARAM'][gd,1]-2.5) +rgbsep[2]*a['FPARAM'][gd,3])
+
+    new=np.zeros(len(a))-9999.99
+
+    # select RC
+    rc=np.where((a['FPARAM'][gd,1]<rclim[1])&(a['FPARAM'][gd,1]>rclim[0])&
+                (cn>cnsep[0]+cnsep[1]*a['FPARAM'][gd,3] + cnsep[2]*dt)&
+                (a['FPARAM'][gd,0]<6000)&(a['FPARAM'][gd,0]>3000))[0]
+    rccorr=rcfit2[0] + rcfit2[1]*a['FPARAM'][gd,1] + rcfit2[2]*a['FPARAM'][gd,1]**2
+    new[gd[rc]]=a['FPARAM'][gd[rc],1]-rccorr[rc]
+    rcidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RC')) >0)[0]
+
+    # select RGB
+    rgb=np.where(((a['FPARAM'][gd,1]>rclim[1])|(a['FPARAM'][gd,1]<rclim[0])|
+                (cn<cnsep[0]+cnsep[1]*a['FPARAM'][gd,3] + cnsep[2]*dt)) &
+                (a['FPARAM'][gd,1]<calloggmax)&(a['FPARAM'][gd,1]>calloggmin) &
+                (a['FPARAM'][gd,0]<6000)&(a['FPARAM'][gd,0]>3000))[0]
+    #clip logg at loggmin and loggmax
+    logg=clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
+    mh=clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
+    # get correction
+    rgbcorr=(rgbfit2[0] + rgbfit2[1]*logg + rgbfit2[2]*logg**2 +
+                       rgbfit2[3]*logg**3 + rgbfit2[4]*mh )
+    new[gd[rgb]]=a['FPARAM'][gd[rgb],1]-rgbcorr[rgb]
+    rgbidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RGB')) >0)[0]
+
+    cal=fits.open('cal/dwarf_loggcal.fits')[1].data
+    teff=clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
+    logg=clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
+    mh=clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
+    msfit=cal['msfit'][0]
+    mscorr=msfit[0]+msfit[1]*teff+msfit[2]*mh
+    ms=np.where(a['FPARAM'][gd,1] > cal['calloggmin'])[0]
+    new[gd[ms]]=a['FPARAM'][gd[ms],1]-mscorr[ms]
+    msidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_MS')) >0)[0]
+
+    trans=np.where((a['FPARAM'][gd,1] < 4) & (a['FPARAM'][gd,1] > 3.5) &
+                (a['FPARAM'][gd,0] < calteffmax) )[0]
+    ms_weight=(a['FPARAM'][gd[trans],1]-3.5)/0.5
+    new[gd[trans]] = a['FPARAM'][gd[trans],1]-(mscorr[trans]*ms_weight+rgbcorr[trans]*(1-ms_weight))
+
+    diff =a['PARAM'][:,1]-new
+    bd = np.where (np.isclose(diff,0.,1.e-6,0.01) == False)[0]
+    pdb.set_trace()
+
+def clip(x,xmin,xmax) :
+    """ clip input array so that x<xmin becomes xmin, x>xmax becomes xmax, return clipped array
+    """
+    new=copy.copy(x)
+    bd=np.where(x<xmin)[0]
+    new[bd]=xmin
+    bd=np.where(x>xmax)[0]
+    new[bd]=xmax
+    return new
+
+
 

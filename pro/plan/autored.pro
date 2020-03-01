@@ -121,7 +121,7 @@ for i=0,n_elements(mjds)-1 do begin
           free_lun,out
           openw,out,dir+cmjd+'.slurm',/get_lun
           printf,out,'#!/bin/csh'
-          printf,out,'#SBATCH --account=sdss-kp'
+          printf,out,'#SBATCH --account=sdss-kp-fast'
           printf,out,'#SBATCH --partition=sdss-kp'
           printf,out,'#SBATCH --ntasks=16'
           printf,out,'#SBATCH --time=240:00:00'

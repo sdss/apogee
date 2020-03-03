@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 from scipy import spatial
 from scipy.stats import gaussian_kde
-import struct
+from tools import struct
 import numpy as np
 import sys
 import pdb
@@ -31,30 +31,32 @@ def event(fig) :
         _button = event.key
         inv = event.inaxes.transData.inverted()
         _x,_y = inv.transform((event.x,event.y))
-        print(_x, _y)
+        #print(_x, _y)
         #A[spatial.KDTree(A).query([event.x,event.y])[1]]
         #distance,index = spatial.KDTree(A).query([event.x,event.y])
         if _data_x is not None and _data_y is not None :
-            print('Transform', len(_data_x))
+            #print('Transform', len(_data_x))
             A = event.inaxes.transData.transform(list(zip(_data_x,_data_y)))
-            print('KDTree')
+            #print('KDTree')
             tree=spatial.KDTree(A)
-            print('query')
+            #print('query')
             distance,index = tree.query([event.x,event.y])
             _index = [index]
-            print('_index: ',_index,_data_x[_index],_data_y[_index])
             if _data is not None :
                 struct.list(_data,ind=_index,cols=_id_cols)
+            else :
+                print('_index: ',_index,_data_x[_index],_data_y[_index])
         if _block == 1 :
             _block = 0
             fig.canvas.stop_event_loop()
     cid = fig.canvas.mpl_connect('key_press_event',onpress)
 
-def mark(fig) :
+def mark(fig,index=True) :
     global _block, _x, _y, _button
     _block = 1
-    fig.canvas.start_event_loop(-1)
-    return _x, _y, _button
+    fig.canvas.start_event_loop(0)
+    if index :return _x, _y, _button, _index[0]
+    else : return _x, _y, _button
 
 
 def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',colorbar=False,xt=None,yt=None,zt=None,label=None,linewidth=0,marker='o',draw=True,orientation='vertical',labelcolor='k',tit=None,nxtick=None,nytick=None,rasterized=None,alpha=None) :

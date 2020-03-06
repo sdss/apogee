@@ -806,7 +806,7 @@ def normalize(pars) :
     specerr=pars[1]
     pixels=pars[2]
 
-    cont = norm.cont(spec,specerr,poly=False,chips=True,apstar=False,medfilt=400)
+    cont = norm.cont(spec,specerr,poly=False,chips=False,apstar=False,medfilt=400)
     nspec = spec/cont
     nspecerr = specerr/cont
     bd=np.where(np.isinf(nspec) | np.isnan(nspec) )[0]
@@ -821,7 +821,7 @@ def normalize(pars) :
     return nspec,nspecerr
 
 def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',nfit=0,order=0,threads=8,
-              plot=False,write=True,telescope='apo25m',pixels=None) :
+              write=True,telescope='apo25m',pixels=None) :
     """ Fit observed spectra in an input field, given a model
     """
 
@@ -912,6 +912,8 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',nfit=0,order=0,t
     bd=np.any( (params>=bounds_hi-0.01*(bounds_hi-bounds_lo)) |
                (params<=bounds_lo+0.01*(bounds_hi-bounds_lo)), axis=1 )
     out.add_column(Column(name='VALID',data=(np.logical_not(bd).astype(int))))
+    if pixels == None : out['WAVE']=stars['WAVE']
+    else :out['WAVE']=stars['WAVE'][:,pixels[0]:pixels[1]]
     spec=[]
     err=[]
     bestfit=[]
@@ -1247,11 +1249,23 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
         #n=len(np.where(np.abs(apstar[j]-true[i,j]) > 0.05)[0])
     nn=np.array(nn)
     diff2=np.array(diff2)
-    fig,ax=plots.multi(1,1)
-    plots.plotc(ax,labels[:,0],labels[:,1],diff2)
+    fig,ax=plots.multi(2,2,hspace=0.001,wspace=0.001,sharex=True,sharey=True)
+    plots.plotc(ax[0,0],labels[:,0],labels[:,1],labels[:,2],xr=[8000,3000],yr=[6,-1],zr=[-2.5,0.5])
+    plots.plotc(ax[1,0],labels[:,0],labels[:,1],labels[:,3],xr=[8000,3000],yr=[6,-1],zr=[-0.25,0.5])
+    plots.plotc(ax[1,1],labels[:,0],labels[:,1],diff2,xr=[8000,3000],yr=[6,-1],zr=[0,10])
+    if ids: 
+        iden=Table(iden)
+        iden.add_column(Column(name='TEFF',data=labels[:,0]))
+        iden.add_column(Column(name='LOGG',data=labels[:,1]))
+        iden.add_column(Column(name='MH',data=labels[:,2]))
+        iden.add_column(Column(name='AM',data=labels[:,3]))
+        pdb.set_trace()
+        plots._data = iden
+        plots._id_cols = ['MANGAID','TEFF','LOGG','MH','AM']
+    plots.event(fig)
+    ax[1,1].text(0.,0.9,'diff**2',transform=ax[1,1].transAxes)
     plt.draw()
-    plt.show()
-    pdb.set_trace()
+    fig.savefig(file+'_'+model+'.png')
 
     # histogram of ratio of nn to true
     print("making nn/raw comparison histogram ...")
@@ -1359,6 +1373,7 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
     fig2.savefig(file+'_'+model+'_2.png')
     fig3.savefig(file+'_'+model+'_3.png')
     pdb.set_trace()
+    plt.close()
     plt.close()
     plt.close()
     plt.close()

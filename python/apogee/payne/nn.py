@@ -820,7 +820,7 @@ def normalize(pars) :
         nspecerr = nspecerr[pixels[0]:pixels[1]]
     return nspec,nspecerr
 
-def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',nfit=0,order=0,threads=8,
+def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',star=None,nfit=0,order=0,threads=8,
               write=True,telescope='apo25m',pixels=None) :
     """ Fit observed spectra in an input field, given a model
     """
@@ -833,14 +833,17 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',nfit=0,order=0,t
 
     # set initial guess
     init=np.zeros(nlab)
-    j=np.where(np.core.defchararray.strip(mod['label_names']) == 'Teff')[0]
-    init[j] = 4000.
-    j=np.where(np.core.defchararray.strip(mod['label_names']) == 'logg')[0]
+    j=np.where(np.core.defchararray.strip(mod['label_names']) == 'TEFF')[0]
+    init[j] = 4500.
+    j=np.where(np.core.defchararray.strip(mod['label_names']) == 'LOGG')[0]
     init[j] = 2.5
 
     # get stars
     stars=fits.open(field+'.fits')[1].data
     if nfit > 0 : stars = stars[0:nfit]
+    if star is not None: 
+        j=np.where(stars['MANGAID'] == star)[0]
+        stars=stars[j]
 
     # load up normalized spectra and uncertainties 
     norms=[]
@@ -1090,7 +1093,6 @@ def train(file='all_noelem',name='test',plot=False,suffix='',fitfrac=0.5, steps=
     training_labels = labels[ind_shuffle[gd],:][:nfit,:][:,ind_label]
     validation_spectra = spectra[ind_shuffle[gd],:][nfit:,:]
     validation_labels = labels[ind_shuffle[gd],:][nfit:,:][:,ind_label]
-
     model = training.neural_net(training_labels, training_spectra,\
                                 validation_labels, validation_spectra,\
                                 num_neurons = num_neurons, num_steps=steps, learning_rate=lr, weight_decay=weight_decay)
@@ -1115,6 +1117,21 @@ def train(file='all_noelem',name='test',plot=False,suffix='',fitfrac=0.5, steps=
 def read(file,raw=True,label_names=None,trim=True,ids=False) :
     """ Read input spectra and parameters
     """
+    tab = Table.read(file+'.fits')
+    spectra = tab['SPEC'].data.astype(float)
+    if trim :
+        gdpix=np.where(np.isfinite(spectra[0,:]))[0]
+        spectra=spectra[:,gdpix]
+    lab=[]
+    if label_names is not None :
+        for label in label_names : lab.append(tab[label])
+    else :
+        for label in tab.meta['LABELS'] : lab.append(tab[label].data)
+    labels = np.array(lab).T
+    if ids : return spectra, labels, tab['MANGAID'].data
+    else : return spectra, labels
+
+    '''
     hdulist = fits.open(file+'.fits')
     if raw : spectra = hdulist[1].data.astype("float")
     else : spectra = hdulist[2].data.astype("float")
@@ -1149,6 +1166,7 @@ def read(file,raw=True,label_names=None,trim=True,ids=False) :
         return spectra, labels[:,ind_label], hdulist[3].data
     else :
         return spectra, labels[:,ind_label]
+    '''
 
 def readferre(file,raw=True,label_names=None) :
     """ Read input spectra and parameters
@@ -1254,17 +1272,29 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
     plots.plotc(ax[1,0],labels[:,0],labels[:,1],labels[:,3],xr=[8000,3000],yr=[6,-1],zr=[-0.25,0.5])
     plots.plotc(ax[1,1],labels[:,0],labels[:,1],diff2,xr=[8000,3000],yr=[6,-1],zr=[0,10])
     if ids: 
-        iden=Table(iden)
-        iden.add_column(Column(name='TEFF',data=labels[:,0]))
-        iden.add_column(Column(name='LOGG',data=labels[:,1]))
-        iden.add_column(Column(name='MH',data=labels[:,2]))
-        iden.add_column(Column(name='AM',data=labels[:,3]))
-        pdb.set_trace()
-        plots._data = iden
-        plots._id_cols = ['MANGAID','TEFF','LOGG','MH','AM']
+        data=Table()
+        data.add_column(Column(name='ID',data=iden))
+        data.add_column(Column(name='TEFF',data=labels[:,0]))
+        data.add_column(Column(name='LOGG',data=labels[:,1]))
+        data.add_column(Column(name='MH',data=labels[:,2]))
+        data.add_column(Column(name='AM',data=labels[:,3]))
+        plots._data = data
+        plots._id_cols = ['ID','TEFF','LOGG','MH','AM']
     plots.event(fig)
     ax[1,1].text(0.,0.9,'diff**2',transform=ax[1,1].transAxes)
     plt.draw()
+    key=' '
+    sfig,sax=plots.multi(1,2,hspace=0.001,sharex=True)
+    while key != 'e' and key != 'E' :
+        x,y,key,index=plots.mark(fig)
+        sax[0].cla()
+        sax[0].plot(true[index,:],color='g')
+        sax[0].plot(nn[index,:],color='b')
+        sax[1].cla()
+        sax[1].plot(nn[index,:]/true[index,:],color='g')
+        plt.figure(sfig.number)
+        plt.draw()
+
     fig.savefig(file+'_'+model+'.png')
 
     # histogram of ratio of nn to true

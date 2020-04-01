@@ -1,6 +1,6 @@
 #import matplotlib.colors as colors
 import matplotlib.pyplot as plt
-from scipy import spatial
+from scipy.spatial import KDTree
 from scipy.stats import gaussian_kde
 from tools import struct
 import numpy as np
@@ -16,6 +16,8 @@ _index = 0
 _data = None
 _button = None
 _id_cols = ['APOGEE_ID']
+_new_data = True
+_axes = None
 _data_x = None
 _data_y = None
 _block = 0
@@ -27,18 +29,21 @@ def event(fig) :
     '''
     global _block
     def onpress(event) :
-        global _index, _block, _x, _y, _button
+        global _index, _block, _x, _y, _button, _new_data, tree, _axes
         _button = event.key
         inv = event.inaxes.transData.inverted()
         _x,_y = inv.transform((event.x,event.y))
         #print(_x, _y)
-        #A[spatial.KDTree(A).query([event.x,event.y])[1]]
-        #distance,index = spatial.KDTree(A).query([event.x,event.y])
+        #A[KDTree(A).query([event.x,event.y])[1]]
+        #distance,index = KDTree(A).query([event.x,event.y])
         if _data_x is not None and _data_y is not None :
             #print('Transform', len(_data_x))
-            A = event.inaxes.transData.transform(list(zip(_data_x,_data_y)))
-            #print('KDTree')
-            tree=spatial.KDTree(A)
+            if _new_data or event.inaxes != _axes :
+                A = event.inaxes.transData.transform(list(zip(_data_x,_data_y)))
+                #print('KDTree')
+                tree=KDTree(A)
+                _new_data = False
+                _axes = event.inaxes
             #print('query')
             distance,index = tree.query([event.x,event.y])
             _index = [index]
@@ -89,7 +94,7 @@ def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',color
       aximage
 
     """
-    global _data_x, _data_y
+    global _data_x, _data_y, _new_data
 
     set_limits_ticks(ax,xr,yr,nxtick,nytick)
     if xt is not None : ax.set_xlabel(xt) 
@@ -110,6 +115,7 @@ def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',color
     if draw : plt.draw()
     _data_x = x[np.isfinite(x)]
     _data_y = y[np.isfinite(y)]
+    _new_data = True
     return scat
 
 def set_limits_ticks(ax,xr,yr,nxtick=None,nytick=None) :
@@ -179,7 +185,7 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
         labelcolor=  : color for label
        
     '''
-    global _data_x, _data_y
+    global _data_x, _data_y, _new_data
 
     set_limits_ticks(ax,xr,yr,nxtick,nytick)
     if xt is not None : ax.set_xlabel(xt) 
@@ -246,6 +252,7 @@ def plotp(ax,x,y,z=None,typeref=None,types=None,xr=None,yr=None,zr=None,marker='
         ax.scatter(x,y,marker=marker,s=size,linewidth=linewidth,facecolors=facecolors,edgecolors=color,linewidths=linewidths,alpha=alpha,label=label,rasterized=rasterized)
         _data_x = x[np.isfinite(x)]
         _data_y = y[np.isfinite(y)]
+        _new_data = True
         if xerr is not None or yerr is not None :
             ax.errorbar(x,y,marker=marker,xerr=xerr,yerr=yerr,fmt='none',capsize=0,ecolor=color)
 

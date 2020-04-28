@@ -1,6 +1,7 @@
 from __future__ import division
 import numpy as np
 
+from apogee.payne import training
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -30,11 +31,13 @@ from apogee.utils import apload
 from apogee.aspcap import aspcap
 from apogee.aspcap import norm
 from tools import plots
-import emcee
+try:
+    import emcee
+except:
+    print('emcee not available!')
 try: import corner
 except: pass
 
-from apogee.payne import training
 
 nepochs=10000
 nodes=20
@@ -700,7 +703,7 @@ def solve(spec) :
     except: return 0
 
 
-def fitfield(model,field,stars=None,nfit=0,order=4,threads=8,plot=False,write=True,telescope='apo25m') :
+def fitfield(model,field,stars=None,nfit=0,order=4,threads=8,plot=False,write=True,telescope='apo25m',apred='r13',aspcap_vers='l33') :
     """ Fit observed spectra in an input field, given a model
     """
 
@@ -720,7 +723,7 @@ def fitfield(model,field,stars=None,nfit=0,order=4,threads=8,plot=False,write=Tr
     init[j] = 1.2
 
     # get star names and ASPCAP results
-    load=apload.ApLoad(dr='dr16')
+    load=apload.ApLoad(apred=apred,aspcap=aspcap_vers)
     load.settelescope(telescope)
     apfield=load.apField(field)[1].data
     aspcap_param=load.aspcapField(field)[1].data

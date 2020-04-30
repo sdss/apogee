@@ -274,7 +274,7 @@ def clustdata() :
                12.00,25.00,10.50,12.00,1.10,10.00,10.00,10.00,10.00,10.40,
                15.00,15.00,10.00,20.00,10.00,10.00,18.90,10.00,10.00,10.00,
                10.00,10.00, 10.00,10.00,
-               10.00,10.00, 10.00,10.00,10.00,10.0,10.0]
+               50.00,50.00, 50.00,30.00,30.00,75.0,75.0]
 
     out['mh']=[-2.35,-2.33,-2.06,-2.01,-1.78,
              -1.66,-1.58,-1.50,-1.33,-1.37,-1.03,
@@ -355,7 +355,7 @@ def clustdata() :
     return out.view(np.recarray)
 
 
-def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=True,raw=False,firstgen=False,firstpos=True,plot=False,hard=None) :
+def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=True,raw=False,firstgen=False,firstpos=True,plot=False,hard=None) :
 
     clust=clustdata()
     ic = np.where( np.core.defchararray.strip(clust.name) == cluster)[0]
@@ -447,10 +447,12 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
       gaia=job.get_results()
       i1, i2 = match.match(np.core.defchararray.replace(data['APOGEE_ID'][jc],'2M',''),gaia['original_ext_source_id'])
       vra=4.74*gaia['pmra']*clust[ic].dist
+      vra_err=4.74*gaia['pmra_error']*clust[ic].dist
       vdec=4.74*gaia['pmdec']*clust[ic].dist
+      vdec_err=4.74*gaia['pmdec_error']*clust[ic].dist
       med_vra=np.median(vra[i2])
       med_vdec=np.median(vdec[i2])
-      j=np.where((vra[i2]-med_vra)**2+(vdec[i2]-med_vdec)**2 < clust[ic].drv**2)[0]
+      j=np.where((vra[i2]-med_vra)**2+(vdec[i2]-med_vdec)**2 < 2*clust[ic].drv**2+vra_err[i2]**2+vdec_err[i2]**2)[0]
   
       if plot :
         ax.cla() 

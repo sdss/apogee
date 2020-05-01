@@ -389,7 +389,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
         jf=np.where((np.abs(ra-clust[ic].ra)*np.cos(clust[ic].dec*np.pi/180.) < 1.5) & 
                 (np.abs(data['DEC']-clust[ic].dec) < 1.5))[0]
         fig,ax=plots.multi(1,1)
-        fig.suptitle('{:s} Radius: {:4.2f} arcmin'.format(cluster,clust[ic].rad))
+        fig.suptitle('{:s} Radius: {:4.2f} arcmin  Ngood: {:d}'.format(cluster,clust[ic].rad,len(jc)))
         plots.plotp(ax,ra[jf],data['DEC'][jf],color='k',size=20,draw=False,xt='RA',yt='DEC')
         plots.plotp(ax,ra[jc],data['DEC'][jc],color='g',size=20,draw=False)
         circle = plt.Circle((clust[ic].ra,clust[ic].dec), clust[ic].rad/60., color='g', fill=False)
@@ -408,6 +408,11 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
     except :
         vhelio = data['VHELIO_AVG']
     j=np.where(np.abs(vhelio[jc]-clust[ic].rv) < clust[ic].drv)[0]
+    if len(j) > 0 :
+        if rv: jc=jc[j]
+    else :
+        jc=[]
+    print('{:d} stars after RV criterion'.format(len(jc)))
     if plot :
         ax.cla() 
         try :
@@ -419,7 +424,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
         ax.plot([clust[ic].rv,clust[ic].rv],[0,ymax],color='g')
         ax.plot([clust[ic].rv+clust[ic].drv,clust[ic].rv+clust[ic].drv],[0,ymax],color='r',ls=':')
         ax.plot([clust[ic].rv-clust[ic].drv,clust[ic].rv-clust[ic].drv],[0,ymax],color='r',ls=':')
-        fig.suptitle('{:s} RV: {:4.2f} +/- {:4.2f}'.format(cluster,clust[ic].rv,clust[ic].drv))
+        fig.suptitle('{:s} RV: {:4.2f} +/- {:4.2f} Ngood: {:d}'.format(cluster,clust[ic].rv,clust[ic].drv,len(j)))
         ax.set_xlabel('RV')
         if hard is not None :
             fig.savefig(hard+'/'+clust[ic].name+'_rv.png')
@@ -427,11 +432,6 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
         else :
             plt.draw()
             pdb.set_trace()
-    if len(j) > 0 :
-        if rv: jc=jc[j]
-    else :
-        jc=[]
-    print('{:d} stars after RV criterion'.format(len(jc)))
     if len(jc) <= 1 : return jc
 
     # proper motion criterion
@@ -454,19 +454,6 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
       med_vdec=np.median(vdec[i2])
       j=np.where((vra[i2]-med_vra)**2+(vdec[i2]-med_vdec)**2 < 2*clust[ic].drv**2+vra_err[i2]**2+vdec_err[i2]**2)[0]
   
-      if plot :
-        ax.cla() 
-        plots.plotp(ax,vra,vdec,color='k',
-                    xr=[med_vra-100,med_vra+200],xt='PMRA (km/sec at cluster dist)',
-                    yr=[med_vdec-100,med_vdec+100],yt='PMDEC (km/sec at cluster dist)')
-        plots.plotp(ax,vra[i2],vdec[i2],color='r',size=30)
-        plots.plotp(ax,vra[i2[j]],vdec[i2[j]],color='g',size=30)
-        fig.suptitle('{:s} PM (km/s): {:4.2f} +/- {:4.2f}  {:4.2f} +/ {:4.2f}'.format(cluster,med_vra,clust[ic].drv, med_vdec,clust[ic].drv))
-        if hard is not None :
-            fig.savefig(hard+'/'+clust[ic].name+'_pm.png')
-            plt.close()
-        else :
-            pdb.set_trace()
       if len(j) > 0 :
         if pm: 
             #jc=jc[i1[j]]
@@ -479,6 +466,20 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
       else :
         jc=[]
       print('{:d} stars after PM criterion'.format(len(jc)))
+      if plot :
+        ax.cla() 
+        plots.plotp(ax,vra,vdec,color='k',
+                    xr=[med_vra-150,med_vra+150],xt='PMRA (km/sec at cluster dist)',
+                    yr=[med_vdec-150,med_vdec+150],yt='PMDEC (km/sec at cluster dist)')
+        plots.plotp(ax,vra[i2],vdec[i2],color='r',size=30)
+        plots.plotp(ax,vra[i2[j]],vdec[i2[j]],color='g',size=30)
+        fig.suptitle('{:s} PM (km/s): {:4.2f} +/- {:4.2f}  {:4.2f} +/ {:4.2f} Ngood: {:d}'.format(
+                      cluster,med_vra,clust[ic].drv, med_vdec,clust[ic].drv,len(jc)))
+        if hard is not None :
+            fig.savefig(hard+'/'+clust[ic].name+'_pm.png')
+            plt.close()
+        else :
+            pdb.set_trace()
       if len(jc) <= 1 : return jc
    
       # parallaxes
@@ -490,19 +491,6 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
       med_par=np.median(par[i2[gd]])
       med_par_error=np.median(par_error[i2[gd]])
       j=np.where(np.isfinite(par[i2]) & (np.abs(par[i2]-med_par) < 3*med_par_error))[0]
-      if plot :
-        ax.cla() 
-        ax.hist(par,color='k',bins=np.arange(par.min(),par.max(),0.01),histtype='step',range=(0,2))
-        ax.hist(par[i2],color='r',bins=np.arange(par.min(),par.max(),0.01),histtype='step',range=(0,2))
-        ax.hist(par[i2[j]],color='g',bins=np.arange(par.min(),par.max(),0.01),histtype='step',range=(0,2))
-        ax.set_xlabel('Parallax')
-        fig.suptitle('{:s} Parallax : {:4.2f} +/- {:4.2f} '.format(cluster,med_par, 3*med_par_error))
-        if hard is not None :
-            fig.savefig(hard+'/'+clust[ic].name+'_parallax.png')
-            plt.close()
-        else :
-            plt.draw()
-            pdb.set_trace()
       if len(j) > 0 :
         if dist: 
             #jc=jc[i1[j]]
@@ -514,6 +502,19 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
             jc=jc[jnew]
       else :
         jc=[]
+      if plot :
+        ax.cla() 
+        ax.hist(par,color='k',bins=np.arange(par.min(),par.max(),0.01),histtype='step',range=(0,2))
+        ax.hist(par[i2],color='r',bins=np.arange(par.min(),par.max(),0.01),histtype='step',range=(0,2))
+        ax.hist(par[i2[j]],color='g',bins=np.arange(par.min(),par.max(),0.01),histtype='step',range=(0,2))
+        ax.set_xlabel('Parallax')
+        fig.suptitle('{:s} Parallax : {:4.2f} +/- {:4.2f} Ngood: {:d}'.format(cluster,med_par, 3*med_par_error,len(j)))
+        if hard is not None :
+            fig.savefig(hard+'/'+clust[ic].name+'_parallax.png')
+            plt.close()
+        else :
+            plt.draw()
+            pdb.set_trace()
       print('{:d} stars after parallax criterion'.format(len(jc)))
       if len(jc) <= 1 : return jc
 

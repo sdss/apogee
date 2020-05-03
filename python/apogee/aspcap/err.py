@@ -134,6 +134,7 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
 
     snbins=np.arange(50,300,50)
     tebins=np.arange(3500,7500,250)
+    tebins=np.arange(3500,6000,250)
     mhbins=np.arange(-2.25,1.00,0.5)
     dte = tebins[1]-tebins[0]
     dmh = mhbins[1]-mhbins[0]
@@ -246,11 +247,12 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
     ytit=[]
     outtype=np.dtype([('ELEM',els.dtype),('ERRFIT','5f4')])
     outelem=np.empty(len(els),dtype=outtype)
+    allfig,allax=plots.multi(5,5,hspace=0.001,wspace=0.001,xtickrot=60)
     for i,el in enumerate(els) :
         print(el)
         outelem[i]['ELEM']=el
         gd=np.where((rmselem[:,i] < 1.) & (rmselem[:,i] > 0.) )[0]
-        zr=[0,0.2]
+        zr=[0,0.19]
         if len(gd)<5 : continue
 
         if log :soln,inv = fit.linear(np.log(rmselem[gd,i]),rmsderiv[gd,:].transpose())
@@ -259,30 +261,39 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
         fig,ax=plots.multi(len(snbins),1,wspace=0.001,figsize=(3*len(snbins),4))
         for iplt in range(len(snbins)) :
             sn = snbins[iplt]+dsn/2.
-            ax[iplt].imshow(elemerr(soln,y-4500.,sn-100.,x, quad=quad, log=log, fact=fact),extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
+            ax[iplt].imshow(elemerr(soln,y-4500.,sn-100.,x, quad=quad, log=log, fact=fact),
+                              extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
                               aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower',cmap='rainbow')
             ax[iplt].text(0.98,0.98,el+' S/N={:4.0f}'.format(sn),va='top',ha='right',transform=ax[iplt].transAxes)
+            if i<25 and sn == 125 :
+                allax[i//5,i%5].text(0.98,0.98,el,va='top',ha='right',transform=allax[i//5,i%5].transAxes,color='m')
+                allax[i//5,i%5].set_xlabel('[M/H]')
+                if i%5 == 0 : allax[i//5,i%5].set_ylabel(r'$T_e$')
+                cm= allax[i//5,i%5].imshow(elemerr(soln,y-4500.,sn-100.,x, quad=quad, log=log, fact=fact),
+                                       extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
+                                       aspect='auto',vmin=zr[0],vmax=0.1, origin='lower',cmap='rainbow')
 
         snfig,snax=plots.multi(len(tebins)-1,len(mhbins)-1,wspace=0.001,hspace=0.001,figsize=(2*len(tebins),3*len(mhbins)),xtickrot=60)
         fig2,ax2=plots.multi(len(tebins)-1,len(mhbins)-1,wspace=0.001,hspace=0.001,figsize=(2*len(tebins),3*len(mhbins)),xtickrot=60)
         xx=np.arange(0,250)
         for ix in range(len(tebins)-1) :
-            if ix == 0 : yt=r'$\sigma$('+el+')'
-            else : yt=''
+            if ix == 0 : snax[iy,ix].set_ylabel(r'$\sigma$('+el+')')
             for iy in range(len(mhbins)-1) :
                 gdplt = np.where((rmsderiv[:,1]+4500.>tebins[ix]) & (rmsderiv[:,1]+4500.<tebins[ix+1]) &
                                   (rmsderiv[:,3]>mhbins[iy]) & (rmsderiv[:,3]<mhbins[iy+1]) )[0]
                 if len(gdplt) > 1 :
                     plots.plotc(snax[iy,ix],rmsderiv[gdplt,2]+100,rmselem[gdplt,i],rmsderiv[gdplt,3],size=5,zr=[-2,0.5],
-                                yr=zr,xr=[snbins[0],snbins[-1]],xt='S/N',yt=yt)
+                                yr=zr,xr=[snbins[0],snbins[-1]],xt='S/N')
                 snax[iy,ix].set_ylim(zr)
                 snax[iy,ix].plot(xx,elemerr(soln,tebins[ix]+dte/2.-4500,xx-100,mhbins[iy]+dmh/2., quad=quad, log=log, fact=fact))
-                snax[iy,ix].text(0.98,0.98,'{:8.0f}{:6.2f}'.format(tebins[ix]+dte/2.,mhbins[iy]+dmh/2.),
+                snax[iy,ix].text(0.02,0.98,r'$T_e:$'+'{:6.0f}'.format(tebins[ix]+dte/2.),
+                                 ha='left',va='top',transform=snax[iy,ix].transAxes,fontsize='x-small')
+                snax[iy,ix].text(0.98,0.98,'[M/H]: {:6.2f}'.format(mhbins[iy]+dmh/2.),
                                  ha='right',va='top',transform=snax[iy,ix].transAxes,fontsize='x-small')
                 for iz in range(len(snbins)-1) :
                     gd= np.where((rmsderiv[gdplt,2]+100.>snbins[iz]) & (rmsderiv[gdplt,2]+100.<snbins[iz+1]) ) [0]
-                    snax[iy,ix].text(0.98,0.88-iz*0.08,'{:8.3f}'.format(rmselem[gdplt[gd],i].mean()),
-                                     transform=snax[iy,ix].transAxes,fontsize='x-small',ha='right',va='top')
+                    #snax[iy,ix].text(0.98,0.88-iz*0.08,'{:8.3f}'.format(rmselem[gdplt[gd],i].mean()),
+                    #                 transform=snax[iy,ix].transAxes,fontsize='x-small',ha='right',va='top')
                     ax2[iy,ix].text(0.98,0.98,'{:8.0f}{:6.2f}'.format(tebins[ix]+dte/2.,mhbins[iy]+dmh/2.),
                                     ha='right',va='top',transform=ax2[iy,ix].transAxes,fontsize='x-small')
                     ax2[iy,ix].set_xlim(0,0.16)
@@ -316,6 +327,10 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
                      os.path.basename(out+el+'_hist2.png')])
         ytit.append('<A HREF='+os.path.basename(out)+el+'.txt>'+el+'</A>')
 
+    cb=allfig.colorbar(cm, ax=list(allax[:,-1]))
+    cb.ax.set_ylabel('$\sigma$')
+
+    allfig.savefig(out+'allel.png')
     html.htmltab(grid,file=out+'repeat_elem.html',ytitle=ytit)
     hdulist=fits.HDUList()
     hdulist.append(fits.BinTableHDU(outparam))

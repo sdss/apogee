@@ -66,6 +66,73 @@ def plotcn(hdulist,title=None,out=None) :
         grid.append(row)
     html.htmltab(grid,file=out+'cn.html',ytitle=yt,xtitle=xt)
 
+def elemvslogg(hdulist,title=None,out=None,calib=False,main=True,named=False) :
+    """ Abundances vs log g for solar sample
+    """
+    a=hdulist[1].data
+    if main and ('EXTRATARG' in a.columns.names) :
+        gd=np.where(a['EXTRATARG'] == 0)[0]
+        a=a[gd]
+        comment=', main sample only'
+    else :
+        comment=', full sample'
+
+    if calib : param = 'PARAM'
+    else : param = 'FPARAM'
+
+    els=hdulist[3].data['ELEM_SYMBOL'][0]
+    etoh=hdulist[3].data['ELEMTOH'][0]
+
+    # for plots vs logg of solar neighborhood solar stars
+    solar=np.where((a['gaia_parallax_error']/np.abs(a['gaia_parallax']) < 0.1) )[0]
+    distance = 1000./a['gaia_parallax'][solar]
+    x,y,z,r=lbd2xyz(a['GLON'][solar],a['GLAT'][solar],distance/1000.)
+    gd = np.where((abs(z) < 0.5) & (r>8) & (r<9))[0]
+    solar=solar[gd]
+    gd = np.where((a[param][solar,3] >= -0.1) & (a[param][solar,3] <= 0.1) )[0]
+    solar=solar[gd]
+    gels=list(els)
+    for el in ['Fe','Ge','Rb','Nd','Yb','Ce'] : gels.remove(el)
+    igel=0
+    if len(gels)%2 == 0 : gfig,gax=plots.multi(2,len(gels)//2,wspace=0.4,hspace=0.001,figsize=(6,18))
+    else : gfig,gax=plots.multi(2,len(gels)//2+1,hspace=0.001,wspace=0.001,figsize=(8,16))
+    
+    for iel,el in enumerate(els) :
+        if named:
+            if el == 'Fe' : tag = 'FE_H'
+            else : tag=(el+'_FE').upper()
+            abun=a[tag]
+            ytit='['+el+'/Fe]'
+        elif calib :
+            abun=a['X_M'][:,iel]
+            ytit='['+el+'/M] (cal)'
+        else :
+            try:
+                if etoh[iel] == 1 : abun=a['FELEM'][:,0,iel]-a['FPARAM'][:,3]
+                else : abun = a['FELEM'][:,0,iel]
+            except:
+                if etoh[iel] == 1 : abun=a['FELEM'][:,iel]-a['FPARAM'][:,3]
+                else : abun = a['FELEM'][:,iel]
+            ytit='['+el+'/M] (uncal)'
+        if el in gels :
+            print(el,igel)
+            plots.plotp(gax[igel//2,igel%2],a[param][solar,1],a['X_M'][solar,iel],color='r',
+                        xr=[5.9,-0.9],yr=[-0.39,0.39], size=1,xt='log g',yt=ytit,alpha=0.2)
+            plots.plotp(gax[igel//2,igel%2],a[param][solar,1],abun[solar],color='k',
+                        xr=[5.9,-0.9],yr=[-0.39,0.39], size=1,xt='log g',yt=ytit)
+            igel+=1
+
+    gfig.savefig(out+'elem_solar_logg.png')
+    # C/N
+    fig,ax=plots.multi(1,1,figsize=(6,4))
+    gd=np.where(a['C_FE'][solar]>-9)[0]
+    plots.plotp(ax,a[param][solar[gd],1],a['C_FE'][solar[gd]]-a['N_FE'][solar[gd]],color='k',
+                xr=[5.9,-0.9],yr=[-0.39,0.39],
+                size=3,xt='log g',yt='[C/N]')
+    plt.tight_layout()
+    fig.savefig(out+'cn_logg.png')
+
+
 def plotelems(hdulist,title=None,out=None,calib=False,main=True,named=False) :
     """ Make [X/M] vs [M/H] plots for all elements as f(Teff, logg)
     """
@@ -86,6 +153,21 @@ def plotelems(hdulist,title=None,out=None,calib=False,main=True,named=False) :
     etoh=hdulist[3].data['ELEMTOH'][0]
     grid=[]
     yt=[]
+
+    # for plots vs logg of solar neighborhood solar stars
+    solar=np.where((a['gaia_parallax_error']/np.abs(a['gaia_parallax']) < 0.1) )[0]
+    distance = 1000./a['gaia_parallax'][solar]
+    x,y,z,r=lbd2xyz(a['GLON'][solar],a['GLAT'][solar],distance/1000.)
+    gd = np.where((abs(z) < 0.5) & (r>8) & (r<9))[0]
+    solar=solar[gd]
+    gd = np.where((a[param][solar,3] >= -0.1) & (a[param][solar,3] <= 0.1) )[0]
+    solar=solar[gd]
+    gels=list(els)
+    for el in ['Fe','Ge','Rb','Nd','Yb','Ce'] : gels.remove(el)
+    igel=0
+    if len(gels)%2 == 0 : gfig,gax=plots.multi(2,len(gels)//2,wspace=0.5,hspace=0.001,figsize=(8,16))
+    else : gfig,gax=plots.multi(2,len(gels)//2+1,hspace=0.001,wspace=0.001,figsize=(8,16))
+    
     for iel,el in enumerate(els) :
         if named:
             if el == 'Fe' : tag = 'FE_H'
@@ -143,6 +225,14 @@ def plotelems(hdulist,title=None,out=None,calib=False,main=True,named=False) :
         plt.close(fig)
         row.append(os.path.basename(outfile))
         grid.append(row)
+
+        if el in gels :
+            print(el,igel)
+            plots.plotc(gax[igel//2,igel%2],a[param][solar,1],abun[solar],a[param][solar,3],xr=[5.9,-0.9],yr=[-0.39,0.39],zr=[-0.1,0.1],
+                        size=1,xt='log g',yt=ytit,zt='[M/H]')
+            igel+=1
+
+    gfig.savefig(out+'elem_solar_logg.png')
     if out is not None : html.htmltab(grid,file=out+'elem_chem.html',ytitle=yt,xtitle=xt)
 
 def plotparam_errs(hdulist,title=None,out=None) :
@@ -608,3 +698,18 @@ def apolco(hdulist,out='./',snmin=150) :
         yt.append(el)
 
     html.htmltab(grid,file=out+'apolco.html',ytitle=yt)
+
+
+def lbd2xyz(l,b,d,R0=8.5) :
+    ''' Angular coordinates + distance -> galactocentry x,y,z '''
+
+    brad = b*np.pi/180.
+    lrad = l*np.pi/180.
+
+    x = d*np.sin(0.5*np.pi-brad)*np.cos(lrad)-R0
+    y = d*np.sin(0.5*np.pi-brad)*np.sin(lrad)
+    z = d*np.cos(0.5*np.pi-brad)
+    r = np.sqrt(x**2+y**2)
+    return x, y, z, r
+
+ 

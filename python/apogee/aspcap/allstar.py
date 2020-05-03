@@ -25,16 +25,20 @@ def add_gaia(data,gaia_1='gaia_2mass_xmatch.fits.gz', gaia_2='gaia_posn_xmatch.f
     """
     tab=Table(data)
     in_names=('source_id','parallax','parallax_error','pmra','pmra_error','pmdec','pmdec_error',
-              'phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag',
-              'radial_velocity','radial_velocity_error','r_est','r_lo','r_hi')
-    dtypes=('i8','f8','f8','f8','f8','f8','f8','f4','f4','f4','f8','f8','f8','f8','f8')
+              'phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag','a_g_val', 'e_bp_min_rp_val',
+              'radial_velocity','radial_velocity_error', 'r_est','r_lo','r_hi')
+    dtypes=('i8','f8','f8','f8','f8','f8','f8','f4','f4','f4','f4','f4','f8','f8','f8','f8','f8')
     out_names=[]
     for name in in_names: out_names.append(('gaia_'+name).upper())
     newcols=Table(np.zeros([len(tab),len(out_names)])-9999.,names=out_names,dtype=dtypes)
     # for source_id, default to 0, not -9999.
     newcols['GAIA_SOURCE_ID'] = 0
     # get rid of targetting proper motions to avoid confusion!
-    tab.remove_columns(['PMRA','PMDEC','PM_SRC'])
+    #tab.remove_columns(['PMRA','PMDEC','PM_SRC'])
+    # change to rename
+    tab.rename_column('PMRA','TARG_PMRA')
+    tab.rename_column('PMDEC','TARG_PMDEC')
+    tab.rename_column('PM_SRC','TARG_PM_SRC')
     # add unpopulated columns
     tab.add_columns(newcols.columns.values())
 

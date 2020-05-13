@@ -266,7 +266,7 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
                               aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower',cmap='rainbow')
             ax[iplt].text(0.98,0.98,el+' S/N={:4.0f}'.format(sn),va='top',ha='right',transform=ax[iplt].transAxes)
             if i<25 and sn == 125 :
-                allax[i//5,i%5].text(0.98,0.98,el,va='top',ha='right',transform=allax[i//5,i%5].transAxes,color='m')
+                allax[i//5,i%5].text(0.05,0.95,el,va='top',ha='left',transform=allax[i//5,i%5].transAxes,color='w')
                 allax[i//5,i%5].set_xlabel('[M/H]')
                 if i%5 == 0 : allax[i//5,i%5].set_ylabel(r'$T_e$')
                 cm= allax[i//5,i%5].imshow(elemerr(soln,y-4500.,sn-100.,x, quad=quad, log=log, fact=fact),

@@ -566,6 +566,15 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
         else :
             plt.draw()
             pdb.set_trace()
+        ax.cla()
+        plots.plotp(ax,data[param][jf,0],data[param][jf,1],size=30,draw=False,xt='Teff',yt='logg',xr=[7000,3000],yr=[6,-1])
+        plots.plotp(ax,data[param][jc,0],data[param][jc,1],color='b',size=30,draw=False)
+        if hard is not None :
+            fig.savefig(hard+'/'+clust[ic].name+'_kiel.png')
+            plt.close()
+        else :
+            plt.draw()
+            pdb.set_trace()
 
     return jc
 
@@ -596,6 +605,7 @@ def clusters(data,dir='clusters/') :
         f.write('<TD><A HREF='+clust[ic].name+'_pm.png><IMG SRC='+clust[ic].name+'_pm.png width=300></A>\n')
         f.write('<TD><A HREF='+clust[ic].name+'_parallax.png><IMG SRC='+clust[ic].name+'_parallax.png width=300></A>\n')
         f.write('<TD><A HREF='+clust[ic].name+'_cmd.png><IMG SRC='+clust[ic].name+'_cmd.png width=300></A>\n')
+        f.write('<TD><A HREF='+clust[ic].name+'_kiel.png><IMG SRC='+clust[ic].name+'_kiel.png width=300></A>\n')
         np.savetxt(dir+'/'+clust[ic].name+'.txt',data[j]['APOGEE_ID'],fmt='%s')
         for star in data[j]['APOGEE_ID'] : fstars.write('{:s} {:s}\n'.format(star,clust[ic].name))
     html.tail(f)

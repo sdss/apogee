@@ -40,6 +40,7 @@ class ApLoad :
         self.sdss_path=path.Path()
         self.http_access=HttpAccess(verbose=verbose)
         self.http_access.remote()
+        self.plateplans = yanny.yanny(os.environ['PLATELIST_DIR']+'/platePlans.par')['PLATEPLANS']
    
     def settelescope(self,telescope) :
         self.telescope=telescope
@@ -581,7 +582,9 @@ class ApLoad :
         Uses sdss_access to create filenames and download files if necessary
         '''
 
-        if self.verbose: print('allfile... chips=',chips)
+        if self.verbose: 
+            print('allfile... chips=',chips)
+            pdb.set_trace()
         if self.instrument == 'apogee-n' : prefix='ap'
         else : prefix='as'
         if fz : suffix = '.fz'
@@ -604,9 +607,9 @@ class ApLoad :
             sdssroot = 'ap'+root
 
         if plate is not None :
-            plateplans = yanny.yanny(os.environ['PLATELIST_DIR']+'/platePlans.par')['PLATEPLANS']
-            j = np.where(np.array(plateplans['plateid']) == plate)[0][0]
-            field = plateplans['name'][j].replace('APG_','')
+            #plateplans = yanny.yanny(os.environ['PLATELIST_DIR']+'/platePlans.par')['PLATEPLANS']
+            j = np.where(np.array(self.plateplans['plateid']) == plate)[0][0]
+            field = self.plateplans['name'][j].replace('APG_','')
  
         if chips == False :
             # First make sure the file doesn't exist locally

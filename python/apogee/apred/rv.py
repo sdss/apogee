@@ -55,11 +55,11 @@ def allFieldVisits(files=['apo*/*/apFieldVisits-*.fits','apo*/*/apFieldC-*.fits'
 def vscat(a,fig=None,ls=None,marker='o',nmin=2,mhmin=-3,density=False,out=None) :
     """ Make histograms of VSCATTER for different bins of Teff H], given min NVISITS, and min [M/H]
     """
-    if fig == None : fig,ax=plots.multi(4,6,hspace=0.001,wspace=0.4)
+    if fig == None : fig,ax=plots.multi(4,6,hspace=0.001,wspace=0.4,figsize=(12,8))
     else : fig,ax=fig
     tbins=[3000,3500,4000,4500,5500,8000,30000] 
     hbins=[8,11,12,13,15]
-    snr = a['SNR']
+    snr = a['SNREV']
     j=np.where(snr > 300) [0]
     snr[j] = 300
     for i in range(len(tbins)-1) :
@@ -73,15 +73,17 @@ def vscat(a,fig=None,ls=None,marker='o',nmin=2,mhmin=-3,density=False,out=None) 
             try :
                 #plots.plotc(ax[i,2],snr[gd],a['VSCATTER'][gd],a['RV_FEH'][gd],marker=marker,xr=[0,310],yr=[0,1],xt='S/N',yt='VSCATTER')
                 ax[i,j].hist(a['VSCATTER'][gd],bins=np.arange(0,1,0.01),ls=ls,histtype='step',color=colors[j],normed=density)
-                ax[i,j].set_xlabel('VSCATTER')
+                ax[i,j].set_xlabel('VSCATTER (km/s)')
+                ax[i,j].plot([0.1,0.1],ax[i,j].get_ylim())
                 #ax[i,1].hist(a['VSCATTER'][gd],bins=np.arange(0,1,0.01),histtype='step',cumulative=True,normed=True,ls=ls,color=colors[j])
                 #ax[i,1].set_xlabel('VSCATTER')
             except : pass
 
-    fig.suptitle('NVISITS>{:d} [M/H]>{:6.2f}'.format(nmin,mhmin))
     if out is not None : 
         fig.savefig(out+'.png')
         plt.close()
+
+    fig.suptitle('NVISITS>{:d} [M/H]>{:6.2f}'.format(nmin,mhmin))
     return fig,ax
 
 def apolco(a,minfeh=-3,out=None) :
@@ -533,4 +535,126 @@ def repeatspec(a) :
             pdb.set_trace()
             ax[0].cla()
             ax[1].cla()
-    
+  
+import doppler 
+import multiprocessing as mp
+from astropy.table import Table
+
+def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=500) :
+    """ Run DOPPLER RVs for a field
+    """ 
+
+    # get all the VisitSum files for this field and concatenate them
+    files=glob.glob(os.environ['APOGEE_REDUX']+'/'+apred+'/visit/'+telescope+'/'+field+'/apVisitSum*')
+    allvisits=struct.concat(files)
+
+    # loop over requested objects
+    if obj is None :
+        allobj=set(allvisits['APOGEE_ID'])
+    else :
+        allobj = obj
+    allfiles=[]
+    allv=[]
+    load=apload.ApLoad(apred=apred)
+    nobj=0
+    nvisit=0
+    for obj in sorted(allobj) :
+        visits=np.where(allvisits['APOGEE_ID'] == obj)[0]
+        print('object: {:s}  nvisits: {:d}'.format(obj,len(visits)))
+        nobj+=1
+        nvisit+=len(visits)
+
+        specfiles=[]
+        for i,visit in enumerate(visits) :
+            if i < maxvisit :
+                # accumulate list of files
+                visitfile= load.allfile('Visit',plate=int(allvisits['PLATE'][visit]),mjd=allvisits['MJD'][visit],fiber=allvisits['FIBERID'][visit])
+                specfiles.append(visitfile)
+        allfiles.append(specfiles)
+        allv.append(visits)
+       
+    print('total objects: ', nobj, ' total visits: ', nvisit) 
+
+    if threads == 0 :
+        output=[]
+        for speclist in allfiles :
+            output.append(dorv(speclist))
+    else :
+        pool = mp.Pool(threads)
+        output = pool.map_async(dorv, allfiles).get()
+        pool.close()
+        pool.join()
+    print('done pool')
+
+    allvisits=Table(allvisits)
+    # rename old visit RV tags and initialize new ones
+    for col in ['VTYPE','VREL','VRELERR','VHELIO'] :
+        allvisits.rename_column(col,'est'+col)
+        if col == 'VTYPE' : allvisits[col] = 0
+        else : allvisits[col] = np.nan
+
+    # load up the individual visit RV information
+    for v,out in zip(allv,output) :
+        for i,visit in enumerate(v) :
+            print(out[1]['filename'][i])
+            print(allvisits[visit]['PLATE'],allvisits[visit]['MJD'],allvisits[visit]['FIBERID'])
+            allvisits[visit]['VREL']=out[1]['vrel'][i]
+            allvisits[visit]['VRELERR']=out[1]['vrelerr'][i]
+            allvisits[visit]['VHELIO']=out[1]['vhelio'][i]
+
+    return allvisits
+
+def dorv(visitfiles) :            
+    """ do the rv jointfit from list of files
+    """
+    speclist=[]
+    print(visitfiles)
+    for visitfile in visitfiles :
+        spec=doppler.read(visitfile)
+        if spec is not None : speclist.append(spec)
+    return doppler.rv.jointfit(speclist,verbose=True)
+
+#        # do the RVs
+#        try :
+#            out=doppler.rv.jointfit(speclist,verbose=True)
+#            allout.append(out)
+#        except KeyboardInterrupt:
+#            pass
+#        except:
+#            print('error in jointfit')
+    return allout
+
+"""
+   a={file: file_basename(starfile), apogee_id: objname, telescope: apstr.telescope, $
+       location_id: long(locid), field: apstr.field, $
+       j: apstr.j, j_err: apstr.j_err, h: apstr.h, h_err: apstr.h_err, k: apstr.k, k_err: apstr.k_err, $
+       ra: apstr.ra, dec: apstr.dec, glon: apstr.glon, glat: apstr.glat, $
+       ak_targ: float(apstr.ak_targ), ak_targ_method: apstr.ak_targ_method, $
+       ak_wise: float(apstr.ak_wise), sfd_ebv: float(apstr.sfd_ebv),$
+       apogee_target1: apogee_target1, apogee_target2: apogee_target2, apogee_target3: apogee_target3, $
+       apogee2_target1: apogee2_target1, apogee2_target2: apogee2_target2, apogee2_target3: apogee2_target3, $
+       targflags: targflags, survey: survey, programname: allvisits[obj[j[0]]].programname, $
+       apogee2_target1: apogee2_target1, apogee2_target2: apogee2_target2, apogee2_target3: apogee2_target3, $
+       targflags: targflags, survey: survey, programname: allvisits[obj[j[0]]].programname, $
+       ninst: [n1,n2,n3],$
+       nvisits: apstr.nvisits, combtype:apstr.combtype, commiss: commiss, $
+       snr: float(apstr.snr), $
+       starflag: apstr.starflag, starflags: starflag(apstr.starflag), $
+       andflag: apstr.andflag, andflags: starflag(apstr.andflag), $
+       vhelio_avg: float(apstr.vhelio), vscatter: float(apstr.vscatter),$
+       verr: float(apstr.verr), verr_med: float(apstr.verr_med),$
+       obsvhelio_avg: float(apstr.obsvhelio),  obsvscatter: float(apstr.obsvscatter),$
+       obsverr: float(apstr.obsverr), obsverr_med: float(apstr.obsverr_med),$
+       synthvhelio_avg: float(apstr.synthvhelio),  synthvscatter: float(apstr.synthvscatter),$
+       synthverr: float(apstr.synthverr), synthverr_med: float(apstr.synthverr_med),$
+       rv_teff: float(apstr.rv_teff), rv_logg: float(apstr.rv_logg), rv_feh: float(apstr.rv_feh),$
+       rv_alpha: float(apstr.rv_alpha), rv_carb: float(apstr.rv_carb), $
+       rv_ccfwhm: float(apstr.ccpfwhm), rv_autofwhm: float(apstr.autofwhm), synthscatter: float(apstr.synthscatter),$
+       ;binary: apstr.rv.binary, $
+       stablerv_chi2: apstr.rv.stablerv_chi2, $
+       stablerv_rchi2: apstr.rv.stablerv_rchi2, chi2_threshold: apstr.rv.chi2_threshold, $
+       stablerv_chi2_prob: apstr.rv.stablerv_chi2_prob}
+    b={spec: apstr.spec[*,0], err: apstr.err[*,0], mask: apstr.mask[*,0]}
+    c={wave: apstr.wavelength[*,0]}
+
+"""

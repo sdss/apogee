@@ -20,10 +20,6 @@ except:
 import copy
 import os
 
-reload(apselect)
-#reload(galmodel)
-reload(plots)
-
 def read(file='allStar-testcal.fits') :
     '''
     Read allStar file, get main structure, elem_symbol, and elemtoh

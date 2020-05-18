@@ -540,7 +540,7 @@ import doppler
 import multiprocessing as mp
 from astropy.table import Table
 
-def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=500) :
+def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=500,maxobj=9999) :
     """ Run DOPPLER RVs for a field
     """ 
 
@@ -548,84 +548,14 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
     files=glob.glob(os.environ['APOGEE_REDUX']+'/'+apred+'/visit/'+telescope+'/'+field+'/apVisitSum*')
     allvisits=struct.concat(files)
 
-    # loop over requested objects
+    # get all unique (or requested) objects
     if obj is None :
-        allobj=set(allvisits['APOGEE_ID'])
+        allobj=set(allvisits['APOGEE_ID'][0:maxobj])
     else :
         allobj = obj
-    allfiles=[]
-    allv=[]
-    load=apload.ApLoad(apred=apred)
-    nobj=0
-    nvisit=0
-    for obj in sorted(allobj) :
-        visits=np.where(allvisits['APOGEE_ID'] == obj)[0]
-        print('object: {:s}  nvisits: {:d}'.format(obj,len(visits)))
-        nobj+=1
-        nvisit+=len(visits)
-
-        specfiles=[]
-        for i,visit in enumerate(visits) :
-            if i < maxvisit :
-                # accumulate list of files
-                visitfile= load.allfile('Visit',plate=int(allvisits['PLATE'][visit]),mjd=allvisits['MJD'][visit],fiber=allvisits['FIBERID'][visit])
-                specfiles.append(visitfile)
-        allfiles.append(specfiles)
-        allv.append(visits)
-       
-    print('total objects: ', nobj, ' total visits: ', nvisit) 
-
-    if threads == 0 :
-        output=[]
-        for speclist in allfiles :
-            output.append(dorv(speclist))
-    else :
-        pool = mp.Pool(threads)
-        output = pool.map_async(dorv, allfiles).get()
-        pool.close()
-        pool.join()
-    print('done pool')
-
-    allvisits=Table(allvisits)
-    # rename old visit RV tags and initialize new ones
-    for col in ['VTYPE','VREL','VRELERR','VHELIO'] :
-        allvisits.rename_column(col,'est'+col)
-        if col == 'VTYPE' : allvisits[col] = 0
-        else : allvisits[col] = np.nan
-
-    # load up the individual visit RV information
-    for v,out in zip(allv,output) :
-        for i,visit in enumerate(v) :
-            print(out[1]['filename'][i])
-            print(allvisits[visit]['PLATE'],allvisits[visit]['MJD'],allvisits[visit]['FIBERID'])
-            allvisits[visit]['VREL']=out[1]['vrel'][i]
-            allvisits[visit]['VRELERR']=out[1]['vrelerr'][i]
-            allvisits[visit]['VHELIO']=out[1]['vhelio'][i]
-
-    return allvisits
-
-def dorv(visitfiles) :            
-    """ do the rv jointfit from list of files
+    # loop over requested objects
     """
-    speclist=[]
-    print(visitfiles)
-    for visitfile in visitfiles :
-        spec=doppler.read(visitfile)
-        if spec is not None : speclist.append(spec)
-    return doppler.rv.jointfit(speclist,verbose=True)
-
-#        # do the RVs
-#        try :
-#            out=doppler.rv.jointfit(speclist,verbose=True)
-#            allout.append(out)
-#        except KeyboardInterrupt:
-#            pass
-#        except:
-#            print('error in jointfit')
-    return allout
-
-"""
-   a={file: file_basename(starfile), apogee_id: objname, telescope: apstr.telescope, $
+    a={file: file_basename(starfile), apogee_id: objname, telescope: apstr.telescope, $
        location_id: long(locid), field: apstr.field, $
        j: apstr.j, j_err: apstr.j_err, h: apstr.h, h_err: apstr.h_err, k: apstr.k, k_err: apstr.k_err, $
        ra: apstr.ra, dec: apstr.dec, glon: apstr.glon, glat: apstr.glat, $
@@ -656,5 +586,109 @@ def dorv(visitfiles) :
        stablerv_chi2_prob: apstr.rv.stablerv_chi2_prob}
     b={spec: apstr.spec[*,0], err: apstr.err[*,0], mask: apstr.mask[*,0]}
     c={wave: apstr.wavelength[*,0]}
+    """
+    fieldtype = np.dtype([('file','S64'),('apogee_id','S20'),('telescope',str),('location_id',int),('field',str),
+                          ('snr',float),
+                          ('vhelio_avg',float),('vscatter',float),('verr',float),
+                          ('rv_teff',float),('rv_logg',float),('rv_feh',float) 
+                         ])
+   
+                 #     ('medsnr',float),('totsnr',float),('vhelio',float),('vscatter',float),('verr',float),
+                 #     ('teff',float),('tefferr',float),('logg',float),('loggerr',float),('feh',float),
+                 #     ('feherr',float),('chisq',float)])
+    allfield = np.zeros(len(allobj),dtype=fieldtype)
+    allfield['telescope'] = telescope
+    allfield['field'] = field
+    allfiles=[]
+    allv=[]
+    load=apload.ApLoad(apred=apred)
+    nobj=0
+    nvisit=0
+    for iobj,obj in enumerate(sorted(allobj)) :
+        if type(obj) is str : obj=obj.encode()
+        allfield['apogee_id'][iobj] = obj
+        visits=np.where(allvisits['APOGEE_ID'] == obj)[0]
+        print('object: {:}  nvisits: {:d}'.format(obj,len(visits)))
+        nobj+=1
+        nvisit+=len(visits)
 
-"""
+        specfiles=[obj]
+        for i,visit in enumerate(visits) :
+            if i < maxvisit :
+                # accumulate list of files
+                visitfile= load.allfile('Visit',plate=int(allvisits['PLATE'][visit]),mjd=allvisits['MJD'][visit],fiber=allvisits['FIBERID'][visit])
+                specfiles.append(visitfile)
+        allfiles.append(specfiles)
+        allv.append(visits)
+       
+    print('total objects: ', nobj, ' total visits: ', nvisit) 
+    if threads == 0 :
+        output=[]
+        for speclist in allfiles :
+            output.append(dorv(speclist))
+    else :
+        pool = mp.Pool(threads)
+        output = pool.map_async(dorv, allfiles).get()
+        pool.close()
+        pool.join()
+    print('done pool')
+
+    allvisits=Table(allvisits)
+    # rename old visit RV tags and initialize new ones
+    for col in ['VTYPE','VREL','VRELERR','VHELIO'] :
+        allvisits.rename_column(col,'est'+col)
+        if col == 'VTYPE' : allvisits[col] = 0
+        else : allvisits[col] = np.nan
+
+    # load up the individual visit RV information
+    for out,files in zip(output,allfiles) :
+        for v in out[1] :
+            # match by filename components in case there was an error reading in doppler
+            name=os.path.basename(v['filename']).replace('.fits','').split('-')
+            visit = np.where( (np.char.strip(allvisits['PLATE']).astype(str) == name[-3]) &
+                              (allvisits['MJD'] == int(name[-2])) &
+                              (allvisits['FIBERID'] == int(name[-1])) )[0][0]
+            allvisits[visit]['VREL']=v['vrel']
+            allvisits[visit]['VRELERR']=v['vrelerr']
+            allvisits[visit]['VHELIO']=v['vhelio']
+        j = np.where(allfield['apogee_id'] == files[0])[0]
+        allfield['snr'][j] = out[0]['medsnr']
+        allfield['vhelio_avg'][j] = out[0]['vhelio']
+        allfield['vscatter'][j] = out[0]['vscatter']
+        allfield['verr'][j] = out[0]['verr']
+        allfield['rv_teff'][j] = out[0]['teff']
+        allfield['rv_logg'][j] = out[0]['logg']
+        allfield['rv_feh'][j] = out[0]['feh']
+
+        #('medsnr',float),('totsnr',float),('vhelio',float),('vscatter',float),('verr',float),
+        #('teff',float),('tefferr',float),('logg',float),('loggerr',float),('feh',float),
+        #('feherr',float),('chisq',float)])
+
+    return allfield,allvisits
+
+def dorv(visitfiles) :            
+    """ do the rv jointfit from list of files
+    """
+    speclist=[]
+    print(visitfiles)
+    for visitfile in visitfiles[1:] :
+        spec=doppler.read(visitfile)
+        if spec is not None : speclist.append(spec)
+    out= doppler.rv.jointfit(speclist,verbose=True)
+    obj=visitfiles[0].decode('UTF-8')
+    fp = open(obj+'_rv.txt','w')
+    fp.write('{:s}  {:d} {:8.1f}'.format(obj,len(speclist),out[4]))
+    fp.close()
+
+    return out
+
+#        # do the RVs
+#        try :
+#            out=doppler.rv.jointfit(speclist,verbose=True)
+#            allout.append(out)
+#        except KeyboardInterrupt:
+#            pass
+#        except:
+#            print('error in jointfit')
+    return allout
+

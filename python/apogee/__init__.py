@@ -10,7 +10,7 @@ import yaml
 
 # Inits the logging system. Only shell logging, and exception and warning catching.
 # File logging can be started by calling log.start_file_logger(name).
-from .misc import log
+#from .misc import log
 
 
 def merge(user, default):

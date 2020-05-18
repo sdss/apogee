@@ -233,7 +233,9 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
                 snax[iy,ix].text(0.98,0.98,'{:8.0f}{:6.2f}'.format(tebins[ix]+dte/2.,mhbins[iy]+dmh/2.),ha='right',va='top',transform=snax[iy,ix].transAxes,fontsize='x-small')
                 for iz in range(len(snbins)-1) :
                     gd= np.where((rmsderiv[gdplt,2]+100.>snbins[iz]) & (rmsderiv[gdplt,2]+100.<snbins[iz+1]) ) [0]
-                    snax[iy,ix].text(0.98,0.88-iz*0.08,'{:8.2f}'.format(rmsparam[gdplt[gd],i].mean()),transform=snax[iy,ix].transAxes,fontsize='x-small',ha='right',va='top')
+                    if len(gd) > 0 :
+                        snax[iy,ix].text(0.98,0.88-iz*0.08,'{:8.2f}'.format(
+                                    rmsparam[gdplt[gd],i].mean()),transform=snax[iy,ix].transAxes,fontsize='x-small',ha='right',va='top')
         fig.savefig(out+param+'.png')
         plt.close(fig)
         snfig.savefig(out+param+'_sn.png')
@@ -268,7 +270,7 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
             if i<25 and sn == 125 :
                 allax[i//5,i%5].text(0.05,0.95,el,va='top',ha='left',transform=allax[i//5,i%5].transAxes,color='w')
                 allax[i//5,i%5].set_xlabel('[M/H]')
-                if i%5 == 0 : allax[i//5,i%5].set_ylabel(r'$T_e$')
+                if i%5 == 0 : allax[i//5,i%5].set_ylabel(r'$T_{eff}$')
                 cm= allax[i//5,i%5].imshow(elemerr(soln,y-4500.,sn-100.,x, quad=quad, log=log, fact=fact),
                                        extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
                                        aspect='auto',vmin=zr[0],vmax=0.1, origin='lower',cmap='rainbow')
@@ -286,10 +288,10 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
                                 yr=zr,xr=[snbins[0],snbins[-1]],xt='S/N')
                 snax[iy,ix].set_ylim(zr)
                 snax[iy,ix].plot(xx,elemerr(soln,tebins[ix]+dte/2.-4500,xx-100,mhbins[iy]+dmh/2., quad=quad, log=log, fact=fact))
-                snax[iy,ix].text(0.02,0.98,r'$T_e:$'+'{:6.0f}'.format(tebins[ix]+dte/2.),
+                snax[iy,ix].text(0.02,0.98,r'$T_{eff}:$'+'{:6.0f}'.format(tebins[ix]+dte/2.),
                                  ha='left',va='top',transform=snax[iy,ix].transAxes,fontsize='x-small')
-                snax[iy,ix].text(0.98,0.98,'[M/H]: {:6.2f}'.format(mhbins[iy]+dmh/2.),
-                                 ha='right',va='top',transform=snax[iy,ix].transAxes,fontsize='x-small')
+                snax[iy,ix].text(0.02,0.86,'[M/H]: {:6.2f}'.format(mhbins[iy]+dmh/2.),
+                                 ha='left',va='top',transform=snax[iy,ix].transAxes,fontsize='x-small')
                 for iz in range(len(snbins)-1) :
                     gd= np.where((rmsderiv[gdplt,2]+100.>snbins[iz]) & (rmsderiv[gdplt,2]+100.<snbins[iz+1]) ) [0]
                     #snax[iy,ix].text(0.98,0.88-iz*0.08,'{:8.3f}'.format(rmselem[gdplt[gd],i].mean()),

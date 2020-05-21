@@ -7,6 +7,7 @@ import pdb
 import numpy as np
 import matplotlib.pyplot as plt
 import esutil
+import pickle
 from astropy.io import fits
 from apogee.utils import apload
 from apogee.utils import applot
@@ -540,13 +541,17 @@ import doppler
 import multiprocessing as mp
 from astropy.table import Table
 
-def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=500,maxobj=9999) :
+def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=500,maxobj=9999,snmin=5) :
     """ Run DOPPLER RVs for a field
     """ 
 
     # get all the VisitSum files for this field and concatenate them
     files=glob.glob(os.environ['APOGEE_REDUX']+'/'+apred+'/visit/'+telescope+'/'+field+'/apVisitSum*')
     allvisits=struct.concat(files)
+    starflag=bitmask.StarBitMask()
+    gd=np.where(((allvisits['STARFLAG'] & starflag.badval()) == 0) & (allvisits['SNR'] > snmin) )[0]
+    print(len(allvisits),len(gd))
+    allvisits=Table(allvisits[gd])
 
     # get all unique (or requested) objects
     if obj is None :
@@ -587,7 +592,7 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
     b={spec: apstr.spec[*,0], err: apstr.err[*,0], mask: apstr.mask[*,0]}
     c={wave: apstr.wavelength[*,0]}
     """
-    fieldtype = np.dtype([('file','S64'),('apogee_id','S20'),('telescope',str),('location_id',int),('field',str),
+    fieldtype = np.dtype([('file','S64'),('apogee_id','S20'),('telescope','S6'),('location_id',int),('field','S20'),
                           ('snr',float),
                           ('vhelio_avg',float),('vscatter',float),('verr',float),
                           ('rv_teff',float),('rv_logg',float),('rv_feh',float) 
@@ -604,6 +609,7 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
     load=apload.ApLoad(apred=apred)
     nobj=0
     nvisit=0
+    #allvisits['FWHM'] = np.zeros([len(allvisits),3])
     for iobj,obj in enumerate(sorted(allobj)) :
         if type(obj) is str : obj=obj.encode()
         allfield['apogee_id'][iobj] = obj
@@ -618,13 +624,23 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
                 # accumulate list of files
                 visitfile= load.allfile('Visit',plate=int(allvisits['PLATE'][visit]),mjd=allvisits['MJD'][visit],fiber=allvisits['FIBERID'][visit])
                 specfiles.append(visitfile)
+    #            spec=doppler.read(visitfile)
+    #            fwhm=[]
+    #            for chip in range(3) : 
+    #                try: fwhm.append(spec.lsf.fwhm(order=chip).min())
+    #                except: fwhm.append(0.)
+    #            allvisits['FWHM'][visit] = np.array(fwhm)
         allfiles.append(specfiles)
         allv.append(visits)
        
     print('total objects: ', nobj, ' total visits: ', nvisit) 
+    #pdb.set_trace()
+    #return allvisits
+
     if threads == 0 :
         output=[]
         for speclist in allfiles :
+            print(speclist[0])
             output.append(dorv(speclist))
     else :
         pool = mp.Pool(threads)
@@ -633,7 +649,6 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
         pool.join()
     print('done pool')
 
-    allvisits=Table(allvisits)
     # rename old visit RV tags and initialize new ones
     for col in ['VTYPE','VREL','VRELERR','VHELIO'] :
         allvisits.rename_column(col,'est'+col)
@@ -651,6 +666,7 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
             allvisits[visit]['VREL']=v['vrel']
             allvisits[visit]['VRELERR']=v['vrelerr']
             allvisits[visit]['VHELIO']=v['vhelio']
+ 
         j = np.where(allfield['apogee_id'] == files[0])[0]
         allfield['snr'][j] = out[0]['medsnr']
         allfield['vhelio_avg'][j] = out[0]['vhelio']
@@ -664,31 +680,37 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
         #('teff',float),('tefferr',float),('logg',float),('loggerr',float),('feh',float),
         #('feherr',float),('chisq',float)])
 
+    hdulist=fits.HDUList()
+    hdulist.append(fits.table_to_hdu(Table(allfield)))
+    hdulist.append(fits.table_to_hdu(allvisits))
+    hdulist.writeto(field+'_rv.fits',overwrite=True)
     return allfield,allvisits
 
 def dorv(visitfiles) :            
     """ do the rv jointfit from list of files
     """
+    obj=visitfiles[0].decode('UTF-8')
+    if os.path.exists(obj+'_out.pkl') :
+        print(obj,' already done')
+        fp=open(obj+'_out.pkl','rb')
+        try: 
+            out=pickle.load(fp)
+            return out
+        except: 
+            print('error loading: ', obj+'_out.pkl')
+            pass
+
     speclist=[]
     print(visitfiles)
     for visitfile in visitfiles[1:] :
         spec=doppler.read(visitfile)
         if spec is not None : speclist.append(spec)
     out= doppler.rv.jointfit(speclist,verbose=True)
-    obj=visitfiles[0].decode('UTF-8')
     fp = open(obj+'_rv.txt','w')
     fp.write('{:s}  {:d} {:8.1f}'.format(obj,len(speclist),out[4]))
     fp.close()
+    fp=open(obj+'_out.pkl','wb')
+    pickle.dump(out,fp)
+    fp.close()
 
     return out
-
-#        # do the RVs
-#        try :
-#            out=doppler.rv.jointfit(speclist,verbose=True)
-#            allout.append(out)
-#        except KeyboardInterrupt:
-#            pass
-#        except:
-#            print('error in jointfit')
-    return allout
-

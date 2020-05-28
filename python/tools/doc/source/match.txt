@@ -1,7 +1,0 @@
-match module:
-***********
-
-.. automodule:: holtz.tools.match
-   :members:
-   :member-order: bysource
-

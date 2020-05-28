@@ -1,0 +1,27 @@
+plots module
+***********
+
+The plots module provides routines to make labelled plots with single calls,
+as well a a routine to set up multipanel plots with or without space between
+plots.  A variety of different plot routines are available. Also provides 
+routine to allow interactive query of data points.
+
+Plots are started by using the plots.multi() routine which returns a matplotlib
+figure and axes to be used by subsequent calls.
+
+plotp will plot points. optionally with different groups of points in different colors
+
+plotc will plot points, color coded by a third quantity
+
+plotl will plot lines
+
+event with start an event handler that will identify points nearest to the cursor on a
+key press, if points are loaded internally using one of the plots routines. Optionally
+the event handler will print data associated with the nearest point.
+
+Module functions
+
+.. automodule:: holtz.tools.plots
+   :members:
+   :member-order: bysource
+

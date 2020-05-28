@@ -494,6 +494,23 @@ class ApLoad :
             except :
                 self.printerror()
     
+    def apFieldVisits(self,*args, **kwargs) :
+        """
+        NAME: apload.apFieldVisits
+        PURPOSE:  read apFieldVisits file (downloading if necessary)
+        USAGE:  ret = apload.apFieldVisits(field)
+        RETURNS: if hdu==None : ImageHDUs (all extensions)
+                 if hdu=N : returns (data, header) for specified HDU
+        """
+        if len(args) != 1 :
+            print('Usage: apFieldVisits(field)')
+        else :
+            try :
+                file = self.allfile('FieldVisits',field=args[0])
+                return self._readhdu(file,**kwargs)
+            except :
+                self.printerror()
+    
     def aspcapField(self,*args, **kwargs) :
         """
         NAME: apload.aspcapField

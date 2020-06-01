@@ -542,7 +542,8 @@ import doppler
 import multiprocessing as mp
 from astropy.table import Table
 
-def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=500,maxobj=9999,snmin=5,clobber=False) :
+def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=500,maxobj=9999,snmin=5,
+               clobber=False,verbose=False,tweak=False,plot=False) :
     """ Run DOPPLER RVs for a field
     """ 
 
@@ -574,8 +575,6 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
        apogee_target1: apogee_target1, apogee_target2: apogee_target2, apogee_target3: apogee_target3, $
        apogee2_target1: apogee2_target1, apogee2_target2: apogee2_target2, apogee2_target3: apogee2_target3, $
        targflags: targflags, survey: survey, programname: allvisits[obj[j[0]]].programname, $
-       apogee2_target1: apogee2_target1, apogee2_target2: apogee2_target2, apogee2_target3: apogee2_target3, $
-       targflags: targflags, survey: survey, programname: allvisits[obj[j[0]]].programname, $
        ninst: [n1,n2,n3],$
        nvisits: apstr.nvisits, combtype:apstr.combtype, commiss: commiss, $
        snr: float(apstr.snr), $
@@ -597,20 +596,22 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
     b={spec: apstr.spec[*,0], err: apstr.err[*,0], mask: apstr.mask[*,0]}
     c={wave: apstr.wavelength[*,0]}
     """
-    fieldtype = np.dtype([('file','S64'),('apogee_id','S20'),('telescope','S6'),('location_id',int),('field','S20'),
-                          ('apogee_target1',int),('apogee_target2',int),('apogee_target3',int),
-                          ('apogee2_target1',int),('apogee2_target2',int),('apogee2_target3',int),('apogee2_target4',int),
-                          ('snr',float),('starflag',float),('starflags','S132'),('andflag',float),('andflags','S132'),
-                          ('vhelio_avg',float),('vscatter',float),('verr',float),
-                          ('rv_teff',float),('rv_logg',float),('rv_feh',float) 
+    fieldtype = np.dtype([('FILE','S64'),('APOGEE_ID','S20'),('TELESCOPE','S6'),('LOCATION_ID',int),('FIELD','S20'),
+                          ('J',float),('J_ERR',float),('H',float),('H_ERR',float),('K',float),('K_ERR',float),
+                          ('APOGEE_TARGET1',int),('APOGEE_TARGET2',int),('APOGEE_TARGET3',int),
+                          ('APOGEE2_TARGET1',int),('APOGEE2_TARGET2',int),('APOGEE2_TARGET3',int),('APOGEE2_TARGET4',int),
+                          ('TARGFLAGS','S132'),
+                          ('SNR',float),('STARFLAG',float),('STARFLAGS','S132'),('ANDFLAG',float),('ANDFLAGS','S132'),
+                          ('VHELIO_AVG',float),('VSCATTER',float),('VERR',float),
+                          ('RV_TEFF',float),('RV_LOGG',float),('RV_FEH',float) 
                          ])
    
                  #     ('medsnr',float),('totsnr',float),('vhelio',float),('vscatter',float),('verr',float),
                  #     ('teff',float),('tefferr',float),('logg',float),('loggerr',float),('feh',float),
                  #     ('feherr',float),('chisq',float)])
     allfield = np.zeros(len(allobj),dtype=fieldtype)
-    allfield['telescope'] = telescope
-    allfield['field'] = field
+    allfield['TELESCOPE'] = telescope
+    allfield['FIELD'] = field
     allfiles=[]
     allv=[]
     load=apload.ApLoad(apred=apred)
@@ -622,13 +623,13 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
     #   pass to dorv()
     for iobj,obj in enumerate(sorted(allobj)) :
         if type(obj) is str : obj=obj.encode()
-        allfield['apogee_id'][iobj] = obj
+        allfield['APOGEE_ID'][iobj] = obj
         visits=np.where(allvisits['APOGEE_ID'] == obj)[0]
         print('object: {:}  nvisits: {:d}'.format(obj,len(visits)))
         nobj+=1
         nvisit+=len(visits)
 
-        specfiles=[(field,obj,clobber)]
+        specfiles=[(field,obj,clobber,verbose,tweak,plot)]
         for i,visit in enumerate(visits) :
             if i < maxvisit :
                 # accumulate list of files
@@ -669,12 +670,14 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
         apogee_target1, apogee_target2, apogee_target3 = 0, 0, 0
         apogee2_target1, apogee2_target2, apogee2_target3, apogee2_target4 = 0, 0, 0, 0
         if out is not None :
+            allv=[]
             for v in out[1] :
                 # match by filename components in case there was an error reading in doppler
                 name=os.path.basename(v['filename']).replace('.fits','').split('-')
                 visit = np.where( (np.char.strip(allvisits['PLATE']).astype(str) == name[-3]) &
                                   (allvisits['MJD'] == int(name[-2])) &
                                   (allvisits['FIBERID'] == int(name[-1])) )[0][0]
+                allv.append(visit)
                 allvisits[visit]['VREL']=v['vrel']
                 allvisits[visit]['VRELERR']=v['vrelerr']
                 allvisits[visit]['VHELIO']=v['vhelio']
@@ -691,18 +694,28 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
                     try: apogee2_target4 |= allvisits[visit]['APOGEE_TARGET4'] 
                     except: pass
 
-            j = np.where(allfield['apogee_id'] == files[0][1])[0]
-            allfield['starflag'][j] = starflag
-            allfield['starflags'][j] = starmask.getname(starflag)
-            allfield['andflag'][j] = andflag
-            allfield['andflags'][j] = starmask.getname(andflag)
-            allfield['snr'][j] = out[0]['medsnr']
-            allfield['vhelio_avg'][j] = out[0]['vhelio']
-            allfield['vscatter'][j] = out[0]['vscatter']
-            allfield['verr'][j] = out[0]['verr']
-            allfield['rv_teff'][j] = out[0]['teff']
-            allfield['rv_logg'][j] = out[0]['logg']
-            allfield['rv_feh'][j] = out[0]['feh']
+            j = np.where(allfield['APOGEE_ID'] == files[0][1])[0]
+            for key in ['J','J_ERR','H','H_ERR','K','K_ERR'] :
+                allfield[key][j] = allvisits[key][allv].max()
+            allfield['APOGEE_TARGET1'][j] = apogee_target1
+            allfield['APOGEE_TARGET2'][j] = apogee_target2
+            allfield['APOGEE_TARGET3'][j] = apogee_target3
+            allfield['APOGEE2_TARGET1'][j] = apogee2_target1
+            allfield['APOGEE2_TARGET2'][j] = apogee2_target2
+            allfield['APOGEE2_TARGET3'][j] = apogee2_target3
+            allfield['APOGEE2_TARGET4'][j] = apogee2_target4
+            #allfield['TARGFLAGS'][j] = bitmask.targflags()
+            allfield['STARFLAG'][j] = starflag
+            allfield['STARFLAGS'][j] = starmask.getname(starflag)
+            allfield['ANDFLAG'][j] = andflag
+            allfield['ANDFLAGS'][j] = starmask.getname(andflag)
+            allfield['SNR'][j] = out[0]['medsnr']
+            allfield['VHELIO_AVG'][j] = out[0]['vhelio']
+            allfield['VSCATTER'][j] = out[0]['vscatter']
+            allfield['VERR'][j] = out[0]['verr']
+            allfield['RV_TEFF'][j] = out[0]['teff']
+            allfield['RV_LOGG'][j] = out[0]['logg']
+            allfield['RV_FEH'][j] = out[0]['feh']
 
     hdulist=fits.HDUList()
     hdulist.append(fits.table_to_hdu(Table(allfield)))
@@ -716,11 +729,15 @@ def dorv(visitfiles) :
     field=visitfiles[0][0]
     obj=visitfiles[0][1].decode('UTF-8')
     clobber=visitfiles[0][2]
+    verbose=visitfiles[0][3]
+    tweak=visitfiles[0][4]
+    plot=visitfiles[0][5]
     if os.path.exists(field+'/'+obj+'_out.pkl') and not clobber:
         print(obj,' already done')
         fp=open(field+'/'+obj+'_out.pkl','rb')
         try: 
             out=pickle.load(fp)
+            #dop_plot(field,obj,out)
             return out
         except: 
             print('error loading: ', obj+'_out.pkl')
@@ -731,18 +748,42 @@ def dorv(visitfiles) :
         spec=doppler.read(visitfile)
         if spec is not None : speclist.append(spec)
     try:
-        out= doppler.rv.jointfit(speclist,verbose=True,saveplot=True,outdir=field+'/')
+        print('running jointfit for :',obj)
+        out= doppler.rv.jointfit(speclist,verbose=verbose,plot=plot,saveplot=True,outdir=field+'/',tweak=tweak)
         fp = open(field+'/'+obj+'_rv.txt','w')
         fp.write('{:s}  {:d} {:8.1f}'.format(obj,len(speclist),out[4]))
         fp.close()
         fp=open(field+'/'+obj+'_out.pkl','wb')
         pickle.dump(out,fp)
         fp.close()
+        dop_plot(field,obj,out)
+    except KeyboardInterrupt : 
+        raise
+    except ValueError as err:
+        print('Exception raised for: ', field, obj)
+        print("ValueError: {0}".format(err))
+    except RuntimeError as err:
+        print('Exception raised for: ', field, obj)
+        print("Runtime error: {0}".format(err))
     except :
         print('Exception raised for: ', field, obj)
         return
 
     return out
+
+def dop_plot(field,obj,out) :
+    n = len(out[2])
+    fig,ax=plots.multi(1,n,hspace=0.001,figsize=(8,2+n))
+    for i,(mod,spec) in enumerate(zip(out[2],out[3])) :
+        plots.plotl(ax[i],spec.wave,spec.flux,color='k')
+        plots.plotl(ax[i],mod.wave,mod.flux,color='r')
+        ax[i].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
+    fig.savefig(field+'/'+obj+'_spec.png')
+    fig,ax=plots.multi(1,n,hspace=0.001,figsize=(6,2+n))
+    for i,(final,spec) in enumerate(zip(out[1],out[3])) :
+        ax[i].plot(final['ccf'],color='k')
+        ax[i].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
+    fig.savefig(field+'/'+obj+'_ccf.png')
 
 from scipy.signal import convolve
 def dop_comp(field) :
@@ -814,6 +855,9 @@ def vis_comp(field,visitplot=True) :
 
         # get visits in Doppler allvisit table
         j=np.where(dop[2].data['APOGEE_ID'][i1] == obj)[0]
+        if len(j) == 0 : 
+            print('missing {:s} in dop[2].data'.format(obj))
+            continue
 
         # get object in apField
         try: k=np.where(apfield['APOGEE_ID'] == obj)[0][0]
@@ -821,6 +865,8 @@ def vis_comp(field,visitplot=True) :
 
         fp.write('<TR><TD>')
         fp.write('{:s}<br>'.format(obj))
+        fp.write('H  = {:7.2f}<br>'.format(apfield['H'][k]))
+        fp.write('{:s}<br>'.format(apfield['TARGFLAGS'][k]))
         fp.write('{:s}<br>'.format(apfield['STARFLAGS'][k]))
         fp.write('<TABLE BORDER=2>\n')
         fp.write('<TR><TD><TD>VHELIO_AVG<TD>VSCATTER<TD>VSIGMA<TD>TEFF<TD>LOGG<TD>[FE/H]\n')
@@ -835,10 +881,15 @@ def vis_comp(field,visitplot=True) :
                      apfield['RV_TEFF'][k],apfield['RV_LOGG'][k],apfield['RV_FEH'][k]))
         fp.write('</TABLE><br>')
         fp.write('<TABLE BORDER=2>')
-        fp.write('<TR><TD>JD<TD>S/N<TD>Doppler<TD>IDL\n')
+        fp.write('<TR><TD>JD<TD>PLATE<TD>MJD<TD>FIBER<TD>S/N<TD>Doppler<TD>VERR<TD>IDL<TD>VERR\n')
         for i in j :
-            fp.write('<TR> <TD> {:12.3f} <TD> {:8.1f} <TD> {:8.2f} <TD> {:8.2f}\n'.format(
-                      dop[2].data['JD'][i1[i]],dop[2].data['SNR'][i1[i]],dop[2].data['VHELIO'][i1[i]],apfieldvisits['VHELIO'][i2[i]]))
+            fp.write(('<TR> <TD> <A HREF={:s}> {:12.3f}</A> <TD> {:s} <TD> {:5d} <TD> {:5d}'+
+                     '<TD> {:8.1f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f}\n').format(
+                      dop[2].data['FILE'][i1[i]].replace('.fits','_dopfit.png'),
+                      dop[2].data['JD'][i1[i]],dop[2].data['PLATE'][i1[i]],dop[2].data['MJD'][i1[i]],dop[2].data['FIBERID'][i1[i]],
+                      dop[2].data['SNR'][i1[i]],
+                      dop[2].data['VHELIO'][i1[i]],dop[2].data['VRELERR'][i1[i]],
+                      apfieldvisits['VHELIO'][i2[i]],apfieldvisits['VRELERR'][i2[i]]))
         fp.write('</TABLE>')
         fp.write('<TD> {:8.2f}'.format(star['VSCATTER']-apfield['VSCATTER'][k]))
         fp.write('<TD> {:8.2f}'.format(vsig-apfield['VSCATTER'][k]))
@@ -873,5 +924,6 @@ def vis_comp(field,visitplot=True) :
         except KeyboardInterrupt: raise
         except: pass
         plt.close()
-        fp.write('<TD><IMG SRC={:s}_spec.png>\n'.format(obj))
+        fp.write('<TD><A HREF={:s}_spec.png> <IMG SRC={:s}_spec.png></a>\n'.format(obj,obj))
+        fp.write('<TD><A HREF={:s_ccf.png> <IMG SRC={:s}_ccf.png></A>\n'.format(obj,obj))
     fp.close() 

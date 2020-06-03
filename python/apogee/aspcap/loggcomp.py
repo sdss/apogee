@@ -152,6 +152,25 @@ def rcrgb(allstar,apokasc='APOKASC_cat_v3.6.0.fits',logg='LOGG_SYD_SCALING',rcli
 
     return {'rclim' : rclim, 'rgbsep' : rgbfit, 'cnsep' : cnfit}
     
+def rcrgb_plot(a,out=None) :
+    """ Plot logg classification from bitmask
+    """
+    b=bitmask.ParamBitMask()
+    rgb=np.where((a['PARAMFLAG'][:,1] & b.getval('LOGG_CAL_RGB')) > 0)[0]
+    rc=np.where((a['PARAMFLAG'][:,1] & b.getval('LOGG_CAL_RC')) > 0)[0]
+    ms=np.where((a['PARAMFLAG'][:,1] & b.getval('LOGG_CAL_MS')) > 0)[0]
+    rgb_ms=np.where((a['PARAMFLAG'][:,1] & b.getval('LOGG_CAL_RGB_MS')) > 0)[0]
+
+    fig,ax = plots.multi(1,1)
+    plots.plotp(ax,a['FPARAM'][rgb,0],a['FPARAM'][rgb,1],color='r',size=1,
+                xr=[8000,3000],yr=[6,-1],xt='$T_{eff}$',yt='log g')
+    plots.plotp(ax,a['FPARAM'][rc,0],a['FPARAM'][rc,1],color='b',size=1)
+    plots.plotp(ax,a['FPARAM'][ms,0],a['FPARAM'][ms,1],color='g',size=1)
+    plots.plotp(ax,a['FPARAM'][rgb_ms,0],a['FPARAM'][rgb_ms,1],color='m',size=1)
+    if out is not None :
+        fig.savefig(out+'.png')
+        plt.close()
+
 
 def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3000,7500],apokasc_cat='APOKASC_cat_v4.4.2.fits',out='logg',calib=False) :
     """ logg calibration for dwarfs, from asteroseismic and isochrones
@@ -666,4 +685,5 @@ def kurucz_marcs(logg='LOGG_SYD_SCALING',apokasc='APOKASC_cat_v3.6.0.fits') :
 
     plt.tight_layout()
     plt.show()
+
 

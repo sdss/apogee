@@ -5,8 +5,10 @@ import copy
 import glob
 import pdb
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 import esutil
+import pickle
 from astropy.io import fits
 from apogee.utils import apload
 from apogee.utils import applot
@@ -55,11 +57,11 @@ def allFieldVisits(files=['apo*/*/apFieldVisits-*.fits','apo*/*/apFieldC-*.fits'
 def vscat(a,fig=None,ls=None,marker='o',nmin=2,mhmin=-3,density=False,out=None) :
     """ Make histograms of VSCATTER for different bins of Teff H], given min NVISITS, and min [M/H]
     """
-    if fig == None : fig,ax=plots.multi(4,6,hspace=0.001,wspace=0.4)
+    if fig == None : fig,ax=plots.multi(4,6,hspace=0.001,wspace=0.4,figsize=(12,8))
     else : fig,ax=fig
     tbins=[3000,3500,4000,4500,5500,8000,30000] 
     hbins=[8,11,12,13,15]
-    snr = a['SNR']
+    snr = a['SNREV']
     j=np.where(snr > 300) [0]
     snr[j] = 300
     for i in range(len(tbins)-1) :
@@ -73,15 +75,17 @@ def vscat(a,fig=None,ls=None,marker='o',nmin=2,mhmin=-3,density=False,out=None) 
             try :
                 #plots.plotc(ax[i,2],snr[gd],a['VSCATTER'][gd],a['RV_FEH'][gd],marker=marker,xr=[0,310],yr=[0,1],xt='S/N',yt='VSCATTER')
                 ax[i,j].hist(a['VSCATTER'][gd],bins=np.arange(0,1,0.01),ls=ls,histtype='step',color=colors[j],normed=density)
-                ax[i,j].set_xlabel('VSCATTER')
+                ax[i,j].set_xlabel('VSCATTER (km/s)')
+                ax[i,j].plot([0.1,0.1],ax[i,j].get_ylim())
                 #ax[i,1].hist(a['VSCATTER'][gd],bins=np.arange(0,1,0.01),histtype='step',cumulative=True,normed=True,ls=ls,color=colors[j])
                 #ax[i,1].set_xlabel('VSCATTER')
             except : pass
 
-    fig.suptitle('NVISITS>{:d} [M/H]>{:6.2f}'.format(nmin,mhmin))
     if out is not None : 
         fig.savefig(out+'.png')
         plt.close()
+
+    fig.suptitle('NVISITS>{:d} [M/H]>{:6.2f}'.format(nmin,mhmin))
     return fig,ax
 
 def apolco(a,minfeh=-3,out=None) :
@@ -533,4 +537,482 @@ def repeatspec(a) :
             pdb.set_trace()
             ax[0].cla()
             ax[1].cla()
+  
+import doppler 
+import multiprocessing as mp
+from astropy.table import Table
+
+def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=500,maxobj=9999,snmin=5,
+               clobber=False,verbose=False,tweak=False,plot=False) :
+    """ Run DOPPLER RVs for a field
+    """ 
+
+    # get all the VisitSum files for this field and concatenate them
+    files=glob.glob(os.environ['APOGEE_REDUX']+'/'+apred+'/visit/'+telescope+'/'+field+'/apVisitSum*')
+    allvisits=struct.concat(files)
+    starmask=bitmask.StarBitMask()
+    gd=np.where(((allvisits['STARFLAG'] & starmask.badval()) == 0) & (allvisits['SNR'] > snmin) )[0]
+    print(len(allvisits),len(gd))
+    allvisits=Table(allvisits[gd])
+
+    # output directory
+    try: os.mkdir(field)
+    except FileExistsError: pass
+
+    # get all unique (or requested) objects
+    if obj is None :
+        allobj=set(allvisits['APOGEE_ID'][0:maxobj])
+    else :
+        allobj = obj
+    # loop over requested objects
+    """
+    a={file: file_basename(starfile), apogee_id: objname, telescope: apstr.telescope, $
+       location_id: long(locid), field: apstr.field, $
+       j: apstr.j, j_err: apstr.j_err, h: apstr.h, h_err: apstr.h_err, k: apstr.k, k_err: apstr.k_err, $
+       ra: apstr.ra, dec: apstr.dec, glon: apstr.glon, glat: apstr.glat, $
+       ak_targ: float(apstr.ak_targ), ak_targ_method: apstr.ak_targ_method, $
+       ak_wise: float(apstr.ak_wise), sfd_ebv: float(apstr.sfd_ebv),$
+       apogee_target1: apogee_target1, apogee_target2: apogee_target2, apogee_target3: apogee_target3, $
+       apogee2_target1: apogee2_target1, apogee2_target2: apogee2_target2, apogee2_target3: apogee2_target3, $
+       targflags: targflags, survey: survey, programname: allvisits[obj[j[0]]].programname, $
+       ninst: [n1,n2,n3],$
+       nvisits: apstr.nvisits, combtype:apstr.combtype, commiss: commiss, $
+       snr: float(apstr.snr), $
+       starflag: apstr.starflag, starflags: starflag(apstr.starflag), $
+       andflag: apstr.andflag, andflags: starflag(apstr.andflag), $
+       vhelio_avg: float(apstr.vhelio), vscatter: float(apstr.vscatter),$
+       verr: float(apstr.verr), verr_med: float(apstr.verr_med),$
+       obsvhelio_avg: float(apstr.obsvhelio),  obsvscatter: float(apstr.obsvscatter),$
+       obsverr: float(apstr.obsverr), obsverr_med: float(apstr.obsverr_med),$
+       synthvhelio_avg: float(apstr.synthvhelio),  synthvscatter: float(apstr.synthvscatter),$
+       synthverr: float(apstr.synthverr), synthverr_med: float(apstr.synthverr_med),$
+       rv_teff: float(apstr.rv_teff), rv_logg: float(apstr.rv_logg), rv_feh: float(apstr.rv_feh),$
+       rv_alpha: float(apstr.rv_alpha), rv_carb: float(apstr.rv_carb), $
+       rv_ccfwhm: float(apstr.ccpfwhm), rv_autofwhm: float(apstr.autofwhm), synthscatter: float(apstr.synthscatter),$
+       ;binary: apstr.rv.binary, $
+       stablerv_chi2: apstr.rv.stablerv_chi2, $
+       stablerv_rchi2: apstr.rv.stablerv_rchi2, chi2_threshold: apstr.rv.chi2_threshold, $
+       stablerv_chi2_prob: apstr.rv.stablerv_chi2_prob}
+    b={spec: apstr.spec[*,0], err: apstr.err[*,0], mask: apstr.mask[*,0]}
+    c={wave: apstr.wavelength[*,0]}
+    """
+    fieldtype = np.dtype([('FILE','S64'),('APOGEE_ID','S20'),('TELESCOPE','S6'),('LOCATION_ID',int),('FIELD','S20'),
+                          ('J',float),('J_ERR',float),('H',float),('H_ERR',float),('K',float),('K_ERR',float),
+                          ('APOGEE_TARGET1',int),('APOGEE_TARGET2',int),('APOGEE_TARGET3',int),
+                          ('APOGEE2_TARGET1',int),('APOGEE2_TARGET2',int),('APOGEE2_TARGET3',int),('APOGEE2_TARGET4',int),
+                          ('TARGFLAGS','S132'),
+                          ('SNR',float),('STARFLAG',float),('STARFLAGS','S132'),('ANDFLAG',float),('ANDFLAGS','S132'),
+                          ('VHELIO_AVG',float),('VSCATTER',float),('VERR',float),
+                          ('RV_TEFF',float),('RV_LOGG',float),('RV_FEH',float) 
+                         ])
+   
+    allfield = np.zeros(len(allobj),dtype=fieldtype)
+    allfield['TELESCOPE'] = telescope
+    allfield['FIELD'] = field
+    allfiles=[]
+    allv=[]
+    load=apload.ApLoad(apred=apred)
+    nobj=0
+    nvisit=0
+    #allvisits['FWHM'] = np.zeros([len(allvisits),3])
+
+    # loop over all objects, building up list of [(field,obj,clobber),filenames....] to 
+    #   pass to dorv()
+    for iobj,obj in enumerate(sorted(allobj)) :
+        if type(obj) is str : obj=obj.encode()
+        allfield['APOGEE_ID'][iobj] = obj
+        visits=np.where(allvisits['APOGEE_ID'] == obj)[0]
+        print('object: {:}  nvisits: {:d}'.format(obj,len(visits)))
+        nobj+=1
+        nvisit+=len(visits)
+
+        specfiles=[(field,obj,clobber,verbose,tweak,plot)]
+        for i,visit in enumerate(visits) :
+            if i < maxvisit :
+                # accumulate list of files
+                visitfile= load.allfile('Visit',plate=int(allvisits['PLATE'][visit]),
+                                        mjd=allvisits['MJD'][visit],fiber=allvisits['FIBERID'][visit])
+                specfiles.append(visitfile)
+    #            spec=doppler.read(visitfile)
+    #            fwhm=[]
+    #            for chip in range(3) : 
+    #                try: fwhm.append(spec.lsf.fwhm(order=chip).min())
+    #                except: fwhm.append(0.)
+    #            allvisits['FWHM'][visit] = np.array(fwhm)
+        allfiles.append(specfiles)
+        allv.append(visits)
+       
+    print('total objects: ', nobj, ' total visits: ', nvisit) 
+    if threads == 0 :
+        output=[]
+        for speclist in allfiles :
+            print(speclist)
+            output.append(dorv(speclist))
+    else :
+        pool = mp.Pool(threads)
+        output = pool.map_async(dorv, allfiles).get()
+        pool.close()
+        pool.join()
+    print('done pool')
+
+    # rename old visit RV tags and initialize new ones
+    for col in ['VTYPE','VREL','VRELERR','VHELIO'] :
+        allvisits.rename_column(col,'est'+col)
+        if col == 'VTYPE' : allvisits[col] = 0
+        else : allvisits[col] = np.nan
+    for col in ['XCORR_VREL','XCORR_VRELERR','XCORR_VHELIO'] :
+        allvisits[col] = np.nan
+
+    # load up the individual visit RV information
+    for out,files in zip(output,allfiles) :
+        starflag, andflag = 0, 0
+        apogee_target1, apogee_target2, apogee_target3 = 0, 0, 0
+        apogee2_target1, apogee2_target2, apogee2_target3, apogee2_target4 = 0, 0, 0, 0
+        if out is not None :
+            allv=[]
+            for v in out[1] :
+                # match by filename components in case there was an error reading in doppler
+                name=os.path.basename(v['filename']).replace('.fits','').split('-')
+                visit = np.where( (np.char.strip(allvisits['PLATE']).astype(str) == name[-3]) &
+                                  (allvisits['MJD'] == int(name[-2])) &
+                                  (allvisits['FIBERID'] == int(name[-1])) )[0][0]
+                allv.append(visit)
+                allvisits[visit]['VREL']=v['vrel']
+                allvisits[visit]['VRELERR']=v['vrelerr']
+                allvisits[visit]['VHELIO']=v['vhelio']
+                allvisits[visit]['XCORR_VREL']=v['xcorr_vrel']
+                allvisits[visit]['XCORR_VRELERR']=v['xcorr_vrelerr']
+                allvisits[visit]['XCORR_VHELIO']=v['xcorr_vhelio']
+                starflag |= allvisits[visit]['STARFLAG']
+                andflag &= allvisits[visit]['STARFLAG']
+                if allvisits[visit]['SURVEY'] == 'apogee' :
+                    apogee_target1 |= allvisits[visit]['APOGEE_TARGET1'] 
+                    apogee_target2 |= allvisits[visit]['APOGEE_TARGET2'] 
+                    apogee_target3 |= allvisits[visit]['APOGEE_TARGET3'] 
+                elif allvisits[visit]['SURVEY'].find('apogee2') >=0  :
+                    apogee2_target1 |= allvisits[visit]['APOGEE_TARGET1'] 
+                    apogee2_target2 |= allvisits[visit]['APOGEE_TARGET2'] 
+                    apogee2_target3 |= allvisits[visit]['APOGEE_TARGET3'] 
+                    try: apogee2_target4 |= allvisits[visit]['APOGEE_TARGET4'] 
+                    except: pass
+
+            j = np.where(allfield['APOGEE_ID'] == files[0][1])[0]
+            for key in ['J','J_ERR','H','H_ERR','K','K_ERR'] :
+                allfield[key][j] = allvisits[key][allv].max()
+            allfield['APOGEE_TARGET1'][j] = apogee_target1
+            allfield['APOGEE_TARGET2'][j] = apogee_target2
+            allfield['APOGEE_TARGET3'][j] = apogee_target3
+            allfield['APOGEE2_TARGET1'][j] = apogee2_target1
+            allfield['APOGEE2_TARGET2'][j] = apogee2_target2
+            allfield['APOGEE2_TARGET3'][j] = apogee2_target3
+            allfield['APOGEE2_TARGET4'][j] = apogee2_target4
+            allfield['TARGFLAGS'][j] = (bitmask.targflags(apogee_target1,apogee_target2,apogee_target3,survey='apogee')+
+                                        bitmask.targflags(apogee2_target1,apogee2_target2,apogee2_target3,survey='apogee2'))
+            allfield['STARFLAG'][j] = starflag
+            allfield['STARFLAGS'][j] = starmask.getname(starflag)
+            allfield['ANDFLAG'][j] = andflag
+            allfield['ANDFLAGS'][j] = starmask.getname(andflag)
+            allfield['SNR'][j] = out[0]['medsnr']
+            allfield['VHELIO_AVG'][j] = out[0]['vhelio']
+            allfield['VSCATTER'][j] = out[0]['vscatter']
+            allfield['VERR'][j] = out[0]['verr']
+            allfield['RV_TEFF'][j] = out[0]['teff']
+            allfield['RV_LOGG'][j] = out[0]['logg']
+            allfield['RV_FEH'][j] = out[0]['feh']
+
+    #output file with allfield and allvisits
+    hdulist=fits.HDUList()
+    hdulist.append(fits.table_to_hdu(Table(allfield)))
+    hdulist.append(fits.table_to_hdu(allvisits))
+    hdulist.writeto(field+'/'+field+'_rv.fits',overwrite=True)
+
+    # make web page
+    mkhtml(field)
+
+    return allfield,allvisits
+
+def dorv(visitfiles) :            
+    """ do the rv jointfit from list of files
+    """
+    field=visitfiles[0][0]
+    obj=visitfiles[0][1].decode('UTF-8')
+    clobber=visitfiles[0][2]
+    verbose=visitfiles[0][3]
+    tweak=visitfiles[0][4]
+    plot=visitfiles[0][5]
+    if os.path.exists(field+'/'+obj+'_out.pkl') and not clobber:
+        print(obj,' already done')
+        fp=open(field+'/'+obj+'_out.pkl','rb')
+        try: 
+            out=pickle.load(fp)
+            #dop_plot(field,obj,out)
+            return out
+        except: 
+            print('error loading: ', obj+'_out.pkl')
+            pass
+
+    speclist=[]
+    for visitfile in visitfiles[1:] :
+        spec=doppler.read(visitfile)
+        if spec is not None : speclist.append(spec)
+    try:
+        print('running jointfit for :',obj)
+        print('nvisits: ', len(speclist))
+        out= doppler.rv.jointfit(speclist,verbose=verbose,plot=plot,saveplot=True,outdir=field+'/',tweak=tweak)
+        fp = open(field+'/'+obj+'_rv.txt','w')
+        fp.write('{:s}  {:d} {:8.1f}'.format(obj,len(speclist),out[4]))
+        fp.close()
+        fp=open(field+'/'+obj+'_out.pkl','wb')
+        pickle.dump(out,fp)
+        fp.close()
+        dop_plot(field,obj,out)
+    except KeyboardInterrupt : 
+        raise
+    except ValueError as err:
+        print('Exception raised for: ', field, obj)
+        print("ValueError: {0}".format(err))
+        return
+    except RuntimeError as err:
+        print('Exception raised for: ', field, obj)
+        print("Runtime error: {0}".format(err))
+        return
+    except :
+        print('Exception raised for: ', field, obj)
+        return
+
+    return out
+
+def dop_plot(field,obj,out) :
+    """ RV diagnostic plots
+    """
+    n = len(out[2])
+    #plot final spectra and final models
+    fig,ax=plots.multi(1,n,hspace=0.001,figsize=(8,2+n))
+    for i,(mod,spec) in enumerate(zip(out[2],out[3])) :
+        plots.plotl(ax[i],spec.wave,spec.flux,color='k')
+        plots.plotl(ax[i],mod.wave,mod.flux,color='r')
+        ax[i].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
+    fig.savefig(field+'/'+obj+'_spec.png')
+
+    # plot cross correlation functions with final model
+    fig,ax=plots.multi(1,n,hspace=0.001,figsize=(6,2+n))
+    vmed=np.median(out[1]['vrel'])
+    for i,(final,spec) in enumerate(zip(out[1],out[3])) :
+        plots.plotl(ax[i],final['x_ccf'],final['ccf'],color='k',xr=[vmed-100,vmed+100])
+        plots.plotl(ax[i],[final['vrel'],final['vrel']],ax[i].get_ylim(),color='g',label='fit RV')
+        plots.plotl(ax[i],[final['xcorr_vrel'],final['xcorr_vrel']],ax[i].get_ylim(),color='r',label='xcorr RV')
+        ax[i].text(0.1,0.9,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
+        ax[i].legend()
+    fig.savefig(field+'/'+obj+'_ccf.png')
+
+from scipy.signal import convolve
+def dop_comp(field) :
+    dop = fits.open(field+'/'+field+'_rv.fits')
+    r13 = apload.ApLoad(apred='r13')
+    old = r13.apField(field)
+
+    i1,i2 = match.match(dop[1].data['APOGEE_ID'],old[1].data['APOGEE_ID'])
+    print(len(dop[1].data),len(old[1].data),len(i1))
+
+    fig,ax=plots.multi(1,1)
+    plots.plotc(ax,dop[1].data['RV_TEFF'][i1],dop[1].data['VHELIO_AVG'][i1]-old[1].data['VHELIO_AVG'][i2],dop[1].data['VSCATTER'][i1])
+
+    j=np.argsort(np.abs(dop[1].data['VHELIO_AVG'][i1]-old[1].data['VHELIO_AVG'][i2],dop[1].data['VSCATTER'][i1]))
+
+    plots._data = dop[1].data
+    plots._id_cols=['APOGEE_ID']
+    plots.event(fig)
+    key=' '
+    sf,sax=plots.multi(1,2,sharex=True,hspace=0.001)
+    while key != 'e' :
+        x,y,key,index = plots.mark(fig,index=True)
+        obj = dop[1].data['APOGEE_ID'][i1[index]]
+        #jv = np.where(dop[2].data['APOGEE_ID'] == dop[1].data['APOGEE_ID'][i1])[0]
+        out=pickle.load(open(field+'/'+obj+'_out.pkl','rb'))
+        print(obj,old[1].data['APOGEE_ID'][i2[index]])
+        print(out[0])
+        sax[0].cla()
+        spec=old[2].data['SPEC'][i2[index]]
+        plots.plotl(sax[0],old[3].data['WAVE'][0,:],spec/convolve(spec,np.ones(500)/500,mode='same'),xr=[15000,17000],yr=[0.5,1.5])
+        for mod,obs in zip(out[2],out[3]) :
+            sax[1].cla()
+            for chip in range(3) :
+                plots.plotl(sax[1],obs.wave[:,chip],obs.flux[:,chip],color='k',yr=[0.5,1.5])
+                gd = np.where(obs.mask[:,chip] == False)[0]
+                plots.plotl(sax[1],obs.wave[gd,chip],obs.flux[gd,chip],color='g')
+                plots.plotl(sax[1],mod.wave[:,chip],mod.flux[:,chip],color='r')
+            plt.draw()
+            input('hit a key: ')
+
+def mkhtml(field) :
+    """ Make web pages with tables/plots of RV output
+        c.f., Doppler vs IDL
+    """
+
+    matplotlib.use('Agg')
+    # get Doppler results
+    dop = fits.open(field+'/'+field+'_rv.fits')
+ 
+    # get IDL results
+    r13 = apload.ApLoad(apred='r13')
+    apfieldvisits = r13.apFieldVisits(field)[1].data
+    apfield = r13.apField(field)[1].data
+
+    # match
+    i1,i2 = match.match(dop[2].data['FILE'],apfieldvisits['FILE'])
+    print(len(dop[2].data),len(apfieldvisits),len(i1))
+    fig,ax=plots.multi(1,2)
+    ax[0].hist(dop[1].data['VHELIO_AVG'],bins=np.arange(-300,300,5),label='doppler',color='g',histtype='step')
+    ax[0].hist(apfield['VHELIO_AVG'],bins=np.arange(-300,300,5),label='IDL',color='r',histtype='step')
+    ax[0].legend()
+    ax[1].hist(dop[1].data['VSCATTER'],bins=np.arange(0,1,0.02),label='doppler',color='g',histtype='step')
+    ax[1].hist(apfield['VSCATTER'],bins=np.arange(0,1,0.02),label='IDL',color='r',histtype='step')
+    ax[1].legend()
+    fig.savefig(field+'/'+field+'_rvhist.png')
+
+    # create HTML and loop over objects
+    fp=open(field+'/'+field+'.html','w')
+    fp.write('<HTML>\n')
+    fp.write('<HEAD><script type=text/javascript src=../html/sorttable.js></script></head>')
+    fp.write('<BODY>\n')
+    fp.write('<H2> Field: {:s}</H2><p>\n'.format(field))
+    fp.write('<A HREF={:s}_rvhist.png> <IMG SRC={:s}_rvhist.png> </A>'.format(field,field))
     
+    fp.write('<TABLE BORDER=2 CLASS=sortable>\n')
+    fp.write('<TR><TD>Obj<TD>Delta(VSCATTER)<TD>Delta(VSIG)<TD>RV plot\n')
+    for star in dop[1].data :
+        obj=star['APOGEE_ID']
+        print(obj)
+
+        # get visits in Doppler allvisit table
+        j=np.where(dop[2].data['APOGEE_ID'] == obj)[0]
+        if len(j) == 0 : 
+            print('missing {:s} in dop[2].data'.format(obj))
+            continue
+
+        # get object in apField
+        try: k=np.where(apfield['APOGEE_ID'] == obj)[0][0]
+        except: k=-1
+        jj=np.where(apfieldvisits['APOGEE_ID'] == obj)[0]
+
+        # star information
+        fp.write('<TR><TD>')
+        fp.write('{:s}<br>'.format(obj))
+        fp.write('H  = {:7.2f}<br>'.format(star['H']))
+        fp.write('{:s}<br>'.format(apfield['TARGFLAGS'][k]))
+        fp.write('{:s}<br>'.format(star['STARFLAGS']))
+
+        # average veloicities
+        fp.write('<TABLE BORDER=2>\n')
+        fp.write('<TR><TD><TD>VHELIO_AVG<TD>VSCATTER<TD>VSIGMA<TD>TEFF<TD>LOGG<TD>[FE/H]\n')
+        vsig=dop[2].data['VHELIO'][j].std(ddof=1)
+        fp.write('<TR><TD>Doppler<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.0f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
+                 star['VHELIO_AVG'],star['VSCATTER'],vsig,
+                 star['RV_TEFF'],star['RV_LOGG'],star['RV_FEH']))
+        fp.write('<TR><TD>Doppler Xcorr<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.0f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
+                 np.median(dop[2].data['XCORR_VHELIO'][j]),
+                 dop[2].data['XCORR_VHELIO'][j].std(ddof=1),dop[2].data['XCORR_VHELIO'][j].std(ddof=1),
+                 star['RV_TEFF'],star['RV_LOGG'],star['RV_FEH']))
+        if k>=0 :
+            gd = np.where(np.abs(apfieldvisits['VHELIO']) < 999)[0]
+            fp.write('<TR><TD>IDL<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.0f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
+                     apfield['VHELIO_AVG'][k],apfield['VSCATTER'][k],apfieldvisits['VHELIO'][gd].std(ddof=1),
+                     apfield['RV_TEFF'][k],apfield['RV_LOGG'][k],apfield['RV_FEH'][k]))
+        fp.write('</TABLE><br>')
+
+        # individual visit velocities
+        fp.write('<TABLE BORDER=2>')
+        fp.write('<TR><TD>JD<TD>PLATE<TD>MJD<TD>FIBER<TD>S/N<TD>Doppler xcorr<TD> xcorr_err<TD>Doppler<TD>VERR<TD>IDL<TD>VERR\n')
+        for i in j :
+            ii = np.where(apfieldvisits['FILE'] == dop[2].data['FILE'][i])[0][0]
+            fp.write(('<TR> <TD> <A HREF={:s} TARGET="_obj"> {:12.3f}</A> <TD> {:s} <TD> {:5d} <TD> {:5d}'+
+                     '<TD> {:8.1f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f}\n').format(
+                      dop[2].data['FILE'][i].replace('.fits','_dopfit.png').replace('-r12-','-r13-'),
+                      dop[2].data['JD'][i],dop[2].data['PLATE'][i],dop[2].data['MJD'][i],dop[2].data['FIBERID'][i],
+                      dop[2].data['SNR'][i],
+                      dop[2].data['XCORR_VHELIO'][i],dop[2].data['XCORR_VRELERR'][i],
+                      dop[2].data['VHELIO'][i],dop[2].data['VRELERR'][i],
+                      apfieldvisits['VHELIO'][ii],apfieldvisits['VRELERR'][ii]))
+        fp.write('</TABLE>')
+
+        # vscatter difference with IDL
+        fp.write('<TD> {:8.2f}'.format(star['VSCATTER']-apfield['VSCATTER'][k]))
+        fp.write('<TD> {:8.2f}'.format(vsig-apfield['VSCATTER'][k]))
+
+        # plot visit RVs
+        vhelio=dop[2].data['VHELIO'][j]
+        vidl=apfieldvisits['VHELIO'][jj]
+        gd = np.where(np.abs(vidl) < 999)[0]
+        vmax=np.nanmax(np.append(vhelio,vidl[gd]))
+        vmin=np.nanmin(np.append(vhelio,vidl[gd]))
+        yr=[vmin-0.1*(vmax-vmin),vmax+0.1*(vmax-vmin)]
+        try :
+            fig,ax=plots.multi(1,1)
+            plots.plotp(ax,dop[2].data['MJD'][j],vhelio,size=15,color='g',yr=yr,label='Doppler')
+            plots.plotp(ax,apfieldvisits['MJD'][jj[gd]],vidl[gd],size=15,color='r',yr=yr,label='IDL')
+            ax.plot(ax.get_xlim(),[star['VHELIO_AVG'],star['VHELIO_AVG']],color='g')
+            ax.plot(ax.get_xlim(),[apfield['VHELIO_AVG'][k],apfield['VHELIO_AVG'][k]],color='r')
+            ax.legend()
+            fig.savefig(field+'/'+obj+'.png')
+            plt.close()
+        except KeyboardInterrupt: raise
+        except :
+             pdb.set_trace()
+             pass
+
+        # include plots
+        fp.write('<TD><IMG SRC={:s}.png>\n'.format(obj))
+        fp.write('<TD><A HREF={:s}_ccf.png> <IMG SRC={:s}_ccf.png></A>\n'.format(obj,obj))
+        fp.write('<TD><A HREF={:s}_spec.png> <IMG SRC={:s}_spec.png></a>\n'.format(obj,obj))
+    fp.close() 
+
+def overlap(fields) :
+    """ compare RVs from different fields for overlapping stars
+    """
+
+    r13=apload.ApLoad(apred='r13')
+    f=[]
+    a=[]
+    for field in fields :
+        f.append(fits.open(field+'/'+field+'_rv.fits'))
+        a.append( r13.apFieldVisits(field))
+
+    outdir=fields[0]+'_'+fields[1]
+    try: os.makedirs(outdir)
+    except: pass
+
+    fp=open(outdir+'/'+outdir+'.html','w')
+    fp.write('<HTML>\n')
+    fp.write('<HEAD><script type=text/javascript src=../html/sorttable.js></script></head>')
+    fp.write('<BODY>\n')
+    fp.write('<TABLE BORDER=2>\n')
+
+    matplotlib.use('Agg')
+    i1,i2=match.match(f[0][1].data['APOGEE_ID'],f[1][1].data['APOGEE_ID'])
+    colors=['g','r','b','m']
+    for star in f[0][1].data['APOGEE_ID'][i1] :
+        print(star)
+        fp.write('<TR><TD>{:s}<BR>\n'.format(star))
+        fp.write('<TABLE BORDER=2>\n')
+        fig,ax=plots.multi(1,1)
+        for i,field in enumerate(f) :
+            j=np.where(field[2].data['APOGEE_ID'] == star)[0]
+            plots.plotp(ax,field[2].data['MJD'][j],field[2].data['VHELIO'][j],color=colors[i],size=10)
+            j=np.where(field[1].data['APOGEE_ID'] == star)[0][0]
+            fp.write('<TR><TD>Doppler<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.0f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
+                 field[1].data['VHELIO_AVG'][j],field[1].data['VSCATTER'][j],
+                 field[1].data['RV_TEFF'][j],field[1].data['RV_LOGG'][j],field[1].data['RV_FEH'][j]))
+        for i,field in enumerate(a) :
+            j=np.where(field[1].data['APOGEE_ID'] == star)[0]
+            gd=np.where(np.abs(field[1].data['VHELIO'][j]) < 999)[0]
+            plots.plotp(ax,field[1].data['MJD'][j[gd]],field[1].data['VHELIO'][j[gd]],color=colors[i+2],size=10)
+            #fp.write('<TR><TD>IDL<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.0f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
+            #     field[1].data['VHELIO_AVG'],field[1].data['VSCATTER'],
+            #     field[1].data['RV_TEFF'],field[1].data['RV_LOGG'],field[1].data['RV_FEH']))
+        plt.draw()
+        plt.close()
+        fig.savefig(outdir+'/'+star+'.png')
+        fp.write('</TABLE>\n')
+        fp.write('<TD><a HREF={:s}.png> <IMG SRC={:s}.png> </a>\n'.format(star,star))
+    fp.write('</TABLE>')
+    fp.close()

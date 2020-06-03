@@ -217,6 +217,10 @@ for iloc=0,n_elements(locations)-1 do begin
     snrgood = where(allvisits[obj].snr GE newsnmin,ngood)
     if ngood eq 0 then goto, bomb
     if ~keyword_set(forcedone) then obj = obj[snrgood]
+    ; added following to trap for bad bc, from bad RA/DEC, from bad pmra/dec, 4/2020, Holtz.
+    bcgood = where(finite(allvisits[obj].bc),ngood)
+    if ngood eq 0 then goto, bomb
+    if ~keyword_set(forcedone) then obj = obj[bcgood]
     
     ; check to see if we have already done this stars with all of the visits
     ;starfile=stars_dir+clocation+'/'+root+objname+'.fits'

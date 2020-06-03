@@ -606,9 +606,6 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
                           ('RV_TEFF',float),('RV_LOGG',float),('RV_FEH',float) 
                          ])
    
-                 #     ('medsnr',float),('totsnr',float),('vhelio',float),('vscatter',float),('verr',float),
-                 #     ('teff',float),('tefferr',float),('logg',float),('loggerr',float),('feh',float),
-                 #     ('feherr',float),('chisq',float)])
     allfield = np.zeros(len(allobj),dtype=fieldtype)
     allfield['TELESCOPE'] = telescope
     allfield['FIELD'] = field
@@ -633,7 +630,8 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
         for i,visit in enumerate(visits) :
             if i < maxvisit :
                 # accumulate list of files
-                visitfile= load.allfile('Visit',plate=int(allvisits['PLATE'][visit]),mjd=allvisits['MJD'][visit],fiber=allvisits['FIBERID'][visit])
+                visitfile= load.allfile('Visit',plate=int(allvisits['PLATE'][visit]),
+                                        mjd=allvisits['MJD'][visit],fiber=allvisits['FIBERID'][visit])
                 specfiles.append(visitfile)
     #            spec=doppler.read(visitfile)
     #            fwhm=[]
@@ -645,7 +643,6 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
         allv.append(visits)
        
     print('total objects: ', nobj, ' total visits: ', nvisit) 
-
     if threads == 0 :
         output=[]
         for speclist in allfiles :
@@ -663,6 +660,8 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
         allvisits.rename_column(col,'est'+col)
         if col == 'VTYPE' : allvisits[col] = 0
         else : allvisits[col] = np.nan
+    for col in ['XCORR_VREL','XCORR_VRELERR','XCORR_VHELIO'] :
+        allvisits[col] = np.nan
 
     # load up the individual visit RV information
     for out,files in zip(output,allfiles) :
@@ -681,6 +680,9 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
                 allvisits[visit]['VREL']=v['vrel']
                 allvisits[visit]['VRELERR']=v['vrelerr']
                 allvisits[visit]['VHELIO']=v['vhelio']
+                allvisits[visit]['XCORR_VREL']=v['xcorr_vrel']
+                allvisits[visit]['XCORR_VRELERR']=v['xcorr_vrelerr']
+                allvisits[visit]['XCORR_VHELIO']=v['xcorr_vhelio']
                 starflag |= allvisits[visit]['STARFLAG']
                 andflag &= allvisits[visit]['STARFLAG']
                 if allvisits[visit]['SURVEY'] == 'apogee' :
@@ -704,7 +706,8 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
             allfield['APOGEE2_TARGET2'][j] = apogee2_target2
             allfield['APOGEE2_TARGET3'][j] = apogee2_target3
             allfield['APOGEE2_TARGET4'][j] = apogee2_target4
-            #allfield['TARGFLAGS'][j] = bitmask.targflags()
+            allfield['TARGFLAGS'][j] = (bitmask.targflags(apogee_target1,apogee_target2,apogee_target3,survey='apogee')+
+                                        bitmask.targflags(apogee2_target1,apogee2_target2,apogee2_target3,survey='apogee2'))
             allfield['STARFLAG'][j] = starflag
             allfield['STARFLAGS'][j] = starmask.getname(starflag)
             allfield['ANDFLAG'][j] = andflag
@@ -717,10 +720,15 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
             allfield['RV_LOGG'][j] = out[0]['logg']
             allfield['RV_FEH'][j] = out[0]['feh']
 
+    #output file with allfield and allvisits
     hdulist=fits.HDUList()
     hdulist.append(fits.table_to_hdu(Table(allfield)))
     hdulist.append(fits.table_to_hdu(allvisits))
     hdulist.writeto(field+'/'+field+'_rv.fits',overwrite=True)
+
+    # make web page
+    mkhtml(field)
+
     return allfield,allvisits
 
 def dorv(visitfiles) :            
@@ -749,6 +757,7 @@ def dorv(visitfiles) :
         if spec is not None : speclist.append(spec)
     try:
         print('running jointfit for :',obj)
+        print('nvisits: ', len(speclist))
         out= doppler.rv.jointfit(speclist,verbose=verbose,plot=plot,saveplot=True,outdir=field+'/',tweak=tweak)
         fp = open(field+'/'+obj+'_rv.txt','w')
         fp.write('{:s}  {:d} {:8.1f}'.format(obj,len(speclist),out[4]))
@@ -762,9 +771,11 @@ def dorv(visitfiles) :
     except ValueError as err:
         print('Exception raised for: ', field, obj)
         print("ValueError: {0}".format(err))
+        return
     except RuntimeError as err:
         print('Exception raised for: ', field, obj)
         print("Runtime error: {0}".format(err))
+        return
     except :
         print('Exception raised for: ', field, obj)
         return
@@ -772,17 +783,26 @@ def dorv(visitfiles) :
     return out
 
 def dop_plot(field,obj,out) :
+    """ RV diagnostic plots
+    """
     n = len(out[2])
+    #plot final spectra and final models
     fig,ax=plots.multi(1,n,hspace=0.001,figsize=(8,2+n))
     for i,(mod,spec) in enumerate(zip(out[2],out[3])) :
         plots.plotl(ax[i],spec.wave,spec.flux,color='k')
         plots.plotl(ax[i],mod.wave,mod.flux,color='r')
         ax[i].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
     fig.savefig(field+'/'+obj+'_spec.png')
+
+    # plot cross correlation functions with final model
     fig,ax=plots.multi(1,n,hspace=0.001,figsize=(6,2+n))
+    vmed=np.median(out[1]['vrel'])
     for i,(final,spec) in enumerate(zip(out[1],out[3])) :
-        ax[i].plot(final['ccf'],color='k')
-        ax[i].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
+        plots.plotl(ax[i],final['x_ccf'],final['ccf'],color='k',xr=[vmed-100,vmed+100])
+        plots.plotl(ax[i],[final['vrel'],final['vrel']],ax[i].get_ylim(),color='g',label='fit RV')
+        plots.plotl(ax[i],[final['xcorr_vrel'],final['xcorr_vrel']],ax[i].get_ylim(),color='r',label='xcorr RV')
+        ax[i].text(0.1,0.9,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
+        ax[i].legend()
     fig.savefig(field+'/'+obj+'_ccf.png')
 
 from scipy.signal import convolve
@@ -824,10 +844,12 @@ def dop_comp(field) :
             plt.draw()
             input('hit a key: ')
 
-def vis_comp(field,visitplot=True) :
+def mkhtml(field) :
     """ Make web pages with tables/plots of RV output
         c.f., Doppler vs IDL
     """
+
+    matplotlib.use('Agg')
     # get Doppler results
     dop = fits.open(field+'/'+field+'_rv.fits')
  
@@ -839,14 +861,23 @@ def vis_comp(field,visitplot=True) :
     # match
     i1,i2 = match.match(dop[2].data['FILE'],apfieldvisits['FILE'])
     print(len(dop[2].data),len(apfieldvisits),len(i1))
+    fig,ax=plots.multi(1,2)
+    ax[0].hist(dop[1].data['VHELIO_AVG'],bins=np.arange(-300,300,5),label='doppler',color='g',histtype='step')
+    ax[0].hist(apfield['VHELIO_AVG'],bins=np.arange(-300,300,5),label='IDL',color='r',histtype='step')
+    ax[0].legend()
+    ax[1].hist(dop[1].data['VSCATTER'],bins=np.arange(0,1,0.02),label='doppler',color='g',histtype='step')
+    ax[1].hist(apfield['VSCATTER'],bins=np.arange(0,1,0.02),label='IDL',color='r',histtype='step')
+    ax[1].legend()
+    fig.savefig(field+'/'+field+'_rvhist.png')
 
     # create HTML and loop over objects
-    matplotlib.use('Agg')
     fp=open(field+'/'+field+'.html','w')
     fp.write('<HTML>\n')
     fp.write('<HEAD><script type=text/javascript src=../html/sorttable.js></script></head>')
     fp.write('<BODY>\n')
     fp.write('<H2> Field: {:s}</H2><p>\n'.format(field))
+    fp.write('<A HREF={:s}_rvhist.png> <IMG SRC={:s}_rvhist.png> </A>'.format(field,field))
+    
     fp.write('<TABLE BORDER=2 CLASS=sortable>\n')
     fp.write('<TR><TD>Obj<TD>Delta(VSCATTER)<TD>Delta(VSIG)<TD>RV plot\n')
     for star in dop[1].data :
@@ -854,7 +885,7 @@ def vis_comp(field,visitplot=True) :
         print(obj)
 
         # get visits in Doppler allvisit table
-        j=np.where(dop[2].data['APOGEE_ID'][i1] == obj)[0]
+        j=np.where(dop[2].data['APOGEE_ID'] == obj)[0]
         if len(j) == 0 : 
             print('missing {:s} in dop[2].data'.format(obj))
             continue
@@ -862,68 +893,126 @@ def vis_comp(field,visitplot=True) :
         # get object in apField
         try: k=np.where(apfield['APOGEE_ID'] == obj)[0][0]
         except: k=-1
+        jj=np.where(apfieldvisits['APOGEE_ID'] == obj)[0]
 
+        # star information
         fp.write('<TR><TD>')
         fp.write('{:s}<br>'.format(obj))
-        fp.write('H  = {:7.2f}<br>'.format(apfield['H'][k]))
+        fp.write('H  = {:7.2f}<br>'.format(star['H']))
         fp.write('{:s}<br>'.format(apfield['TARGFLAGS'][k]))
-        fp.write('{:s}<br>'.format(apfield['STARFLAGS'][k]))
+        fp.write('{:s}<br>'.format(star['STARFLAGS']))
+
+        # average veloicities
         fp.write('<TABLE BORDER=2>\n')
         fp.write('<TR><TD><TD>VHELIO_AVG<TD>VSCATTER<TD>VSIGMA<TD>TEFF<TD>LOGG<TD>[FE/H]\n')
-        vsig=dop[2].data['VHELIO'][i1[j]].std(ddof=1)
+        vsig=dop[2].data['VHELIO'][j].std(ddof=1)
         fp.write('<TR><TD>Doppler<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.0f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
                  star['VHELIO_AVG'],star['VSCATTER'],vsig,
                  star['RV_TEFF'],star['RV_LOGG'],star['RV_FEH']))
+        fp.write('<TR><TD>Doppler Xcorr<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.0f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
+                 np.median(dop[2].data['XCORR_VHELIO'][j]),
+                 dop[2].data['XCORR_VHELIO'][j].std(ddof=1),dop[2].data['XCORR_VHELIO'][j].std(ddof=1),
+                 star['RV_TEFF'],star['RV_LOGG'],star['RV_FEH']))
         if k>=0 :
-            gd = np.where(np.abs(apfieldvisits['VHELIO'][i2[j]]) < 999)[0]
+            gd = np.where(np.abs(apfieldvisits['VHELIO']) < 999)[0]
             fp.write('<TR><TD>IDL<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.0f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
-                     apfield['VHELIO_AVG'][k],apfield['VSCATTER'][k],apfieldvisits['VHELIO'][i2[j[gd]]].std(ddof=1),
+                     apfield['VHELIO_AVG'][k],apfield['VSCATTER'][k],apfieldvisits['VHELIO'][gd].std(ddof=1),
                      apfield['RV_TEFF'][k],apfield['RV_LOGG'][k],apfield['RV_FEH'][k]))
         fp.write('</TABLE><br>')
+
+        # individual visit velocities
         fp.write('<TABLE BORDER=2>')
-        fp.write('<TR><TD>JD<TD>PLATE<TD>MJD<TD>FIBER<TD>S/N<TD>Doppler<TD>VERR<TD>IDL<TD>VERR\n')
+        fp.write('<TR><TD>JD<TD>PLATE<TD>MJD<TD>FIBER<TD>S/N<TD>Doppler xcorr<TD> xcorr_err<TD>Doppler<TD>VERR<TD>IDL<TD>VERR\n')
         for i in j :
-            fp.write(('<TR> <TD> <A HREF={:s}> {:12.3f}</A> <TD> {:s} <TD> {:5d} <TD> {:5d}'+
-                     '<TD> {:8.1f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f}\n').format(
-                      dop[2].data['FILE'][i1[i]].replace('.fits','_dopfit.png'),
-                      dop[2].data['JD'][i1[i]],dop[2].data['PLATE'][i1[i]],dop[2].data['MJD'][i1[i]],dop[2].data['FIBERID'][i1[i]],
-                      dop[2].data['SNR'][i1[i]],
-                      dop[2].data['VHELIO'][i1[i]],dop[2].data['VRELERR'][i1[i]],
-                      apfieldvisits['VHELIO'][i2[i]],apfieldvisits['VRELERR'][i2[i]]))
+            ii = np.where(apfieldvisits['FILE'] == dop[2].data['FILE'][i])[0][0]
+            fp.write(('<TR> <TD> <A HREF={:s} TARGET="_obj"> {:12.3f}</A> <TD> {:s} <TD> {:5d} <TD> {:5d}'+
+                     '<TD> {:8.1f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f}\n').format(
+                      dop[2].data['FILE'][i].replace('.fits','_dopfit.png').replace('-r12-','-r13-'),
+                      dop[2].data['JD'][i],dop[2].data['PLATE'][i],dop[2].data['MJD'][i],dop[2].data['FIBERID'][i],
+                      dop[2].data['SNR'][i],
+                      dop[2].data['XCORR_VHELIO'][i],dop[2].data['XCORR_VRELERR'][i],
+                      dop[2].data['VHELIO'][i],dop[2].data['VRELERR'][i],
+                      apfieldvisits['VHELIO'][ii],apfieldvisits['VRELERR'][ii]))
         fp.write('</TABLE>')
+
+        # vscatter difference with IDL
         fp.write('<TD> {:8.2f}'.format(star['VSCATTER']-apfield['VSCATTER'][k]))
         fp.write('<TD> {:8.2f}'.format(vsig-apfield['VSCATTER'][k]))
-        vhelio=dop[2].data['VHELIO'][i1[j]]
-        vidl=apfieldvisits['VHELIO'][i2[j]]
+
+        # plot visit RVs
+        vhelio=dop[2].data['VHELIO'][j]
+        vidl=apfieldvisits['VHELIO'][jj]
         gd = np.where(np.abs(vidl) < 999)[0]
         vmax=np.nanmax(np.append(vhelio,vidl[gd]))
         vmin=np.nanmin(np.append(vhelio,vidl[gd]))
         yr=[vmin-0.1*(vmax-vmin),vmax+0.1*(vmax-vmin)]
         try :
             fig,ax=plots.multi(1,1)
-            plots.plotp(ax,dop[2].data['MJD'][i1[j]],vhelio,size=15,color='g',yr=yr,label='Doppler')
-            plots.plotp(ax,apfieldvisits['MJD'][i2[j[gd]]],vidl[gd],size=15,color='r',yr=yr,label='IDL')
+            plots.plotp(ax,dop[2].data['MJD'][j],vhelio,size=15,color='g',yr=yr,label='Doppler')
+            plots.plotp(ax,apfieldvisits['MJD'][jj[gd]],vidl[gd],size=15,color='r',yr=yr,label='IDL')
             ax.plot(ax.get_xlim(),[star['VHELIO_AVG'],star['VHELIO_AVG']],color='g')
             ax.plot(ax.get_xlim(),[apfield['VHELIO_AVG'][k],apfield['VHELIO_AVG'][k]],color='r')
             ax.legend()
             fig.savefig(field+'/'+obj+'.png')
             plt.close()
         except KeyboardInterrupt: raise
-        except : pass
+        except :
+             pdb.set_trace()
+             pass
+
+        # include plots
         fp.write('<TD><IMG SRC={:s}.png>\n'.format(obj))
-        try:
-            if visitplot and not os.path.exists(field+'/'+obj+'_spec.png') :
-                out=pickle.load(open(field+'/'+obj+'_out.pkl','rb'))
-                n = len(out[2])
-                fig,ax=plots.multi(1,n,hspace=0.001,figsize=(8,2+n))
-                for i,(mod,spec) in enumerate(zip(out[2],out[3])) :
-                    plots.plotl(ax[i],spec.wave,spec.flux,color='k')
-                    plots.plotl(ax[i],mod.wave,mod.flux,color='r')
-                    ax[i].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
-                fig.savefig(field+'/'+obj+'_spec.png')
-        except KeyboardInterrupt: raise
-        except: pass
-        plt.close()
+        fp.write('<TD><A HREF={:s}_ccf.png> <IMG SRC={:s}_ccf.png></A>\n'.format(obj,obj))
         fp.write('<TD><A HREF={:s}_spec.png> <IMG SRC={:s}_spec.png></a>\n'.format(obj,obj))
-        fp.write('<TD><A HREF={:s_ccf.png> <IMG SRC={:s}_ccf.png></A>\n'.format(obj,obj))
     fp.close() 
+
+def overlap(fields) :
+    """ compare RVs from different fields for overlapping stars
+    """
+
+    r13=apload.ApLoad(apred='r13')
+    f=[]
+    a=[]
+    for field in fields :
+        f.append(fits.open(field+'/'+field+'_rv.fits'))
+        a.append( r13.apFieldVisits(field))
+
+    outdir=fields[0]+'_'+fields[1]
+    try: os.makedirs(outdir)
+    except: pass
+
+    fp=open(outdir+'/'+outdir+'.html','w')
+    fp.write('<HTML>\n')
+    fp.write('<HEAD><script type=text/javascript src=../html/sorttable.js></script></head>')
+    fp.write('<BODY>\n')
+    fp.write('<TABLE BORDER=2>\n')
+
+    matplotlib.use('Agg')
+    i1,i2=match.match(f[0][1].data['APOGEE_ID'],f[1][1].data['APOGEE_ID'])
+    colors=['g','r','b','m']
+    for star in f[0][1].data['APOGEE_ID'][i1] :
+        print(star)
+        fp.write('<TR><TD>{:s}<BR>\n'.format(star))
+        fp.write('<TABLE BORDER=2>\n')
+        fig,ax=plots.multi(1,1)
+        for i,field in enumerate(f) :
+            j=np.where(field[2].data['APOGEE_ID'] == star)[0]
+            plots.plotp(ax,field[2].data['MJD'][j],field[2].data['VHELIO'][j],color=colors[i],size=10)
+            j=np.where(field[1].data['APOGEE_ID'] == star)[0][0]
+            fp.write('<TR><TD>Doppler<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.0f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
+                 field[1].data['VHELIO_AVG'][j],field[1].data['VSCATTER'][j],
+                 field[1].data['RV_TEFF'][j],field[1].data['RV_LOGG'][j],field[1].data['RV_FEH'][j]))
+        for i,field in enumerate(a) :
+            j=np.where(field[1].data['APOGEE_ID'] == star)[0]
+            gd=np.where(np.abs(field[1].data['VHELIO'][j]) < 999)[0]
+            plots.plotp(ax,field[1].data['MJD'][j[gd]],field[1].data['VHELIO'][j[gd]],color=colors[i+2],size=10)
+            #fp.write('<TR><TD>IDL<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.0f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
+            #     field[1].data['VHELIO_AVG'],field[1].data['VSCATTER'],
+            #     field[1].data['RV_TEFF'],field[1].data['RV_LOGG'],field[1].data['RV_FEH']))
+        plt.draw()
+        plt.close()
+        fig.savefig(outdir+'/'+star+'.png')
+        fp.write('</TABLE>\n')
+        fp.write('<TD><a HREF={:s}.png> <IMG SRC={:s}.png> </a>\n'.format(star,star))
+    fp.write('</TABLE>')
+    fp.close()

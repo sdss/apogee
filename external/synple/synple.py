@@ -1717,7 +1717,7 @@ def checkinput(wrange, vmicro, linelist):
 
     #check
     if nlines > 10:
-      assert (wrange[0] > minlambda and wrange[1] < maxlambda),'wrange exceeds the allow range ('+str(minlambda)+' to '+str(maxlambda)+')'
+      assert (wrange[0] > minlambda-1 and wrange[1] < maxlambda+1),'wrange exceeds the allow range ('+str(minlambda)+' to '+str(maxlambda)+')'
       imode = 0
     else:
       imode = 1

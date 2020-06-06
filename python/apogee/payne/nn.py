@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 from apogee.payne import training
 from scipy.optimize import curve_fit, minimize
+from scipy.interpolate import interp1d
 try:
     from keras import models
     from keras import layers
@@ -835,13 +836,6 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',star=None,nfit=0
     bounds_lo=mod['x_min']
     bounds_hi=mod['x_max']
 
-    # set initial guess
-    init=np.zeros(nlab)
-    j=np.where(np.core.defchararray.strip(mod['label_names']) == 'TEFF')[0]
-    init[j] = 4500.
-    j=np.where(np.core.defchararray.strip(mod['label_names']) == 'LOGG')[0]
-    init[j] = 2.5
-
     # get stars
     stars=fits.open(field+'.fits')[1].data
     if nfit > 0 : stars = stars[0:nfit]
@@ -866,11 +860,31 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',star=None,nfit=0
         pool.close()
         pool.join()
 
+    # set initial guesses
+    init=np.zeros([len(stars),nlab])
+    j_teff=np.where(np.core.defchararray.strip(mod['label_names']) == 'TEFF')[0]
+    init[:,j_teff] = 4500.
+    j=np.where(np.core.defchararray.strip(mod['label_names']) == 'LOGG')[0]
+    init[:,j] = 2.5
+
+    extcorr=fits.open('trunk/goodstars-v2_7_1-gaia-extcorr.fits')[1].data
+
+    # rough color-temp interpolator from isochrone points
+    color=[-0.457,-0.153,0.328,1.247,2.172,3.215]
+    logte=[4.4822,4.1053,3.8512,3.678,3.5557,3.5246]
+    f=interp1d(color,logte,kind='linear')
+
     specs=[]
     pix = np.arange(0,8575,1)
+    allinit=[]
     for i,star in enumerate(stars) :
-        print(i,star['mangaid'],len(stars))
-        specs.append((output[i][0], output[i][1], init, (bounds_lo,bounds_hi), order))
+        j=np.where(extcorr['MANGAID'] == star['mangaid'])[0]
+        bprpc=extcorr['BPRPC'][j]
+        if abs(bprpc) < 5 :
+            teff_est= 10.**f(np.max([np.min([bprpc,color[-1]]),color[0]]))
+            print(i,star['mangaid'],bprpc,teff_est, len(stars))
+            init[i,j_teff] = teff_est
+        specs.append((output[i][0], output[i][1], init[i,:], (bounds_lo,bounds_hi), order))
 #        spec = star['flux']
 #        specerr = np.sqrt(1./star['ivar'])
 #        cont = norm.cont(spec,specerr,poly=False,order=order,chips=True,apstar=False,medfilt=400)

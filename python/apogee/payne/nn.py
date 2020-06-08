@@ -1285,10 +1285,13 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
         #n=len(np.where(np.abs(apstar[j]-true[i,j]) > 0.05)[0])
     nn=np.array(nn)
     diff2=np.array(diff2)
-    fig,ax=plots.multi(2,2,hspace=0.001,wspace=0.001,sharex=True,sharey=True)
-    plots.plotc(ax[0,0],labels[:,0],labels[:,1],labels[:,2],xr=[8000,3000],yr=[6,-1],zr=[-2.5,0.5])
-    plots.plotc(ax[1,0],labels[:,0],labels[:,1],labels[:,3],xr=[8000,3000],yr=[6,-1],zr=[-0.25,0.5])
-    plots.plotc(ax[1,1],labels[:,0],labels[:,1],diff2,xr=[8000,3000],yr=[6,-1],zr=[0,10])
+    #fig,ax=plots.multi(2,2,hspace=0.001,wspace=0.001,sharex=True,sharey=True)
+    #plots.plotc(ax[0,0],labels[:,0],labels[:,1],labels[:,2],xr=[8000,3000],yr=[6,-1],zr=[-2.5,0.5])
+    #plots.plotc(ax[1,0],labels[:,0],labels[:,1],labels[:,3],xr=[8000,3000],yr=[6,-1],zr=[-0.25,0.5])
+    #plots.plotc(ax[1,1],labels[:,0],labels[:,1],diff2,xr=[8000,3000],yr=[6,-1],zr=[0,10])
+    #ax[1,1].text(0.,0.9,'diff**2',transform=ax[1,1].transAxes)
+    fig,ax=plots.multi(1,1,hspace=0.001,wspace=0.001,sharex=True,sharey=True)
+    plots.plotc(ax,labels[:,0],labels[:,1],diff2,xr=[8000,3000],yr=[6,-1],zr=[0,10])
     if ids: 
         data=Table()
         data.add_column(Column(name='ID',data=iden))
@@ -1299,9 +1302,9 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
         plots._data = data
         plots._id_cols = ['ID','TEFF','LOGG','MH','AM']
     plots.event(fig)
-    ax[1,1].text(0.,0.9,'diff**2',transform=ax[1,1].transAxes)
     plt.draw()
     key=' '
+    pdb.set_trace()
     sfig,sax=plots.multi(1,2,hspace=0.001,sharex=True)
     while key != 'e' and key != 'E' :
         x,y,key,index=plots.mark(fig)

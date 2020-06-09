@@ -866,6 +866,8 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',star=None,nfit=0
     init[:,j_teff] = 4500.
     j=np.where(np.core.defchararray.strip(mod['label_names']) == 'LOGG')[0]
     init[:,j] = 2.5
+    j=np.where(np.core.defchararray.strip(mod['label_names']) == 'LOG(VSINI)')[0]
+    init[:,j] = 1.01
 
     extcorr=fits.open('trunk/goodstars-v2_7_1-gaia-extcorr.fits')[1].data
 
@@ -882,8 +884,8 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',star=None,nfit=0
         bprpc=extcorr['BPRPC'][j]
         if abs(bprpc) < 5 :
             teff_est= 10.**f(np.max([np.min([bprpc,color[-1]]),color[0]]))
-            print(i,star['mangaid'],bprpc,teff_est, len(stars))
             init[i,j_teff] = teff_est
+            print(i,star['mangaid'],bprpc,init[i,:], len(stars))
         specs.append((output[i][0], output[i][1], init[i,:], (bounds_lo,bounds_hi), order))
 #        spec = star['flux']
 #        specerr = np.sqrt(1./star['ivar'])

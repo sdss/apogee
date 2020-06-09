@@ -11,10 +11,10 @@ dirs=getdir(apodir,datadir=datadir)
 if n_elements(mapper_data) eq 0 then mapper_data=dirs.mapperdir
 if size(plate,/type) eq 7 then begin
   cplate=plate 
-  platenum=0
+  platenum=0L
 endif else begin
   cplate=strtrim(string(format='(i6.4)',plate),2)
-  platenum=plate
+  platenum=long(plate)
 endelse
 mjd=0L
 reads,cmjd,mjd

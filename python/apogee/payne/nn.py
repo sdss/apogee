@@ -866,8 +866,8 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',star=None,nfit=0
     init[:,j_teff] = 4500.
     j=np.where(np.core.defchararray.strip(mod['label_names']) == 'LOGG')[0]
     init[:,j] = 2.5
-    j=np.where(np.core.defchararray.strip(mod['label_names']) == 'LOG(VSINI)')[0]
-    init[:,j] = 1.01
+    j_rot=np.where(np.core.defchararray.strip(mod['label_names']) == 'LOG(VSINI)')[0]
+    init[:,j_rot] = 1.01
 
     extcorr=fits.open('trunk/goodstars-v2_7_1-gaia-extcorr.fits')[1].data
 
@@ -885,6 +885,7 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',star=None,nfit=0
         if abs(bprpc) < 5 :
             teff_est= 10.**f(np.max([np.min([bprpc,color[-1]]),color[0]]))
             init[i,j_teff] = teff_est
+            if teff_est > 7000. : init[i,j_rot] = 2.3
             print(i,star['mangaid'],bprpc,init[i,:], len(stars))
         specs.append((output[i][0], output[i][1], init[i,:], (bounds_lo,bounds_hi), order))
 #        spec = star['flux']
@@ -1325,6 +1326,7 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
     plt.draw()
     key=' '
     sfig,sax=plots.multi(1,2,hspace=0.001,sharex=True)
+    pdb.set_trace()
     print('entering event loop....')
     while key != 'e' and key != 'E' :
         x,y,key,index=plots.mark(fig)

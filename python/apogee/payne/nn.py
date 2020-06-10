@@ -913,12 +913,30 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',star=None,nfit=0
             if out.x[0]>7000: pdb.set_trace()
             output.append(out)
     else :
+        j=np.where(np.core.defchararray.strip(mod['label_names']) == 'LOGG')[0]
+        for i,spec in enumerate(specs): 
+            specs[i][2][j] = 1.
+            print(specs[i][2])
         print('starting pool: ', len(specs))
         pool = mp.Pool(threads)
-        output = pool.map_async(solve, specs).get()
+        output1 = pool.map_async(solve, specs).get()
         pool.close()
         pool.join()
-    print('done pool')
+        print('done pool 1')
+        for i,spec in enumerate(specs): 
+            specs[i][2][j] = 5.
+            print(specs[i][2])
+        print('starting pool 2: ', len(specs))
+        pool = mp.Pool(threads)
+        output2 = pool.map_async(solve, specs).get()
+        pool.close()
+        pool.join()
+        print('done pool 2')
+        output=[]
+        for o1,o2 in zip(output1,output2) :
+            print(o1.fun,o2.fun,o1.x,o2.x)
+            if o1.fun < o2.fun : output.append(o1)
+            else : output.append(o2)
 
     # output FITS table
     out=Table()

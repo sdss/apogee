@@ -1306,8 +1306,8 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
     plots.event(fig)
     plt.draw()
     key=' '
-    pdb.set_trace()
     sfig,sax=plots.multi(1,2,hspace=0.001,sharex=True)
+    print('entering event loop....')
     while key != 'e' and key != 'E' :
         x,y,key,index=plots.mark(fig)
         sax[0].cla()

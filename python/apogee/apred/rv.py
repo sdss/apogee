@@ -546,7 +546,7 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
                clobber=False,verbose=False,tweak=False,plot=False) :
     """ Run DOPPLER RVs for a field
     """ 
-
+    
     # get all the VisitSum files for this field and concatenate them
     files=glob.glob(os.environ['APOGEE_REDUX']+'/'+apred+'/visit/'+telescope+'/'+field+'/apVisitSum*')
     allvisits=struct.concat(files)
@@ -598,6 +598,7 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
     """
     fieldtype = np.dtype([('FILE','S64'),('APOGEE_ID','S20'),('TELESCOPE','S6'),('LOCATION_ID',int),('FIELD','S20'),
                           ('J',float),('J_ERR',float),('H',float),('H_ERR',float),('K',float),('K_ERR',float),
+                          ('RA',float),('DEC',float),('GLON',float),('GLAT',float),
                           ('APOGEE_TARGET1',int),('APOGEE_TARGET2',int),('APOGEE_TARGET3',int),
                           ('APOGEE2_TARGET1',int),('APOGEE2_TARGET2',int),('APOGEE2_TARGET3',int),('APOGEE2_TARGET4',int),
                           ('TARGFLAGS','S132'),
@@ -696,9 +697,13 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
                     try: apogee2_target4 |= allvisits[visit]['APOGEE_TARGET4'] 
                     except: pass
 
+            allv=np.array(allv)
             j = np.where(allfield['APOGEE_ID'] == files[0][1])[0]
+            allfield['RA'][j] = allvisits['RA'][allv[0]]
+            allfield['DEC'][j] = allvisits['DEC'][allv[0]]
             for key in ['J','J_ERR','H','H_ERR','K','K_ERR'] :
-                allfield[key][j] = allvisits[key][allv].max()
+                gd=np.where(abs(allvisits[key][allv])< 99.)[0]
+                if len(gd) > 0 : allfield[key][j] = allvisits[key][allv[gd]].max()
             allfield['APOGEE_TARGET1'][j] = apogee_target1
             allfield['APOGEE_TARGET2'][j] = apogee_target2
             allfield['APOGEE_TARGET3'][j] = apogee_target3
@@ -745,6 +750,7 @@ def dorv(visitfiles) :
         fp=open(field+'/'+obj+'_out.pkl','rb')
         try: 
             out=pickle.load(fp)
+            fp.close()
             #dop_plot(field,obj,out)
             return out
         except: 
@@ -782,28 +788,56 @@ def dorv(visitfiles) :
 
     return out
 
+def gaussian(amp, fwhm, mean):
+    return lambda x: amp * np.exp(-4. * np.log(2) * (x-mean)**2 / fwhm**2)
+
+import gausspy.gp as gp
+
 def dop_plot(field,obj,out) :
     """ RV diagnostic plots
     """
     n = len(out[2])
     #plot final spectra and final models
     fig,ax=plots.multi(1,n,hspace=0.001,figsize=(8,2+n))
+    fig2,ax2=plots.multi(2,n,hspace=0.001,wspace=0.001,figsize=(8,2+n))
     for i,(mod,spec) in enumerate(zip(out[2],out[3])) :
         plots.plotl(ax[i],spec.wave,spec.flux,color='k')
         plots.plotl(ax[i],mod.wave,mod.flux,color='r')
         ax[i].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
+        plots.plotl(ax2[i,0],spec.wave,spec.flux,color='k',xr=[15700,15800])
+        plots.plotl(ax2[i,0],mod.wave,mod.flux,color='r',xr=[15700,15800])
+        plots.plotl(ax2[i,1],spec.wave,spec.flux,color='k',xr=[16700,16930])
+        plots.plotl(ax2[i,1],mod.wave,mod.flux,color='r',xr=[16700,16930])
+        ax2[i,0].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
     fig.savefig(field+'/'+obj+'_spec.png')
+    fig2.savefig(field+'/'+obj+'_spec2.png')
+    plt.close()
+    plt.close()
 
     # plot cross correlation functions with final model
     fig,ax=plots.multi(1,n,hspace=0.001,figsize=(6,2+n))
     vmed=np.median(out[1]['vrel'])
+    g = gp.GaussianDecomposer()
+    g.set('phase','one')
+    g.set('SNR_thresh',[4,4])
+    g.set('alpha1',1.5)
     for i,(final,spec) in enumerate(zip(out[1],out[3])) :
         plots.plotl(ax[i],final['x_ccf'],final['ccf'],color='k',xr=[vmed-100,vmed+100])
+        plots.plotl(ax[i],final['x_ccf'],final['ccferr'],color='r',xr=[vmed-100,vmed+100])
         plots.plotl(ax[i],[final['vrel'],final['vrel']],ax[i].get_ylim(),color='g',label='fit RV')
         plots.plotl(ax[i],[final['xcorr_vrel'],final['xcorr_vrel']],ax[i].get_ylim(),color='r',label='xcorr RV')
         ax[i].text(0.1,0.9,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
         ax[i].legend()
+        x=final['x_ccf']
+        y=final['ccf']
+        out=g.decompose(x,y,final['ccferr'])
+        n=out['N_components']
+        for j in range(n) :
+            pars=out['best_fit_parameters'][j::n]
+            ax[i].plot(x,gaussian(*pars)(x))
     fig.savefig(field+'/'+obj+'_ccf.png')
+    plt.close()
+    del(g)
 
 from scipy.signal import convolve
 def dop_comp(field) :
@@ -879,7 +913,7 @@ def mkhtml(field) :
     fp.write('<A HREF={:s}_rvhist.png> <IMG SRC={:s}_rvhist.png> </A>'.format(field,field))
     
     fp.write('<TABLE BORDER=2 CLASS=sortable>\n')
-    fp.write('<TR><TD>Obj<TD>Delta(VSCATTER)<TD>Delta(VSIG)<TD>RV plot\n')
+    fp.write('<TR><TD>Obj<TD>Delta(VSCATTER)<TD>H<TD>Doppler RV_TEFF<TD>RV plot\n')
     for star in dop[1].data :
         obj=star['APOGEE_ID']
         print(obj)
@@ -896,11 +930,17 @@ def mkhtml(field) :
         jj=np.where(apfieldvisits['APOGEE_ID'] == obj)[0]
 
         # star information
-        fp.write('<TR><TD>')
-        fp.write('{:s}<br>'.format(obj))
+        if star['TARGFLAGS'].find('TELLURIC') >=0 :
+            fp.write('<TR><TD bgcolor=lightblue>')
+        else :
+            fp.write('<TR><TD>')
+        fp.write('{:s}'.format(obj))
+        fp.write('(<A HREF="http://simbad.cfa.harvard.edu/simbad/sim-basic?Ident={:12.5f}%09{:12.5f}++&submit=SIMBAD+search"> SIMBAD </A>)<BR>'.format
+                   (apfield['RA'][k],apfield['DEC'][k]))
         fp.write('H  = {:7.2f}<br>'.format(star['H']))
-        fp.write('{:s}<br>'.format(apfield['TARGFLAGS'][k]))
+        fp.write('{:s}<br>'.format(star['TARGFLAGS']))
         fp.write('{:s}<br>'.format(star['STARFLAGS']))
+
 
         # average veloicities
         fp.write('<TABLE BORDER=2>\n')
@@ -937,7 +977,8 @@ def mkhtml(field) :
 
         # vscatter difference with IDL
         fp.write('<TD> {:8.2f}'.format(star['VSCATTER']-apfield['VSCATTER'][k]))
-        fp.write('<TD> {:8.2f}'.format(vsig-apfield['VSCATTER'][k]))
+        fp.write('<TD> {:8.2f}'.format(star['H']))
+        fp.write('<TD> {:8.2f}'.format(star['RV_TEFF']))
 
         # plot visit RVs
         vhelio=dop[2].data['VHELIO'][j]
@@ -964,6 +1005,7 @@ def mkhtml(field) :
         fp.write('<TD><IMG SRC={:s}.png>\n'.format(obj))
         fp.write('<TD><A HREF={:s}_ccf.png> <IMG SRC={:s}_ccf.png></A>\n'.format(obj,obj))
         fp.write('<TD><A HREF={:s}_spec.png> <IMG SRC={:s}_spec.png></a>\n'.format(obj,obj))
+        fp.write('<TD><A HREF={:s}_spec2.png> <IMG SRC={:s}_spec2.png></a>\n'.format(obj,obj))
     fp.close() 
 
 def overlap(fields) :

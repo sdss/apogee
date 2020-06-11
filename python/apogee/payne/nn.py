@@ -825,22 +825,70 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',stars=None,nfit=
     if nfit > 0 : stars = stars[0:nfit]
 
     # load up normalized spectra and uncertainties 
+    norms=[]
+    for i,star in enumerate(stars) :
+        norms.append((star['flux'],np.sqrt(1./star['ivar']),pixels))
+
+    if threads==0 :
+        output=[]
+        for i in range(len(norms)) :
+            out=normalize(norms[i])
+            output.append(out)
+    else :
+        print('starting pool: ', len(norms))
+        pool = mp.Pool(threads)
+        output = pool.map_async(normalize, norms).get()
+        pool.close()
+        pool.join()
+
+    # set initial guesses
+    init=np.zeros([len(stars),nlab])
+    bounds_lo=np.zeros([len(stars),nlab])
+    bounds_hi=np.zeros([len(stars),nlab])
+    j_teff=np.where(np.core.defchararray.strip(mod['label_names']) == 'TEFF')[0]
+    init[:,j_teff] = 4500.
+    j_logg=np.where(np.core.defchararray.strip(mod['label_names']) == 'LOGG')[0]
+    init[:,j_logg] = 2.5
+    j_rot=np.where(np.core.defchararray.strip(mod['label_names']) == 'LOG(VSINI)')[0]
+    init[:,j_rot] = 1.01
+    j_mh=np.where(np.core.defchararray.strip(mod['label_names']) == '[M/H]')[0]
+
+    extcorr=fits.open('trunk/goodstars-v2_7_1-gaia-extcorr.fits')[1].data
+
+    # rough color-temp interpolator from isochrone points
+    color=[-0.457,-0.153,0.328,1.247,2.172,3.215]
+    logte=[4.4822,4.1053,3.8512,3.678,3.5557,3.5246]
+    f=interp1d(color,logte,kind='linear')
+
     specs=[]
     pix = np.arange(0,8575,1)
     for i,star in enumerate(stars) :
-        print(star['mangaid'])
-        spec = star['flux'][1000:]
-        specerr = np.sqrt(1./star['ivar'][1000:])
-        cont = norm.cont(spec,specerr,poly=False,order=order,chips=True,apstar=False,medfilt=400)
-        nspec = spec/cont
-        nspecerr = specerr/cont
-        bd=np.where(np.isinf(nspec) | np.isnan(nspec) )[0]
-        nspec[bd]=0.
-        nspecerr[bd]=1.e10
-        bd=np.where(np.isinf(nspecerr) | np.isnan(nspecerr) )[0]
-        nspec[bd]=0.
-        nspecerr[bd]=1.e10
-        specs.append((nspec, nspecerr, init, (bounds_lo,bounds_hi), order))
+        j=np.where(extcorr['MANGAID'] == star['mangaid'])[0]
+        bprpc=extcorr['BPRPC'][j]
+        if abs(bprpc) < 5 :
+            bounds_lo[i,:] = mod['x_min']
+            bounds_hi[i,:] = mod['x_max']
+            teff_est= 10.**f(np.max([np.min([bprpc,color[-1]]),color[0]]))
+            init[i,j_teff] = teff_est
+            if teff_est > 7000. : init[i,j_rot] = 2.3
+            if teff_est > 6500. : bounds_lo[i,j_mh] = -1
+            print(i,star['mangaid'],bprpc,init[i,:], len(stars))
+        specs.append((output[i][0], output[i][1], init[i,:], (bounds_lo,bounds_hi), order))
+#        spec = star['flux']
+#        specerr = np.sqrt(1./star['ivar'])
+#        cont = norm.cont(spec,specerr,poly=False,order=order,chips=True,apstar=False,medfilt=400)
+#        nspec = spec/cont
+#        nspecerr = specerr/cont
+#        bd=np.where(np.isinf(nspec) | np.isnan(nspec) )[0]
+#        nspec[bd]=0.
+#        nspecerr[bd]=1.e10
+#        bd=np.where(np.isinf(nspecerr) | np.isnan(nspecerr) )[0]
+#        nspec[bd]=0.
+#        nspecerr[bd]=1.e10
+#        if pixels is not None : 
+#            nspec = nspec[pixels[0]:pixels[1]]
+#            nspecerr = nspecerr[pixels[0]:pixels[1]]
+#        specs.append((nspec, nspecerr, init, (bounds_lo,bounds_hi), order))
 
     # do the fits in parallel
     if threads==0 :
@@ -1156,8 +1204,10 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
         pix = np.arange(8575)
         spec = spectrum(pix, *lab)
         nn.append(spec)
-        print(i,np.sum((spec-true[i,:])**2))
-        if plotspec :
+        tmp=np.sum((spec-true[i,:])**2)
+        print(i,tmp,lab)
+        diff2.append(tmp)
+        if plotspec and tmp>100 :
             plt.clf()
             plt.plot(true[i,:])
             plt.plot(spec)

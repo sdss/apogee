@@ -1,0 +1,45 @@
+REDUCE module
+*************
+
+reduce is a module that implements basic data reduction for imaging
+and spectroscopic data. It works by reading a configuration file that
+contains blocks of information needed to reduce a set of data for
+a given instrument in a given night; multiple blocks can be specified
+in a single input configuration file if desired. It can be run in an
+interactive mode where the user sees the results of each step and can make some
+modification, and also in a batch mode where the processing proceeds
+automatically.
+
+The reduction is run using the reduce.reduce() routine where a configuration
+file is a required input. Optional inputs control
+the amount of user interaction: the plot= option allows the user to specify
+a matplotlib figure in which some data are displayed, and the display= option
+allows the user to specify a pyvista.tv.TV() instance into which image
+data are displayed. A verbose= option allows the user to control the
+level of output.
+
+The configuration file provides an instrument identification, which
+is used to read an instrument configuration file with basic information
+such as overscan region, gain, readout noise, normalization region, etc.
+It then contains blocks of information used for the calibration 
+(superbias, superdark, superflat, wavelength calibration), which can either
+specify existing calibration products, or a list of frames to be used
+to construct new calibration products. Multiple calibration products of
+a given type can be constructed and each is given a label by which it can
+be referenced for use in reduction. Finally, blocks of information are
+given for the object frames to reduce.
+
+The configuration file is formatted as a YAML file, which is a simply
+and natural way to provide the required information. There is some required
+information in the file, and some optional information. A complete list
+is provided below.
+
+.. include:: reduce.yml
+   :literal:
+
+reduce functions
+================
+.. automodule:: pyvista.reduce
+   :members:
+   :member-order: bysource
+

@@ -1,0 +1,123 @@
+IMRED module
+************
+
+imred is a module that implements some classes/tools for basic data reduction:
+overscan subraction, bias subtraction, dark subtraction, and flat fielding.
+An object class is included for basic combination of images that
+can be used to make basic calibration products.  Data are read and
+processed using NDData structures, which carry along both the image
+data and associated uncertainty and mask arrays.
+
+The routines are implemented with the Reducer class, which
+performs various tasks: reads data from disk and does various reduction 
+steps, either individually or as a group. Also contains methods
+for constructing calibration frames
+
+Reducer
+=======
+Given information about instrument detector, reads and reduces
+images. A class is instantiated for a given instrument. Necesseary information
+can be specified on instantiation, but generally is loaded given an input
+instrument name, e.g., ARCTIC, ARCES, DIS, TSPEC. In this case, configuration
+is read from a configuration file called {inst}_config.yml; pyvista contains
+several of these in the PYVISTA_DIR/data directory tree. For a new instrument,
+they should be straightforward to construct, see below
+
+For a given instrument, there can be multiple files created per exposure,
+e.g. DIS blue/red, and the configuration file then specifies the multiple
+configurations. During reduction operations, all files are processed, with
+data returned as a list of NDData/CCDData objects.
+
+The reading function of the Reducer allows for file names to be
+read by specifying a sequence number (rather than typing the full
+name), if the data taking system supports unique identification by
+sequence number. File names are constructed using a template:
+{dir}/{root}{formstr}.fits*, where {dir}, {root}, and {formstr} are
+customizable attributes of the reducer. For example, if {dir} is
+defined as some input directory, {root} is '*', and {formstr} is
+{:04d}, then if you were to, e.g. rd(28), it would look for a file
+{dir}/*0028.fits*' and read it. You could also specify
+rd('Image0028.fits'), in which case it would read from
+{dir}/Image0028.fits, or you could specify rd('./Image0028.fits')
+in which case it would read from the current working directory.
+
+The basic reading method of the reducer is rd(); however, this is
+generally not the preferred method, since it does not do any
+processing (e.g. overscan subtraction), so the noise cannot be
+correctly calculated. Instead, the reduce() method is preferred,
+which will read and also perform basic reduction depending on what
+calibration frames are loaded.
+
+The reduce() method will read and perform some reductions. It will
+perform overscan subtraction if self.biastype has been set >=0,
+and cosmic ray rejection if cosmic ray rejection parameters have
+been set.  It will perform bias frame subtraction if a bias frame has been
+loaded, dark subtraction if a dark frame has been loaded, scattered
+light subtraction if a scattered light parameter has been set,
+flat fields if a flat frame has been load, bad pixel masking if
+a bad pixel mask has been set.
+
+Calibration frames can be created using the mksuperbias,
+mksuperdark, mksuperflat, mkspecflat methods. These take lists
+of frames as arguments and combine the input frame using
+a median filter (with normalization for flats). The calibration
+frames are also returned as NDData/CCDData, so that the uncertainties
+in the calibration products can be assessed, and propagated.
+
+Processing can be done with associated description and
+image display of the steps being taken. If the verbose attribute
+is set to True, more text is display. If the display attribute is
+set to a pyvista TV object, then frames will be displayed as they
+are processed, and user input is requested to proceed from step
+to step, to allow the user to look at the frames.
+
+
+Attributes:
+
+  - dir : default directory to read images from (can be overridden)
+  - root : default root file name (can be overridden)
+  - formstr : format string used to search for images using sequence number
+  - verbose : turns on verbose output
+  - gain : gain to use to calculate initial uncertainty
+  - rn  : readout noise used to calculate initial uncertainty
+  - biastype : specifies algorithm for bias subtraction
+  - biasbox : pyvista BOX object giving region(s) to use for overscan
+  - trimbox : pyvista BOX object giving region(s) to trim reduced image to, if requested
+  - normbox : pyvista BOX object giving region(s) to use for normalization of flats
+
+Methods :
+  - rd:  reads image from disk. For convenience, files can be identified by a 
+    sequence number alone, and the input directory will be searched for files matching
+    the input format ({dir}/{root}{formstr}.fits*) with the input file number
+  - overscan : subtracts overscan, and calculates uncertainty
+  - bias : subtracts input superbias frame
+  - flat : divides by input superflat frame
+  - reduce :  reads, overscan subtracts (per biastype), bias subtracts if
+             given a superbias, flat fields if given a superflat
+  - getcube: reads a set of frames into a data cube
+  - median:  median filters images in cube
+  - sum: :   sums images in cube
+  - mksuperbias: given input bias frames, creates superbias with 
+    median combination after overscan subtraction
+  - mksuperflat: given input flat field frames, creates superbias
+    with median combination with normalization, after overscan
+    subtraction, and bias subtraction if given superbias
+  - mkspecflat: creates flat field as above, but then removes
+    structure along columns using spectral signature calculated from
+    a boxcar filter of a central set of rows, to produce a flat
+    field with spectral signature removed
+
+Making a new instrument configuration file
+
+Configuration files are made using the YAML format, e.g.:
+
+.. include:: config.yml
+   :literal:
+
+
+imred functions
+===============
+.. automodule:: pyvista.imred
+   :members:
+   :member-order: bysource
+

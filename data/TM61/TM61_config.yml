@@ -1,0 +1,11 @@
+---
+channels  : ['']
+formstr   : ['{:04d}']
+gain      : [2.0]
+rn        : [10]
+biastype  : -1
+crbox     : 'lacosmic'
+biasbox   : [[[2052,2090],[20,2028]]]
+trimbox   : [[[0,2048],[0,2048]]]
+normbox   : [[[800,1200],[800,1200]]]
+

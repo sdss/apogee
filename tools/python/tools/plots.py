@@ -20,6 +20,7 @@ _new_data = True
 _axes = None
 _data_x = None
 _data_y = None
+_data_ind = None
 _block = 0
 
 def event(fig) :
@@ -38,7 +39,7 @@ def event(fig) :
         #distance,index = KDTree(A).query([event.x,event.y])
         if _data_x is not None and _data_y is not None :
             #print('Transform', len(_data_x))
-            if _new_data or event.inaxes != _axes :
+            if _button == 'n' or _new_data or event.inaxes != _axes :
                 A = event.inaxes.transData.transform(list(zip(_data_x,_data_y)))
                 #print('KDTree')
                 tree=KDTree(A)
@@ -46,7 +47,7 @@ def event(fig) :
                 _axes = event.inaxes
             #print('query')
             distance,index = tree.query([event.x,event.y])
-            _index = [index]
+            _index = [_data_ind[index]]
             if _data is not None :
                 struct.list(_data,ind=_index,cols=_id_cols)
             else :
@@ -94,7 +95,7 @@ def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',color
       aximage
 
     """
-    global _data_x, _data_y, _new_data
+    global _data_x, _data_y, _new_data, _data_ind
 
     set_limits_ticks(ax,xr,yr,nxtick,nytick)
     if xt is not None : ax.set_xlabel(xt) 
@@ -113,8 +114,13 @@ def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',color
         cb=plt.colorbar(scat,ax=ax,orientation=orientation)
         cb.ax.set_ylabel(zt)
     if draw : plt.draw()
+    gd = np.where(np.isfinite(x) & np.isfinite(y))[0]
     _data_x = x[np.isfinite(x)]
     _data_y = y[np.isfinite(y)]
+    _data_ind = np.arange(len(x))[np.isfinite(x)]
+    _data_x = x[gd]
+    _data_y = y[gd]
+    _data_ind = np.arange(len(x))[gd]
     _new_data = True
     return scat
 

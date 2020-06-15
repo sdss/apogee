@@ -1,6 +1,6 @@
 from astropy.modeling import models, fitting
 import matplotlib.pyplot as plt
-from holtz.tools import plots
+from . import plots
 import numpy as np
 import pdb
 

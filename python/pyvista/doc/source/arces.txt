@@ -1,4 +1,0 @@
-.. automodule:: holtz.pyvista.arces
-   :members:
-   :member-order: bysource
-

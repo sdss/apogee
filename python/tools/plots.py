@@ -38,7 +38,8 @@ def event(fig) :
         #distance,index = KDTree(A).query([event.x,event.y])
         if _data_x is not None and _data_y is not None :
             #print('Transform', len(_data_x))
-            if _new_data or event.inaxes != _axes :
+            # n key will reset transformation, e.g. if limits changed interactively
+            if _button == 'n' or _new_data or event.inaxes != _axes :
                 A = event.inaxes.transData.transform(list(zip(_data_x,_data_y)))
                 #print('KDTree')
                 tree=KDTree(A)

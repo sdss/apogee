@@ -604,7 +604,8 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
                           ('TARGFLAGS','S132'),
                           ('SNR',float),('STARFLAG',float),('STARFLAGS','S132'),('ANDFLAG',float),('ANDFLAGS','S132'),
                           ('VHELIO_AVG',float),('VSCATTER',float),('VERR',float),
-                          ('RV_TEFF',float),('RV_LOGG',float),('RV_FEH',float) 
+                          ('RV_TEFF',float),('RV_LOGG',float),('RV_FEH',float),
+                          ('N_COMPONENTS',int)
                          ])
    
     allfield = np.zeros(len(allobj),dtype=fieldtype)
@@ -663,6 +664,7 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
         else : allvisits[col] = np.nan
     for col in ['XCORR_VREL','XCORR_VRELERR','XCORR_VHELIO'] :
         allvisits[col] = np.nan
+    allvisits['N_COMPONENTS'] = -1
 
     # load up the individual visit RV information
     for out,files in zip(output,allfiles) :
@@ -671,7 +673,8 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
         apogee2_target1, apogee2_target2, apogee2_target3, apogee2_target4 = 0, 0, 0, 0
         if out is not None :
             allv=[]
-            for v in out[1] :
+            ncomponents=0
+            for i,v in enumerate(out[0][1]) :
                 # match by filename components in case there was an error reading in doppler
                 name=os.path.basename(v['filename']).replace('.fits','').split('-')
                 visit = np.where( (np.char.strip(allvisits['PLATE']).astype(str) == name[-3]) &
@@ -696,6 +699,8 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
                     apogee2_target3 |= allvisits[visit]['APOGEE_TARGET3'] 
                     try: apogee2_target4 |= allvisits[visit]['APOGEE_TARGET4'] 
                     except: pass
+                allvisits[visit]['N_COMPONENTS']=out[1][i]['N_components']
+                ncomponents=np.max([ncomponents,out[1][i]['N_components']])
 
             allv=np.array(allv)
             j = np.where(allfield['APOGEE_ID'] == files[0][1])[0]
@@ -717,13 +722,14 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
             allfield['STARFLAGS'][j] = starmask.getname(starflag)
             allfield['ANDFLAG'][j] = andflag
             allfield['ANDFLAGS'][j] = starmask.getname(andflag)
-            allfield['SNR'][j] = out[0]['medsnr']
-            allfield['VHELIO_AVG'][j] = out[0]['vhelio']
-            allfield['VSCATTER'][j] = out[0]['vscatter']
-            allfield['VERR'][j] = out[0]['verr']
-            allfield['RV_TEFF'][j] = out[0]['teff']
-            allfield['RV_LOGG'][j] = out[0]['logg']
-            allfield['RV_FEH'][j] = out[0]['feh']
+            allfield['SNR'][j] = out[0][0]['medsnr']
+            allfield['VHELIO_AVG'][j] = out[0][0]['vhelio']
+            allfield['VSCATTER'][j] = out[0][0]['vscatter']
+            allfield['VERR'][j] = out[0][0]['verr']
+            allfield['RV_TEFF'][j] = out[0][0]['teff']
+            allfield['RV_LOGG'][j] = out[0][0]['logg']
+            allfield['RV_FEH'][j] = out[0][0]['feh']
+            allfield['N_COMPONENTS'][j] = ncomponents
 
     #output file with allfield and allvisits
     hdulist=fits.HDUList()
@@ -751,7 +757,13 @@ def dorv(visitfiles) :
         try: 
             out=pickle.load(fp)
             fp.close()
-            #dop_plot(field,obj,out)
+            if len(out) == 5 :
+                gout = gauss_decomp(out)
+                dop_plot(field,obj,out,decomp=gout)
+                fp=open(field+'/'+obj+'_out.pkl','wb')
+                pickle.dump([out,gout],fp)
+                fp.close()
+                return [out,gout]
             return out
         except: 
             print('error loading: ', obj+'_out.pkl')
@@ -765,13 +777,14 @@ def dorv(visitfiles) :
         print('running jointfit for :',obj)
         print('nvisits: ', len(speclist))
         out= doppler.rv.jointfit(speclist,verbose=verbose,plot=plot,saveplot=True,outdir=field+'/',tweak=tweak)
+        gout = gauss_decomp(out)
         fp = open(field+'/'+obj+'_rv.txt','w')
         fp.write('{:s}  {:d} {:8.1f}'.format(obj,len(speclist),out[4]))
         fp.close()
         fp=open(field+'/'+obj+'_out.pkl','wb')
-        pickle.dump(out,fp)
+        pickle.dump([out,gout],fp)
         fp.close()
-        dop_plot(field,obj,out)
+        dop_plot(field,obj,out,decomp=gout)
     except KeyboardInterrupt : 
         raise
     except ValueError as err:
@@ -793,21 +806,41 @@ def gaussian(amp, fwhm, mean):
 
 import gausspy.gp as gp
 
-def dop_plot(field,obj,out) :
+def gauss_decomp(out) :
+    """ Do Gaussian decompoistion of CCF
+    """
+    g = gp.GaussianDecomposer()
+    g.set('phase','one')
+    g.set('SNR_thresh',[4,4])
+    g.set('alpha1',0.5)
+    g.set('alpha2',1.5)
+    gout=[]
+    for i,(final,spec) in enumerate(zip(out[1],out[3])) :
+        x=final['x_ccf']
+        y=final['ccf']
+        gout.append(g.decompose(x,y,final['ccferr']))
+    del g
+    return gout
+
+def dop_plot(field,obj,out,decomp=None) :
     """ RV diagnostic plots
     """
     n = len(out[2])
     #plot final spectra and final models
+    # full spectrum
     fig,ax=plots.multi(1,n,hspace=0.001,figsize=(8,2+n))
+    # two windows
     fig2,ax2=plots.multi(2,n,hspace=0.001,wspace=0.001,figsize=(8,2+n))
     for i,(mod,spec) in enumerate(zip(out[2],out[3])) :
-        plots.plotl(ax[i],spec.wave,spec.flux,color='k')
-        plots.plotl(ax[i],mod.wave,mod.flux,color='r')
+        ax[i].plot(spec.wave,spec.flux,color='k')
+        ax[i].plot(mod.wave,mod.flux,color='r')
         ax[i].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
-        plots.plotl(ax2[i,0],spec.wave,spec.flux,color='k',xr=[15700,15800])
-        plots.plotl(ax2[i,0],mod.wave,mod.flux,color='r',xr=[15700,15800])
-        plots.plotl(ax2[i,1],spec.wave,spec.flux,color='k',xr=[16700,16930])
-        plots.plotl(ax2[i,1],mod.wave,mod.flux,color='r',xr=[16700,16930])
+        ax2[i,0].plot(spec.wave,spec.flux,color='k')
+        ax2[i,0].plot(mod.wave,mod.flux,color='r')
+        ax2[i,1].plot(spec.wave,spec.flux,color='k')
+        ax2[i,1].plot(mod.wave,mod.flux,color='r')
+        ax2[i,0].set_xlim(15700,15800)
+        ax2[i,1].set_xlim(16700,16930)
         ax2[i,0].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
     fig.savefig(field+'/'+obj+'_spec.png')
     fig2.savefig(field+'/'+obj+'_spec2.png')
@@ -817,27 +850,24 @@ def dop_plot(field,obj,out) :
     # plot cross correlation functions with final model
     fig,ax=plots.multi(1,n,hspace=0.001,figsize=(6,2+n))
     vmed=np.median(out[1]['vrel'])
-    g = gp.GaussianDecomposer()
-    g.set('phase','one')
-    g.set('SNR_thresh',[4,4])
-    g.set('alpha1',1.5)
     for i,(final,spec) in enumerate(zip(out[1],out[3])) :
-        plots.plotl(ax[i],final['x_ccf'],final['ccf'],color='k',xr=[vmed-100,vmed+100])
-        plots.plotl(ax[i],final['x_ccf'],final['ccferr'],color='r',xr=[vmed-100,vmed+100])
-        plots.plotl(ax[i],[final['vrel'],final['vrel']],ax[i].get_ylim(),color='g',label='fit RV')
-        plots.plotl(ax[i],[final['xcorr_vrel'],final['xcorr_vrel']],ax[i].get_ylim(),color='r',label='xcorr RV')
+        ax[i].plot(final['x_ccf'],final['ccf'],color='k')
+        ax[i].plot(final['x_ccf'],final['ccferr'],color='r')
+        ax[i].plot([final['vrel'],final['vrel']],ax[i].get_ylim(),color='g',label='fit RV')
+        ax[i].plot([final['xcorr_vrel'],final['xcorr_vrel']],ax[i].get_ylim(),color='r',label='xcorr RV')
         ax[i].text(0.1,0.9,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
+        ax[i].set_xlim(vmed-100,vmed+100)
         ax[i].legend()
-        x=final['x_ccf']
-        y=final['ccf']
-        out=g.decompose(x,y,final['ccferr'])
-        n=out['N_components']
-        for j in range(n) :
-            pars=out['best_fit_parameters'][j::n]
-            ax[i].plot(x,gaussian(*pars)(x))
+        if decomp is not None :
+            n=decomp[i]['N_components']
+            x=final['x_ccf']
+            for j in range(n) :
+                pars=decomp[i]['best_fit_parameters'][j::n]
+                ax[i].plot(x,gaussian(*pars)(x))
+                print('pars: {:8.1f}{:8.1f}{:8.1f}'.format(*pars))
+                ax[i].text(0.1,0.8-j*0.1,'{:8.1f}{:8.1f}{:8.1f}'.format(*pars),transform=ax[i].transAxes)
     fig.savefig(field+'/'+obj+'_ccf.png')
     plt.close()
-    del(g)
 
 from scipy.signal import convolve
 def dop_comp(field) :
@@ -941,7 +971,6 @@ def mkhtml(field) :
         fp.write('{:s}<br>'.format(star['TARGFLAGS']))
         fp.write('{:s}<br>'.format(star['STARFLAGS']))
 
-
         # average veloicities
         fp.write('<TABLE BORDER=2>\n')
         fp.write('<TR><TD><TD>VHELIO_AVG<TD>VSCATTER<TD>VSIGMA<TD>TEFF<TD>LOGG<TD>[FE/H]\n')
@@ -979,6 +1008,7 @@ def mkhtml(field) :
         fp.write('<TD> {:8.2f}'.format(star['VSCATTER']-apfield['VSCATTER'][k]))
         fp.write('<TD> {:8.2f}'.format(star['H']))
         fp.write('<TD> {:8.2f}'.format(star['RV_TEFF']))
+        fp.write('<TD> {:d}'.format(star['N_COMPONENTS']))
 
         # plot visit RVs
         vhelio=dop[2].data['VHELIO'][j]

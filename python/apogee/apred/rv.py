@@ -738,7 +738,10 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
     hdulist.writeto(field+'/'+field+'_rv.fits',overwrite=True)
 
     # make web page
-    mkhtml(field)
+    if obj is not None : suffix='_obj'
+    else : suffix=''
+    if tweak: suffix=suffix+'_tweak'
+    mkhtml(field,suffix=suffix)
 
     return allfield,allvisits
 
@@ -751,22 +754,24 @@ def dorv(visitfiles) :
     verbose=visitfiles[0][3]
     tweak=visitfiles[0][4]
     plot=visitfiles[0][5]
-    if os.path.exists(field+'/'+obj+'_out.pkl') and not clobber:
+    if tweak: suffix='_tweak'
+    else : suffix='_out'
+    if os.path.exists(field+'/'+obj+suffix+'.pkl') and not clobber:
         print(obj,' already done')
-        fp=open(field+'/'+obj+'_out.pkl','rb')
+        fp=open(field+'/'+obj+suffix+'.pkl','rb')
         try: 
             out=pickle.load(fp)
             fp.close()
             if len(out) == 5 :
                 gout = gauss_decomp(out)
                 dop_plot(field,obj,out,decomp=gout)
-                fp=open(field+'/'+obj+'_out.pkl','wb')
+                fp=open(field+'/'+obj+suffix+'.pkl','wb')
                 pickle.dump([out,gout],fp)
                 fp.close()
                 return [out,gout]
             return out
         except: 
-            print('error loading: ', obj+'_out.pkl')
+            print('error loading: ', obj+suffix+'.pkl')
             pass
 
     speclist=[]
@@ -778,10 +783,7 @@ def dorv(visitfiles) :
         print('nvisits: ', len(speclist))
         out= doppler.rv.jointfit(speclist,verbose=verbose,plot=plot,saveplot=True,outdir=field+'/',tweak=tweak)
         gout = gauss_decomp(out)
-        fp = open(field+'/'+obj+'_rv.txt','w')
-        fp.write('{:s}  {:d} {:8.1f}'.format(obj,len(speclist),out[4]))
-        fp.close()
-        fp=open(field+'/'+obj+'_out.pkl','wb')
+        fp=open(field+'/'+obj+suffix+'.pkl','wb')
         pickle.dump([out,gout],fp)
         fp.close()
         dop_plot(field,obj,out,decomp=gout)
@@ -799,7 +801,7 @@ def dorv(visitfiles) :
         print('Exception raised for: ', field, obj)
         return
 
-    return out
+    return [out,gout]
 
 def gaussian(amp, fwhm, mean):
     return lambda x: amp * np.exp(-4. * np.log(2) * (x-mean)**2 / fwhm**2)
@@ -908,7 +910,7 @@ def dop_comp(field) :
             plt.draw()
             input('hit a key: ')
 
-def mkhtml(field) :
+def mkhtml(field,suffix='') :
     """ Make web pages with tables/plots of RV output
         c.f., Doppler vs IDL
     """
@@ -935,7 +937,7 @@ def mkhtml(field) :
     fig.savefig(field+'/'+field+'_rvhist.png')
 
     # create HTML and loop over objects
-    fp=open(field+'/'+field+'.html','w')
+    fp=open(field+'/'+field+suffix+'.html','w')
     fp.write('<HTML>\n')
     fp.write('<HEAD><script type=text/javascript src=../html/sorttable.js></script></head>')
     fp.write('<BODY>\n')

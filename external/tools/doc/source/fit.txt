@@ -1,0 +1,7 @@
+fit module:
+***********
+
+.. automodule:: holtz.tools.fit
+   :members:
+   :member-order: bysource
+

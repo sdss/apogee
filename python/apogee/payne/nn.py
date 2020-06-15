@@ -1,14 +1,16 @@
 from __future__ import division
 import numpy as np
+import pdb
 
 from apogee.payne import training
 import matplotlib
-matplotlib.use('Agg')
+try: matplotlib.use('Agg')
+except : pass
 import matplotlib.pyplot as plt
 import multiprocessing as mp
-from scipy.ndimage.filters import gaussian_filter
-from scipy.optimize import curve_fit
-from scipy.optimize import minimize
+from apogee.payne import training
+from scipy.optimize import curve_fit, minimize
+from scipy.interpolate import interp1d
 try:
     from keras import models
     from keras import layers
@@ -24,12 +26,10 @@ import pickle
 import copy
 import os
 import sys
-import pdb
 import shutil
 import time
 from apogee.utils import apload
-from apogee.aspcap import aspcap
-from apogee.aspcap import norm
+from apogee.aspcap import aspcap, norm
 from tools import plots
 try:
     import emcee
@@ -471,7 +471,7 @@ def test(pmn, pstd, mn, std, weights, biases,n=100, t0=[3750.,4500.], g0=2., mh0
     fig.tight_layout()
 
 def fitinput(file,model,threads=8,nfit=8,dofit=True,order=4,pixel_model=False,normalize=False,raw=False, 
-             validation=True,mcmc=False,err=0.005,ferre=False,plotspec=False,medfilt=400) :
+             validation=True,mcmc=False,err=0.005,ferre=False,plotspec=False,medfilt=400,pixels=None,trim=False) :
     """ Solves for parameters using input spectra and NN model
     """
     if pixel_model: mod=get_model_pixel(model)
@@ -481,12 +481,12 @@ def fitinput(file,model,threads=8,nfit=8,dofit=True,order=4,pixel_model=False,no
         mod=get_model(model,aspcappix=aspcappix)
 
     if ferre : s, p = readferre(file, label_names=mod['label_names'])
-    else : s, p = read(file,raw=raw, label_names=mod['label_names'])
+    else : s, p = read(file,raw=raw, label_names=mod['label_names'],trim=trim)
     if nfit == 0 : nfit = p.shape[0]
+    if pixels is not None : s=s[:,pixels[0]:pixels[1]]
 
     nfit = NN_coeffs['nfit']
     ind_shuffle = NN_coeffs['ind_shuffle']
-    pdb.set_trace()
     s = s[ind_shuffle]
     p = p[ind_shuffle]
     if validation:
@@ -516,6 +516,7 @@ def fitinput(file,model,threads=8,nfit=8,dofit=True,order=4,pixel_model=False,no
         npix=s.shape[1]
         specs=[]
         for i in range(nfit) :
+            print(i,nfit)
             obs = s[i,:]+specerr*np.random.randn(npix)
             if normalize : 
                 cont = norm.cont(obs,specerr,poly=poly,order=order,chips=chips,apstar=not aspcappix,medfilt=medfilt)
@@ -564,9 +565,9 @@ def fitinput(file,model,threads=8,nfit=8,dofit=True,order=4,pixel_model=False,no
     if plotspec :
         pix = np.arange(0,8575,1)
         model=[]
-        fig,ax=plots.multi(1,1)
-        ax2=ax.twinx()
-        ax2.set_ylim(-0.1,0.1)
+        fig,ax=plots.multi(1,2,hspace=0.001)
+        #ax2=ax.twinx()
+        #ax2.set_ylim(-0.1,0.1)
         for i in range(nfit) :
             obs=specs[i][0]
             gd = np.where(np.isfinite(s[i,:]))[0]
@@ -575,13 +576,13 @@ def fitinput(file,model,threads=8,nfit=8,dofit=True,order=4,pixel_model=False,no
             spec=spectrum(pix, *pars)
             # best fit spectrum
             fit=spectrum(pix, *output[i,:])    
-            ax.cla()
-            ax2.cla()
-            plots.plotl(ax,pix[gd],obs)
-            plots.plotl(ax,pix[gd],fit)
-            plots.plotl(ax2,pix[gd],(obs-fit))
-            plots.plotl(ax,pix[gd],spec)
-            plots.plotl(ax2,pix[gd],(obs-spec))
+            ax[0].cla()
+            ax[1].cla()
+            plots.plotl(ax[0],pix[gd],obs,color='g')
+            plots.plotl(ax[0],pix[gd],fit,color='b')
+            plots.plotl(ax[1],pix[gd],(obs-fit),color='g')
+            plots.plotl(ax[0],pix[gd],spec,color='r')
+            plots.plotl(ax[1],pix[gd],(obs-spec),color='r')
             model.append(spec)
             print(pars)
             print(output[i,:])
@@ -699,7 +700,7 @@ def solve(spec) :
         fpars=init*0.
 
     #return fpars
-    try : return res.x
+    try : return res
     except: return 0
 
 
@@ -781,7 +782,7 @@ def fitfield(model,field,stars=None,nfit=0,order=4,threads=8,plot=False,write=Tr
     print('done pool')
 
     # output FITS table
-    output=np.array(output)
+    output=np.array(output.x)
     out=Table()
     out['APOGEE_ID']=stars
     length=len(out)
@@ -803,7 +804,29 @@ def fitfield(model,field,stars=None,nfit=0,order=4,threads=8,plot=False,write=Tr
     if write : out.write('nn-'+field+'-'+telescope+'.fits',format='fits',overwrite=True)
     return out
 
-def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',stars=None,nfit=0,order=0,threads=8,plot=False,write=True,telescope='apo25m') :
+def normalize(pars) :
+    """ bundled normalize for multi-threading
+    """
+    spec=pars[0]
+    specerr=pars[1]
+    pixels=pars[2]
+
+    cont = norm.cont(spec,specerr,poly=False,chips=False,apstar=False,medfilt=400)
+    nspec = spec/cont
+    nspecerr = specerr/cont
+    bd=np.where(np.isinf(nspec) | np.isnan(nspec) )[0]
+    nspec[bd]=0.
+    nspecerr[bd]=1.e10
+    bd=np.where(np.isinf(nspecerr) | np.isnan(nspecerr) )[0]
+    nspec[bd]=0.
+    nspecerr[bd]=1.e10
+    if pixels is not None : 
+        nspec = nspec[pixels[0]:pixels[1]]
+        nspecerr = nspecerr[pixels[0]:pixels[1]]
+    return nspec,nspecerr
+
+def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',star=None,nfit=0,order=0,threads=8,
+              write=True,telescope='apo25m',pixels=None) :
     """ Fit observed spectra in an input field, given a model
     """
 
@@ -813,16 +836,12 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',stars=None,nfit=
     bounds_lo=mod['x_min']
     bounds_hi=mod['x_max']
 
-    # set initial guess
-    init=np.zeros(nlab)
-    j=np.where(np.core.defchararray.strip(mod['label_names']) == 'Teff')[0]
-    init[j] = 4000.
-    j=np.where(np.core.defchararray.strip(mod['label_names']) == 'logg')[0]
-    init[j] = 2.5
-
     # get stars
     stars=fits.open(field+'.fits')[1].data
     if nfit > 0 : stars = stars[0:nfit]
+    if star is not None: 
+        j=np.where(stars['MANGAID'] == star)[0]
+        stars=stars[j]
 
     # load up normalized spectra and uncertainties 
     norms=[]
@@ -862,6 +881,7 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',stars=None,nfit=
 
     specs=[]
     pix = np.arange(0,8575,1)
+    allinit=[]
     for i,star in enumerate(stars) :
         j=np.where(extcorr['MANGAID'] == star['mangaid'])[0]
         bprpc=extcorr['BPRPC'][j]
@@ -894,23 +914,54 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',stars=None,nfit=
     if threads==0 :
         output=[]
         for i in range(len(specs)) :
-            print(i)
             out=solve(specs[i])
+            print(i,stars[i])
+            print(out.x)
+            if out.x[0]>7000: pdb.set_trace()
             output.append(out)
     else :
+        j=np.where(np.core.defchararray.strip(mod['label_names']) == 'LOGG')[0]
+        for i,spec in enumerate(specs): 
+            specs[i][2][j] = 1.
+            print(specs[i][2])
         print('starting pool: ', len(specs))
         pool = mp.Pool(threads)
-        output = pool.map_async(solve, specs).get()
+        output1 = pool.map_async(solve, specs).get()
         pool.close()
         pool.join()
-    print('done pool')
+        print('done pool 1')
+        for i,spec in enumerate(specs): 
+            specs[i][2][j] = 5.
+            print(specs[i][2])
+        print('starting pool 2: ', len(specs))
+        pool = mp.Pool(threads)
+        output2 = pool.map_async(solve, specs).get()
+        pool.close()
+        pool.join()
+        print('done pool 2')
+        output=[]
+        for o1,o2 in zip(output1,output2) :
+            print(o1.fun,o2.fun,o1.x,o2.x)
+            if o1.fun < o2.fun : output.append(o1)
+            else : output.append(o2)
 
     # output FITS table
-    output=np.array(output)
     out=Table()
     out['MANGAID']=stars['MANGAID']
+    out['PLATE']=stars['PLATE']
+    out['IFUDESIGN']=stars['IFUDESIGN']
+    out['MJD']=stars['MJD']
+    out['MJDQUAL']=stars['MJDQUAL']
+    out['OBJRA']=stars['OBJRA']
+    out['OBJDEC']=stars['OBJDEC']
     length=len(out)
-    out.add_column(Column(name='FPARAM',data=output))
+    params=np.array([o.x for o in output])
+    out.add_column(Column(name='FPARAM',data=params))
+    bd=np.any( (params>=bounds_hi-0.01*(bounds_hi-bounds_lo)) |
+               (params<=bounds_lo+0.01*(bounds_hi-bounds_lo)), axis=1 )
+    out.add_column(Column(name='VALID',data=(np.logical_not(bd).astype(int))))
+    if pixels == None : out['WAVE']=stars['WAVE']
+    else :out['WAVE']=stars['WAVE'][:,pixels[0]:pixels[1]]
     spec=[]
     err=[]
     bestfit=[]
@@ -918,7 +969,7 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',stars=None,nfit=
     for i,star in enumerate(stars) :
         spec.append(specs[i][0])
         err.append(specs[i][1])
-        sfit=spectrum(pix, *output[i])
+        sfit=spectrum(pix, *params[i])
         bestfit.append(sfit)
         chi2.append(np.nansum((specs[i][0]-sfit)**2/specs[i][1]**2))
     out.add_column(Column(name='SPEC',data=np.array(spec)))
@@ -1031,12 +1082,14 @@ def showtime(string) :
     sys.stdout.flush()
 
 
-def train(file='all_noelem',name='test',plot=False,suffix='',fitfrac=0.5, steps=1e5, weight_decay = 0., num_neurons = [300,300], lr=0.001, ind_label=np.arange(9),
-          teff=[0,10000],logg=[-1,6],mh=[-3,1],am=[-1,1],cm=[-2,2],nm=[-2,2],raw=True,rot=False,elem=False,normalize=False,elems=None,label_names=None) :
+def train(file='all_noelem',name='test',plot=False,suffix='',fitfrac=0.5, steps=1e5, weight_decay = 0., num_neurons = [300,300], 
+          lr=0.001, ind_label=np.arange(9),pixels=None,
+          teff=[0,10000],logg=[-1,6],mh=[-3,1],am=[-1,1],cm=[-2,2],nm=[-2,2],
+          raw=True,rot=False,elem=False,normalize=False,elems=None,label_names=None,trim=True,seed=777) :
     """ Train a neural net model on an input training set
     """
 
-    spectra, labels = read(file,raw=raw, label_names=label_names)
+    spectra, labels = read(file,raw=raw, label_names=label_names,trim=trim)
 
     if normalize :
         print('normalizing...')
@@ -1044,14 +1097,21 @@ def train(file='all_noelem',name='test',plot=False,suffix='',fitfrac=0.5, steps=
         for i in range(spectra.shape[0]) :
             cont = norm.cont(spectra[i,:],spectra[i,:],poly=False,chips=False,medfilt=400)
             spectra[i,:] /= cont
-            gd = np.where(np.isfinite(spectra[i,:]))[0]
-            if len(gd) == spectra.shape[1] : gdspec.append(i)
-        spectra=spectra[gdspec,1000:]
+            if pixels is None : 
+                gd = np.where(np.isfinite(spectra[i,:]))[0]
+                ntot=len(spectra[i,:])
+            else : 
+                gd = np.where(np.isfinite(spectra[i,pixels[0]:pixels[1]]))[0]
+                ntot=len(spectra[i,pixels[0]:pixels[1]])
+            if len(gd) == ntot : gdspec.append(i)
+        if pixels is None : spectra=spectra[gdspec,:]
+        else : spectra=spectra[gdspec,pixels[0]:pixels[1]]
         labels=labels[gdspec]
 
     # shuffle them and get fit and validation set
     print('shuffling...')
     shape=labels.shape
+    np.random.seed(seed)
     ind_shuffle=np.random.permutation(shape[0])
 
     #----------------------------------------------------------------------------------------
@@ -1078,7 +1138,6 @@ def train(file='all_noelem',name='test',plot=False,suffix='',fitfrac=0.5, steps=
     training_labels = labels[ind_shuffle[gd],:][:nfit,:][:,ind_label]
     validation_spectra = spectra[ind_shuffle[gd],:][nfit:,:]
     validation_labels = labels[ind_shuffle[gd],:][nfit:,:][:,ind_label]
-
     model = training.neural_net(training_labels, training_spectra,\
                                 validation_labels, validation_spectra,\
                                 num_neurons = num_neurons, num_steps=steps, learning_rate=lr, weight_decay=weight_decay)
@@ -1100,16 +1159,32 @@ def train(file='all_noelem',name='test',plot=False,suffix='',fitfrac=0.5, steps=
     with open('{:s}.pkl'.format(name), 'wb') as f:  
         pickle.dump(model, f, protocol=2)
 
-def read(file,raw=True,label_names=None) :
+def read(file,raw=True,label_names=None,trim=True,ids=False) :
     """ Read input spectra and parameters
     """
+    tab = Table.read(file+'.fits')
+    spectra = tab['SPEC'].data.astype(float)
+    if trim :
+        gdpix=np.where(np.isfinite(spectra[0,:]))[0]
+        spectra=spectra[:,gdpix]
+    lab=[]
+    if label_names is not None :
+        for label in label_names : lab.append(tab[label])
+    else :
+        for label in tab.meta['LABELS'] : lab.append(tab[label].data)
+    labels = np.array(lab).T
+    if ids : return spectra, labels, tab['MANGAID'].data
+    else : return spectra, labels
+
+    '''
     hdulist = fits.open(file+'.fits')
     if raw : spectra = hdulist[1].data.astype("float")
     else : spectra = hdulist[2].data.astype("float")
     print(spectra.shape)
-    gdpix=np.where(np.isfinite(spectra[0,:]))[0]
-    spectra=spectra[:,gdpix]
-    print(spectra.shape)
+    if trim :
+        gdpix=np.where(np.isfinite(spectra[0,:]))[0]
+        spectra=spectra[:,gdpix]
+        print(spectra.shape)
 
     # read labels
     labels = hdulist[0].data
@@ -1118,7 +1193,7 @@ def read(file,raw=True,label_names=None) :
     try :
         all_label_names=[]
         for i in range(hdulist[0].header['NPAR']) :
-            all_label_names.append(hdulist[0].header['PAR{d}'.format(i)])
+            all_label_names.append(hdulist[0].header['PAR{:d}'.format(i)])
         all_label_names=np.array(all_label_names)
     except :
         all_label_names=ascii.read(file).colnames
@@ -1132,7 +1207,11 @@ def read(file,raw=True,label_names=None) :
     else :
         ind_label = np.arange(len(all_label_names))
 
-    return spectra, labels[:,ind_label]
+    if ids :
+        return spectra, labels[:,ind_label], hdulist[3].data
+    else :
+        return spectra, labels[:,ind_label]
+    '''
 
 def readferre(file,raw=True,label_names=None) :
     """ Read input spectra and parameters
@@ -1154,24 +1233,37 @@ def readferre(file,raw=True,label_names=None) :
     return spectra, labels
 
 def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=True,normalize=False,
-         teff=[0,10000],logg=[-1,6],mh=[-3,1],am=[-1,1],cm=[-2,2],nm=[-2,2]) :
+         pixels=None,teff=[0,10000],logg=[-1,6],mh=[-3,1],am=[-1,1],cm=[-2,2],nm=[-2,2],trim=True,ids=False) :
     ''' plots to assess quality of a model
     '''
     # load model and set up for use
     NN_coeffs = get_model(model)
 
     # read spectra and labels, and get indices for training and validation set
-    true,labels = read(file,raw=raw,label_names=NN_coeffs['label_names'])
+    if ids :true,labels,iden = read(file,raw=raw,label_names=NN_coeffs['label_names'],trim=trim,ids=ids)
+    else : true,labels = read(file,raw=raw,label_names=NN_coeffs['label_names'],trim=trim)
     if normalize :
         print('normalizing...')
         gdspec=[]
+        n=0
         for i in range(true.shape[0]) :
+            print(i,labels[i])
             cont = norm.cont(true[i,:],true[i,:],poly=False,chips=False,medfilt=400)
             true[i,:] /= cont
-            gd = np.where(np.isfinite(true[i,:]))[0]
-            if len(gd) == true.shape[1] : gdspec.append(i)
-        true=true[gdspec,1000:]
+            if pixels is None : 
+                gd = np.where(np.isfinite(true[i,:]))[0]
+                ntot=len(true[i,:])
+            else : 
+                gd = np.where(np.isfinite(true[i,pixels[0]:pixels[1]]))[0]
+                ntot=len(true[i,pixels[0]:pixels[1]])
+            if len(gd) == ntot :
+                gdspec.append(i)
+                n+=1
+        print(n,true.shape)
+        if pixels is None : true=true[gdspec,:]
+        else : true=true[gdspec,pixels[0]:pixels[1]]
         labels=labels[gdspec]
+        if ids : iden=iden[gdspec]
 
     #gd=np.where((labels[:,0]>=teff[0]) & (labels[:,0]<=teff[1]) &
     #            (labels[:,1]>=logg[0]) & (labels[:,1]<=logg[1]) &
@@ -1188,17 +1280,20 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
     ind_shuffle = NN_coeffs['ind_shuffle']
     true = true[ind_shuffle]
     labels = labels[ind_shuffle]
+    if ids : iden=iden[ind_shuffle] 
     if validation:
         true=true[nfit:]
         labels=labels[nfit:]
+        if ids: iden=iden[nfit:]
     else :
         true=true[:nfit]
         labels=labels[:nfit]
+        if ids: iden=iden[:nfit]
 
     # loop over the spectra
     if plotspec: plt.figure()
     nn=[]
-    pdb.set_trace()
+    diff2=[]
     for i,lab in enumerate(labels) :
         # calculate model spectrum and accumulate model array
         pix = np.arange(8575)
@@ -1209,13 +1304,47 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
         diff2.append(tmp)
         if plotspec and tmp>100 :
             plt.clf()
-            plt.plot(true[i,:])
-            plt.plot(spec)
-            plt.plot(spec/true[i,:])
+            plt.plot(true[i,:],color='g')
+            plt.plot(spec,color='b')
+            plt.plot(spec-true[i,:],color='r')
             plt.show()
             pdb.set_trace()
         #n=len(np.where(np.abs(apstar[j]-true[i,j]) > 0.05)[0])
     nn=np.array(nn)
+    diff2=np.array(diff2)
+    #fig,ax=plots.multi(2,2,hspace=0.001,wspace=0.001,sharex=True,sharey=True)
+    #plots.plotc(ax[0,0],labels[:,0],labels[:,1],labels[:,2],xr=[8000,3000],yr=[6,-1],zr=[-2.5,0.5])
+    #plots.plotc(ax[1,0],labels[:,0],labels[:,1],labels[:,3],xr=[8000,3000],yr=[6,-1],zr=[-0.25,0.5])
+    #plots.plotc(ax[1,1],labels[:,0],labels[:,1],diff2,xr=[8000,3000],yr=[6,-1],zr=[0,10])
+    #ax[1,1].text(0.,0.9,'diff**2',transform=ax[1,1].transAxes)
+    fig,ax=plots.multi(1,1,hspace=0.001,wspace=0.001,sharex=True,sharey=True)
+    plots.plotc(ax,labels[:,0],labels[:,1],diff2,xr=[8000,3000],yr=[6,-1],zr=[0,10])
+    if ids: 
+        data=Table()
+        data.add_column(Column(name='ID',data=iden))
+        data.add_column(Column(name='TEFF',data=labels[:,0]))
+        data.add_column(Column(name='LOGG',data=labels[:,1]))
+        data.add_column(Column(name='MH',data=labels[:,2]))
+        data.add_column(Column(name='AM',data=labels[:,3]))
+        plots._data = data
+        plots._id_cols = ['ID','TEFF','LOGG','MH','AM']
+    plots.event(fig)
+    plt.draw()
+    key=' '
+    sfig,sax=plots.multi(1,2,hspace=0.001,sharex=True)
+    pdb.set_trace()
+    print('entering event loop....')
+    while key != 'e' and key != 'E' :
+        x,y,key,index=plots.mark(fig)
+        sax[0].cla()
+        sax[0].plot(true[index,:],color='g')
+        sax[0].plot(nn[index,:],color='b')
+        sax[1].cla()
+        sax[1].plot(nn[index,:]/true[index,:],color='g')
+        plt.figure(sfig.number)
+        plt.draw()
+
+    fig.savefig(file+'_'+model+'.png')
 
     # histogram of ratio of nn to true
     print("making nn/raw comparison histogram ...")
@@ -1323,6 +1452,7 @@ def plot(file='all_noelem',model='GKh_300_0',raw=True,plotspec=False,validation=
     fig2.savefig(file+'_'+model+'_2.png')
     fig3.savefig(file+'_'+model+'_3.png')
     pdb.set_trace()
+    plt.close()
     plt.close()
     plt.close()
     plt.close()

@@ -19,6 +19,7 @@ from sdss_access.sync.http import HttpAccess
 import pdb
 import sys
 from astroquery.gaia import Gaia
+from esutil import htm
 
 import numpy as np
 import copy
@@ -355,7 +356,9 @@ def clustdata() :
     return out.view(np.recarray)
 
 
-def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=True,raw=False,firstgen=False,firstpos=True,plot=False,hard=None) :
+def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=True,raw=False,firstgen=False,firstpos=True,
+                ratag='RA',dectag='DEC',rvtag='VHELIO',idtag='APOGEE_ID',btag='J',rtag='K',
+                plot=False,hard=None) :
 
     clust=clustdata()
     ic = np.where( np.core.defchararray.strip(clust.name) == cluster)[0]
@@ -366,20 +369,20 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
     ic=ic[0]
 
     # adjust ra for wraparound if needed
-    ra=copy.copy(data['RA'])
+    ra=copy.copy(data[ratag])
     if clust[ic].ra > 300 :
-        j=np.where(data['RA'] < 180)[0]
+        j=np.where(data[ratag] < 180)[0]
         ra[j]+=360
     if clust[ic].ra < 60 :
-        j=np.where(data['RA'] > 180)[0]
+        j=np.where(data[ratag] > 180)[0]
         ra[j]-=360
 
     # select by location relative to cluster
     jc=np.where((np.abs(ra-clust[ic].ra)*np.cos(clust[ic].dec*np.pi/180.) < clust[ic].rad/60.) & 
-                (np.abs(data['DEC']-clust[ic].dec) < clust[ic].rad/60.))[0]
+                (np.abs(data[dectag]-clust[ic].dec) < clust[ic].rad/60.))[0]
     if len(jc) > 0 :
         j=np.where( ((ra[jc]-clust[ic].ra)*np.cos(clust[ic].dec*np.pi/180.))**2+ 
-                     (data[jc]['DEC']-clust[ic].dec)**2 < (clust[ic].rad/60.)**2)[0]
+                     (data[jc][dectag]-clust[ic].dec)**2 < (clust[ic].rad/60.)**2)[0]
         jc=jc[j]
     else :
         jc=[]
@@ -387,11 +390,11 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
     if len(jc) == 0 : return jc
     if plot :
         jf=np.where((np.abs(ra-clust[ic].ra)*np.cos(clust[ic].dec*np.pi/180.) < 1.5) & 
-                (np.abs(data['DEC']-clust[ic].dec) < 1.5))[0]
+                (np.abs(data[dectag]-clust[ic].dec) < 1.5))[0]
         fig,ax=plots.multi(1,1)
         fig.suptitle('{:s} Radius: {:4.2f} arcmin  Ngood: {:d}'.format(cluster,clust[ic].rad,len(jc)))
-        plots.plotp(ax,ra[jf],data['DEC'][jf],color='k',size=20,draw=False,xt='RA',yt='DEC')
-        plots.plotp(ax,ra[jc],data['DEC'][jc],color='g',size=20,draw=False)
+        plots.plotp(ax,ra[jf],data[dectag][jf],color='k',size=20,draw=False,xt='RA',yt='DEC')
+        plots.plotp(ax,ra[jc],data[dectag][jc],color='g',size=20,draw=False)
         circle = plt.Circle((clust[ic].ra,clust[ic].dec), clust[ic].rad/60., color='g', fill=False)
         ax.add_artist(circle)
 
@@ -404,7 +407,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
 
     # RV criterion
     try :
-        vhelio = data['VHELIO']
+        vhelio = data[rvtag]
     except :
         vhelio = data['VHELIO_AVG']
     j=np.where(np.abs(vhelio[jc]-clust[ic].rv) < clust[ic].drv)[0]
@@ -438,14 +441,19 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
     if dist or pm : gaia = True
     else : gaia = False
     if gaia :
-      job=Gaia.launch_job_async("SELECT xm.original_ext_source_id, gaia.pmra, gaia.pmra_error, gaia.pmdec, gaia.pmdec_error, gaia.parallax, gaia.parallax_error "+
+      job=Gaia.launch_job_async("SELECT xm.original_ext_source_id, gaia.ra, gaia.dec,"+
+                               "gaia.pmra, gaia.pmra_error, gaia.pmdec, gaia.pmdec_error, gaia.parallax, gaia.parallax_error "+
                                "FROM gaiadr2.gaia_source AS gaia, gaiadr2.tmass_best_neighbour AS xm "+
                                "WHERE gaia.source_id = xm.source_id AND "+
                                   "CONTAINS(POINT('ICRS',gaia.ra,gaia.dec),CIRCLE('ICRS',{:12.6f},{:12.6f},{:12.6f}))=1;".format(
                                                                                   clust[ic].ra,clust[ic].dec,clust[ic].rad/60.))
+    
       # convert to velocities (note mas and kpc cancel out factors of 1000) and get median
       gaia=job.get_results()
-      i1, i2 = match.match(np.core.defchararray.replace(data['APOGEE_ID'][jc],'2M',''),gaia['original_ext_source_id'])
+      h=htm.HTM()
+      maxrad=3/3600.
+      i1,i2,rad = h.match(data[ratag][jc],data[dectag][jc],gaia['ra'],gaia['dec'],maxrad,maxmatch=1)
+      #i1, i2 = match.match(np.core.defchararray.replace(data[idtag][jc],'2M',''),gaia['original_ext_source_id'])
       vra=4.74*gaia['pmra']*clust[ic].dist
       vra_err=4.74*gaia['pmra_error']*clust[ic].dist
       vdec=4.74*gaia['pmdec']*clust[ic].dist
@@ -460,9 +468,9 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
             # allow for the possibility of multiple instances of a given star in input list
             jnew=[]
             for jjj in j :
-              iii= np.where(data['APOGEE_ID'][jc]  == data['APOGEE_ID'][jc[i1[jjj]]])[0]
+              iii= np.where(data[idtag][jc]  == data[idtag][jc[i1[jjj]]])[0]
               jnew.extend(iii)
-            jc=jc[jnew]
+            jc=jc[list(set(jnew))]
       else :
         jc=[]
       print('{:d} stars after PM criterion'.format(len(jc)))
@@ -483,8 +491,9 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
       if len(jc) <= 1 : return jc
    
       # parallaxes
-      gaia=job.get_results()
-      i1, i2 = match.match(np.core.defchararray.replace(data['APOGEE_ID'][jc],'2M',''),gaia['original_ext_source_id'])
+      #gaia=job.get_results()
+      #i1, i2 = match.match(np.core.defchararray.replace(data[idtag][jc],'2M',''),gaia['original_ext_source_id'])
+      i1,i2,rad = h.match(data[ratag][jc],data[dectag][jc],gaia['ra'],gaia['dec'],maxrad,maxmatch=1)
       par=gaia['parallax']
       par_error=gaia['parallax_error']
       gd=np.where(np.isfinite(par[i2]))[0]
@@ -515,6 +524,17 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
         else :
             plt.draw()
             pdb.set_trace()
+      if len(j) > 0 :
+        if dist: 
+            #jc=jc[i1[j]]
+            # allow for the possibility of multiple instances of a given star in input list
+            jnew=[]
+            for jjj in j :
+              iii= np.where(data[idtag][jc]  == data[idtag][jc[i1[jjj]]])[0]
+              jnew.extend(iii)
+            jc=jc[list(set(jnew))]
+      else :
+        jc=[]
       print('{:d} stars after parallax criterion'.format(len(jc)))
       if len(jc) <= 1 : return jc
 
@@ -537,13 +557,14 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
     # Remove badstars
     if plot :
         ax.cla()
-        plots.plotp(ax,data['J'][jf]-data['K'][jf],data['K'][jf],color='k',size=20,xr=[-0.5,1.5],yr=[15,6],facecolors='none',linewidth=1,draw=False,xt='J-K',yt='K')
-        plots.plotp(ax,data['J'][jc]-data['K'][jc],data['K'][jc],color='g',size=30,xr=[-0.5,1.5],yr=[15,6],draw=False)
+        plots.plotp(ax,data[btag][jf]-data[rtag][jf],data[rtag][jf],color='k',size=20,xr=[-0.5,1.5],yr=[17,6],
+                    facecolors='none',linewidth=1,draw=False,xt=btag+'-'+rtag,yt=rtag)
+        plots.plotp(ax,data[btag][jc]-data[rtag][jc],data[rtag][jc],color='g',size=30,xr=[-0.5,1.5],draw=False,yr=[17,6])
     badstars = open(os.environ['APOGEE_DIR']+'/data/calib/badcal.dat')
     bad = []
     for line in badstars :
        bad.append(line.split()[0])
-    jc = [x for x in jc if data[x]['APOGEE_ID'] not in bad]
+    jc = [x for x in jc if data[x][idtag] not in bad]
     print('{:d} stars after badstars rejection'.format(len(jc)))
     if len(jc) <= 1 : return jc
 
@@ -552,14 +573,14 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
         gcstars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/gc_szabolcs.dat')
         if firstpos :
             gd=np.where(gcstars['pop'] == 1)[0]
-            jc = [x for x in jc if data[x]['APOGEE_ID'] in gcstars['id'][gd]]
+            jc = [x for x in jc if data[x][idtag] in gcstars['id'][gd]]
         else :
             bd=np.where(gcstars['pop'] != 1)[0]
-            jc = [x for x in jc if data[x]['APOGEE_ID'] not in gcstars['id'][bd]]
+            jc = [x for x in jc if data[x][idtag] not in gcstars['id'][bd]]
     print('{:d} stars after firstgen rejection'.format(len(jc)))
 
     if plot :
-        plots.plotp(ax,data['J'][jc]-data['K'][jc],data['K'][jc],color='b',size=30,draw=False)
+        plots.plotp(ax,data[btag][jc]-data[rtag][jc],data[rtag][jc],color='b',size=30,draw=False)
         if hard is not None :
             fig.savefig(hard+'/'+clust[ic].name+'_cmd.png')
             plt.close()
@@ -578,7 +599,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3000,5500],rv=True,pm=True,dist=T
 
     return jc
 
-def clusters(data,dir='clusters/') :
+def clusters(data,dir='clusters/',ratag='RA',dectag='DEC',rvtag='VHELIO',idtag='APOGEE_ID',btag='J',rtag='K') :
     """ Determine cluster members from input structure, make web pages with selection
     """
     try: os.mkdir(dir)
@@ -595,19 +616,20 @@ def clusters(data,dir='clusters/') :
     clust=clustdata()
     for ic in range(len(clust.name)) :
         print(clust[ic].name)
-        j=clustmember(data,clust[ic].name,plot=True,hard=dir)
+        j=clustmember(data,clust[ic].name,plot=True,hard=dir,ratag=ratag,dectag=dectag,rvtag=rvtag,idtag=idtag,btag=btag,rtag=rtag)
         print(clust[ic].name,len(j))
         # clusters to exclude here
-        f.write('<TR><TD><A HREF='+clust[ic].name+'.txt>'+clust[ic].name+'</A><TD>{:12.6f}<TD>{:12.6f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
-                clust[ic].ra,clust[ic].dec,clust[ic].rad,clust[ic].rv,clust[ic].drv))
-        f.write('<TD><A HREF='+clust[ic].name+'_pos.png><IMG SRC='+clust[ic].name+'_pos.png width=300></A>\n')
-        f.write('<TD><A HREF='+clust[ic].name+'_rv.png><IMG SRC='+clust[ic].name+'_rv.png width=300></A>\n')
-        f.write('<TD><A HREF='+clust[ic].name+'_pm.png><IMG SRC='+clust[ic].name+'_pm.png width=300></A>\n')
-        f.write('<TD><A HREF='+clust[ic].name+'_parallax.png><IMG SRC='+clust[ic].name+'_parallax.png width=300></A>\n')
-        f.write('<TD><A HREF='+clust[ic].name+'_cmd.png><IMG SRC='+clust[ic].name+'_cmd.png width=300></A>\n')
-        f.write('<TD><A HREF='+clust[ic].name+'_kiel.png><IMG SRC='+clust[ic].name+'_kiel.png width=300></A>\n')
-        np.savetxt(dir+'/'+clust[ic].name+'.txt',data[j]['APOGEE_ID'],fmt='%s')
-        for star in data[j]['APOGEE_ID'] : fstars.write('{:s} {:s}\n'.format(star,clust[ic].name))
+        if len(j) > 0 :
+            f.write('<TR><TD><A HREF='+clust[ic].name+'.txt>'+clust[ic].name+'</A><TD>{:12.6f}<TD>{:12.6f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
+                    clust[ic].ra,clust[ic].dec,clust[ic].rad,clust[ic].rv,clust[ic].drv))
+            f.write('<TD><A HREF='+clust[ic].name+'_pos.png><IMG SRC='+clust[ic].name+'_pos.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_rv.png><IMG SRC='+clust[ic].name+'_rv.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_pm.png><IMG SRC='+clust[ic].name+'_pm.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_parallax.png><IMG SRC='+clust[ic].name+'_parallax.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_cmd.png><IMG SRC='+clust[ic].name+'_cmd.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_kiel.png><IMG SRC='+clust[ic].name+'_kiel.png width=300></A>\n')
+            np.savetxt(dir+'/'+clust[ic].name+'.txt',data[j][idtag],fmt='%s')
+            for star in data[j][idtag] : fstars.write('{:s} {:s}\n'.format(star,clust[ic].name))
     html.tail(f)
     fstars.close()
 

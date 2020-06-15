@@ -191,10 +191,11 @@ def get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=False,sav
 
 def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
     els=None,atmod=None,atmos_type='marcs',atmosroot=None,atmosdir=None,nskip=0,fill=True,
-    linelist='20180901',h2o=None,linelistdir=None,atoms=True,molec=True, msuffix='', save=False,run=True) :
+    linelist='20180901',h2o=0,linelistdir=None,atoms=True,molec=True, msuffix='', save=False,run=True) :
     """ Do synthesis
 
     Args:
+        code (str) : 'turbospec' or 'synspec'
         teff (int) : Effective temperature
         logg (float) : log(surface gravity)
         mh (float ) : [M/H]
@@ -215,7 +216,7 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
         fill (bool)  : use filled atmosphere hole if model requests it ( default = True), else skip synthesis
         linelist (str) : name of linelist (default='20150714')
         linelistdir (str) : directory for linelist (default=None --> $APOGEE_SPECLIB/linelists)
-        h2o (int or None) : H2O linelist to use: 0=none, 1=8.5V, 2=9.5V, None-->chooses by Teff and [alpha/H]
+        h2o (int or None) : H2O linelist to use: 0=chooses by Teff, [M/H], [a/M], 1=8.5V, 2=9.5V, None= none
         save (bool ) : save temporary directory and files for synthesis (default=False)
         run (bool) :  actually do the synthesis (default=True)
 
@@ -257,7 +258,6 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
             #else : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'giant_nofeh_noh2o_noc2.molec')
             if solarisotopes : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'sun'+msuffix+'.molec')
             else : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'giant'+msuffix+'.molec')
-        h2o=0  
         #linelists = ['apogeeDR16.20180901.19','apogeeDR16_arc.20']
     else :
         print('unknown code!')
@@ -265,20 +265,21 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
     print('linelists: ',linelists)
 
     tfactor=1
-    if h2o is None : 
-      if teff < 4000 :
-        if mh+am < -1.5 or teff > 3250 :
+    if molec and h2o is not None :
+        if h2o == 0 :
+          if teff < 4000 :
+            if mh+am < -1.5 or teff > 3250 :
+                linelists.append(linelistdir+'/turbospec.h2o-BC8.5V'+'.molec')
+                tfactor=2
+            else  :
+                linelists.append(linelistdir+'/turbospec.h2o-BC9.5V'+'.molec')
+                tfactor=5
+        elif h2o == 1 :
             linelists.append(linelistdir+'/turbospec.h2o-BC8.5V'+'.molec')
             tfactor=2
-        else  :
+        elif h2o == 2 :
             linelists.append(linelistdir+'/turbospec.h2o-BC9.5V'+'.molec')
             tfactor=5
-    elif h2o == 1 :
-        linelists.append(linelistdir+'/turbospec.h2o-BC8.5V'+'.molec')
-        tfactor=2
-    elif h2o == 2 :
-        linelists.append(linelistdir+'/turbospec.h2o-BC9.5V'+'.molec')
-        tfactor=5
 
     # default abundances
     abundances = atomic.solar()
@@ -328,6 +329,7 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
                                    save=save,run=run,solarisotopes=solarisotopes,
                                    babsma=root+'opac',atmos_type=atmos_type,spherical=spherical,tfactor=tfactor)
         elif code == 'synspec' :
+            print('synple.syn: ',atmod,wrange,linelists,dw,vmicro,save)
             wave,flux,cont = synple.syn(atmod,wrange,linelist=linelists,dw=dw,vmicro=vmicro,save=save,clean=not save)
             #wave,flux,cont = synple.syn(atmod,wrange,linelist=linelists,dw=dw,abu=abundances,vmicro=vmicro,save=save)
             fluxnorm = flux/cont
@@ -477,7 +479,7 @@ def do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,save=False,run=
 
 def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
     els=None,atmod=None,kurucz=True,atmosroot=None,atmosdir=None,nskip=0,fill=True,
-    linelist='20150714',h2o=None,linelistdir=None,atoms=True,molec=True,
+    linelist='20150714',h2o=0,linelistdir=None,atoms=True,molec=True,
     save=False,run=True) :
     """ Runs Turbospectrum for specified input parameters
 
@@ -502,7 +504,7 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         fill (bool)  : use filled atmosphere hole if model requests it ( default = True), else skip synthesis
         linelist (str) : name of linelist (default='20150714')
         linelistdir (str) : directory for linelist (default=None --> $APOGEE_SPECLIB/linelists)
-        h2o (int or None) : H2O linelist to use: 0=none, 1=8.5V, 2=9.5V, None-->chooses by Teff and [alpha/H]
+        h2o (int or None) : H2O linelist to use: None=none, 1=8.5V, 2=9.5V, 0=chooses by Teff and [alpha/H]
         save (bool ) : save temporary directory and files for synthesis (default=False)
         run (bool) :  actually do the synthesis (default=True)
 
@@ -688,6 +690,8 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
           fout.write("   6.013 0.0625\n")
         # do we need to add the H2O linelist?
         if h2o is None : 
+          h2o=0
+        elif h2o==0 :
           if teff < 4000 :
             if mh+am < -1.5 or teff > 3250 :
               h2o=1    
@@ -815,7 +819,7 @@ def get_vmicro(vmicrofit,vmicro,teff=None,logg=None,mh=None) :
         pdb.set_trace()
     return vm
 
-def mkgrid(planfile,code=None,clobber=False,save=False,run=True) :
+def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec=True,h2o=0) :
     """ Create a grid of synthetic spectra using Turbospectrum given specifications in  input parameter file
         Outputs results in FITS file
 
@@ -889,7 +893,8 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True) :
       for cm in prange(p['cm0'],p['dcm'],p['ncm']) :
         for nm in prange(p['nm0'],p['dnm'],p['nnm']) :
           specdata=np.zeros([nelem,int(p['nmh']),int(p['nlogg']),int(p['nteff']),nspec],dtype=np.float32)
-          specnormdata=np.zeros([nelem,int(p['nmh']),int(p['nlogg']),int(p['nteff']),nspec],dtype=np.int16)
+          #specnormdata=np.zeros([nelem,int(p['nmh']),int(p['nlogg']),int(p['nteff']),nspec],dtype=np.int16)
+          specnormdata=np.zeros([nelem,int(p['nmh']),int(p['nlogg']),int(p['nteff']),nspec],dtype=np.float32)
           # allow for restart after certain number of [M/H] have been completed
           if clobber :
               nmh = 0
@@ -932,7 +937,7 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True) :
                         wrange=wrange,dw=dw,atmosdir=marcsdir,
                         elemgrid=elem,linelistdir=linelistdir+'/'+elem+'/',linelist=linelist,vmicro=vout,
                         solarisotopes=solarisotopes,
-                        nskip=nskip,atmos_type=p['atmos'],run=run,save=save,h2o=0) 
+                        nskip=nskip,atmos_type=p['atmos'],run=run,save=save,atoms=atoms,molec=molec,h2o=h2o) 
                   nskip = nskip+dskip if isinstance(spec,float) else -1
                 if nskip > 0 : 
                     print('FAILED Turbospec',nskip)
@@ -941,10 +946,12 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True) :
                 try:
                     if elem == '' :
                         specdata[0,imh,ilogg,iteff,:]=spec
-                        specnormdata[0,imh,ilogg,iteff,:]=np.round((specnorm-0.5)*65534.).astype(int)
+                        #specnormdata[0,imh,ilogg,iteff,:]=np.round((specnorm-0.5)*65534.).astype(int)
+                        specnormdata[0,imh,ilogg,iteff,:]=specnorm
                     else :
                         specdata[:,imh,ilogg,iteff,:]=spec[:,gdspec]
-                        specnormdata[:,imh,ilogg,iteff,:]=np.round((specnorm[:,gdspec]-0.5)*65534).astype(int)
+                        #specnormdata[:,imh,ilogg,iteff,:]=np.round((specnorm[:,gdspec]-0.5)*65534).astype(int)
+                        specnormdata[:,imh,ilogg,iteff,:]=specnorm
                 except :
                     print(specdata.shape)
                     specdata[:,imh,ilogg,iteff,:]=0.
@@ -1002,10 +1009,12 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True) :
                 hdulist.append(hdu)
             hdunorm=fits.ImageHDU(np.squeeze(specnormdata))
             hdunorm.header.extend(hdu.header.copy(strip=True))
-            hdunorm.header['BZERO'] = 0.5
-            hdunorm.header['BSCALE'] = 1./65534.
+            #hdunorm.header['BZERO'] = 0.5
+            #hdunorm.header['BSCALE'] = 1./65534.
             hdulist.append(hdunorm)
             hdulist.writeto(specdir+'/'+p['name']+elem+'.fits',overwrite=True)
+
+          return hdulist
 
 def mkgridlink(planfile,suffix=None) :
     """  DEVELOPMENT : create coarse grid by merging syntheses from multiple grids
@@ -1288,7 +1297,7 @@ def mkspec(input) :
     
 
 def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',telescope='apo25m',
-            fiber='combo',linelist='20180901',linelistdir=None,kurucz=False,h2o=None,atoms=True,plot=False,lines=None,ls=None) :
+            fiber='combo',linelist='20180901',linelistdir=None,kurucz=False,h2o=0,atoms=True,plot=False,lines=None,ls=None) :
     """ Make a series of spectra from parameters in an input file, with parallel processing for turbospec
         Outputs to FITS file {file}.fits
 
@@ -1446,9 +1455,9 @@ def elemsens(files=None,outfile='elemsens',highres=9,waveid=13140000,lsfid=14600
         if calc : 
             #out=mksynth(name,threads=16,ls=(x,ls))
             mini_linelist(elem,linelist,only=True)
-            out0=mksynth('ref.dat',threads=16,ls=(xls,ls),linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'_only',h2o=0)
+            out0=mksynth('ref.dat',threads=16,ls=(xls,ls),linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'_only',h2o=None)
             os.rename('ref.dat.fits',elem+'_ref.fits')
-            out1=mksynth(name,threads=16,ls=(xls,ls),linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'_only',h2o=0)
+            out1=mksynth(name,threads=16,ls=(xls,ls),linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'_only',h2o=None)
             os.rename(name+'.fits',elem+'.fits')
         #ehdu=fits.open(out)[2]
         ehdu=fits.open(elem+'.fits')[2]

@@ -20,7 +20,7 @@ import os
 import glob
 import pdb
 import matplotlib.pyplot as plt
-import thread
+#import thread
 from tools import plots
 from tools import match
 from apogee.speclib import isochrones
@@ -469,7 +469,7 @@ def clip(x,lim,eps=None) :
         if np.isclose(tmp,lim[1]) : tmp-=eps
     return tmp
 
-def __main__() :
-    for gridclass in ['GKg','Mg','Fd','GKd','Md'] :
-        thread.start_new_thread(sample,('test',gridclass))
+#def __main__() :
+#    for gridclass in ['GKg','Mg','Fd','GKd','Md'] :
+#        thread.start_new_thread(sample,('test',gridclass))
 

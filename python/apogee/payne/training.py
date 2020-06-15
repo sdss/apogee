@@ -140,9 +140,9 @@ def neural_net(training_labels, training_spectra, validation_labels, validation_
         #print(t,loss_data,loss_valid_data)
 
         # print loss function to monitor
+        loss_valid_data = loss_valid.data.item()
         if t % 1000 == 0:
             loss_data = loss.data.item()
-            loss_valid_data = loss_valid.data.item()
             training_loss.append(loss_data)
             validation_loss.append(loss_valid_data)
             print('Step ' + str(t) \
@@ -152,12 +152,13 @@ def neural_net(training_labels, training_spectra, validation_labels, validation_
             #      + ': Training set loss = ' + str(loss_data) \
             #      + ' / Validation set loss = ' + str(loss_valid_data))
  
-            # record the weights and biases if the validation loss improves
-            if loss_valid_data < current_loss:
-                current_loss = loss_valid
-                model_numpy = []
-                for param in model.parameters():
-                    model_numpy.append(param.data.cpu().numpy())
+        # record the weights and biases if the validation loss improves
+        if loss_valid_data < current_loss:
+            current_loss = loss_valid_data
+            current_step = t
+            model_numpy = []
+            for param in model.parameters():
+                model_numpy.append(param.data.cpu().numpy())
  
     # extract the weights and biases
     model={}
@@ -174,6 +175,8 @@ def neural_net(training_labels, training_spectra, validation_labels, validation_
     model['x_max'] = x_max
     model['training_loss'] = training_loss
     model['validation_loss'] = validation_loss
+    model['current_loss'] = current_loss
+    model['current_step'] = current_step
 
     return model
 

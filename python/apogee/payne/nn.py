@@ -873,7 +873,7 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',stars=None,nfit=
             if teff_est > 7000. : init[i,j_rot] = 2.3
             if teff_est > 6500. : bounds_lo[i,j_mh] = -1
             print(i,star['mangaid'],bprpc,init[i,:], len(stars))
-        specs.append((output[i][0], output[i][1], init[i,:], (bounds_lo,bounds_hi), order))
+        specs.append((output[i][0], output[i][1], init[i,:], (bounds_lo[i,:],bounds_hi[i,:]), order))
 #        spec = star['flux']
 #        specerr = np.sqrt(1./star['ivar'])
 #        cont = norm.cont(spec,specerr,poly=False,order=order,chips=True,apstar=False,medfilt=400)

@@ -890,7 +890,7 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',star=None,nfit=0
             bounds_hi[i,:] = mod['x_max']
             teff_est= 10.**f(np.max([np.min([bprpc,color[-1]]),color[0]]))
             init[i,j_teff] = teff_est
-            if teff_est > 7000. : init[i,j_rot] = 2.3
+            if teff_est > 5000. : init[i,j_rot] = 2.3
             if teff_est > 6500. : bounds_lo[i,j_mh] = -1
             print(i,star['mangaid'],bprpc,init[i,:], len(stars))
         specs.append((output[i][0], output[i][1], init[i,:], (bounds_lo[i,:],bounds_hi[i,:]), order))

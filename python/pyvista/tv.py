@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib
 from astropy.wcs import wcs
-import cmap
-import mmm
+from . import cmap
+from . import mmm
 try:
    import autopy
 except:

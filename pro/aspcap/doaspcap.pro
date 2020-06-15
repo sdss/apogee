@@ -1,6 +1,6 @@
 ; doaspcap is master routine for running ASPCAP pipline: pre-processing, FERRE, and post-processing
 
-pro doaspcap,planfile,mjd=mjd,nruns=nruns,queue=queue,clobber=clobber,old=old,ncpus=ncpus,errbar=errbar,renorm=renorm,obscont=obscont,aspcap_vers=aspcap_vers,results_vers=results_vers,nstars=nstars,hmask=hmask,maskfile=maskfile,obspixmask=obspixmask,pixmask=pixmask,highbad=highbad,skyerr=skyerr,starlist=starlist,lowbad=lowbad,higherr=higherr,conthighbad=conthighbad,contlowbad=contlowbad,conthigherr=conthigherr,qaspcap=qaspcap,redux_root=redux_root,red_vers=red_vers,noplot=noplot,vacuum=vacuum,commiss=commiss,nored=nored,visits=visits,aspcap_config=aspcap_config,fits=fits,symlink=symlink,doelemplot=doelemplot,noelem=noelem,maxwind=maxwind,caldir=caldir,persist=persist,npar=npar,nelem=nelem,mask_telluric=mask_telluric,altmaskdir=altmaskdir,testmjd=testmjd,notie=notie,no_version_check=no_version_check,badpixfrac=badpixfrac,minmjdlast=minmjdlast
+pro doaspcap,planfile,mjd=mjd,nruns=nruns,queue=queue,clobber=clobber,old=old,ncpus=ncpus,errbar=errbar,renorm=renorm,obscont=obscont,aspcap_vers=aspcap_vers,results_vers=results_vers,nstars=nstars,hmask=hmask,maskfile=maskfile,obspixmask=obspixmask,pixmask=pixmask,highbad=highbad,skyerr=skyerr,starlist=starlist,lowbad=lowbad,higherr=higherr,conthighbad=conthighbad,contlowbad=contlowbad,conthigherr=conthigherr,qaspcap=qaspcap,redux_root=redux_root,red_vers=red_vers,noplot=noplot,vacuum=vacuum,commiss=commiss,nored=nored,visits=visits,aspcap_config=aspcap_config,fits=fits,symlink=symlink,doelemplot=doelemplot,noelem=noelem,maxwind=maxwind,caldir=caldir,persist=persist,npar=npar,nelem=nelem,mask_telluric=mask_telluric,altmaskdir=altmaskdir,testmjd=testmjd,notie=notie,no_version_check=no_version_check,badpixfrac=badpixfrac,minmjdlast=minmjdlast,badstar=badstar
 
 TIC
 ; read plan file and required fields: apvisit and plateid/mjd or field
@@ -59,6 +59,7 @@ if not keyword_set(nstars) then nstars=apsetpar(planstr,'nstars',0)
 if not keyword_set(starlist) then starlist=apsetpar(planstr,'starlist',0)
 if n_elements(clobber) eq 0 then clobber=apsetpar(planstr,'clobber',0)
 if n_elements(minmjdlast) eq 0 then minmjdlast=apsetpar(planstr,'minmjdlast',0)
+if n_elements(badstar) eq 0 then badstar=apsetpar(planstr,'badstar',0)
 if keyword_set(qaspcap) then begin
   conthighbad=1.1
   contlowbad=0.001
@@ -161,20 +162,23 @@ for idir=0,n_elements(datadir)-1 do begin
    list =mrdfits(apogee_filename('Field',field=file_basename(field[idir])),1,status=status)
    if keyword_set(commiss) then $
    list=mrdfits(indir+'apFieldC-'+strtrim(file_basename(field[idir]),2)+'.fits',1,status=status) 
-   if status lt 0 or size(list,/type) eq 3 then $
-     files=file_basename(file_search(indir+fits,test_symlink=symlink)) else begin
+   if status lt 0 or size(list,/type) eq 3 then begin
+       files=file_basename(file_search(indir+fits,test_symlink=symlink)) 
+       mjdlast=99999
+   endif else begin
        files=strtrim(list.file,2)
        list =mrdfits(apogee_filename('FieldVisits',field=file_basename(field[idir])),1,status=status)
        ;list=mrdfits(indir+'apFieldVisits-'+strtrim(file_basename(field[idir]),2)+'.fits',1)
        mjdlast=max(list[uniq(list.mjd,sort(list.mjd))].mjd)
        mjddir=strtrim(mjdlast,2)
-     endelse
+   endelse
  endelse
  resultsdir=aspcap_root+apred_vers+'/'+aspcap_vers+'/'+outdir[idir]+'/'
 
  ; see if we've already done this up to latest MJD
  print,outdir[idir], mjddir,file_test(resultsdir+mjddir)
- if keyword_set(testmjd) then printf,done,outdir[idir], mjddir,file_test(resultsdir+mjddir),mjdlast
+ if mjddir ne '' and (file_test(resultsdir+mjddir) or mjdlast lt minmjdlast) then skip=1 else skip=0
+ if keyword_set(testmjd) then printf,done,outdir[idir], mjddir,file_test(resultsdir+mjddir),mjdlast,skip
  if mjddir ne '' and (file_test(resultsdir+mjddir) or mjdlast lt minmjdlast) then goto,nextdir
  if files[0] eq '' then goto,nextdir
  if keyword_set(testmjd) then goto,nextdir
@@ -240,6 +244,7 @@ for idir=0,n_elements(datadir)-1 do begin
      if file_test(indir+files[i]) then begin
       print,indir+files[i]
 
+      if strpos(files[i],badstar) ge 0 then goto,badfrac
       ; now process and write the spectral data 
       if keyword_set(persist) then persistfile=outdir+oname+'.persist'
       aspcap_rdobsnew,indir+files[i],obs,gaps,endgaps=endgaps,apvisit=apvisit,$
@@ -708,7 +713,7 @@ for idir=0,n_elements(datadir)-1 do begin
        endelse
 
        ; with maxwind keyword, we will loop over the full set of windows plus each individual window
-       if keyword_set(maxwind) and file_test(configdir+elem[ielem]+'.wind') and ~tag_exist(libpar.info,'minigrid') then begin
+       if keyword_set(maxwind) and file_test(configdir+elem[ielem]+'.wind') and ~tag_exist(libpar,'minigrid') then begin
          readcol,configdir+elem[ielem]+'.wind',w1,w2,w3
          if tag_exist(libpar,'indi') then indi=libpar.indi else undefine,indi
          nwind=n_elements(w1)
@@ -732,14 +737,14 @@ for idir=0,n_elements(datadir)-1 do begin
             filterfile=configdir+'/'+libpar.info[iclass].mask+suffix+'.mask',$
             findi=indi,errbar=errbar,renorm=abs(renorm),obscont=obscont,ttie=ttie,elemdir=elemdir,$
             libdir='../lib_'+libpar.info[iclass].class
-         if tag_exist(libpar.info,'minigrid') then minigrid=libpar.info[iclass].minigrid else minigrid=''
+         if tag_exist(libpar,'minigrid') then minigrid=libpar.minigrid else minigrid=''
          if keyword_set(nstars) then nobj=nstars else nobj=n_elements(finalstr.param)
          ; get parameters for all objects whose best fit was current class
          if minigrid ne '' then begin
            ; with minigrid, write flux and err files in workdir
-           readcol,getenv('APOGEE_DIR')+'/data/windows/'+minigrid+'/'+elem[ielem]+'.wave',w1,w2,format='(d,d)'
-           wvac=[]
-           for iii=0,n_elements(w1)-1 do wvac=[[wvac],[alog10(w1[iii]),alog10(w2[iii])]]
+           ;readcol,getenv('APOGEE_DIR')+'/data/windows/'+minigrid+'/'+elem[ielem]+'.wind',w1,w2,format='(d,d)'
+           ;wvac=[]
+           ;for iii=0,n_elements(w1)-1 do wvac=[[wvac],[alog10(w1[iii]),alog10(w2[iii])]]
            openw,ipf,workdir+outname+'.ipf',/get_lun
            openw,frd,workdir+outname+frdsuffix,/get_lun
            openw,err,workdir+outname+'.err',/get_lun
@@ -750,12 +755,19 @@ for idir=0,n_elements(datadir)-1 do begin
                if nmissing gt 0 then init[missing] = 0.
                printf,ipf,file_basename(finalstr.param[i].apogee_id,'.fits'),format=iformat,init,init*0.
                help,finalstr.lib.wave
-               spec=speclib_welem(finalstr.lib.wave,finalstr.spec[i].spec,wvac)
-               nerr=speclib_welem(finalstr.lib.wave,finalstr.spec[i].err,wvac)
+               ;spec=speclib_welem(finalstr.lib.wave,finalstr.spec[i].spec,wvac)
+               ;nerr=speclib_welem(finalstr.lib.wave,finalstr.spec[i].err,wvac)
+               for iii=0,n_elements(libhead)-1 do begin
+                 libwave=libhead[iii].wave[0]+indgen(libhead[iii].npix)*libhead[iii].wave[1]
+                 if libhead[iii].logw eq 1 then libwave=10^libwave
+                 spec=interpol(finalstr.spec[i].spec,finalstr.lib.wave,alog10(libwave))
+                 nerr=interpol(finalstr.spec[i].err,finalstr.lib.wave,alog10(libwave))
+               endfor
                printf,frd,spec,format=fformat
                printf,err,nerr,format=eformat 
              endif
            endfor
+           free_lun,ipf
            free_lun,frd
            free_lun,err
          endif else begin

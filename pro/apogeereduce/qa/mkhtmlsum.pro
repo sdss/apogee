@@ -89,8 +89,8 @@ for i=n_elements(mjd)-1,0,-1 do begin
     plate=file_basename(plates[j])
     comp=strsplit(plate,'-',/extract)
     name=strsplit(comp[0],'.',/extract)
-    field=apogee_field(0,fix(name[0]))
-    p=0
+    field=apogee_field(0,long(name[0]))
+    p=0L
     reads,name[0],p
     if dirs.telescope eq 'apo1m' then begin
       v=strpos(plates[j],'/visit/')

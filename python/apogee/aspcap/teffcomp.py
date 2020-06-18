@@ -29,7 +29,7 @@ def bindata(xdata,ydata,bins,median=True) :
     return mean
 
 def ghb(allstar,glatmin=30.,ebvmax=0.03,trange=[3750,5500],loggrange=[-1,6],mhrange=[-2.5,0.75],alpha=False,out='teffcomp',yr=[-500,500],
-        calib=False,dr13=False,grid=None) :
+        calib=False,dr13=False,grid=None,cmap='rainbow') :
     """
     Compares allstar ASPCPAP Teff with photometric Teff from GHB for sample of stars with GLAT>glatmin and SFD_EBV<ebvmax,
     does fits
@@ -103,9 +103,9 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,trange=[3750,5500],loggrange=[-1,6],mhra
     # diff color-coded by gravity as f([M/H])
 
     if alpha :
-        plots.plotc(ax,mh,teff-ghb,am,zr=[-0.1,0.4],xr=xr,yr=yr,xt='[M/H]',yt='ASPCAP-photometric Teff',colorbar=True,zt=r'[$\alpha$/M]',rasterized=True)
+        plots.plotc(ax,mh,teff-ghb,am,zr=[-0.1,0.4],xr=xr,yr=yr,xt='[M/H]',yt='ASPCAP-photometric Teff',colorbar=True,zt=r'[$\alpha$/M]',rasterized=True,cmap=cmap)
     else :
-        plots.plotc(ax,mh,teff-ghb,teff,xr=xr,yr=yr,xt='[M/H]',yt='ASPCAP-photometric Teff',colorbar=True,zt='$T_{eff}$',rasterized=True,zr=trange)
+        plots.plotc(ax,mh,teff-ghb,teff,xr=xr,yr=yr,xt='[M/H]',yt='ASPCAP-photometric Teff',colorbar=True,zt='$T_{eff}$',rasterized=True,zr=trange,cmap=cmap)
     mean=bindata(mh,teff-ghb,bins,median=False)
     if not dr13: plots.plotp(ax,bins+binsize/2.,mean,marker='o',size=40)
     mean=bindata(mh,teff-ghb,bins,median=True)
@@ -131,7 +131,7 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,trange=[3750,5500],loggrange=[-1,6],mhra
       plots.plotl(ax,x,tefit(x),color='k')
       ax.text(0.98,0.9,'rms: {:6.1f}'.format(rms),transform=ax.transAxes,ha='right')
 
-      cmap = matplotlib.cm.get_cmap('rainbow')
+      cmap = matplotlib.cm.get_cmap(cmap)
       for t in np.arange(trange[0],trange[1],500.) :
           rgba=cmap((t-trange[0])/(trange[1]-trange[0]))
           y=x*0.+t

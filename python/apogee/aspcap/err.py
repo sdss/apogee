@@ -60,7 +60,8 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
                     mhmax=np.array([mhmax,mhbin]).max()
                     if out is not None :
                         iplt=np.where(snbins == snbin)[0][0]
-                        plots.plotc(ax[0,iplt],mhbin+dmh/2.,tebin+dte/2.,err,xr=[mhbins[0],mhbins[-1]],yr=[tebins[0],tebins[-1]],zr=zr,size=30,linewidth=1)
+                        plots.plotc(ax[0,iplt],np.array([mhbin+dmh/2.]),np.array([tebin+dte/2.]),np.array([err]),
+                                    xr=[mhbins[0],mhbins[-1]],yr=[tebins[0],tebins[-1]],zr=zr,size=30,linewidth=1)
 
     # do the fit in log(rms) so that empirical uncertainty is positive-definite
     rmsdata=np.log(np.array(rmsdata))

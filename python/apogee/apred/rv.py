@@ -782,10 +782,12 @@ def dorv(visitfiles) :
         print('running jointfit for :',obj)
         print('nvisits: ', len(speclist))
         out= doppler.rv.jointfit(speclist,verbose=verbose,plot=plot,saveplot=True,outdir=field+'/',tweak=tweak)
+        print('running decomp for :',obj)
         gout = gauss_decomp(out)
         fp=open(field+'/'+obj+suffix+'.pkl','wb')
         pickle.dump([out,gout],fp)
         fp.close()
+        print('running plots for :',obj)
         dop_plot(field,obj,out,decomp=gout)
     except KeyboardInterrupt : 
         raise
@@ -831,21 +833,31 @@ def dop_plot(field,obj,out,decomp=None) :
     #plot final spectra and final models
     # full spectrum
     fig,ax=plots.multi(1,n,hspace=0.001,figsize=(8,2+n))
+    figc,axc=plots.multi(1,n,hspace=0.001,figsize=(8,2+n))
     # two windows
     fig2,ax2=plots.multi(2,n,hspace=0.001,wspace=0.001,figsize=(8,2+n))
     for i,(mod,spec) in enumerate(zip(out[2],out[3])) :
         ax[i].plot(spec.wave,spec.flux,color='k')
-        ax[i].plot(mod.wave,mod.flux,color='r')
-        ax[i].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
         ax2[i,0].plot(spec.wave,spec.flux,color='k')
-        ax2[i,0].plot(mod.wave,mod.flux,color='r')
         ax2[i,1].plot(spec.wave,spec.flux,color='k')
+        for iorder in range(3) :
+            gd = np.where(~spec.mask[:,iorder])[0]
+            ax[i].plot(spec.wave[gd,iorder],spec.flux[gd,iorder],color='g')
+            ax2[i,0].plot(spec.wave[gd,iorder],spec.flux[gd,iorder],color='g')
+            ax2[i,1].plot(spec.wave[gd,iorder],spec.flux[gd,iorder],color='g')
+        ax[i].plot(mod.wave,mod.flux,color='r')
+        ax2[i,0].plot(mod.wave,mod.flux,color='r')
         ax2[i,1].plot(mod.wave,mod.flux,color='r')
         ax2[i,0].set_xlim(15700,15800)
         ax2[i,1].set_xlim(16700,16930)
-        ax2[i,0].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
+        axc[i].plot(spec.wave,spec.flux*spec.cont,color='k')
+        axc[i].plot(spec.wave,spec.cont,color='g')
+        ax[i].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
+        ax2[i,0].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax2[i,0].transAxes)
+        axc[i].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=axc[i].transAxes)
     fig.savefig(field+'/'+obj+'_spec.png')
     fig2.savefig(field+'/'+obj+'_spec2.png')
+    figc.savefig(field+'/'+obj+'_cont.png')
     plt.close()
     plt.close()
 
@@ -1038,6 +1050,7 @@ def mkhtml(field,suffix='') :
         fp.write('<TD><A HREF={:s}_ccf.png> <IMG SRC={:s}_ccf.png></A>\n'.format(obj,obj))
         fp.write('<TD><A HREF={:s}_spec.png> <IMG SRC={:s}_spec.png></a>\n'.format(obj,obj))
         fp.write('<TD><A HREF={:s}_spec2.png> <IMG SRC={:s}_spec2.png></a>\n'.format(obj,obj))
+        fp.write('<TD><A HREF={:s}_cont.png> <IMG SRC={:s}_cont.png></a>\n'.format(obj,obj))
     fp.close() 
 
 def overlap(fields) :

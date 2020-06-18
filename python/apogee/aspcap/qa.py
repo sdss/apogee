@@ -117,20 +117,20 @@ def elemvslogg(hdulist,title=None,out=None,calib=False,main=True,named=False) :
         if el in gels :
             print(el,igel)
             plots.plotp(gax[igel//2,igel%2],a[param][solar,1],a['X_M'][solar,iel],color='r',
-                        xr=[5.9,-0.9],yr=[-0.39,0.39], size=1,xt='log g',yt=ytit,alpha=0.2)
+                        xr=[5.9,-0.9],yr=[-0.39,0.39], size=1,xt='log g',yt=ytit,alpha=0.2,rasterized=False)
             plots.plotp(gax[igel//2,igel%2],a[param][solar,1],abun[solar],color='k',
-                        xr=[5.9,-0.9],yr=[-0.39,0.39], size=1,xt='log g',yt=ytit)
+                        xr=[5.9,-0.9],yr=[-0.39,0.39], size=1,xt='log g',yt=ytit,rasterized=False)
             igel+=1
 
-    gfig.savefig(out+'elem_solar_logg.png')
+    gfig.savefig(out+'elem_solar_logg.png',dpi=150)
     # C/N
     fig,ax=plots.multi(1,1,figsize=(6,4))
     gd=np.where(a['C_FE'][solar]>-9)[0]
     plots.plotp(ax,a[param][solar[gd],1],a['C_FE'][solar[gd]]-a['N_FE'][solar[gd]],color='k',
-                xr=[5.9,-0.9],yr=[-0.39,0.39],
+                xr=[5.9,-0.9],yr=[-0.59,0.39],
                 size=3,xt='log g',yt='[C/N]')
     plt.tight_layout()
-    fig.savefig(out+'cn_logg.png')
+    fig.savefig(out+'cn_logg.png',dpi=150)
 
 
 def plotelems(hdulist,title=None,out=None,calib=False,main=True,named=False) :

@@ -276,23 +276,27 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
                                        extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
                                        aspect='auto',vmin=zr[0],vmax=0.1, origin='lower',cmap='rainbow')
 
-        snfig,snax=plots.multi(len(tebins)-1,len(mhbins)-1,wspace=0.001,hspace=0.001,figsize=(2*len(tebins),3*len(mhbins)),xtickrot=60)
+        snfig,snax=plots.multi(len(tebins)-1,len(mhbins)-1,wspace=0.001,hspace=0.001,figsize=(2.2*len(tebins),3*len(mhbins)),xtickrot=60)
         fig2,ax2=plots.multi(len(tebins)-1,len(mhbins)-1,wspace=0.001,hspace=0.001,figsize=(2*len(tebins),3*len(mhbins)),xtickrot=60)
         xx=np.arange(0,250)
         for ix in range(len(tebins)-1) :
-            if ix == 0 : snax[iy,ix].set_ylabel(r'$\sigma$('+el+')')
             for iy in range(len(mhbins)-1) :
+                if ix == 0 : snax[iy,ix].set_ylabel(r'$\sigma$('+el+')')
                 gdplt = np.where((rmsderiv[:,1]+4500.>tebins[ix]) & (rmsderiv[:,1]+4500.<tebins[ix+1]) &
                                   (rmsderiv[:,3]>mhbins[iy]) & (rmsderiv[:,3]<mhbins[iy+1]) )[0]
                 if len(gdplt) > 1 :
-                    plots.plotc(snax[iy,ix],rmsderiv[gdplt,2]+100,rmselem[gdplt,i],rmsderiv[gdplt,3],size=5,zr=[-2,0.5],
+                    #plots.plotc(snax[iy,ix],rmsderiv[gdplt,2]+100,rmselem[gdplt,i],rmsderiv[gdplt,3],size=5,zr=[-2,0.5],
+                    #            yr=zr,xr=[snbins[0],snbins[-1]],xt='S/N')
+                    plots.plotp(snax[iy,ix],rmsderiv[gdplt,2]+100,rmselem[gdplt,i],color='k',size=5,zr=[-2,0.5],
                                 yr=zr,xr=[snbins[0],snbins[-1]],xt='S/N')
+                snax[iy,ix].set_xlim(snbins[0]+1,snbins[-1]-1)
+                snax[iy,ix].set_xlabel('S/N')
                 snax[iy,ix].set_ylim(zr)
                 snax[iy,ix].plot(xx,elemerr(soln,tebins[ix]+dte/2.-4500,xx-100,mhbins[iy]+dmh/2., quad=quad, log=log, fact=fact))
-                snax[iy,ix].text(0.02,0.98,r'$T_{eff}:$'+'{:6.0f}'.format(tebins[ix]+dte/2.),
-                                 ha='left',va='top',transform=snax[iy,ix].transAxes,fontsize='x-small')
-                snax[iy,ix].text(0.02,0.86,'[M/H]: {:6.2f}'.format(mhbins[iy]+dmh/2.),
-                                 ha='left',va='top',transform=snax[iy,ix].transAxes,fontsize='x-small')
+                snax[iy,ix].text(0.02,0.95,r'$T_{eff}:$'+'{:6.0f}'.format(tebins[ix]+dte/2.),
+                                 ha='left',va='top',transform=snax[iy,ix].transAxes,fontsize='large')
+                snax[iy,ix].text(0.02,0.80,'[M/H]: {:6.2f}'.format(mhbins[iy]+dmh/2.),
+                                 ha='left',va='top',transform=snax[iy,ix].transAxes,fontsize='large')
                 for iz in range(len(snbins)-1) :
                     gd= np.where((rmsderiv[gdplt,2]+100.>snbins[iz]) & (rmsderiv[gdplt,2]+100.<snbins[iz+1]) ) [0]
                     #snax[iy,ix].text(0.98,0.88-iz*0.08,'{:8.3f}'.format(rmselem[gdplt[gd],i].mean()),

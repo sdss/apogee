@@ -250,7 +250,26 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
         n_HI = len(open(linelistdir+'/turbospec.'+linelist+'.Hlinedata').readlines())
         if n_HI > 2 : linelists.append(linelistdir+'/turbospec.'+linelist+'.Hlinedata')
         if atoms : linelists.append(linelistdir+'/turbospec.'+linelist+'.atoms')
-        if molec : linelists.append(linelistdir+'/turbospec.'+linelist+msuffix+'.molec')
+        if molec : 
+            linelists.append(linelistdir+'/turbospec.'+linelist+msuffix+'.molec')
+            tfactor=1
+            if h2o == 0 :
+              if teff < 4000 :
+                if mh+am < -1.5 or teff > 3250 :
+                    linelists.append(linelistdir+'/turbospec.h2o-BC8.5V'+'.molec')
+                    tfactor=2
+                else  :
+                    linelists.append(linelistdir+'/turbospec.h2o-BC9.5V'+'.molec')
+                    tfactor=5
+            elif h2o == 1 :
+                linelists.append(linelistdir+'/turbospec.h2o-BC8.5V'+'.molec')
+                tfactor=2
+            elif h2o == 2 :
+                linelists.append(linelistdir+'/turbospec.h2o-BC9.5V'+'.molec')
+                tfactor=5
+            elif h2o == 3 :
+                linelists.append(linelistdir+'/turbospec.h2o'+'.molec')
+                tfactor=5
     elif code == 'synspec' :
         linelists = [linelistdir+'/synspec/synspec.'+linelist+'.atoms']
         if molec :
@@ -258,28 +277,14 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
             #else : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'giant_nofeh_noh2o_noc2.molec')
             if solarisotopes : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'sun'+msuffix+'.molec')
             else : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'giant'+msuffix+'.molec')
+            if h2o is not None :
+                linelists.append(linelistdir+'/synspec/synspec.h2o.molec')
         #linelists = ['apogeeDR16.20180901.19','apogeeDR16_arc.20']
     else :
         print('unknown code!')
         pdb.set_trace()
     print('linelists: ',linelists)
 
-    tfactor=1
-    if molec and h2o is not None :
-        if h2o == 0 :
-          if teff < 4000 :
-            if mh+am < -1.5 or teff > 3250 :
-                linelists.append(linelistdir+'/turbospec.h2o-BC8.5V'+'.molec')
-                tfactor=2
-            else  :
-                linelists.append(linelistdir+'/turbospec.h2o-BC9.5V'+'.molec')
-                tfactor=5
-        elif h2o == 1 :
-            linelists.append(linelistdir+'/turbospec.h2o-BC8.5V'+'.molec')
-            tfactor=2
-        elif h2o == 2 :
-            linelists.append(linelistdir+'/turbospec.h2o-BC9.5V'+'.molec')
-            tfactor=5
 
     # default abundances
     abundances = atomic.solar()

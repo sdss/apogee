@@ -541,9 +541,10 @@ def repeatspec(a) :
 import doppler 
 import multiprocessing as mp
 from astropy.table import Table
+from apogee.apred import bc
 
-def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=500,maxobj=9999,snmin=5,
-               clobber=False,verbose=False,tweak=False,plot=False) :
+def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=500,snmin=5,
+               clobber=False,verbose=False,tweak=False,plot=False,windows=None) :
     """ Run DOPPLER RVs for a field
     """ 
     
@@ -553,7 +554,7 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
     starmask=bitmask.StarBitMask()
     gd=np.where(((allvisits['STARFLAG'] & starmask.badval()) == 0) & (allvisits['SNR'] > snmin) )[0]
     print(len(allvisits),len(gd))
-    allvisits=Table(allvisits[gd])
+    allvisits=Table(allvisits)
 
     # output directory
     try: os.mkdir(field)
@@ -561,7 +562,7 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
 
     # get all unique (or requested) objects
     if obj is None :
-        allobj=set(allvisits['APOGEE_ID'][0:maxobj])
+        allobj=set(allvisits['APOGEE_ID'])
     else :
         allobj = obj
     # loop over requested objects
@@ -620,29 +621,35 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
 
     # loop over all objects, building up list of [(field,obj,clobber),filenames....] to 
     #   pass to dorv()
-    for iobj,obj in enumerate(sorted(allobj)) :
-        if type(obj) is str : obj=obj.encode()
-        allfield['APOGEE_ID'][iobj] = obj
-        visits=np.where(allvisits['APOGEE_ID'] == obj)[0]
-        print('object: {:}  nvisits: {:d}'.format(obj,len(visits)))
+    for iobj,star in enumerate(sorted(allobj)) :
+        if type(star) is str : star=star.encode()
+        allfield['APOGEE_ID'][iobj] = star
+        # we will only consider good visits
+        visits=np.where(allvisits['APOGEE_ID'][gd] == star)[0]
+        print('object: {:}  nvisits: {:d}'.format(star,len(visits)))
         nobj+=1
         nvisit+=len(visits)
 
-        specfiles=[(field,obj,clobber,verbose,tweak,plot)]
+        specfiles=[(field,star,clobber,verbose,tweak,plot,windows)]
         for i,visit in enumerate(visits) :
             if i < maxvisit :
                 # accumulate list of files
-                visitfile= load.allfile('Visit',plate=int(allvisits['PLATE'][visit]),
-                                        mjd=allvisits['MJD'][visit],fiber=allvisits['FIBERID'][visit])
+                visitfile= load.allfile('Visit',plate=int(allvisits['PLATE'][gd[visit]]),
+                                        mjd=allvisits['MJD'][gd[visit]],fiber=allvisits['FIBERID'][gd[visit]])
                 specfiles.append(visitfile)
+                if telescope eq 'lco25m' : obs='LCO' 
+                else : obs='APO'
+                allvisits['BC'][gd[visit]] = 
+                    getbc(allvisits['RA'][gd[visit]],allvisits['DEC'][gd[visit]],allvisits['JD'][gd[visit]],obs=obs)
     #            spec=doppler.read(visitfile)
     #            fwhm=[]
     #            for chip in range(3) : 
     #                try: fwhm.append(spec.lsf.fwhm(order=chip).min())
     #                except: fwhm.append(0.)
     #            allvisits['FWHM'][visit] = np.array(fwhm)
-        allfiles.append(specfiles)
-        allv.append(visits)
+        if len(visits) > 0 :
+            allfiles.append(specfiles)
+            allv.append(visits)
        
     print('total objects: ', nobj, ' total visits: ', nvisit) 
     if threads == 0 :
@@ -658,11 +665,11 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
     print('done pool')
 
     # rename old visit RV tags and initialize new ones
-    for col in ['VTYPE','VREL','VRELERR','VHELIO'] :
-        allvisits.rename_column(col,'est'+col)
+    for col in ['VTYPE','VREL','VRELERR','VHELIO','BC'] :
+        allvisits.rename_column(col,'EST'+col)
         if col == 'VTYPE' : allvisits[col] = 0
         else : allvisits[col] = np.nan
-    for col in ['XCORR_VREL','XCORR_VRELERR','XCORR_VHELIO'] :
+    for col in ['XCORR_VREL','XCORR_VRELERR','XCORR_VHELIO','BC'] :
         allvisits[col] = np.nan
     allvisits['N_COMPONENTS'] = -1
 
@@ -671,7 +678,8 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
         starflag, andflag = 0, 0
         apogee_target1, apogee_target2, apogee_target3 = 0, 0, 0
         apogee2_target1, apogee2_target2, apogee2_target3, apogee2_target4 = 0, 0, 0, 0
-        if out is not None :
+        try :
+          if out is not None :
             allv=[]
             ncomponents=0
             for i,v in enumerate(out[0][1]) :
@@ -703,6 +711,9 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
                 ncomponents=np.max([ncomponents,out[1][i]['N_components']])
 
             allv=np.array(allv)
+
+            #visitcomb(allvisits[allv]) 
+
             j = np.where(allfield['APOGEE_ID'] == files[0][1])[0]
             allfield['RA'][j] = allvisits['RA'][allv[0]]
             allfield['DEC'][j] = allvisits['DEC'][allv[0]]
@@ -731,6 +742,8 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
             allfield['RV_FEH'][j] = out[0][0]['feh']
             allfield['N_COMPONENTS'][j] = ncomponents
 
+        except : pdb.set_trace()
+
     #output file with allfield and allvisits
     hdulist=fits.HDUList()
     hdulist.append(fits.table_to_hdu(Table(allfield)))
@@ -754,6 +767,7 @@ def dorv(visitfiles) :
     verbose=visitfiles[0][3]
     tweak=visitfiles[0][4]
     plot=visitfiles[0][5]
+    windows=visitfiles[0][6]
     if tweak: suffix='_tweak'
     else : suffix='_out'
     if os.path.exists(field+'/'+obj+suffix+'.pkl') and not clobber:
@@ -762,13 +776,13 @@ def dorv(visitfiles) :
         try: 
             out=pickle.load(fp)
             fp.close()
-            if len(out) == 5 :
-                gout = gauss_decomp(out)
-                dop_plot(field,obj,out,decomp=gout)
-                fp=open(field+'/'+obj+suffix+'.pkl','wb')
-                pickle.dump([out,gout],fp)
-                fp.close()
-                return [out,gout]
+            #if True : #len(out) == 5 :
+            #    gout = gauss_decomp(out,phase='two',filt=True)
+            #    dop_plot(field,obj,out[0],decomp=out[1])
+            #    fp=open(field+'/'+obj+suffix+'.pkl','wb')
+            #    pickle.dump([out,gout],fp)
+            #    fp.close()
+            #    return [out,gout]
             return out
         except: 
             print('error loading: ', obj+suffix+'.pkl')
@@ -777,13 +791,22 @@ def dorv(visitfiles) :
     speclist=[]
     for visitfile in visitfiles[1:] :
         spec=doppler.read(visitfile)
+        if windows is not None :
+            for ichip in range(3) :
+                mask = np.full_like(spec.mask[:,ichip],True)
+                gd = []
+                for window in windows :
+                    gd.extend(np.where((spec.wave[:,ichip] > window[0]) & (spec.wave[:,ichip] < window[1]))[0])
+                mask[gd] = False
+                spec.mask[:,ichip] |= mask
+                 
         if spec is not None : speclist.append(spec)
     try:
         print('running jointfit for :',obj)
         print('nvisits: ', len(speclist))
         out= doppler.rv.jointfit(speclist,verbose=verbose,plot=plot,saveplot=True,outdir=field+'/',tweak=tweak)
         print('running decomp for :',obj)
-        gout = gauss_decomp(out)
+        gout = gauss_decomp(out,phase='two',filt=True)
         fp=open(field+'/'+obj+suffix+'.pkl','wb')
         pickle.dump([out,gout],fp)
         fp.close()
@@ -806,59 +829,94 @@ def dorv(visitfiles) :
     return [out,gout]
 
 def gaussian(amp, fwhm, mean):
+    """ Gaussian as defined by gausspy
+    """
     return lambda x: amp * np.exp(-4. * np.log(2) * (x-mean)**2 / fwhm**2)
 
 import gausspy.gp as gp
 
-def gauss_decomp(out) :
-    """ Do Gaussian decompoistion of CCF
+def gauss_decomp(out,phase='one',alpha1=0.5,alpha2=1.5,thresh=[4,4],plot=None,filt=False) :
+    """ Do Gaussian decompoistion of CCF using gausspy
     """
     g = gp.GaussianDecomposer()
-    g.set('phase','one')
-    g.set('SNR_thresh',[4,4])
-    g.set('alpha1',0.5)
-    g.set('alpha2',1.5)
+    g.set('phase',phase)
+    g.set('SNR_thresh',thresh)
+    g.set('alpha1',alpha1)
+    g.set('alpha2',alpha2)
     gout=[]
+    if plot is not None : fig,ax=plots.multi(1,n,hspace=0.001,figsize=(6,2+n))
     for i,(final,spec) in enumerate(zip(out[1],out[3])) :
         x=final['x_ccf']
         y=final['ccf']
-        gout.append(g.decompose(x,y,final['ccferr']))
+        decomp=g.decompose(x,y,final['ccferr'])
+        n=decomp['N_components']
+        if filt and n>0 :
+            # remove components if they are within width of brighter component, or <0.1 peak 
+            for j in range(1,n) :
+                pars_j = decomp['best_fit_parameters'][j::n]
+                for k in range(j) :
+                    pars_k = decomp['best_fit_parameters'][k::n]
+                    if pars_j[0]>pars_k[0] and (abs(pars_j[2]-pars_k[2])<pars_j[1]  or pars_k[0]<0.1*pars_j[0]): 
+                        decomp['best_fit_parameters'][k] = 0
+                        decomp['N_components'] -= 1
+                    elif pars_k[0]>pars_j[0] and (abs(pars_j[2]-pars_k[2])<pars_k[1] or pars_j[0]<0.1*pars_k[0]) : 
+                        decomp['best_fit_parameters'][j] = 0
+                        decomp['N_components'] -= 1
+                  
+        gout.append(decomp)
+        if plot is not None:
+            plots.plotl(ax[i],final['x_ccf'],final['ccf'])
+            ax[i].plot(final['x_ccf'],final['ccferr'],color='r')
+            for j in range(n) :
+                pars=gout[i]['best_fit_parameters'][j::n]
+                ax[i].plot(x,gaussian(*pars)(x))
+                print('pars: {:8.1f}{:8.1f}{:8.1f}'.format(*pars))
+                if pars[0] > 0 : color='k'
+                else : color='r'
+                ax[i].text(0.1,0.8-j*0.1,'{:8.1f}{:8.1f}{:8.1f}'.format(*pars),transform=ax[i].transAxes,color=color)
+            fig.savefig(plot+'_ccf2.png')
     del g
     return gout
 
 def dop_plot(field,obj,out,decomp=None) :
     """ RV diagnostic plots
     """
+    matplotlib.use('Agg')
     n = len(out[2])
     #plot final spectra and final models
     # full spectrum
     fig,ax=plots.multi(1,n,hspace=0.001,figsize=(8,2+n))
+    # continuum
     figc,axc=plots.multi(1,n,hspace=0.001,figsize=(8,2+n))
-    # two windows
-    fig2,ax2=plots.multi(2,n,hspace=0.001,wspace=0.001,figsize=(8,2+n))
+    # windows
+    windows=[[15700,15780],[15850,16000],[16700,16930]]
+    fig2,ax2=plots.multi(len(windows),n,hspace=0.001,wspace=0.001,figsize=(12,2+n))
+
+    # loop over visitis
     for i,(mod,spec) in enumerate(zip(out[2],out[3])) :
         ax[i].plot(spec.wave,spec.flux,color='k')
-        ax2[i,0].plot(spec.wave,spec.flux,color='k')
-        ax2[i,1].plot(spec.wave,spec.flux,color='k')
         for iorder in range(3) :
             gd = np.where(~spec.mask[:,iorder])[0]
             ax[i].plot(spec.wave[gd,iorder],spec.flux[gd,iorder],color='g')
-            ax2[i,0].plot(spec.wave[gd,iorder],spec.flux[gd,iorder],color='g')
-            ax2[i,1].plot(spec.wave[gd,iorder],spec.flux[gd,iorder],color='g')
         ax[i].plot(mod.wave,mod.flux,color='r')
-        ax2[i,0].plot(mod.wave,mod.flux,color='r')
-        ax2[i,1].plot(mod.wave,mod.flux,color='r')
-        ax2[i,0].set_xlim(15700,15800)
-        ax2[i,1].set_xlim(16700,16930)
+        ax[i].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
+        for iwind,wind in enumerate(windows) :
+            ax2[i,iwind].plot(spec.wave,spec.flux,color='k')
+            for iorder in range(3) :
+                gd = np.where(~spec.mask[:,iorder])[0]
+                ax2[i,iwind].plot(spec.wave[gd,iorder],spec.flux[gd,iorder],color='g')
+            ax2[i,iwind].plot(mod.wave,mod.flux,color='r')
+            ax2[i,iwind].set_xlim(wind[0],wind[1])
+            ax2[i,iwind].set_ylim(0.5,1.3)
+            if iwind == 0 : ax2[i,iwind].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax2[i,0].transAxes)
         axc[i].plot(spec.wave,spec.flux*spec.cont,color='k')
         axc[i].plot(spec.wave,spec.cont,color='g')
-        ax[i].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
-        ax2[i,0].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=ax2[i,0].transAxes)
         axc[i].text(0.1,0.1,'{:d}'.format(spec.head['MJD5']),transform=axc[i].transAxes)
     fig.savefig(field+'/'+obj+'_spec.png')
-    fig2.savefig(field+'/'+obj+'_spec2.png')
-    figc.savefig(field+'/'+obj+'_cont.png')
     plt.close()
+    fig2.savefig(field+'/'+obj+'_spec2.png')
+    plt.close()
+    figc.savefig(field+'/'+obj+'_cont.png')
     plt.close()
 
     # plot cross correlation functions with final model
@@ -870,16 +928,19 @@ def dop_plot(field,obj,out,decomp=None) :
         ax[i].plot([final['vrel'],final['vrel']],ax[i].get_ylim(),color='g',label='fit RV')
         ax[i].plot([final['xcorr_vrel'],final['xcorr_vrel']],ax[i].get_ylim(),color='r',label='xcorr RV')
         ax[i].text(0.1,0.9,'{:d}'.format(spec.head['MJD5']),transform=ax[i].transAxes)
-        ax[i].set_xlim(vmed-100,vmed+100)
+        ax[i].set_xlim(vmed-200,vmed+200)
         ax[i].legend()
         if decomp is not None :
             n=decomp[i]['N_components']
+            if n>0 : n=len(decomp[i]['best_fit_parameters'])//3
             x=final['x_ccf']
             for j in range(n) :
                 pars=decomp[i]['best_fit_parameters'][j::n]
                 ax[i].plot(x,gaussian(*pars)(x))
-                print('pars: {:8.1f}{:8.1f}{:8.1f}'.format(*pars))
-                ax[i].text(0.1,0.8-j*0.1,'{:8.1f}{:8.1f}{:8.1f}'.format(*pars),transform=ax[i].transAxes)
+                print('pars: {:8.2f}{:8.1f}{:8.1f}'.format(*pars))
+                if pars[0] > 0 : color='k'
+                else : color='r'
+                ax[i].text(0.1,0.8-j*0.1,'{:8.1f}{:8.1f}{:8.1f}'.format(*pars),transform=ax[i].transAxes,color=color)
     fig.savefig(field+'/'+obj+'_ccf.png')
     plt.close()
 
@@ -927,7 +988,6 @@ def mkhtml(field,suffix='') :
         c.f., Doppler vs IDL
     """
 
-    matplotlib.use('Agg')
     # get Doppler results
     dop = fits.open(field+'/'+field+'_rv.fits')
  
@@ -985,21 +1045,20 @@ def mkhtml(field,suffix='') :
         fp.write('{:s}<br>'.format(star['TARGFLAGS']))
         fp.write('{:s}<br>'.format(star['STARFLAGS']))
 
-        # average veloicities
+        # average velocities
         fp.write('<TABLE BORDER=2>\n')
-        fp.write('<TR><TD><TD>VHELIO_AVG<TD>VSCATTER<TD>VSIGMA<TD>TEFF<TD>LOGG<TD>[FE/H]\n')
-        vsig=dop[2].data['VHELIO'][j].std(ddof=1)
-        fp.write('<TR><TD>Doppler<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.0f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
-                 star['VHELIO_AVG'],star['VSCATTER'],vsig,
+        fp.write('<TR><TD><TD>VHELIO_AVG<TD>VSCATTER<TD>TEFF<TD>LOGG<TD>[FE/H]\n')
+        fp.write('<TR><TD>Doppler<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.0f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
+                 star['VHELIO_AVG'],star['VSCATTER'],
                  star['RV_TEFF'],star['RV_LOGG'],star['RV_FEH']))
-        fp.write('<TR><TD>Doppler Xcorr<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.0f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
+        fp.write('<TR><TD>Doppler Xcorr<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.0f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
                  np.median(dop[2].data['XCORR_VHELIO'][j]),
-                 dop[2].data['XCORR_VHELIO'][j].std(ddof=1),dop[2].data['XCORR_VHELIO'][j].std(ddof=1),
+                 dop[2].data['XCORR_VHELIO'][j].std(ddof=1),
                  star['RV_TEFF'],star['RV_LOGG'],star['RV_FEH']))
         if k>=0 :
             gd = np.where(np.abs(apfieldvisits['VHELIO']) < 999)[0]
-            fp.write('<TR><TD>IDL<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.0f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
-                     apfield['VHELIO_AVG'][k],apfield['VSCATTER'][k],apfieldvisits['VHELIO'][gd].std(ddof=1),
+            fp.write('<TR><TD>IDL<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.0f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
+                     apfield['VHELIO_AVG'][k],apfield['VSCATTER'][k],
                      apfield['RV_TEFF'][k],apfield['RV_LOGG'][k],apfield['RV_FEH'][k]))
         fp.write('</TABLE><br>')
 
@@ -1008,8 +1067,14 @@ def mkhtml(field,suffix='') :
         fp.write('<TR><TD>JD<TD>PLATE<TD>MJD<TD>FIBER<TD>S/N<TD>Doppler xcorr<TD> xcorr_err<TD>Doppler<TD>VERR<TD>IDL<TD>VERR\n')
         for i in j :
             ii = np.where(apfieldvisits['FILE'] == dop[2].data['FILE'][i])[0][0]
-            fp.write(('<TR> <TD> <A HREF={:s} TARGET="_obj"> {:12.3f}</A> <TD> {:s} <TD> {:5d} <TD> {:5d}'+
+            if abs(dop[2].data['VHELIO'][i]-dop[2].data['XCORR_VHELIO'][i]) > 5 : 
+                bgcolor='bgcolor=lightpink'
+            elif abs(dop[2].data['VHELIO'][i]-dop[2].data['XCORR_VHELIO'][i]) > 0 : 
+                bgcolor='#F4DEDE'
+            else : bgcolor=''
+            fp.write(('<TR {:s}> <TD> <A HREF={:s} TARGET="_obj"> {:12.3f}</A> <TD> {:s} <TD> {:5d} <TD> {:5d}'+
                      '<TD> {:8.1f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f}\n').format(
+                      bgcolor,
                       dop[2].data['FILE'][i].replace('.fits','_dopfit.png').replace('-r12-','-r13-'),
                       dop[2].data['JD'][i],dop[2].data['PLATE'][i],dop[2].data['MJD'][i],dop[2].data['FIBERID'][i],
                       dop[2].data['SNR'][i],
@@ -1048,6 +1113,7 @@ def mkhtml(field,suffix='') :
         # include plots
         fp.write('<TD><IMG SRC={:s}.png>\n'.format(obj))
         fp.write('<TD><A HREF={:s}_ccf.png> <IMG SRC={:s}_ccf.png></A>\n'.format(obj,obj))
+        fp.write('<TD><A HREF={:s}_ccf2.png> <IMG SRC={:s}_ccf2.png></A>\n'.format(obj,obj))
         fp.write('<TD><A HREF={:s}_spec.png> <IMG SRC={:s}_spec.png></a>\n'.format(obj,obj))
         fp.write('<TD><A HREF={:s}_spec2.png> <IMG SRC={:s}_spec2.png></a>\n'.format(obj,obj))
         fp.write('<TD><A HREF={:s}_cont.png> <IMG SRC={:s}_cont.png></a>\n'.format(obj,obj))
@@ -1103,3 +1169,31 @@ def overlap(fields) :
         fp.write('<TD><a HREF={:s}.png> <IMG SRC={:s}.png> </a>\n'.format(star,star))
     fp.write('</TABLE>')
     fp.close()
+
+from apogee.aspcap import aspcap
+from apogee.apred import wave
+from apogee.apred import sincint
+
+def visitcomb(allvisit,apred='r13',telescope='apo25m',nres=[5,4.25,3.5]) :
+    """ Combine multiple visits with individual RVs to rest frame sum
+    """
+
+    load = apload.ApLoad(apred=apred,telescope=telescope)
+    cspeed = 2.99792458e5  # speed of light in km/s
+
+    plt.clf()
+    for visit in allvisit :
+
+        apVisit= load.apVisit(int(visit['PLATE']),visit['MJD'],visit['FIBERID'])
+
+        w=aspcap.apStarWave()*(1.0+visit['VREL']/cspeed)
+        new=np.full_like(w,np.nan)
+        print(visit['VREL'])
+        for chip in range(3) :
+            pix=wave.wave2pix(w,apVisit[4].data[chip,:])
+            gd=np.where(np.isfinite(pix))[0]
+            new[gd]=sincint.sincint(pix[gd],nres[chip],apVisit[1].data[chip,:],apVisit[2].data[chip,:])
+        plt.plot(aspcap.apStarWave(),new)
+        plt.draw()
+        
+ 

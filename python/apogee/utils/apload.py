@@ -21,9 +21,6 @@ from sdss import yanny
 import numpy as np
 
 
-from doppler.lsf import GaussianLsf, GaussHermiteLsf
-# LSF class dictionary
-lsfclass = {'gaussian': GaussianLsf, 'gauss-hermite': GaussHermiteLsf}
 from apogee.apred import wave
 from apogee.apred import sincint
 
@@ -65,26 +62,6 @@ class ApSpec() :
         """ Make boolean mask from bitmask with input pixelmask for bad values
         """
         self.mask=(np.bitwise_and(self.bitmask,bdval)!=0) | (np.isfinite(self.flux)==False)
-
-    def Spec1D(self,res=22500) :
-        """ Convert to a Nidever spec1D object, with axes flipped
-        """
-        self.flux = self.flux.T
-        if self.err is not None : self.err = self.err.T
-        if self.bitmask is not None : self.bitmask = self.bitmask.T
-        if self.mask is not None : self.mask = self.mask.T
-        if self.sky is not None : self.sky = self.sky.T
-        if self.skyerr is not None : self.skyerr = self.skyerr.T
-        if self.telluric is not None : self.telluric = self.telluric.T
-        if self.telerr is not None : self.telerr = self.telerr.T
-        bd = np.where( (np.isfinite(self.flux)==False) | (self.err <= 0.0) )[0]
-        if len(bd)>0:
-            self.flux[bd] = 0.0
-            self.err[bd] = 1e30
-            self.mask[bd] = True
-        self.lsftype = 'Gaussian'
-        self.lsfsig =  self.wave/res/2.354
-        self.lsf = lsfclass[self.lsftype.lower()](wave=self.wave,xtype='Wave',lsftype=self.lsftype,sigma=self.lsfsig)
 
     def interp(self,new,nres) :
         """ Interpolate to new wavelengths

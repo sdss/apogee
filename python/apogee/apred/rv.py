@@ -22,6 +22,7 @@ from tools import struct
 from sdss import yanny
 from scipy import interpolate
 from scipy.signal import correlate
+from scipy.ndimage.filters import median_filter, gaussian_filter
 
 colors=['r','g','b','c','m','y','k']
 chips=['a','b','c']
@@ -543,7 +544,7 @@ import multiprocessing as mp
 from astropy.table import Table
 from apogee.apred import bc
 
-def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=500,snmin=5,
+def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,nobj=0,threads=8,maxvisit=500,snmin=3,
                clobber=False,verbose=False,tweak=False,plot=False,windows=None) :
     """ Run DOPPLER RVs for a field
     """ 
@@ -562,65 +563,42 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
 
     # get all unique (or requested) objects
     if obj is None :
-        allobj=set(allvisits['APOGEE_ID'])
+        if nobj > 0 :
+            allobj=set(allvisits['APOGEE_ID'][0:nobj])
+        else :
+            allobj=set(allvisits['APOGEE_ID'])
     else :
         allobj = obj
-    # loop over requested objects
-    """
-    a={file: file_basename(starfile), apogee_id: objname, telescope: apstr.telescope, $
-       location_id: long(locid), field: apstr.field, $
-       j: apstr.j, j_err: apstr.j_err, h: apstr.h, h_err: apstr.h_err, k: apstr.k, k_err: apstr.k_err, $
-       ra: apstr.ra, dec: apstr.dec, glon: apstr.glon, glat: apstr.glat, $
-       ak_targ: float(apstr.ak_targ), ak_targ_method: apstr.ak_targ_method, $
-       ak_wise: float(apstr.ak_wise), sfd_ebv: float(apstr.sfd_ebv),$
-       apogee_target1: apogee_target1, apogee_target2: apogee_target2, apogee_target3: apogee_target3, $
-       apogee2_target1: apogee2_target1, apogee2_target2: apogee2_target2, apogee2_target3: apogee2_target3, $
-       targflags: targflags, survey: survey, programname: allvisits[obj[j[0]]].programname, $
-       ninst: [n1,n2,n3],$
-       nvisits: apstr.nvisits, combtype:apstr.combtype, commiss: commiss, $
-       snr: float(apstr.snr), $
-       starflag: apstr.starflag, starflags: starflag(apstr.starflag), $
-       andflag: apstr.andflag, andflags: starflag(apstr.andflag), $
-       vhelio_avg: float(apstr.vhelio), vscatter: float(apstr.vscatter),$
-       verr: float(apstr.verr), verr_med: float(apstr.verr_med),$
-       obsvhelio_avg: float(apstr.obsvhelio),  obsvscatter: float(apstr.obsvscatter),$
-       obsverr: float(apstr.obsverr), obsverr_med: float(apstr.obsverr_med),$
-       synthvhelio_avg: float(apstr.synthvhelio),  synthvscatter: float(apstr.synthvscatter),$
-       synthverr: float(apstr.synthverr), synthverr_med: float(apstr.synthverr_med),$
-       rv_teff: float(apstr.rv_teff), rv_logg: float(apstr.rv_logg), rv_feh: float(apstr.rv_feh),$
-       rv_alpha: float(apstr.rv_alpha), rv_carb: float(apstr.rv_carb), $
-       rv_ccfwhm: float(apstr.ccpfwhm), rv_autofwhm: float(apstr.autofwhm), synthscatter: float(apstr.synthscatter),$
-       ;binary: apstr.rv.binary, $
-       stablerv_chi2: apstr.rv.stablerv_chi2, $
-       stablerv_rchi2: apstr.rv.stablerv_rchi2, chi2_threshold: apstr.rv.chi2_threshold, $
-       stablerv_chi2_prob: apstr.rv.stablerv_chi2_prob}
-    b={spec: apstr.spec[*,0], err: apstr.err[*,0], mask: apstr.mask[*,0]}
-    c={wave: apstr.wavelength[*,0]}
-    """
+
+    # output apField structure
     fieldtype = np.dtype([('FILE','S64'),('APOGEE_ID','S20'),('TELESCOPE','S6'),('LOCATION_ID',int),('FIELD','S20'),
                           ('J',float),('J_ERR',float),('H',float),('H_ERR',float),('K',float),('K_ERR',float),
                           ('RA',float),('DEC',float),('GLON',float),('GLAT',float),
+                          ('AK_TARG',float),('AK_TARG_METHOD','S32'),
+                          ('AK_WISE',float),('SFD_EBV',float),
                           ('APOGEE_TARGET1',int),('APOGEE_TARGET2',int),('APOGEE_TARGET3',int),
                           ('APOGEE2_TARGET1',int),('APOGEE2_TARGET2',int),('APOGEE2_TARGET3',int),('APOGEE2_TARGET4',int),
-                          ('TARGFLAGS','S132'),
+                          ('TARGFLAGS','S132'),('SURVEY','S16'),('PROGRAMNAME','S32'),
+                          ('NINST',int),('NVISITS',int),('COMBTYPE',int),('COMMISS',int),
                           ('SNR',float),('STARFLAG',float),('STARFLAGS','S132'),('ANDFLAG',float),('ANDFLAGS','S132'),
                           ('VHELIO_AVG',float),('VSCATTER',float),('VERR',float),
-                          ('RV_TEFF',float),('RV_LOGG',float),('RV_FEH',float),
+                          ('RV_TEFF',float),('RV_LOGG',float),('RV_FEH',float),('RV_ALPHA',float),('RV_CARB',float),
+                          ('RV_CCPFWHM',float),('RV_AUTOFWHM',float),
                           ('N_COMPONENTS',int)
                          ])
-   
     allfield = np.zeros(len(allobj),dtype=fieldtype)
     allfield['TELESCOPE'] = telescope
     allfield['FIELD'] = field
+
     allfiles=[]
     allv=[]
-    load=apload.ApLoad(apred=apred)
+    load=apload.ApLoad(apred=apred,telescope=telescope)
     nobj=0
     nvisit=0
-    #allvisits['FWHM'] = np.zeros([len(allvisits),3])
+    pixelmask=bitmask.PixelBitMask()
 
-    # loop over all objects, building up list of [(field,obj,clobber),filenames....] to 
-    #   pass to dorv()
+    # loop over requested objects, building up allfiles list of 
+    #  [(field,obj,clobber,verbose,tweak,plot,windows),filenames....] to pass to dorv()
     for iobj,star in enumerate(sorted(allobj)) :
         if type(star) is str : star=star.encode()
         allfield['APOGEE_ID'][iobj] = star
@@ -630,27 +608,9 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
         nobj+=1
         nvisit+=len(visits)
 
-        specfiles=[(field,star,clobber,verbose,tweak,plot,windows)]
-        for i,visit in enumerate(visits) :
-            if i < maxvisit :
-                # accumulate list of files
-                visitfile= load.allfile('Visit',plate=int(allvisits['PLATE'][gd[visit]]),
-                                        mjd=allvisits['MJD'][gd[visit]],fiber=allvisits['FIBERID'][gd[visit]])
-                specfiles.append(visitfile)
-                if telescope eq 'lco25m' : obs='LCO' 
-                else : obs='APO'
-                allvisits['BC'][gd[visit]] = 
-                    getbc(allvisits['RA'][gd[visit]],allvisits['DEC'][gd[visit]],allvisits['JD'][gd[visit]],obs=obs)
-    #            spec=doppler.read(visitfile)
-    #            fwhm=[]
-    #            for chip in range(3) : 
-    #                try: fwhm.append(spec.lsf.fwhm(order=chip).min())
-    #                except: fwhm.append(0.)
-    #            allvisits['FWHM'][visit] = np.array(fwhm)
         if len(visits) > 0 :
-            allfiles.append(specfiles)
-            allv.append(visits)
-       
+            allfiles.append([allvisits[gd[visits]],load,(field,star,clobber,verbose,tweak,plot,windows)])
+
     print('total objects: ', nobj, ' total visits: ', nvisit) 
     if threads == 0 :
         output=[]
@@ -674,13 +634,14 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
     allvisits['N_COMPONENTS'] = -1
 
     # load up the individual visit RV information
+    allv=[]
     for out,files in zip(output,allfiles) :
         starflag, andflag = 0, 0
         apogee_target1, apogee_target2, apogee_target3 = 0, 0, 0
         apogee2_target1, apogee2_target2, apogee2_target3, apogee2_target4 = 0, 0, 0, 0
         try :
           if out is not None :
-            allv=[]
+            visits=[]
             ncomponents=0
             for i,v in enumerate(out[0][1]) :
                 # match by filename components in case there was an error reading in doppler
@@ -688,13 +649,14 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
                 visit = np.where( (np.char.strip(allvisits['PLATE']).astype(str) == name[-3]) &
                                   (allvisits['MJD'] == int(name[-2])) &
                                   (allvisits['FIBERID'] == int(name[-1])) )[0][0]
-                allv.append(visit)
+                visits.append(visit)
                 allvisits[visit]['VREL']=v['vrel']
                 allvisits[visit]['VRELERR']=v['vrelerr']
                 allvisits[visit]['VHELIO']=v['vhelio']
                 allvisits[visit]['XCORR_VREL']=v['xcorr_vrel']
                 allvisits[visit]['XCORR_VRELERR']=v['xcorr_vrelerr']
                 allvisits[visit]['XCORR_VHELIO']=v['xcorr_vhelio']
+                allvisits[visit]['BC']=v['bc']
                 starflag |= allvisits[visit]['STARFLAG']
                 andflag &= allvisits[visit]['STARFLAG']
                 if allvisits[visit]['SURVEY'] == 'apogee' :
@@ -710,16 +672,14 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
                 allvisits[visit]['N_COMPONENTS']=out[1][i]['N_components']
                 ncomponents=np.max([ncomponents,out[1][i]['N_components']])
 
-            allv=np.array(allv)
+            visits=np.array(visits)
 
-            #visitcomb(allvisits[allv]) 
-
-            j = np.where(allfield['APOGEE_ID'] == files[0][1])[0]
-            allfield['RA'][j] = allvisits['RA'][allv[0]]
-            allfield['DEC'][j] = allvisits['DEC'][allv[0]]
+            j = np.where(allfield['APOGEE_ID'] == files[-1][1])[0]
+            allfield['RA'][j] = allvisits['RA'][visits[0]]
+            allfield['DEC'][j] = allvisits['DEC'][visits[0]]
             for key in ['J','J_ERR','H','H_ERR','K','K_ERR'] :
-                gd=np.where(abs(allvisits[key][allv])< 99.)[0]
-                if len(gd) > 0 : allfield[key][j] = allvisits[key][allv[gd]].max()
+                gd=np.where(abs(allvisits[key][visits])< 99.)[0]
+                if len(gd) > 0 : allfield[key][j] = allvisits[key][visits[gd]].max()
             allfield['APOGEE_TARGET1'][j] = apogee_target1
             allfield['APOGEE_TARGET2'][j] = apogee_target2
             allfield['APOGEE_TARGET3'][j] = apogee_target3
@@ -742,7 +702,26 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
             allfield['RV_FEH'][j] = out[0][0]['feh']
             allfield['N_COMPONENTS'][j] = ncomponents
 
+            # set up visit combination, removing visits with suspect RVs
+            apogee_id=files[-1][1].decode() 
+            gd = np.where(np.abs(allvisits[visits]['VHELIO']-allvisits[visits]['XCORR_VHELIO']) < 5) [0]
+            if len(gd) < 1 : continue
+
+            allv.append([allvisits[visits[gd]],load,(field,apogee_id,clobber)])
+
         except : pdb.set_trace()
+
+    # do the visit combination
+    if threads == 0 :
+        output=[]
+        for v in allv :
+            output.append(dovisitcomb(v))
+    else :
+        pool = mp.Pool(threads)
+        output = pool.map_async(dovisitcomb, allv).get()
+        pool.close()
+        pool.join()
+    print('done visitcomb pool pool')
 
     #output file with allfield and allvisits
     hdulist=fits.HDUList()
@@ -761,13 +740,17 @@ def doppler_rv(field,telescope='apo25m',apred='r13',obj=None,threads=8,maxvisit=
 def dorv(visitfiles) :            
     """ do the rv jointfit from list of files
     """
-    field=visitfiles[0][0]
-    obj=visitfiles[0][1].decode('UTF-8')
-    clobber=visitfiles[0][2]
-    verbose=visitfiles[0][3]
-    tweak=visitfiles[0][4]
-    plot=visitfiles[0][5]
-    windows=visitfiles[0][6]
+    # last list elements has configuration variables in a tuple
+    allvisit = visitfiles[0]
+    load = visitfiles[1]
+    field=visitfiles[-1][0]
+    obj=visitfiles[-1][1].decode('UTF-8')
+    clobber=visitfiles[-1][2]
+    verbose=visitfiles[-1][3]
+    tweak=visitfiles[-1][4]
+    plot=visitfiles[-1][5]
+    windows=visitfiles[-1][6]
+    #rvrange=visitfiles[-1][7]
     if tweak: suffix='_tweak'
     else : suffix='_out'
     if os.path.exists(field+'/'+obj+suffix+'.pkl') and not clobber:
@@ -789,7 +772,27 @@ def dorv(visitfiles) :
             pass
 
     speclist=[]
-    for visitfile in visitfiles[1:] :
+    #for visitfile in visitfiles[0:-1] :
+    lowsnr_visits=np.where(allvisit['SNR']<10)[0]
+    if len(lowsnr_visits)/len(allvisit) > 0.1 :
+        try :
+            pixelmask=bitmask.PixelBitMask()
+            apstar_bc=visitcomb(allvisit,bconly=True,load=load) 
+            apstar_bc.mask(pixelmask.badval()|pixelmask.getval('SIG_SKYLINE'))
+            spec=doppler.Spec1D(apstar_bc.flux,err=apstar_bc.err,bitmask=apstar_bc.bitmask,
+                 mask=apstar_bc.mask,wave=apstar_bc.wave,lsfpars=np.array([0]),lsfsigma=apstar_bc.wave/22500/2.354,instrument='APOGEE',
+                 filename=apstar_bc.filename)
+            out= doppler.rv.jointfit([spec],verbose=verbose,plot=plot,tweak=tweak,maxvel=[-500,500])
+            rvrange=[out[1][0]['vrel']-50,out[1][0]['vrel']+50]
+        except :
+            print('  BC jointfit failed')
+            rvrange=[-500,500]
+    else: rvrange=[-500,500]
+
+    for i in range(len(allvisit)) :
+
+        visitfile= load.allfile('Visit',plate=int(allvisit['PLATE'][i]),
+                                 mjd=allvisit['MJD'][i],fiber=allvisit['FIBERID'][i])
         spec=doppler.read(visitfile)
         if windows is not None :
             for ichip in range(3) :
@@ -804,9 +807,9 @@ def dorv(visitfiles) :
     try:
         print('running jointfit for :',obj)
         print('nvisits: ', len(speclist))
-        out= doppler.rv.jointfit(speclist,verbose=verbose,plot=plot,saveplot=True,outdir=field+'/',tweak=tweak)
+        out= doppler.rv.jointfit(speclist,verbose=verbose,plot=plot,saveplot=True,outdir=field+'/',tweak=tweak,maxvel=rvrange)
         print('running decomp for :',obj)
-        gout = gauss_decomp(out,phase='two',filt=True)
+        gout = gauss_decomp(out[1],phase='two',filt=True)
         fp=open(field+'/'+obj+suffix+'.pkl','wb')
         pickle.dump([out,gout],fp)
         fp.close()
@@ -826,7 +829,45 @@ def dorv(visitfiles) :
         print('Exception raised for: ', field, obj)
         return
 
-    return [out,gout]
+    return [out[0:2],gout]
+
+def dovisitcomb(allv) :
+    """ Routine to do visit combination in parallel
+    """
+    allvisits = allv[0]
+    load = allv[1]
+    field = allv[2][0]
+    apogee_id = allv[2][1]
+    clobber = allv[2][2]
+    pixelmask=bitmask.PixelBitMask()
+
+    # already done?
+    if os.path.exists(field+'/'+apogee_id+'.pkl') and not clobber:
+        print(apogee_id,' already done visitcomb')
+        fp=open(field+'/'+apogee_id+'.pkl','rb')
+        try: 
+            out=pickle.load(fp)
+            fp.close()
+            return out
+        except: 
+            print('error loading: ', apogee_id+'.pkl')
+            pass
+
+    # do the combination
+    apstar=visitcomb(allvisits,load=load,plot=False)
+
+    # dump
+    pickle.dump(apstar,open(field+'/'+apogee_id+'.pkl','wb'))
+
+    # plot
+    gd=np.where((apstar.bitmask & (pixelmask.badval()|pixelmask.getval('SIG_SKYLINE'))) == 0) [0]
+    fig,ax=plots.multi(1,2,hspace=0.001,figsize=(24,6))
+    med=np.nanmedian(apstar.flux)
+    plots.plotl(ax[0],aspcap.apStarWave(),apstar.flux,color='k',yr=[0,2*med])
+    ax[0].plot(aspcap.apStarWave()[gd],apstar.flux[gd],color='g')
+    plots.plotl(ax[1],aspcap.apStarWave(),apstar.flux/apstar.err)
+    fig.savefig(field+'/'+apogee_id+'.png')
+    return apstar
 
 def gaussian(amp, fwhm, mean):
     """ Gaussian as defined by gausspy
@@ -836,7 +877,16 @@ def gaussian(amp, fwhm, mean):
 import gausspy.gp as gp
 
 def gauss_decomp(out,phase='one',alpha1=0.5,alpha2=1.5,thresh=[4,4],plot=None,filt=False) :
-    """ Do Gaussian decompoistion of CCF using gausspy
+    """ Do Gaussian decomposition of CCF using gausspy
+
+        Parameters:
+        out : list of dictionaries for each frame, giving x_ccf, ccf, and ccferr
+        phase : gausspy paramater
+        alpha1 : gausspy parameter
+        alpha2 : gausspy parameter for second set of gaussians if phase=='two'
+        thresh : gausspy parameter
+        plot (str) : if not None, do plot and use as root file name for plot
+        filt (bool) : if true, apply filtering to remove components judged to be insignificant
     """
     g = gp.GaussianDecomposer()
     g.set('phase',phase)
@@ -845,21 +895,22 @@ def gauss_decomp(out,phase='one',alpha1=0.5,alpha2=1.5,thresh=[4,4],plot=None,fi
     g.set('alpha2',alpha2)
     gout=[]
     if plot is not None : fig,ax=plots.multi(1,n,hspace=0.001,figsize=(6,2+n))
-    for i,(final,spec) in enumerate(zip(out[1],out[3])) :
-        x=final['x_ccf']
-        y=final['ccf']
-        decomp=g.decompose(x,y,final['ccferr'])
+    for i,final in enumerate(out) :
+        gd=np.where(np.isfinite(final['x_ccf']))[0]
+        x=final['x_ccf'][gd]
+        y=final['ccf'][gd]
+        decomp=g.decompose(x,y,final['ccferr'][gd])
         n=decomp['N_components']
         if filt and n>0 :
-            # remove components if they are within width of brighter component, or <0.1 peak 
+            # remove components if they are within width of brighter component, or <0.25 peak 
             for j in range(1,n) :
                 pars_j = decomp['best_fit_parameters'][j::n]
                 for k in range(j) :
                     pars_k = decomp['best_fit_parameters'][k::n]
-                    if pars_j[0]>pars_k[0] and (abs(pars_j[2]-pars_k[2])<pars_j[1]  or pars_k[0]<0.1*pars_j[0]): 
+                    if pars_j[0]>pars_k[0] and (abs(pars_j[2]-pars_k[2])<pars_j[1]  or pars_k[0]<0.25*pars_j[0]): 
                         decomp['best_fit_parameters'][k] = 0
                         decomp['N_components'] -= 1
-                    elif pars_k[0]>pars_j[0] and (abs(pars_j[2]-pars_k[2])<pars_k[1] or pars_j[0]<0.1*pars_k[0]) : 
+                    elif pars_k[0]>pars_j[0] and (abs(pars_j[2]-pars_k[2])<pars_k[1] or pars_j[0]<0.25*pars_k[0]) : 
                         decomp['best_fit_parameters'][j] = 0
                         decomp['N_components'] -= 1
                   
@@ -874,7 +925,7 @@ def gauss_decomp(out,phase='one',alpha1=0.5,alpha2=1.5,thresh=[4,4],plot=None,fi
                 if pars[0] > 0 : color='k'
                 else : color='r'
                 ax[i].text(0.1,0.8-j*0.1,'{:8.1f}{:8.1f}{:8.1f}'.format(*pars),transform=ax[i].transAxes,color=color)
-            fig.savefig(plot+'_ccf2.png')
+            fig.savefig(plot+'_ccf.png')
     del g
     return gout
 
@@ -946,6 +997,8 @@ def dop_plot(field,obj,out,decomp=None) :
 
 from scipy.signal import convolve
 def dop_comp(field) :
+    """ Compare RVs from different data releases
+    """
     dop = fits.open(field+'/'+field+'_rv.fits')
     r13 = apload.ApLoad(apred='r13')
     old = r13.apField(field)
@@ -1017,7 +1070,7 @@ def mkhtml(field,suffix='') :
     fp.write('<A HREF={:s}_rvhist.png> <IMG SRC={:s}_rvhist.png> </A>'.format(field,field))
     
     fp.write('<TABLE BORDER=2 CLASS=sortable>\n')
-    fp.write('<TR><TD>Obj<TD>Delta(VSCATTER)<TD>H<TD>Doppler RV_TEFF<TD>RV plot\n')
+    fp.write('<TR><TD>Obj<TD>Delta(VSCATTER)<TD>H<TD>Doppler RV_TEFF<TD>N_components<TD>RV plot<TD>Spectrum<TD>Spectrum windows<TD> continuum\n')
     for star in dop[1].data :
         obj=star['APOGEE_ID']
         print(obj)
@@ -1064,23 +1117,26 @@ def mkhtml(field,suffix='') :
 
         # individual visit velocities
         fp.write('<TABLE BORDER=2>')
-        fp.write('<TR><TD>JD<TD>PLATE<TD>MJD<TD>FIBER<TD>S/N<TD>Doppler xcorr<TD> xcorr_err<TD>Doppler<TD>VERR<TD>IDL<TD>VERR\n')
+        fp.write('<TR><TD>JD<TD>PLATE<TD>MJD<TD>FIBER<TD>S/N<TD>Doppler xcorr<TD> xcorr_err<TD>Doppler<TD>VERR<TD>IDL<TD>VERR,<TD>BC<TD>BC\n')
         for i in j :
             ii = np.where(apfieldvisits['FILE'] == dop[2].data['FILE'][i])[0][0]
-            if abs(dop[2].data['VHELIO'][i]-dop[2].data['XCORR_VHELIO'][i]) > 5 : 
+            if np.isfinite(dop[2].data['VHELIO'][i]) == False :
+                bgcolor='bgcolor=red'
+            elif abs(dop[2].data['VHELIO'][i]-dop[2].data['XCORR_VHELIO'][i]) > 5 : 
                 bgcolor='bgcolor=lightpink'
             elif abs(dop[2].data['VHELIO'][i]-dop[2].data['XCORR_VHELIO'][i]) > 0 : 
-                bgcolor='#F4DEDE'
+                bgcolor='bgcolor=#F4DEDE'
             else : bgcolor=''
             fp.write(('<TR {:s}> <TD> <A HREF={:s} TARGET="_obj"> {:12.3f}</A> <TD> {:s} <TD> {:5d} <TD> {:5d}'+
-                     '<TD> {:8.1f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f}\n').format(
+                     '<TD> {:8.1f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f}'+
+                     '<TD> {:8.2f} <TD> {:8.2f} <TD>{:8.2f}\n').format(
                       bgcolor,
                       dop[2].data['FILE'][i].replace('.fits','_dopfit.png').replace('-r12-','-r13-'),
                       dop[2].data['JD'][i],dop[2].data['PLATE'][i],dop[2].data['MJD'][i],dop[2].data['FIBERID'][i],
                       dop[2].data['SNR'][i],
                       dop[2].data['XCORR_VHELIO'][i],dop[2].data['XCORR_VRELERR'][i],
                       dop[2].data['VHELIO'][i],dop[2].data['VRELERR'][i],
-                      apfieldvisits['VHELIO'][ii],apfieldvisits['VRELERR'][ii]))
+                      apfieldvisits['VHELIO'][ii],apfieldvisits['VRELERR'][ii],dop[2].data['ESTBC'][i],dop[2].data['BC'][i],apfieldvisits['BC'][ii]))
         fp.write('</TABLE>')
 
         # vscatter difference with IDL
@@ -1091,6 +1147,8 @@ def mkhtml(field,suffix='') :
 
         # plot visit RVs
         vhelio=dop[2].data['VHELIO'][j]
+        gd_dop = np.where(np.abs(vhelio - dop[2].data['XCORR_VHELIO'][j]) <= 5)[0]
+        bd_dop = np.where(np.abs(vhelio - dop[2].data['XCORR_VHELIO'][j]) > 5)[0]
         vidl=apfieldvisits['VHELIO'][jj]
         gd = np.where(np.abs(vidl) < 999)[0]
         vmax=np.nanmax(np.append(vhelio,vidl[gd]))
@@ -1098,22 +1156,24 @@ def mkhtml(field,suffix='') :
         yr=[vmin-0.1*(vmax-vmin),vmax+0.1*(vmax-vmin)]
         try :
             fig,ax=plots.multi(1,1)
-            plots.plotp(ax,dop[2].data['MJD'][j],vhelio,size=15,color='g',yr=yr,label='Doppler')
+            if len(gd_dop) > 0 : plots.plotp(ax,dop[2].data['MJD'][j[gd_dop]],vhelio[gd_dop],size=15,color='g',yr=yr,label='Doppler')
+            if len(bd_dop) > 0 : ax.scatter(dop[2].data['MJD'][j[bd_dop]],vhelio[bd_dop],s=15,
+                                            facecolors='none',edgecolors='g',label='rejected Doppler')
             plots.plotp(ax,apfieldvisits['MJD'][jj[gd]],vidl[gd],size=15,color='r',yr=yr,label='IDL')
             ax.plot(ax.get_xlim(),[star['VHELIO_AVG'],star['VHELIO_AVG']],color='g')
             ax.plot(ax.get_xlim(),[apfield['VHELIO_AVG'][k],apfield['VHELIO_AVG'][k]],color='r')
             ax.legend()
-            fig.savefig(field+'/'+obj+'.png')
+            fig.savefig(field+'/'+obj+'_rv.png')
             plt.close()
         except KeyboardInterrupt: raise
         except :
-             pdb.set_trace()
+             plt.close()
              pass
 
         # include plots
         fp.write('<TD><IMG SRC={:s}.png>\n'.format(obj))
+        fp.write('<TD><IMG SRC={:s}_rv.png>\n'.format(obj))
         fp.write('<TD><A HREF={:s}_ccf.png> <IMG SRC={:s}_ccf.png></A>\n'.format(obj,obj))
-        fp.write('<TD><A HREF={:s}_ccf2.png> <IMG SRC={:s}_ccf2.png></A>\n'.format(obj,obj))
         fp.write('<TD><A HREF={:s}_spec.png> <IMG SRC={:s}_spec.png></a>\n'.format(obj,obj))
         fp.write('<TD><A HREF={:s}_spec2.png> <IMG SRC={:s}_spec2.png></a>\n'.format(obj,obj))
         fp.write('<TD><A HREF={:s}_cont.png> <IMG SRC={:s}_cont.png></a>\n'.format(obj,obj))
@@ -1174,26 +1234,134 @@ from apogee.aspcap import aspcap
 from apogee.apred import wave
 from apogee.apred import sincint
 
-def visitcomb(allvisit,apred='r13',telescope='apo25m',nres=[5,4.25,3.5]) :
+def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.5],bconly=False,plot=False) :
     """ Combine multiple visits with individual RVs to rest frame sum
     """
 
-    load = apload.ApLoad(apred=apred,telescope=telescope)
+    if load is None : load = apload.ApLoad(apred=apred,telescope=telescope)
     cspeed = 2.99792458e5  # speed of light in km/s
 
-    plt.clf()
-    for visit in allvisit :
+    wnew=aspcap.apStarWave()  
+    nwave=len(wnew)
+    nvisit=len(allvisit)
 
-        apVisit= load.apVisit(int(visit['PLATE']),visit['MJD'],visit['FIBERID'])
+    # initialize array for stack of interpolated spectra
+    zeros = np.zeros([nvisit,nwave])
+    izeros = np.zeros([nvisit,nwave],dtype=int)
+    stack=apload.ApSpec(zeros,err=zeros.copy(),bitmask=izeros,cont=zeros.copy(),
+                sky=zeros.copy(),skyerr=zeros.copy(),telluric=zeros.copy(),telerr=zeros.copy())
 
-        w=aspcap.apStarWave()*(1.0+visit['VREL']/cspeed)
-        new=np.full_like(w,np.nan)
-        print(visit['VREL'])
+    # loop over each visit and interpolate to final wavelength grid
+    if plot : fig,ax=plots.multi(1,2,hspace=0.001)
+    for i,visit in enumerate(allvisit) :
+
+        if bconly : vrel = -visit['BC']
+        else : vrel = visit['VREL']
+
+        # skip if we don't have an RV
+        if np.isfinite(vrel) is False : continue
+
+        # load the visit
+        apvisit=load.apVisit(int(visit['PLATE']),visit['MJD'],visit['FIBERID'],load=True)
+        pixelmask=bitmask.PixelBitMask()
+
+        # rest-frame wavelengths transformed to this visit spectra
+        w=aspcap.apStarWave()*(1.0+vrel/cspeed)
+        print(vrel)
+
+        # loop over the chips
         for chip in range(3) :
-            pix=wave.wave2pix(w,apVisit[4].data[chip,:])
+
+            # get the pixel values to interpolate to
+            pix=wave.wave2pix(w,apvisit.wave[chip,:])
             gd=np.where(np.isfinite(pix))[0]
-            new[gd]=sincint.sincint(pix[gd],nres[chip],apVisit[1].data[chip,:],apVisit[2].data[chip,:])
-        plt.plot(aspcap.apStarWave(),new)
+
+            # get a smoothed, filtered spectrum to use as replacement for bad values
+            cont = gaussian_filter(median_filter(apvisit.flux[chip,:],[501],mode='reflect'),100)
+            errcont = gaussian_filter(median_filter(apvisit.flux[chip,:],[501],mode='reflect'),100)
+            bd = np.where(apvisit.bitmask[chip,:]&pixelmask.badval())[0]
+            if len(bd) > 0 : 
+                apvisit.flux[chip,bd] = cont[bd] 
+                apvisit.err[chip,bd] = errcont[bd] 
+
+            # load up quantity/error pairs for interpolation
+            raw=[[apvisit.flux[chip,:],apvisit.err[chip,:]**2],
+                 [apvisit.sky[chip,:],apvisit.skyerr[chip,:]**2],
+                 [apvisit.telluric[chip,:],apvisit.telerr[chip,:]**2]]
+
+            # load up individual mask bits
+            for ibit,name in enumerate(pixelmask.name) :
+                if name is not '' and len(np.where(apvisit.bitmask[chip,:]&2**ibit)[0]) > 0 :
+                    raw.append([np.clip(apvisit.bitmask[chip,:]&2**ibit,None,1),None])
+
+            # do the sinc interpolation
+            out=sincint.sincint(pix[gd],nres[chip],raw)
+
+            # from output flux, get continuum to remove, so that all spectra are
+            #   on same scale. We'll later multiply in the median continuum
+            flux = out[0][0]
+            stack.cont[i,gd] = gaussian_filter(median_filter(flux,[501],mode='reflect'),100)
+
+            # load interpolated spectra into output stack
+            stack.flux[i,gd] = out[0][0] / stack.cont[i,gd]
+            stack.err[i,gd] = out[0][1] / stack.cont[i,gd]
+            stack.sky[i,gd] = out[1][0]
+            stack.skyerr[i,gd] = out[1][1]
+            stack.telluric[i,gd] = out[2][0]
+            stack.telerr[i,gd] = out[2][1]
+            # for mask, set bits where interpolated value is above some threshold
+            #   defined for each mask bit
+            iout=3
+            for ibit,name in enumerate(pixelmask.name) :
+                if name is not '' and len(np.where(apvisit.bitmask[chip,:]&2**ibit)[0]) > 0 :
+                    j = np.where(np.abs(out[iout][0]) > pixelmask.maskcontrib[ibit])[0]
+                    stack.bitmask[i,gd[j]] |= 2**ibit
+                    iout+=1
+
+        # increase uncertainties for persistence pixels
+        bd = np.where((stack.bitmask[i,:]&pixelmask.getval('PERSIST_HIGH')) > 0)[0]
+        if len(bd) > 0 : stack.err[i,bd] *= np.sqrt(5)
+        bd = np.where(((stack.bitmask[i,:]&pixelmask.getval('PERSIST_HIGH')) == 0) &
+                      ((stack.bitmask[i,:]&pixelmask.getval('PERSIST_MED')) > 0) )[0]
+        if len(bd) > 0 : stack.err[i,bd] *= np.sqrt(4)
+        bd = np.where(((stack.bitmask[i,:]&pixelmask.getval('PERSIST_HIGH')) == 0) &
+                      ((stack.bitmask[i,:]&pixelmask.getval('PERSIST_MED')) == 0) &
+                      ((stack.bitmask[i,:]&pixelmask.getval('PERSIST_LOW')) == 0) )[0]
+        if len(bd) > 0 : stack.err[i,bd] *= np.sqrt(3)
+        bd = np.where((stack.bitmask[i,:]&pixelmask.getval('SIG_SKYLINE')) > 0)[0]
+        if len(bd) > 0 : stack.err[i,bd] *= np.sqrt(100)
+
+        if plot :
+            ax[0].plot(aspcap.apStarWave(),stack.flux[i,:])
+            ax[1].plot(aspcap.apStarWave(),stack.flux[i,:]/stack.err[i,:])
+            plt.draw()
+            pdb.set_trace()
+
+    # create final spectrum
+    zeros = np.zeros(nwave)
+    izeros = np.zeros(nwave,dtype=int)
+    apstar=apload.ApSpec(zeros,err=zeros.copy(),bitmask=izeros,wave=aspcap.apStarWave(),
+                sky=zeros.copy(),skyerr=zeros.copy(),telluric=zeros.copy(),telerr=zeros.copy())
+
+    # pixel-by-pixel weighted average
+    cont = np.median(stack.cont,axis=0)
+    apstar.flux = np.sum(stack.flux/stack.err**2,axis=0)/np.sum(1./stack.err**2,axis=0) * cont
+    apstar.err =  np.sqrt(1./np.sum(1./stack.err**2,axis=0)) * cont
+    apstar.bitmask = np.bitwise_and.reduce(stack.bitmask,0)
+
+    if plot : 
+        ax[0].plot(aspcap.apStarWave(),apstar.flux,color='k')
+        ax[1].plot(aspcap.apStarWave(),apstar.flux/apstar.err,color='k')
         plt.draw()
-        
- 
+        pdb.set_trace()
+
+    return apstar
+
+def emission(spec) :
+    """ Try to flag emission lines
+    """
+
+    for chip in range(3)  :
+        cont = gaussian_filter(median_filter(spec.flux[chip,:],[501],mode='reflect'),100)
+        emiss = np.where(((spec.flux[chip,:]/cont) > 1.10)  &
+                         (spec.bitmask[chip,:]&(pixelmask.badval()|pixelmask.getval('SIG_SKYLINE'))) ) [0]

@@ -716,16 +716,26 @@ def skycal(planfile,out=None,inst=None,waveid=None,group=-1,skyfile='airglow',ve
         if nosky :
             w = np.zeros(4)
         else :
-            linestr = findlines(frame,skyrows,waves,skylines,out=f,estsig=1)
 
             # only use USEWAVE=1 lines for fit (can output others to derive wavelengths)
             gd = np.where(skylines['USEWAVE'] == 1)[0]
-            use=[]
-            for line in skylines['WAVE'][gd] :
-                j=np.where((linestr['wave'] == line) & (linestr['peak'] > 500.) )[0]
-                print(line,len(j),linestr['wave_found'][j].mean(),linestr['wave_found'][j].std())
-                use.extend(j)
-            use=np.array(use)
+            nuse = 0
+            fact = 1.
+            niter = 0
+            while (nuse < 0.9*len(gd)) & (niter < 0.75*len(skyrows)) :
+                linestr = findlines(frame,skyrows,waves,skylines,out=f,estsig=1.*fact)
+                use=[]
+                nuse = 0
+                for line in skylines['WAVE'][gd] :
+                    j=np.where((linestr['wave'] == line) & (linestr['peak'] > 500.) )[0]
+                    print(line,len(j),linestr['wave_found'][j].mean(),linestr['wave_found'][j].std())
+                    use.extend(j)
+                    # if we found this line in more than 5 fibers, count it
+                    if len(j) > 5: nuse+=1
+                use=np.array(use)
+                print('fact : {:f} nuse: {:d}  ngd: {:d}'.format(fact,nuse,len(gd)))
+                fact *= 1.15
+                niter += 1
 
             # remove persistence affected fibers
             if int(p['mjd']) < 56860 and inst == 'apogee-n' :

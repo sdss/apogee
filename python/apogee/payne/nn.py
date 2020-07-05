@@ -470,7 +470,7 @@ def test(pmn, pstd, mn, std, weights, biases,n=100, t0=[3750.,4500.], g0=2., mh0
         if i == 0 : ax[i,it0].set_title('{:8.0f}{:7.2f}{:7.2f}'.format(t0[it0],g0,mh0))
     fig.tight_layout()
 
-def fitinput(file,model,threads=8,nfit=8,dofit=True,order=4,pixel_model=False,normalize=False,raw=False, 
+def fitinput(file,model,threads=8,nfit=8,dofit=True,order=4,pixel_model=False,normalize=False,raw=False,
              validation=True,mcmc=False,err=0.005,ferre=False,plotspec=False,medfilt=400,pixels=None,trim=False) :
     """ Solves for parameters using input spectra and NN model
     """
@@ -541,7 +541,7 @@ def fitinput(file,model,threads=8,nfit=8,dofit=True,order=4,pixel_model=False,no
         if mcmc :
             newspecs=[]
             for i in range(nfit) :
-                newspecs.append((specs[i][0],specs[i][1],output[i,:],specs[i][3]))
+                newspecs.append((specs[i][0],specs[i][1],output[i,:]))
             pdb.set_trace()
             for i in range(0,nfit,10) :
                 out=solve_mcmc(newspecs[i])
@@ -657,7 +657,8 @@ def lnprob(pars,s,serr) :
 def solve_mcmc(spec, nburn=50, nsteps=500, nwalkers=100, eps=0.01) :
     s=spec[0]
     serr=spec[1]
-    init=spec[2]
+    init=spec[2]   
+    star=spec[3]
     ndim = len(init)
     pix = np.arange(0,len(s),1)
     gd = np.where(np.isfinite(s))[0]
@@ -667,8 +668,8 @@ def solve_mcmc(spec, nburn=50, nsteps=500, nwalkers=100, eps=0.01) :
     print('running mcmc...')
     sampler.run_mcmc(pos, nsteps)
     samples = sampler.chain[:, nburn:, :].reshape((-1, ndim))
-    corner.corner(samples,show_titles=True,quantiles=[0.05,0.95])
-    pdb.set_trace()
+    fig =corner.corner(samples,show_titles=True,quantiles=[0.05,0.95])
+    fig.savefig('mcmc/'+star+'.png')
 
 
 def solve(spec) :
@@ -826,7 +827,7 @@ def normalize(pars) :
     return nspec,nspecerr
 
 def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',star=None,nfit=0,order=0,threads=8,
-              write=True,telescope='apo25m',pixels=None) :
+              write=True,telescope='apo25m',pixels=None,hmask=False,mcmc=False) :
     """ Fit observed spectra in an input field, given a model
     """
 
@@ -842,11 +843,14 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',star=None,nfit=0
     if star is not None: 
         j=np.where(stars['MANGAID'] == star)[0]
         stars=stars[j]
+    stars=Table(stars)
+    stars['EBV'] = -1.
 
     # load up normalized spectra and uncertainties 
     norms=[]
     for i,star in enumerate(stars) :
-        norms.append((star['flux'],np.sqrt(1./star['ivar']),pixels))
+        norms.append((star['FLUX'],np.sqrt(1./star['IVAR']),pixels))
+            
 
     if threads==0 :
         output=[]
@@ -867,7 +871,7 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',star=None,nfit=0
     j_teff=np.where(np.core.defchararray.strip(mod['label_names']) == 'TEFF')[0]
     init[:,j_teff] = 4500.
     j_logg=np.where(np.core.defchararray.strip(mod['label_names']) == 'LOGG')[0]
-    init[:,j_logg] = 2.5
+    init[:,j_logg] = 2.0
     j_rot=np.where(np.core.defchararray.strip(mod['label_names']) == 'LOG(VSINI)')[0]
     init[:,j_rot] = 1.01
     j_mh=np.where(np.core.defchararray.strip(mod['label_names']) == '[M/H]')[0]
@@ -883,32 +887,23 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',star=None,nfit=0
     pix = np.arange(0,8575,1)
     allinit=[]
     for i,star in enumerate(stars) :
-        j=np.where(extcorr['MANGAID'] == star['mangaid'])[0]
+        j=np.where(extcorr['MANGAID'] == star['MANGAID'])[0]
         bprpc=extcorr['BPRPC'][j]
+        star['EBV'] = extcorr['EBV'][j]
         if abs(bprpc) < 5 :
             bounds_lo[i,:] = mod['x_min']
             bounds_hi[i,:] = mod['x_max']
             teff_est= 10.**f(np.max([np.min([bprpc,color[-1]]),color[0]]))
             init[i,j_teff] = teff_est
             if teff_est > 5000. : init[i,j_rot] = 2.3
-            if teff_est > 6500. : bounds_lo[i,j_mh] = -1
-            print(i,star['mangaid'],bprpc,init[i,:], len(stars))
+            if teff_est > 15000. : bounds_lo[i,j_mh] = -1
+            print(i,star['MANGAID'],bprpc,init[i,:], len(stars))
+        if hmask :
+            bd= np.where((star['WAVE']>6563-100)&(star['WAVE']<6563+100) |
+                         (star['WAVE']>4861-100)&(star['WAVE']<4861+100) |
+                         (star['WAVE']>4341-100)&(star['WAVE']<4341+100) )[0]
+            output[i][1][bd] = 1.e-5
         specs.append((output[i][0], output[i][1], init[i,:], (bounds_lo[i,:],bounds_hi[i,:]), order))
-#        spec = star['flux']
-#        specerr = np.sqrt(1./star['ivar'])
-#        cont = norm.cont(spec,specerr,poly=False,order=order,chips=True,apstar=False,medfilt=400)
-#        nspec = spec/cont
-#        nspecerr = specerr/cont
-#        bd=np.where(np.isinf(nspec) | np.isnan(nspec) )[0]
-#        nspec[bd]=0.
-#        nspecerr[bd]=1.e10
-#        bd=np.where(np.isinf(nspecerr) | np.isnan(nspecerr) )[0]
-#        nspec[bd]=0.
-#        nspecerr[bd]=1.e10
-#        if pixels is not None : 
-#            nspec = nspec[pixels[0]:pixels[1]]
-#            nspecerr = nspecerr[pixels[0]:pixels[1]]
-#        specs.append((nspec, nspecerr, init, (bounds_lo,bounds_hi), order))
 
     # do the fits in parallel
     if threads==0 :
@@ -945,6 +940,23 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',star=None,nfit=0
             if o1.fun < o2.fun : output.append(o1)
             else : output.append(o2)
 
+    if mcmc :
+        newspecs=[]
+        for i,star in enumerate(stars) :
+            newspecs.append((specs[i][0],specs[i][1],output[i].x,
+                           '{:s}-{:d}-{:s}-{:d}'.format(star['MANGAID'],star['PLATE'],star['IFUDESIGN'],star['MJD'])))
+
+        outmcmc=[]
+        if threads== 0 :
+            for i,star in enumerate(stars) :
+                out=solve_mcmc(newspecs[i])
+                outmcmc.append(out)
+        else :
+            pool = mp.Pool(threads)
+            outmcmc = pool.map_async(solve_mcmc, newspecs).get()
+            pool.close()
+            pool.join()
+
     # output FITS table
     out=Table()
     out['MANGAID']=stars['MANGAID']
@@ -954,6 +966,7 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',star=None,nfit=0
     out['MJDQUAL']=stars['MJDQUAL']
     out['OBJRA']=stars['OBJRA']
     out['OBJDEC']=stars['OBJDEC']
+    out['EBV']=stars['EBV']
     length=len(out)
     params=np.array([o.x for o in output])
     out.add_column(Column(name='FPARAM',data=params))

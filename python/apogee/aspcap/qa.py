@@ -94,8 +94,8 @@ def elemvslogg(hdulist,title=None,out=None,calib=False,main=True,named=False) :
     gels=list(els)
     for el in ['Fe','Ge','Rb','Nd','Yb','Ce'] : gels.remove(el)
     igel=0
-    if len(gels)%2 == 0 : gfig,gax=plots.multi(2,len(gels)//2,wspace=0.4,hspace=0.001,figsize=(6,18))
-    else : gfig,gax=plots.multi(2,len(gels)//2+1,hspace=0.001,wspace=0.001,figsize=(8,16))
+    if len(gels)%2 == 0 : gfig,gax=plots.multi(2,len(gels)//2,wspace=0.4,hspace=0.001,figsize=(9,12))
+    else : gfig,gax=plots.multi(2,len(gels)//2+1,hspace=0.001,wspace=0.001,figsize=(9,12))
     
     for iel,el in enumerate(els) :
         if named:
@@ -103,8 +103,10 @@ def elemvslogg(hdulist,title=None,out=None,calib=False,main=True,named=False) :
             else : tag=(el+'_FE').upper()
             abun=a[tag]
             ytit='['+el+'/Fe]'
+            rabun=a['X_M'][:,iel]+a['M_H']-a['FE_H']
         elif calib :
             abun=a['X_M'][:,iel]
+            rabun=a['X_M'][:,iel]
             ytit='['+el+'/M] (cal)'
         else :
             try:
@@ -113,10 +115,11 @@ def elemvslogg(hdulist,title=None,out=None,calib=False,main=True,named=False) :
             except:
                 if etoh[iel] == 1 : abun=a['FELEM'][:,iel]-a['FPARAM'][:,3]
                 else : abun = a['FELEM'][:,iel]
+            rabun=a['X_M'][:,iel]
             ytit='['+el+'/M] (uncal)'
         if el in gels :
             print(el,igel)
-            plots.plotp(gax[igel//2,igel%2],a[param][solar,1],a['X_M'][solar,iel],color='r',
+            plots.plotp(gax[igel//2,igel%2],a[param][solar,1],rabun[solar],color='r',
                         xr=[5.9,-0.9],yr=[-0.39,0.39], size=1,xt='log g',yt=ytit,alpha=0.2,rasterized=False)
             plots.plotp(gax[igel//2,igel%2],a[param][solar,1],abun[solar],color='k',
                         xr=[5.9,-0.9],yr=[-0.39,0.39], size=1,xt='log g',yt=ytit,rasterized=False)

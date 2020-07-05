@@ -1,0 +1,11 @@
+apogee contains the python routines written for APOGEE
+pyvista is a subtree from holtzmanjon/pyvista, with the tv module (and some reduction utilities, not used)
+tools is a subtree from holtzmanjon/tools, with some plotting utilities
+
+To add a remote and use it as a subtree:
+git remote add tools https://github.com/holtzmanjon/tools
+git subtree add --prefix python/tools tools master --squash
+
+To update a subtree from external updates:
+git subtree pull --prefix python/tools tools master 
+

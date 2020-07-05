@@ -1,0 +1,15 @@
+*~
+*.aux
+*.log
+*.pdf
+vc.tex
+
+.gitignore
+
+sandbox_*.py
+*.pyc
+*.pkl
+
+build/
+dist/
+*.egg-info/

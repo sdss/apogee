@@ -275,7 +275,7 @@ for i=0,n_elements(ims)-1 do begin
     else $
     printf,objhtml,'<TD>'+string(format='(i3)',fiber[j].fiberid)
     if ims[0] eq 0 then $
-      printf,objhtml,'<TD BGCOLOR='+color+'><a href=../plots/'+file_basename(visitfile,'.fits')+'.gif>'+fiber[j].object+'</A>' $
+      printf,objhtml,'<TD BGCOLOR='+color+'><a href=../plots/'+file_basename(visitfile,'.fits')+'.jpg>'+fiber[j].object+'</A>' $
     else printf,objhtml,'<TD BGCOLOR='+color+'>'+fiber[j].object
     rastring=stringize(fiber[j].ra,ndec=5)
     decstring=stringize(fiber[j].dec,ndec=5)
@@ -739,7 +739,7 @@ printf,htmlsum,'</TABLE>'
 
 if keyword_set(onem) then begin
   file=cmjd+'-'+starnames[0]
-  printf,htmlsum,'<a href=../plots/apVisit-'+apred_vers+'-'+file+'.gif><IMG src='+'../plots/apVisit-'+apred_vers+'-'+file+'.gif></A>'
+  printf,htmlsum,'<a href=../plots/apVisit-'+apred_vers+'-'+file+'.jpg><IMG src='+'../plots/apVisit-'+apred_vers+'-'+file+'.jpg></A>'
 endif
 printf,htmlsum,'</BODY></HTML>'
 free_lun,html

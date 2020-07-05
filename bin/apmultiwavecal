@@ -30,7 +30,7 @@ if __name__ == '__main__' :
 
     parser = argparse.ArgumentParser(
         prog=os.path.basename(sys.argv[0]),
-        description='Does pca compression of a synthetic spectral grid')
+        description='Does wavelength calibration from arc frames')
 
     parser.add_argument("frames", type=int, help='List of frames',nargs='+')
     parser.add_argument("--vers", type=str, help='redux version', default='current')

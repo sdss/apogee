@@ -96,7 +96,8 @@ visitstr.BC = str.bc
 ; STEP 2:  Cross-Correlate with rough synthetic spectral grid
 ;-------------------------------------------------------------
 print,'STEP 2: Cross-correlate with rough synthetic spectral grid'
-apgetgrid,'apg_rvsynthgrid.fits',grid=grid
+;apgetgrid,'apg_rvsynthgrid.fits',grid=grid
+apgetgrid,'apg_synthgrid.fits',grid=grid
 ;NEW 9/1: Trim grid for color 
 IF keyword_set(trimgrid) THEN grid = aptrimgrid(grid, visitstr)
 
@@ -280,8 +281,8 @@ if keyword_set(pl) or keyword_set(save) then begin
       psfile1 = dir_plots+file_basename(visitfile,'.fits')
       ;visitstr.psfile = psfile1
       ps_open,psfile1,thick=3,/color,/encap
-      device,/inches,xsize=14,ysize=7
       loadct,39,/silent
+      device,/inches,xsize=14,ysize=7
       charsize = 1.3
       co = 0
     endif
@@ -338,7 +339,7 @@ if keyword_set(pl) or keyword_set(save) then begin
     if keyword_set(save) and not keyword_set(noupdate) then begin
       ps_close
       FILE_DELETE,psfile1+['.gif','.pdf','.eps.gz'],/allow
-      spawn,['convert',psfile1+'.eps',psfile1+'.gif'],out,errout,/noshell
+      spawn,['convert',psfile1+'.eps',psfile1+'.jpg'],out,errout,/noshell
       ;spawn,['convert',psfile1+'.eps',psfile1+'.pdf'],out,errout,/noshell
       file_delete,psfile1+'.eps',/allow_nonexistent
       ;spawn,['gzip',psfile1+'.eps'],out,errout,/noshell   ; compress the files

@@ -1,0 +1,200 @@
+---
+ date: "October 2019"
+ groups :
+  - name : "ARCTIC"
+    skip : True
+    inst : "ARCTIC"
+    rawdir : "UT191028/ARCTIC"
+    reddir : "red/UT191028/ARCTIC"
+    #biases : 
+    #  - id : "bias"
+    #    frames : [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21]
+    #darks :
+    #  - id : "dark_1200"
+    #    frames : [82,83,84,85,86,87,88,89,90]
+    #    bias : "bias"
+    flats :
+      - id : "domeflat_z"
+        frames : [1,2,3,4,5]
+      - id : "domeflat_r"
+        frames : [6,7,8,9,10]
+      - id : "domeflat_g"
+        frames : [14,15,16,17,18]
+      - id : "domeflat_i"
+        frames : [22,23,24,25,26]
+      - id : "twiflat_z"
+        frames : [28,29,30,31,32,33,34]
+      - id : "twiflat_r"
+        frames : [35,36,37,39,40,41,42,43]
+      - id : "twiflat_g"
+        frames : [45,46,47,48,49,50]
+      - id : "twiflat_i"
+        frames : [49,51,52,53,54,55]
+    objects :
+      image :
+        - frames : [56,57]
+          flat : "twiflat_r"
+          flat_type : "2d"
+        - frames : [58,59]
+          flat : "twiflat_g"
+          flat_type : "2d"
+        - frames : [60,61]
+          flat : "twiflat_z"
+          flat_type : "2d"
+
+  - name : "ARCTIC"
+    skip : False
+    inst : "ARCTIC"
+    rawdir : "UT191020/ARCTIC"
+    reddir : "red/UT191020/ARCTIC"
+    biases : 
+      - id : "bias"
+        frames : [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21]
+    darks :
+      - id : "dark_1200"
+        frames : [82,83,84,85,86,87,88,89,90]
+        bias : "bias"
+    flats :
+      - id : "domeflat_r"
+        frames : [77,78,79,80,81]
+        bias : "bias"
+      - id : "twiflat_u"
+        frames : [29,30,32,33,34,35,36]
+        bias : "bias"
+      - id : "twiflat_g"
+        frames : [50,51,52,53,54]
+        bias : "bias"
+      - id : "twiflat_r"
+        frames : [42,43,44,45,46,47,49]
+        bias : "bias"
+      - id : "twiflat_i"
+        frames : [55,56,57,58,59]
+        bias : "bias"
+      - id : "twiflat_z"
+        frames : [37,38,39,40,41]
+        bias : "bias"
+    objects :
+      image :
+        - frames : [73,74,75] #62]
+          bias : "bias"
+          flat : "twiflat_r"
+          flat_type : "2d"
+        #- frames : [63,64]
+        #  bias : "bias"
+        #  flat : "twiflat_u"
+        #  flat_type : "2d"
+        - frames : [76] #,65,66,67]
+          bias : "bias"
+          flat : "twiflat_g"
+          flat_type : "2d"
+        #- frames : [68,69]
+        #  bias : "bias"
+        #  flat : "twiflat_i"
+        #  flat_type : "2d"
+        #- frames : [70,71]
+        #  bias : "bias"
+        #  flat : "twiflat_z"
+        #  flat_type : "2d"
+
+  - name : "ARCES"
+    skip : False
+    inst : "ARCES"
+    rawdir : "UT191020/ARCES"
+    reddir : "red/UT191020/ARCES"
+    biases : 
+      - id : "bias"
+        frames : [2,3,4,5,6,7,8,9,10]
+    flats : 
+      - id : "flat_red"
+        frames : [11,12,13,14]
+        bias : "bias"
+        use : True
+      - id : "flat_blue"
+        frames : [15,16,17,18]
+        bias : "bias"
+        use : True
+      - id : "flat"
+        frames : ["flat_red","flat_blue"]
+    traces : 
+        frame : sflat
+    arcs : 
+      - id : "pre"
+        frames : [19,20,21,22]
+        bias : "bias"
+        wref : "ARCES_wave"
+        wavecal_type : "echelle"
+      - id : "post"
+        frames : [32]
+        bias : "bias"
+        wref : "ARCES_wave"
+        wavecal_type : "echelle"
+    objects: 
+      extract1d : 
+        - frames : [23,24] # ,25,26,27,28,29,30,31]
+          bias : "bias"
+          flat : "flat"
+          flat_type : "1d"
+          wavecal : "pre"
+
+  - name : "DIS"
+    skip : False
+    inst : "DIS"
+    rawdir : "UT191019/DIS"
+    reddir : "red/UT191019/DIS"
+    biases :
+      - id : "bias"
+        frames : [13,14,15,16,17,18,19,20,21,22]
+    flats : 
+      - id : "bright"
+        frames : [4,5,6,7,8,9,10,11,12]
+        bias : "bias"
+        specflat : True
+        use : True
+    traces : 
+        frame : 25    
+    arcs : 
+        - id : "lowres"
+          frames : [1,2,3]
+          bias : "bias"
+          wref : "DIS_lowres_waves"
+          wavecal_type : "longslit"
+    objects: 
+      extract1d : 
+        - frames : [24,25,26]
+          rad : 10
+          flat_type : "2d"
+          wavecal : "lowres"
+      extract2d : 
+        - frames : [27,28,29,30,31,32,33,34]
+          flat_type : "2d"
+          wavecal : "lowres"
+ 
+  - name : "TSPEC"
+    skip : False
+    inst : "TSPEC"
+    nfowler : 8
+    rawdir : "UT191026/TSPEC"
+    reddir : "red/UT191026/TSPEC"
+    biases : 
+      - id : "darkflat"
+        frames : [1,2,3,4,5,6,7,8,9,10]
+    flats : 
+      - id : "dome"
+        #dark : "darkflat"
+        bias : "darkflat"
+        frames : [11,12,13,14,15,16,17,18,19]  # something bad with frame 20
+        use : True
+    traces : 
+        frame : 21    
+        dark : 22    
+    arcs : 
+      - id : 'sky'
+        frames : [25]
+        wref : "TSPEC_waves"
+        wavecal_type : "longslit"
+    objects: 
+      extract1d : 
+        - frames : [21,22,23,24]
+          skyframes : [22,21,24,23]
+          flat_type : "2d"
+          wavecal : "sky"

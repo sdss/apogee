@@ -13,6 +13,8 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
+from apogee.payne import nn
+
 import argparse
 import os
 import sys
@@ -21,16 +23,16 @@ import matplotlib
 matplotlib.use('Agg')
 import pdb
 
-from apogee.payne import nn
 
 if __name__ == '__main__' :
 
     parser = argparse.ArgumentParser(
         prog=os.path.basename(sys.argv[0]),
-        description='Makes a synthetic spectral grid')
+        description='Does NN fit for a field')
 
     parser.add_argument("model", type=str, help='Model')
     parser.add_argument("field", type=str, help='Input field')
+    parser.add_argument("--telescope", type=str, default='apo25m')
     parser.add_argument("--nfit", type=int, default=0)
     parser.add_argument("--order", type=int, default=4)
     parser.add_argument("--threads", type=int, default=8)
@@ -38,7 +40,7 @@ if __name__ == '__main__' :
     parser.add_argument("--done")
     parser.add_argument("--host")
     args=parser.parse_args()
-    nn.fitfield(args.model,args.field,nfit=args.nfit,order=args.order,threads=args.threads,plot=args.plot)
+    nn.fitfield(args.model,args.field,nfit=args.nfit,order=args.order,threads=args.threads,plot=args.plot,telescope=args.telescope)
 
     if args.done is not None :
         subprocess.call(['setdone',args.done])

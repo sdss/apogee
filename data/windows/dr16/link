@@ -1,0 +1,13 @@
+#!/bin/csh
+foreach file ( *_26042016* )
+  set name = `basename $file`
+  set elem = `echo $name | awk -F_ '{printf("%s_%s\n",$1,$2)}'`
+  echo $elem
+  ln -s $file $elem.filt
+end
+foreach file ( *_26112015* )
+  set name = `basename $file`
+  set elem = `echo $name | awk -F_ '{printf("%s\n",$1)}'`
+  echo $elem
+  ln -s $file $elem.filt
+end

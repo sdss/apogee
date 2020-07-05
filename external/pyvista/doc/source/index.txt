@@ -1,0 +1,42 @@
+.. pyvista documentation master file, created by
+   sphinx-quickstart on Sat Apr  2 10:54:17 2016.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
+Welcome to pyvista's documentation!
+===================================
+
+pyvista is Python package that provides image display, and some image processing and 
+analysis tools for a versatile quick analysis environment for working
+with astronomical data (imaging and spectroscopy). The goal is to provide
+a convenient framework that is relatively straightforward to understand and
+to use that allows for both performing data processing efficiently but also
+has options that may be useful pedagogically.
+
+The initial algorithms are relatively simple, but might be extended over
+time by interested users.
+
+The project is hosted on github. See the Installation page for how to download
+and set up.
+
+Contents:
+
+.. toctree::
+   :maxdepth: 2
+
+   installation
+   tv
+   image
+   imred
+   reduce
+   spectra
+   stars
+
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+

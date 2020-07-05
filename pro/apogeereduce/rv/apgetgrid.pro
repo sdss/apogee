@@ -1,4 +1,4 @@
-pro apgetgrid,synthfile,grid=grid,wave=wave,error=error,stp=stp,pl=pl,normalize=normalize
+pro apgetgrid,synthfile,grid=grid,wave=wave,error=error,stp=stp,pl=pl,normalize=normalize,apstar=apstar
 
 ;+
 ;
@@ -20,6 +20,7 @@ pro apgetgrid,synthfile,grid=grid,wave=wave,error=error,stp=stp,pl=pl,normalize=
 ;  IDL>apgetgrid,grid=grid,wave=wave
 ;
 ; By D.Nidever  July 2010
+;    Holtz      Dec 2018
 ;-
 
 ; Not enough inputs
@@ -35,6 +36,47 @@ if FILE_TEST(synth_dir,/directory) eq 0 then begin
   print,'SYNTHGRID Directory ',synth_dir,' NOT FOUND'
   return
 endif
+
+; read synthetic grid, which should be in vacuum waveengths and continuum normalized
+; HDU1 has parameter table, HDU2 spectra on apStar grid, HDU3 spectra on higher sampling for visit spectra
+; data arrays have wavelength in axis 0 
+if synthfile eq 'apg_synthgrid.fits' then begin
+if n_elements(grid) eq 0 then begin
+  head=mrdfits(synth_dir+synthfile,0)
+  stepar=mrdfits(synth_dir+synthfile,1)
+  if keyword_set(apstar) then data=mrdfits(synth_dir+synthfile,2,headspec) else $
+                              data=mrdfits(synth_dir+synthfile,3,headspec) 
+  if sxpar(headspec,'CRVAL1') eq 4.179 then w0=4.179d0 else w0=sxpar(headspec,'CRVAL1')
+  if sxpar(headspec,'CDELT1') eq 6.e-6 then logdw=6.d-6 else logdw=sxpar(headspec,'CDELT1')
+  logwave=w0+indgen(sxpar(headspec,'NAXIS1'))*logdw
+  logdw=sxpar(headspec,'CDELT1')
+  outwave=10.^logwave
+  res=22500.
+  pixlim=[[ 322, 3241], [3648, 6047], [6412, 8305]]
+  grid = {file:synth_dir+synthfile,$
+              origdata:transpose(data),$
+              data:transpose(data),ndata:transpose(data),$
+              head:head,metals:stepar.mh,teff:stepar.teff,logg:stepar.logg,alpha:stepar.am,carbon:stepar.cm,$
+              wave:outwave,logwave:logwave,logdw:logdw,res:res,pixlim:pixlim}
+  sz=size(data,/dim)
+  nspec=sz[1]
+  for i=0,nspec-1 do begin
+    spec=grid.origdata[i,*]
+    j=where(spec lt 0)
+    spec[j] = 0.
+    temp = {spec:spec,wave:grid.wave}  ; temporary structure
+    APNORMSPEC,temp
+    grid.ndata[i,*]=temp.spec
+    ;plot,temp.spec,yr=[-0.5,1.5]
+    ;oplot,temp.nspec,color=255
+  endfor
+endif
+return
+endif
+
+; =======================================
+;  EVERYTHING BELOW HERE FOR OLD RV GRIDS
+; =======================================
 
 ; Load the grid file if not input
 if n_elements(grid) eq 0 then begin

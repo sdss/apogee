@@ -39,7 +39,50 @@
 ;
 function catalog_info_blank
 
-  cat0=create_struct('reduction_id',' ',$
+  cat0=create_struct('alt_id',' ',$
+                     'src_h', ' ', $
+                     'wash_m', 0.,$
+                     'wash_m_err', 0.,$
+                     'wash_t2', 0., $
+                     'wash_t2_err', 0., $
+                     'ddo51', 0., $
+                     'ddo51_err', 0., $
+                     'irac_3_6', 0., $
+                     'irac_3_6_err', 0., $
+                     'irac_4_5', 0., $
+                     'irac_4_5_err', 0., $
+                     'irac_5_8', 0., $
+                     'irac_5_8_err', 0., $
+                     'irac_8_0', 0., $
+                     'irac_8_0_err', 0., $
+                     'wise_4_5', 0., $
+                     'wise_4_5_err', 0., $
+                     'targ_4_5', 0., $
+                     'targ_4_5_err', 0., $
+                     'ak_targ', -9999.99, $
+                     'ak_targ_method', '', $
+                     'ak_wise', -9999.99, $
+                     'sfd_ebv', -9999.99, $
+                     'wash_ddo51_giant_flag', 0, $
+                     'wash_ddo51_star_flag', 0, $
+                     'pmra', 0., $
+                     'pmdec', 0., $
+                     'pm_src', ' ')
+  return, cat0
+end
+; tags in common between apogeeObject apogee2Object apogee1mObject
+function catalog_info_common
+
+  cat0=create_struct('apogee_id',' ',$
+                     'ra', 0.d0,$
+                     'dec', 0.d0,$
+                     'j', 0.,$
+                     'j_err', 0.,$
+                     'h', 0.,$
+                     'h_err', 0.,$
+                     'k', 0.,$
+                     'k_err', 0.,$
+                     'alt_id',' ',$
                      'src_h', ' ', $
                      'wash_m', 0.,$
                      'wash_m_err', 0.,$
@@ -122,15 +165,15 @@ function allstar_blank, apfield0, maxvisit=maxvisit, nparam=nparam, nelem=nelem,
                          'min_jk', -9999.99, $
                          'max_jk', 9999.99, $
                          'param', fltarr(nparam)-9999.99, $
-                         'fparam', fltarr(nparam)-999999., $
-                         'param_cov', fltarr(nparam, nparam)-9999.99, $
-                         'fparam_cov', fltarr(nparam, nparam)-9999.99,$
+                         'fparam', fltarr(nparam)-9999.99, $
+                         'param_cov', fltarr(nparam, nparam)-999.99, $
+                         'fparam_cov', fltarr(nparam, nparam)-999.99,$
                          ;'elem', fltarr(nelem)-9999.99, $
                          ;'elem_err', fltarr(nelem)-9999.99, $
                          'teff', -9999.99, $
-                         'teff_err', -9999.99, $
+                         'teff_err', -999.99, $
                          'logg', -9999.99, $
-                         'logg_err', -9999.99, $
+                         'logg_err', -999.99, $
                          ;'param_teff', -1., $
                          ;'logvmicro', -9999.99, $
                          ;'vmacro', -9999.99, $
@@ -141,11 +184,11 @@ function allstar_blank, apfield0, maxvisit=maxvisit, nparam=nparam, nelem=nelem,
                          ;'param_logg', -9999.99, $
                          ;'param_logvmicro', -1., $
                          'm_h', -9999.99, $
-                         'm_h_err', -9999.99, $
+                         'm_h_err', -999.99, $
                          ;'param_c_m', -9999.99, $
                          ;'param_n_m', -9999.99, $
                          'alpha_m', -9999.99,$
-                         'alpha_m_err', -9999.99, $
+                         'alpha_m_err', -999.99, $
                          ;'param_teff_err', -1., $
                          ;'param_logg_err', -1., $
                          ;'param_logvmicro_err', -1., $
@@ -159,9 +202,9 @@ function allstar_blank, apfield0, maxvisit=maxvisit, nparam=nparam, nelem=nelem,
                          'felem', reform(fltarr(nelem,nwind))-9999.99, $
                          'felem_err', reform(fltarr(nelem,nwind))-9999.99, $
                          'X_H', fltarr(nelem)-9999.99, $
-                         'X_H_ERR', fltarr(nelem)-9999.99, $
+                         'X_H_ERR', fltarr(nelem)-999.99, $
                          'X_M', fltarr(nelem)-9999.99, $
-                         'X_M_ERR', fltarr(nelem)-9999.99, $
+                         'X_M_ERR', fltarr(nelem)-999.99, $
                          'C_Fe',-9999.99,$
                          'CI_Fe',-9999.99,$
                          'N_Fe',-9999.99,$
@@ -184,36 +227,36 @@ function allstar_blank, apfield0, maxvisit=maxvisit, nparam=nparam, nelem=nelem,
                          'Ni_Fe',-9999.99,$
                          'Cu_Fe',-9999.99,$
                          'Ge_Fe',-9999.99,$
-                         ;'Ce_Fe',-9999.99,$
                          'Rb_Fe',-9999.99,$
-                         'Y_Fe',-9999.99,$
+                         'Ce_Fe',-9999.99,$
                          'Nd_Fe',-9999.99,$
-                         'C_Fe_err',-9999.99,$
-                         'CI_Fe_err',-9999.99,$
-                         'N_Fe_err',-9999.99,$
-                         'O_Fe_err',-9999.99,$
-                         'Na_Fe_err',-9999.99,$
-                         'Mg_Fe_err',-9999.99,$
-                         'Al_Fe_err',-9999.99,$
-                         'Si_Fe_err',-9999.99,$
-                         'P_Fe_err',-9999.99,$
-                         'S_Fe_err',-9999.99,$
-                         'K_Fe_err',-9999.99,$
-                         'Ca_Fe_err',-9999.99,$
-                         'Ti_Fe_err',-9999.99,$
-                         'TiII_Fe_err',-9999.99,$
-                         'V_Fe_err',-9999.99,$
-                         'Cr_Fe_err',-9999.99,$
-                         'Mn_Fe_err',-9999.99,$
-                         'Fe_H_err',-9999.99,$
-                         'Co_Fe_err',-9999.99,$
-                         'Ni_Fe_err',-9999.99,$
-                         'Cu_Fe_err',-9999.99,$
-                         'Ge_Fe_err',-9999.99,$
-                         ;'Ce_Fe_err',-9999.99,$
-                         'Rb_Fe_err',-9999.99,$
-                         'Y_Fe_err',-9999.99,$
-                         'Nd_Fe_err',-9999.99,$
+                         'Yb_Fe',-9999.99,$
+                         'C_Fe_err',-999.99,$
+                         'CI_Fe_err',-999.99,$
+                         'N_Fe_err',-999.99,$
+                         'O_Fe_err',-999.99,$
+                         'Na_Fe_err',-999.99,$
+                         'Mg_Fe_err',-999.99,$
+                         'Al_Fe_err',-999.99,$
+                         'Si_Fe_err',-999.99,$
+                         'P_Fe_err',-999.99,$
+                         'S_Fe_err',-999.99,$
+                         'K_Fe_err',-999.99,$
+                         'Ca_Fe_err',-999.99,$
+                         'Ti_Fe_err',-999.99,$
+                         'TiII_Fe_err',-999.99,$
+                         'V_Fe_err',-999.99,$
+                         'Cr_Fe_err',-999.99,$
+                         'Mn_Fe_err',-999.99,$
+                         'Fe_H_err',-999.99,$
+                         'Co_Fe_err',-999.99,$
+                         'Ni_Fe_err',-999.99,$
+                         'Cu_Fe_err',-999.99,$
+                         'Ge_Fe_err',-999.99,$
+                         'Rb_Fe_err',-999.99,$
+                         'Ce_Fe_err',-999.99,$
+                         'Nd_Fe_err',-999.99,$
+                         'Yb_Fe_err',-999.99,$
                          'C_Fe_flag',0L,$
                          'CI_Fe_flag',0L,$
                          'N_Fe_flag',0L,$
@@ -236,10 +279,10 @@ function allstar_blank, apfield0, maxvisit=maxvisit, nparam=nparam, nelem=nelem,
                          'Ni_Fe_flag',0L,$
                          'Cu_Fe_flag',0L,$
                          'Ge_Fe_flag',0L,$
-                         ;'Ce_Fe_flag',0L,$
                          'Rb_Fe_flag',0L,$
-                         'Y_Fe_flag',0L,$
+                         'Ce_Fe_flag',0L,$
                          'Nd_Fe_flag',0L,$
+                         'Yb_Fe_flag',0L,$
                          'elem_chi2', fltarr(nelem), $
                          'elemflag', lonarr(nelem),$
                          catalog_info_blank(), $
@@ -277,27 +320,6 @@ function allvisit_blank, apfieldvisit0, unsafe_synth=unsafe_synth
                          'min_jk', -9999.99, $
                          'max_jk', 9999.99, $
                          catalog_info_blank())
-;                         'wash_m', 0., $
-;                         'wash_m_err', 0., $
-;                         'wash_t2', 0., $
-;                         'wash_t2_err', 0., $
-;                         'ddo51', 0., $
-;                         'ddo51_err', 0., $
-;                         'irac_3_6', 0., $
-;                         'irac_3_6_err', 0., $
-;                         'mag_4_5', 0., $
-;                         'mag_4_5_err', 0., $
-;                         'irac_5_8', 0., $
-;                         'irac_5_8_err', 0., $
-;                         'irac_8_0', 0., $
-;                         'irac_8_0_err', 0., $ 
-;                         'wise_4_5', 0., $
-;                         'wise_4_5_err', 0., $
-;                         'giant', 0, $
-;                         'star', 0,$ 
-;                         'pmra', 0., $
-;                         'pmdec', 0., $
-;                         'pmcat', ' ')
 
   if(keyword_set(unsafe_synth)) then $
      allvisit0=struct_trimtags(allvisit0, $
@@ -399,21 +421,14 @@ nparam=n_elements(params)
 elems=aspcap_elems(elemtags,elemtoh,nelem=nelem)
 nelem=n_elements(elems)
 
-;for itelescope = 0,2 do begin
-; if itelescope eq 0 then telescope = 'apo25m'
-; if itelescope eq 1 then telescope = 'lco25m'
-; if itelescope eq 2 then telescope = 'apo1m'
-
 targetdir=getenv('APOGEE_TARGET')
 design1=mrdfits(targetdir+'/apogeeDesign.fits',1)
 design2=mrdfits(targetdir+'/apogee2Design.fits',1)
+min_jk=-9999.99
+max_jk=9999.99
 
 ;; Get list of locations by looking at directories
 if ~keyword_set(locationdirs) then begin
-  ;if itelescope eq 0 then $
-  ;locationdirs = file_search(visits_dir+'[0-9][0-9][0-9][0-9]', $
-  ;                         /test_directory, count=nlocationdirs) $
-  ;else if itelescope eq 1 then $
   locationdirs = file_search(apogee_dir+'/'+apred_version+'/'+apstar_version+'/*/*', $
                            /test_directory, count=nlocationdirs) 
   splog,strtrim(nlocationdirs,2),' Location directories found'
@@ -450,8 +465,8 @@ For i=0L,nlocationdirs-1L do begin
    if nskip gt 0 then goto,nextloc
 
    ;; Get all of the apFieldVisits files
-   rvisitfiles = file_search(idir+'apFieldVisits-*.fits',count=nrvisitfiles)
-   cvisitfiles = file_search(idir+'apFieldVisitsC-*.fits',count=ncvisitfiles)
+   rvisitfiles = file_search(idir+'a?FieldVisits-*.fits',count=nrvisitfiles)
+   cvisitfiles = file_search(idir+'a?FieldVisitsC-*.fits',count=ncvisitfiles)
    apgundef, visitfiles
    if(nrvisitfiles gt 0 and ncvisitfiles gt 0) then begin
       visitfiles= [rvisitfiles, cvisitfiles]
@@ -470,8 +485,8 @@ For i=0L,nlocationdirs-1L do begin
 
    ;; Get all of the apField files 
    idir=stars_dir+'/'+ilocationid+'/'
-   rstarfiles = file_search(idir+'apField-*.fits',count=nrstarfiles)
-   cstarfiles = file_search(idir+'apFieldC-*.fits',count=ncstarfiles)
+   rstarfiles = file_search(idir+'a?Field-*.fits',count=nrstarfiles)
+   cstarfiles = file_search(idir+'a?FieldC-*.fits',count=ncstarfiles)
    apgundef,starfiles
    if(nrstarfiles gt 0 and ncstarfiles gt 0) then begin
       starfiles= [rstarfiles, cstarfiles]
@@ -548,14 +563,6 @@ stop
       endif
 
       ;; Get character field name and other info
-      ;if itelescope eq 0 then begin
-      ;  field=strtrim(apogee_field(long(ilocationid),str[0].plate),2) 
-      ;  if ilocationid ne str[0].(locind) then begin
-      ;    print, 'location id does not match: ', ilocationid, str[0].(locind)
-      ;    stop
-      ;    for  jj=0,n_elements(str) do str[i].(locind) = ilocationid
-      ;  endif
-      ;endif else field=ilocationid
       field = ilocationid
 
       ;; Get uniq plate/MJD combinations for this location (not apo1m)
@@ -622,7 +629,7 @@ stop
         ; APOGEE-2
         idesign=where(design2.design_id eq plans[iplan].designid,nd)
         idesign=idesign[0]
-        if nd eq 0 then printf,missing,'no design found for ',field
+        if nd eq 0 then printf,missing,'no design found for ',field,plans[iplan].plateid,plans[iplan].designid
         ;if nd eq 0 then stop,'no design found!'
         design=design2
         min_h=design[idesign].cohort_min_h
@@ -649,18 +656,16 @@ stop
 
       ; add extratarg tag info
       for k=0,n_elements(tmp_allvisitloc)-1 do begin
-        extratarg=0
-        if (tmp_allvisitloc[k].commiss eq 0 and  $
-           ((tmp_allvisitloc[k].apogee_target1 and 2L^11) gt 0 or $
-            (tmp_allvisitloc[k].apogee_target1 and 2L^12) gt 0 or $
-            (tmp_allvisitloc[k].apogee_target1 and 2L^13) gt 0)) then begin
-          extratarg=0
-        endif else begin
-          if tmp_allvisitloc[k].commiss eq 1 then extratarg = extratarg or 2
-          if strpos(tmp_allvisitloc[k].targflags,'_TELLURIC') ge 0 then extratarg= extratarg or 4
-          if strtrim(tmp_allvisitloc[k].telescope,2) eq 'apo1m' then extratarg= extratarg or 8
-          if extratarg eq 0 then extratarg = extratarg or 1
-        endelse
+        extratarg=1
+        if (tmp_allvisitloc[k].apogee_target1 and 2L^11) gt 0 then extratarg = 0
+        if (tmp_allvisitloc[k].apogee_target1 and 2L^12) gt 0 then extratarg = 0
+        if (tmp_allvisitloc[k].apogee_target1 and 2L^13) gt 0 then extratarg = 0
+        if (tmp_allvisitloc[k].apogee2_target1 and 2L^11) gt 0 then extratarg = 0
+        if (tmp_allvisitloc[k].apogee2_target1 and 2L^12) gt 0 then extratarg = 0
+        if (tmp_allvisitloc[k].apogee2_target1 and 2L^13) gt 0 then extratarg = 0
+        if tmp_allvisitloc[k].commiss eq 1 then extratarg = extratarg or 2
+        if strpos(tmp_allvisitloc[k].targflags,'_TELLURIC') ge 0 then extratarg= extratarg or 4
+        if strtrim(tmp_allvisitloc[k].telescope,2) eq 'apo1m' then extratarg= extratarg or 8
         tmp_allvisitloc[k].extratarg = extratarg   
         ; get cohort maximum magnitude
         icohort=-1
@@ -694,6 +699,7 @@ stop
  
 
       push,allvisitloc,tmp_allvisitloc,count=count
+
       if count lt 0 then $
          message, 'Error in pushing'
    endfor
@@ -736,7 +742,6 @@ stop
 
       ; make location id compatible types -- should be done in reduction
       if size(str.location_id,/type) eq 2 then begin
-;stop
         locid=long(str[0].location_id)
         remove_tags,str,['location_id'],new
         str=new
@@ -753,9 +758,6 @@ stop
          haveaspcap=1
          ;; read library parameters
          aspcap=mrdfits(file,2)
-         ;libr_path= apogee_dir+'/speclib/'
-         ;libfile= strtrim(libr_path+file_basename(aspcap[0].grid,'.dat'),2)
-         ;rdlibhead,libfile,libhead0,libhead
 
          ;; read ASPCAP output
          aspcap=mrdfits(file,1)
@@ -784,27 +786,20 @@ stop
 
       ; reset field name with latest conventions from platePlans
       tmp_allstarloc.field = field
-      ;if strtrim(tmp_allstarloc[0].telescope,2) ne 'apo1m' then begin
-      ;  if tmp_allstarloc[0].location_id ne ilocationid then begin
-      ;    print,'star location does not match: ', tmp_allstarloc[0].location_id,ilocationid
-      ;    stop
-      ;  endif
-      ;endif
       
       ;; Add visits reference indices
       for k=0L, n_elements(tmp_allstarloc)-1L do begin
          if (size(allvisitloc,/type) gt 0) then begin
            ; fill all_visits and visits (latter only gives good visits) - NOW DONE BELOW
-           pk=where(allvisitloc.(objind) eq tmp_allstarloc[k].apogee_id,nk)
+           pk=where(strtrim(allvisitloc.(objind),2) eq strtrim(tmp_allstarloc[k].apogee_id,2),nk)
            if nk gt maxvisit then begin
-              message, 'Error: need to increase maxvisit! '+ maxvisit+ nk
+              printf,missing,'Problem: too many visits? '+ tmp_allstarloc[k].apogee_id+string(maxvisit)+string(nk)
            endif
-           ;if nk gt 0 then visits = strmid(file_basename(allvisitloc[pk].file,'.fits'),8) else visits = ' '
-           ;tmp_allstarloc[k].all_visits = strjoin(visits,',')
-           ;pk=where(allvisitloc.(objind) eq tmp_allstarloc[k].apogee_id and $
-           ;        (finite(allvisitloc.vrel) eq 1) and (allvisitloc.commiss eq tmp_allstarloc[k].commiss),nk)
-           ;if nk gt 0 then visits = strmid(file_basename(allvisitloc[pk].file,'.fits'),8) else visits = ' '
-           ;tmp_allstarloc[k].visits = strjoin(visits,',')
+           if nk eq 0 then begin
+             print,'missing selection visit: ',tmp_allstarloc[k].apogee_id
+             printf,dup,'missing selection visit: ',tmp_allstarloc[k].apogee_id
+             printf,missing,'missing selection visit: ',tmp_allstarloc[k].apogee_id
+           endif
 
            ; fix NVISIT=1 RVs for s3
            if tmp_allstarloc[k].nvisits eq 1 and (apstar_version eq 's3' or apstar_version eq 's') then begin
@@ -821,18 +816,16 @@ stop
 
          endif
           ; add extratarg tag info
-         extratarg=0
-         if (tmp_allstarloc[k].commiss eq 0 and  $
-            ((tmp_allstarloc[k].apogee_target1 and 2L^11) gt 0 or $
-             (tmp_allstarloc[k].apogee_target1 and 2L^12) gt 0 or $
-             (tmp_allstarloc[k].apogee_target1 and 2L^13) gt 0)) then begin
-           extratarg=0
-         endif else begin
-           if tmp_allstarloc[k].commiss eq 1 then extratarg = extratarg or 2
-           if strpos(tmp_allstarloc[k].targflags,'_TELLURIC') ge 0 then extratarg= extratarg or 4
-           if strtrim(tmp_allstarloc[k].telescope,2) eq 'apo1m' then extratarg= extratarg or 8
-           if extratarg eq 0 then extratarg = extratarg or 1
-         endelse
+         extratarg=1
+         if (tmp_allstarloc[k].apogee_target1 and 2L^11) gt 0 then extratarg = 0
+         if (tmp_allstarloc[k].apogee_target1 and 2L^12) gt 0 then extratarg = 0
+         if (tmp_allstarloc[k].apogee_target1 and 2L^13) gt 0 then extratarg = 0
+         if (tmp_allstarloc[k].apogee2_target1 and 2L^11) gt 0 then extratarg = 0
+         if (tmp_allstarloc[k].apogee2_target1 and 2L^12) gt 0 then extratarg = 0
+         if (tmp_allstarloc[k].apogee2_target1 and 2L^13) gt 0 then extratarg = 0
+         if tmp_allstarloc[k].commiss eq 1 then extratarg = extratarg or 2
+         if strpos(tmp_allstarloc[k].targflags,'_TELLURIC') ge 0 then extratarg= extratarg or 4
+         if strtrim(tmp_allstarloc[k].telescope,2) eq 'apo1m' then extratarg= extratarg or 8
          tmp_allstarloc[k].extratarg = extratarg   
          tmp_allstarloc[k].min_h = min(allvisitloc[pk].min_h)
          tmp_allstarloc[k].max_h = max(allvisitloc[pk].max_h)
@@ -857,91 +850,6 @@ stop
                endelse
             endif
             if nk eq 1 then begin
-              ; Assign values to the _named_ parameter tags
-              tagnames=tag_names(tmp_allstarloc)
-              for iparam=0,n_elements(params)-1 do begin
-                itag=where(strtrim(tagnames,2) eq strtrim(paramtags[iparam],2),ntag)
-                ierrtag=where(strtrim(tagnames,2) eq strtrim(paramtags[iparam],2)+'_ERR')
-                if ntag gt 0 and index[iparam] ge 0 then begin
-                  tmp_allstarloc[k].(itag)=aspcap[kk].param[index[iparam]]
-                  if aspcap[kk].param_cov[index[iparam],index[iparam]] gt 0 then $
-                      tmp_allstarloc[k].(ierrtag) = $
-                  sqrt(aspcap[kk].param_cov[index[iparam],index[iparam]])
-                endif
-              endfor
-              ; vmicro, vmacro/vsini different for dwarfs and giants
-              tmp_allstarloc[k].vmicro=10.^aspcap[kk].param[2]
-              if (strpos(aspcap[kk].class,'GKd') ge 0  or strpos(aspcap[kk].class,'Fd') ge 0 or strpos(aspcap[kk].class,'Md') ge 0) then begin
-                  tmp_allstarloc[k].vmacro=10.^0.
-                  tmp_allstarloc[k].vsini=10.^aspcap[kk].param[7]
-              endif else begin
-                  tmp_allstarloc[k].vmacro=10.^aspcap[kk].param[7]
-              endelse
-
-              ; Assign values to the _named_ element tags
-              ife = where(strtrim(aspcaplabs.elem_symbol,2) eq 'Fe')
-              for ielem=0,n_elements(elems)-1 do begin
-                itag=where(strtrim(tagnames,2) eq strtrim(elemtags[ielem],2))
-                ierrtag=where(strtrim(tagnames,2) eq strtrim(elemtags[ielem],2)+'_ERR')
-                iflagtag=where(strtrim(tagnames,2) eq strtrim(elemtags[ielem],2)+'_FLAG')
-                if eindex[ielem] ge 0 then begin
-                  ;tmp_allstarloc[k].x_h[eindex[ielem]]=aspcap[kk].elem[eindex[ielem]]
-                  ;tmp_allstarloc[k].x_h_err[eindex[ielem]]=aspcap[kk].x_h_err[eindex[ielem]]
-                  ;; if this is C or N and we are in dwarf grid, then parameter is already [X/H]
-                  ;if elems[ielem] eq 'C' or elems[ielem] eq 'CI' or elems[ielem] eq 'N' and $
-                  ;  (strpos(aspcap[kk].class,'GKd') ge 0  or strpos(aspcap[kk].class,'Fd') ge 0 or strpos(aspcap[kk].class,'Md') ge 0) then begin
-                  ;   tmp_allstarloc[k].x_h[eindex[ielem]]+=0.
-                  ;endif else begin
-                  ;  if ~elemtoh[ielem] and aspcap[kk].fparam[3] gt -90 and tmp_allstarloc[k].x_h[eindex[ielem]] gt -90 then begin
-                  ;   tmp_allstarloc[k].x_h[eindex[ielem]]+=aspcap[kk].fparam[3]
-                  ;  endif
-                  ;endelse
-                  ;tmp_allstarloc[k].x_m[eindex[ielem]]=tmp_allstarloc[k].x_h[eindex[ielem]]-aspcap[kk].fparam[3]
-                  ;tmp_allstarloc[k].x_m_err[eindex[ielem]]=aspcap[kk].x_m_err[eindex[ielem]]
-                  tmp_allstarloc[k].x_h[eindex[ielem]]=aspcap[kk].x_h[eindex[ielem]]
-                  tmp_allstarloc[k].x_h_err[eindex[ielem]]=aspcap[kk].x_h_err[eindex[ielem]]
-                  tmp_allstarloc[k].x_m[eindex[ielem]]=aspcap[kk].x_m[eindex[ielem]]
-                  tmp_allstarloc[k].x_m_err[eindex[ielem]]=aspcap[kk].x_m_err[eindex[ielem]]
-
-                  if itag ge 0 then begin
-                    if ielem eq ife then begin
-                      ; Fe is special, since we don't want [Fe/Fe]!
-                      tmp_allstarloc[k].(itag)=aspcap[kk].x_h[eindex[ielem]]
-                      tmp_allstarloc[k].(ierrtag) = aspcap[kk].x_h_err[eindex[ielem]]
-                      tmp_allstarloc[k].(iflagtag) = aspcap[kk].elemflag[eindex[ielem]]
-                    endif else begin
-                      if aspcap[kk].x_h[eindex[ielem]] gt -9998. then begin  
-                        tmp_allstarloc[k].(itag)=aspcap[kk].x_h[eindex[ielem]]-aspcap[kk].x_h[ife]
-                        tmp_allstarloc[k].(ierrtag) = aspcap[kk].x_m_err[eindex[ielem]]
-                      endif
-                      tmp_allstarloc[k].(iflagtag) = aspcap[kk].elemflag[eindex[ielem]]
-                    endelse
-
-                    ; special handling for Rb in l31c.2 --> remove it!
-                    if strpos(results_version,'l31c') ge 0  then begin
-                      irb = where(strtrim(aspcaplabs.elem_symbol,2) eq 'Rb')
-                      if ielem eq irb then begin
-                        tmp_allstarloc[k].(itag) = -9999.99
-                        tmp_allstarloc[k].(ierrtag) = -9999.99
-                        tmp_allstarloc[k].x_h[eindex[ielem]] = -9999.99
-                        tmp_allstarloc[k].x_h_err[eindex[ielem]] = -9999.99
-                        tmp_allstarloc[k].x_m[eindex[ielem]] = -9999.99
-                        tmp_allstarloc[k].x_m_err[eindex[ielem]] = -9999.99
-                      endif
-                      irb = where(strtrim(aspcaplabs.elem_symbol,2) eq 'Na')
-                      if ielem eq irb and (tmp_allstarloc[k].x_m[eindex[ielem]] lt -1 or tmp_allstarloc[k].x_h[eindex[ielem]] lt -1) then begin
-                        tmp_allstarloc[k].(itag) = -9999.99
-                        tmp_allstarloc[k].(ierrtag) = -9999.99
-                        tmp_allstarloc[k].x_h[eindex[ielem]] = -9999.99
-                        tmp_allstarloc[k].x_h_err[eindex[ielem]] = -9999.99
-                        tmp_allstarloc[k].x_m[eindex[ielem]] = -9999.99
-                        tmp_allstarloc[k].x_m_err[eindex[ielem]] = -9999.99
-                      endif
-                    endif
-                  endif
-                endif
-              endfor
-
               ; add the ASPCAP output tags
               if tag_exist(aspcap,'meanfib') then tmp_allstarloc[k].meanfib=aspcap[kk].meanfib
               if tag_exist(aspcap,'sigfib') then tmp_allstarloc[k].sigfib=aspcap[kk].sigfib
@@ -959,26 +867,18 @@ stop
               endif
               tmp_allstarloc[k].param_cov=aspcap[kk].param_cov
               tmp_allstarloc[k].fparam_cov=aspcap[kk].fparam_cov
-              ;if tag_exist(aspcap,'elem') then tmp_allstarloc[k].elem=aspcap[kk].elem
-              ;if tag_exist(aspcap,'elem_err') then tmp_allstarloc[k].elem_err=aspcap[kk].elem_err
               if tag_exist(aspcap,'felem') then tmp_allstarloc[k].felem=aspcap[kk].felem
               if tag_exist(aspcap,'felem_err') then tmp_allstarloc[k].felem_err=aspcap[kk].felem_err
               if tag_exist(aspcap,'elem_chi2') then tmp_allstarloc[k].elem_chi2=aspcap[kk].elem_chi2
               if tag_exist(aspcap,'elemflag') then tmp_allstarloc[k].elemflag=aspcap[kk].elemflag
+              if tag_exist(aspcap,'x_h') then tmp_allstarloc[k].x_h=aspcap[kk].x_h
+              if tag_exist(aspcap,'x_h_err') then tmp_allstarloc[k].x_h_err=aspcap[kk].x_h_err
+              if tag_exist(aspcap,'x_m') then tmp_allstarloc[k].x_m=aspcap[kk].x_m
+              if tag_exist(aspcap,'x_m_err') then tmp_allstarloc[k].x_m_err=aspcap[kk].x_m_err
             endif
          endif 
 
       endfor
-      ; move targflags for apogee2, now already done in apstar!
-      ;fix = where(strpos(str.survey,'apogee2') ge 0, nfix)
-      ;if nfix gt 0 then begin
-      ;  tmp_allstarloc[fix].apogee2_target1 = tmp_allstarloc[fix].apogee_target1
-      ;  tmp_allstarloc[fix].apogee2_target2 = tmp_allstarloc[fix].apogee_target2
-      ;  tmp_allstarloc[fix].apogee2_target3 = tmp_allstarloc[fix].apogee_target3
-      ;  tmp_allstarloc[fix].apogee_target1 = 0
-      ;  tmp_allstarloc[fix].apogee_target2 = 0
-      ;  tmp_allstarloc[fix].apogee_target3 = 0
-      ;endif
 
       PUSH,allstarloc,tmp_allstarloc,count=count
    endfor
@@ -991,69 +891,46 @@ stop
    catmin=fltarr(n_elements(stars))+9999.99
    
    ; get apogeeObject catalog info for this field
-;   if strpos(allvisitloc[0].survey,'apogee2') ge 0 then apogeeobject='apogee2Object' $
-;     else if strpos(allvisitloc[0].survey,'apo1m') ge 0 then apogeeobject='apogee1mObject' else $
-;     apogeeobject='apogeeObject'
-;   objectfile=targetdir+'/'+apogeeobject+'/'+apogeeobject+'_'+strtrim(apogee_field(allvisitloc[0].(locind),allvisitloc[0].plate,/addloc),2)+'.fits' 
+   ; find all matching apogeeObject files and loop through them looking for matches
+   files=file_search(getenv('APOGEE_TARGET')+'/apogee*Object/*'+field+'*')
+   if files[0] eq '' then begin
+     print,'cant find apogeeObject file: '+field, allvisitloc[0].(locind), allvisitloc[0].plate
+     printf,missing,'cant find apogeeObject file: '+ field, allvisitloc[0].(locind), allvisitloc[0].plate
+   endif else begin
+     if n_elements(files) gt 1 then printf,missing,'using multiple apogeeObject files: '+ files
 
-   ;if itelescope eq 0 then $
-   ;objectfile=targetdir+'/'+apogeeobject+'/'+apogeeobject+'_'+strtrim(apogee_field(allvisitloc[0].(locind),allvisitloc[0].plate,/addloc),2)+'.fits' else $
-   ;objectfile=targetdir+'/apogeeObject/apogeeObject_'+strtrim(field,2)+'.fits'
-   ;if not file_test(objectfile) then begin
-   ;  ;print,'cant find apogeeObject file: ', objectfile, allvisitloc[0].(locind), allvisitloc[0].plate
-   ;  ;printf,missing,'cant find apogeeObject file: ', objectfile, allvisitloc[0].(locind), allvisitloc[0].plate
-   ;  ; try apogeeObject
-   ;  objectfile=targetdir+'/apogeeObject/apogeeObject_'+strtrim(apogee_field(allvisitloc[0].(locind),allvisitloc[0].plate),2)+'.fits' 
-   ;endif 
-;   if not file_test(objectfile) then begin
+     ; we will only save tags we will use, to avoid conflict between apogeeObject and apogee2Object
+     objects=[]
+     for ifile=0,n_elements(files)-1 do begin
+       print,files[ifile]
+       tmpobject=mrdfits(files[ifile],1)
+       tmp_cat= replicate(catalog_info_common(),n_elements(tmpobject))
+       struct_assign, tmpobject, tmp_cat
+       print,n_elements(tmpobject)
+       objects=[objects,tmp_cat]
+     endfor
 
-     ; find all matching apogeeObject files and loop through them looking for matches
-     files=file_search(getenv('APOGEE_TARGET')+'/apogee*Object/*'+field+'*')
-     if files[0] eq '' then begin
-       print,'cant find apogeeObject file: '+field, allvisitloc[0].(locind), allvisitloc[0].plate
-       printf,missing,'cant find apogeeObject file: '+ field, allvisitloc[0].(locind), allvisitloc[0].plate
-     endif else begin
-       ;objects=mrdfits(files[0],1)
-       ;for ifile=1,n_elements(files)-1 do begin
-       ;  tmp=mrdfits(files[ifile],1)
-       ;  objects=[objects,tmp]
-       ;endfor
-      if n_elements(files) gt 1 then printf,missing,'using multiple apogeeObject files: '+ files
+     ; fix NaNs, etc.
+     aspcap_fixobject,objects
 
-      for ifile=0,n_elements(files)-1 do begin
-       objects=mrdfits(files[ifile],1)
-;   endif else begin
-;    objects=mrdfits(objectfile,1)
-;    locid=allvisitloc[0].(locind)
-;    if locid eq 2111 or locid eq  2119 or locid eq  2120 or locid eq  2121 or locid eq  2122 or locid eq  2382 then begin
-;      files=file_search(getenv('APOGEE_TARGET')+'/apogee2Object/*'+string(format='(i4.4)',locid)+'*')
-;      objects=mrdfits(files[0],1)
-;      for ifile=1,n_elements(files)-1 do begin
-;        tmp=mrdfits(files[ifile],1)
-;        objects=[objects,tmp]
-;      endfor
-;    endif
+     ; fix any negative RAs
+     ra=allvisitloc.ra
+     dec=allvisitloc.dec
+     bd=where(ra lt 0, nbd)
+     if nbd gt 0 then ra[bd] = 0.
+     if nbd gt 0 then dec[bd] = 0.
+     spherematch,objects.ra,objects.dec,ra,dec,2./3600.,match1,match2,dist,maxmatch=nplates
 
-    ; fix NaNs, etc.
-    aspcap_fixobject,objects
-
-    ; fix any negative RAs
-    ra=allvisitloc.ra
-    dec=allvisitloc.dec
-    bd=where(ra lt 0, nbd)
-    if nbd gt 0 then ra[bd] = 0.
-    if nbd gt 0 then dec[bd] = 0.
-    ;spherematch,objects.ra,objects.dec,ra,dec,10./3600.,match1,match2,dist,maxmatch=nplates
-    spherematch,objects.ra,objects.dec,ra,dec,2./3600.,match1,match2,dist,maxmatch=nplates
-
-    for istar=0L,n_elements(stars)-1L do begin
+     for istar=0L,n_elements(stars)-1L do begin
       if istar mod 20 eq 0 then $
          splog,istar,n_elements(stars)
       ; first try to match by position (in case names are screwed up)
       j=where(match2 eq stars[istar],nj)
       if allvisitloc[stars[istar]].ra gt 0 and nj gt 0 then begin
         ; if more than one match, take the closest
-        if nj gt 1 then junk=min(dist(j),jj) else jj=0
+        if nj gt 1 then begin
+          junk=min(dist(j),jj)
+        endif else jj=0
         if dist[j[jj]] lt catmin[istar] then begin
           iobject=match1[j[jj]] 
           dmin=dist[j[jj]]
@@ -1063,7 +940,10 @@ stop
         iobject=where((strtrim(objects.apogee_id,2) eq strtrim(allvisitloc[stars[istar]].apogee_id,2)) or $
                       (strtrim(objects.alt_id,2) eq strtrim(allvisitloc[stars[istar]].apogee_id,2)),nj) 
         dmin=-1
-        if nj gt 1 then printf,missing,'more than one object found by name!'
+        if nj gt 1 then begin
+          printf,missing,'more than one object found by name!'
+          iobject=iobject[0]
+        endif
         if nj eq 0 then iobject=-1
       endelse
       objname=strtrim(allvisitloc[stars[istar]].apogee_id,2)
@@ -1073,7 +953,11 @@ stop
            printf,altname, 'alt name: ',field,' ',$
                 allvisitloc[stars[istar]].(locind),' ',$
                 allvisitloc[stars[istar]].(objind),' ', $
-                objects[iobject].apogee_id
+                objects[iobject].apogee_id,objects[iobject].alt_id
+           print, 'alt name: ',field,' ',$
+                allvisitloc[stars[istar]].(locind),' ',$
+                allvisitloc[stars[istar]].(objind),' ', $
+                objects[iobject].apogee_id,objects[iobject].alt_id
            have_altname = 1 
          endif else have_altname=0
          cat=objects[iobject]
@@ -1094,18 +978,14 @@ stop
             struct_assign, tmp_cat, tmp_allvisitloc, /nozero
             catalog_info_replace,cat,tmp_allvisitloc,missing=missing
             allvisitloc[jjj]= tmp_allvisitloc
-            allvisitloc[jjj].reduction_id = allvisitloc[jjj].apogee_id
             if have_altname then begin
-              allvisitloc[jjj].target_id = allvisitloc[jjj].apogee_id
-              allvisitloc[jjj].apogee_id = cat.apogee_id
-            endif
+              allvisitloc[jjj].alt_id = strtrim(allvisitloc[jjj].apogee_id,2)
+              allvisitloc[jjj].apogee_id = strtrim(cat.apogee_id,2)
+            endif else $
+              allvisitloc[jjj].alt_id = strtrim(cat.alt_id,2)
          endfor
      
          if nstarfiles gt 0 then begin
-            ;j=where((strtrim(allvisitloc.(objind),2) eq strtrim(allvisitloc[stars[istar]].(objind),2)) and $
-            ;         (allvisitloc.vtype gt 0),nj)
-            ;if nj gt 0 then visits = strmid(file_basename(allvisitloc[j].file,'.fits'),8)
-            
             j=where(strtrim(allstarloc.apogee_id,2) eq objname,nj)
             if nj eq 0 then begin
                splog,'No apstar found for object ',allvisitloc[stars[istar]].(objind),allvisitloc[stars[istar]].mjd
@@ -1125,26 +1005,15 @@ stop
                struct_assign, tmp_cat, tmp_allstarloc, /nozero
                catalog_info_replace,cat,tmp_allstarloc,missing=missing
                allstarloc[jjj]= tmp_allstarloc
-               allstarloc[jjj].reduction_id = allstarloc[jjj].apogee_id
                if have_altname then begin
-                 allstarloc[jjj].apogee_id = cat.apogee_id
-               endif
+                 allstarloc[jjj].alt_id = strtrim(allstarloc[jjj].apogee_id,2)
+                 allstarloc[jjj].apogee_id = strtrim(cat.apogee_id,2)
+               endif else $
+                  allstarloc[jjj].alt_id = strtrim(cat.alt_id)
             endfor
          endif
-      endif ;else begin
-      ;   splog,'missing ',allvisitloc[stars[istar]].(objind),' ', $
-      ;         allvisitloc[stars[istar]].(locind)
-      ;   printf,missing, 'missing: ', $
-      ;          field,' ',$
-      ;          allvisitloc[stars[istar]].(locind),' ',$
-      ;          allvisitloc[stars[istar]].(objind),' ',$
-      ;          allvisitloc[stars[istar]].ra,' ',$
-      ;          allvisitloc[stars[istar]].dec,' ',$
-      ;          allvisitloc[stars[istar]].h,' ',$
-      ;          allvisitloc[stars[istar]].snr
-      ;endelse
+      endif 
      endfor  ; loop over stars
-    endfor  ; loop over object files
     for istar=0,n_elements(stars)-1 do begin
       if catmin[istar] gt 9999 then begin
          splog,'missing ',allvisitloc[stars[istar]].(objind),' ', $
@@ -1177,33 +1046,51 @@ endfor ; locationdirs loop
 free_lun,missing
 free_lun,altname
 
+; set param and elem flags for stars without ASPCAP results
+gd=where((allstar.aspcapflag and aspcapflagval('NO_ASPCAP_RESULT')) eq 0, ngd,comp=bd,ncomp=nbd)
+if  nbd gt 0 then begin
+  allstar[bd].aspcapflag = allstar[bd].aspcapflag or aspcapflagval('STAR_BAD')
+  sz=size(allstar.paramflag,/dim)
+  for i=0,sz[0]-1 do allstar[bd].paramflag[i] = allstar[bd].paramflag[i] or paramflagval('OTHER_BAD')
+  sz=size(allstar.elemflag,/dim)
+  for i=0,sz[0]-1 do allstar[bd].elemflag[i] = allstar[bd].elemflag[i] or paramflagval('OTHER_BAD')
+  for i=0,n_elements(bd)-1 do allstar[bd[i]].aspcapflags=aspcapflag(allstar[bd[i]].aspcapflag,0)
+endif
+
+; add named tags
+if n_elements(aspcaplabs) gt 0 then $
+  labs={param_symbol: aspcaplabs.param_symbol, elem_symbol: aspcaplabs.elem_symbol, $
+        elem_value: aspcaplabs.elem_value, elemtoh: aspcaplabs.elemtoh, classes: aspcaplabs.classes}
+
+aspcap_namedtags,allstar,labs
+
 ;; set IDs based on final names
 for k=0L,n_elements(allstar)-1 do begin
-   if allstar[k].location_id eq 1 then telescope = 'apo1m' else telescope = 'apo25m'
    allstar[k].apogee_id = strtrim(allstar[k].apogee_id,2)
    allstar[k].apstar_id= $
-            apogee_apstar_id(locid=allstar[k].field, $;locid= allstar[k].location_id, $
+            apogee_apstar_id(locid=allstar[k].field, $
                              star= allstar[k].apogee_id, $
                              apstar_version=apstar_version, $
                              commissioning=allstar[k].commiss, $
-                             telescope=telescope)
+                             telescope=allstar[k].telescope)
    allstar[k].target_id= $
-            apogee_target_id(locid=allstar[k].field, $;locid= allstar[k].location_id, $
+            apogee_target_id(telescope=allstar[k].telescope, $
                              star= allstar[k].apogee_id, $
+                             locid= allstar[k].location_id, $
                              field= allstar[k].field)
    allstar[k].aspcap_id= $
-            apogee_aspcap_id(locid=allstar[k].field, $;locid= allstar[k].location_id, $
+            apogee_aspcap_id(locid=allstar[k].field, $
                              star= allstar[k].apogee_id, $
                              results_version=results_version, $
                              commissioning=allstar[k].commiss, $
-                             telescope=telescope)
+                             telescope=allstar[k].telescope)
 endfor
 for k=0L,n_elements(allvisit)-1 do begin
-   ;if allvisit[k].location_id eq 1 then telescope = 'apo1m' else telescope = 'apo25m'
    allvisit[k].apogee_id = strtrim(allvisit[k].apogee_id,2)
    allvisit[k].target_id= $
-            apogee_target_id(locid=allvisit[k].field, $;locid= allvisit[k].location_id, $
+            apogee_target_id(telescope=allvisit[k].telescope, $
                              star= allvisit[k].apogee_id, $
+                             locid= allvisit[k].location_id, $
                              field= allvisit[k].field)
    allvisit[k].visit_id= $
          apogee_visit_id(plate=allvisit[k].plate, $
@@ -1233,8 +1120,8 @@ if n_elements(u) ne n_elements(allstar) then begin
     junk=where(u eq i,nj)
     if nj eq 0 then begin
       j=where(allstar[u].apstar_id eq allstar[i].apstar_id)
-      printf,dup,'dup: ',i,' ',allstar[i].apogee_id,' ',allstar[i].reduction_id,' ',allstar[i].location_id,' ',allstar[i].field
-      printf,dup,'           ',allstar[u[j]].apogee_id,' ',allstar[u[j]].reduction_id,' ',allstar[u[j]].location_id,' ',allstar[u[j]].field
+      printf,dup,'bad dup: ',i,' ',allstar[i].apogee_id,' ',allstar[i].alt_id,' ',allstar[i].location_id,' ',allstar[i].field
+      printf,dup,'           ',allstar[u[j]].apogee_id,' ',allstar[u[j]].alt_id,' ',allstar[u[j]].location_id,' ',allstar[u[j]].field
     endif
   endfor
   allstar=allstar[u]
@@ -1248,15 +1135,16 @@ if n_elements(u) ne n_elements(allstar) then begin
     junk=where(u eq i,nj)
     if nj eq 0 then begin
       j=where(allstar[u].apogee_id eq allstar[i].apogee_id)
-      print,'dup: ',i,' ',allstar[i].apogee_id,' ',allstar[i].reduction_id,' ',allstar[i].location_id,' ',allstar[i].field,allstar[i].snr
-      print,'           ',allstar[u[j]].apogee_id,' ',allstar[u[j]].reduction_id,' ',allstar[u[j]].location_id,' ',allstar[u[j]].field,allstar[u[j]].snr
+      printf,dup,'dup: ',i,' ',allstar[i].apogee_id,' ',allstar[i].alt_id,' ',allstar[i].location_id,' ',allstar[i].field,allstar[i].snr
+      printf,dup,'           ',allstar[u[j]].apogee_id,' ',allstar[u[j]].alt_id,' ',allstar[u[j]].location_id,' ',allstar[u[j]].field,allstar[u[j]].snr
       ; if stars are from same field, are they just commissioning?
-      if allstar[i].location_id ne allstar[u[j]].location_id then $
+      if allstar[i].location_id ne allstar[u[j]].location_id or $
+         allstar[i].field ne allstar[u[j]].field then $
         allstar[i].extratarg = allstar[i].extratarg or 16 $
       else begin
         if allstar[i].commiss eq 0 and allstar[u[j]].commiss eq 0 then begin
           print,'WARNING: duplicate non-commissioning stars in same field' 
-          printf,dup,'WARNING: duplicate non-commissioning stars in same field' 
+          printf,dup,'WARNING: duplicate non-commissioning stars in same field' ,allstar[i].field
         endif
       endelse
       ndup+=1
@@ -1302,7 +1190,10 @@ for i=0L,n_elements(allstarsort)-1 do begin
    junk=where(allvisitsort[i1:i2].(objind) eq allstarsort[i].apogee_id and $
             (finite(allvisitsort[i1:i2].vrel) eq 1) ,nk2)
    if allstarsort[i].nvisits ne nk then printf,missing,'nvisits does not match all visits: ',allstarsort[i].nvisits,nk,nk2
-   pk=where((allvisitsort[i1:i2].target_id eq allstarsort[i].target_id) and $
+   ;pk=where((allvisitsort[i1:i2].target_id eq allstarsort[i].target_id) and $
+   pk=where((strtrim(allvisitsort[i1:i2].apogee_id,2) eq strtrim(allstarsort[i].apogee_id,2)) and $
+            (strtrim(allvisitsort[i1:i2].telescope,2) eq strtrim(allstarsort[i].telescope,2)) and $
+            (strtrim(allvisitsort[i1:i2].field,2) eq strtrim(allstarsort[i].field,2)) and $
             (finite(allvisitsort[i1:i2].vrel) eq 1) and $
             (allvisitsort[i1:i2].vrel lt 99999) and $
             (allvisitsort[i1:i2].commiss eq allstarsort[i].commiss),nk)
@@ -1353,9 +1244,7 @@ if n_elements(allplates) gt 0 then begin
   sxaddhist,'APSTAR VERSION: '+apstar_version,header
   sxaddhist,'ASPCAP VERSION: '+aspcap_version,header
   sxaddhist,'RESULTS VERSION: '+results_version,header
-  sxaddhist,'APRED SOFTWARE VERSION: '+apogeereduce_version(),header
-  sxaddhist,'IDLWRAP SOFTWARE VERSION: '+idlwrap_version(),header
-  sxaddhist,'SPECLIB SOFTWARE VERSION: '+speclib_version(),header
+  sxaddhist,'APOGEE SOFTWARE VERSION: '+getvers(),header
   sxaddhist,'DATE: '+systime(),header
   MWRFITS,0,outfile,header,/create
   MWRFITS,allplates,outfile
@@ -1367,9 +1256,7 @@ sxaddhist,'APRED VERSION: '+apred_version,header
 sxaddhist,'APSTAR VERSION: '+apstar_version,header
 sxaddhist,'ASPCAP VERSION: '+aspcap_version,header
 sxaddhist,'RESULTS VERSION: '+results_version,header
-sxaddhist,'APRED SOFTWARE VERSION: '+apogeereduce_version(),header
-sxaddhist,'IDLWRAP SOFTWARE VERSION: '+idlwrap_version(),header
-sxaddhist,'SPECLIB SOFTWARE VERSION: '+speclib_version(),header
+sxaddhist,'APOGEE SOFTWARE VERSION: '+getvers(),header
 sxaddhist,'DATE: '+systime(),header
 MWRFITS,0,outfile,header,/create
 MWRFITS,allvisitsort,outfile

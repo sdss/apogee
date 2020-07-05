@@ -1,0 +1,53 @@
+Installation
+============
+
+To install pyvista, first clone (or fork, if you are interested in contributing)
+the project from gihub:
+
+.. code-block::
+
+   git clone https://github.com/holtzmanjon/pyvista
+
+Note that pyvista has several dependencies for your Python environment:
+   - numpy
+   - scipy
+   - astropy
+   - bz2
+   - autopy (optional but valuable, for keystroke controlled moves in the display)
+
+Once downloaded, define an environment variable PYVISTA_DIR that refers to the top
+level pyvista directory, e.g.
+
+.. code-block:: 
+
+   setenv PYVISTA_DIR /pathto/pyvista   (csh/tcsh)
+   export PYVISTA_DIR=/pathto/pyvista   (bash)
+
+Then add $PYVISTA_DIR/python to your PYTHONPATH. In csh/tcsh:
+
+.. code-block:: csh
+
+   setenv PYTHONPATH $PYVISTA_DIR/python:$PYTHONPATH  
+   if ( $?PYTHONPATH ) then
+     setenv PYTHONPATH ${PYTHONPATH}:/$PYVISTA_DIR/python
+   else
+     setenv PYTHONPATH /some/other/path
+   endif
+
+In sh/bash:
+
+.. code-block:: bash
+
+   if [ -z $PYTHONPATH  ] ; then 
+     export PYTHONPATH=$PYVISTA_DIR/python
+   else
+     export PYTHONPATH=$PYVISTA_DIR/python:$PYTHONPPATH 
+   fi
+
+To keep these definitions across all new sessions, add these to your .cshrc/.tcshrc or
+.bashrc/.profile file.
+
+Alternatively, use a package management system, e.g., modules, to set these
+variables when the package is loaded. There is a sample modules file in
+$PYVISTA_DIR/etc/modulefile
+

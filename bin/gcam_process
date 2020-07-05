@@ -12,7 +12,7 @@ import fitsio
 import astropy.time as time
 import re
 import argparse
-
+import pdb
 
 def gproc(mjd=None, instrument=None, outfile=None):
     """Process an MJD of processed guide camera files into a single file
@@ -40,13 +40,13 @@ def gproc(mjd=None, instrument=None, outfile=None):
     else:
         gdir = os.path.join(os.getenv('GCAM_DATA'), str(mjd))
     files = os.listdir(gdir)
-    gcam0_dtype = [('gdrms', np.dtype(np.float32), 1),
-                   ('seeing', np.dtype(np.float32), 1),
-                   ('fwhm_median', np.dtype(np.float32), 1),
-                   ('fwhm_mean', np.dtype(np.float32), 1),
-                   ('indx', np.dtype(np.int32), 1),
+    gcam0_dtype = [('gdrms', np.dtype(np.float32)),
+                   ('seeing', np.dtype(np.float32)),
+                   ('fwhm_median', np.dtype(np.float32)),
+                   ('fwhm_mean', np.dtype(np.float32)),
+                   ('indx', np.dtype(np.int32)),
                    ('date-obs', np.dtype(np.str_), 21),
-                   ('mjd', np.dtype(np.float64), 1),
+                   ('mjd', np.dtype(np.float64)),
                    ('ra', np.dtype(np.float64), 17),
                    ('dec', np.dtype(np.float64), 17),
                    ('xFocal', np.dtype(np.float32), 17),
@@ -109,7 +109,8 @@ def gproc(mjd=None, instrument=None, outfile=None):
                         except ValueError:
                             pass
                 gcam['seeing'][count] = np.float32(header['SEEING'])
-                dt = str(header['DATE-OBS'].decode())
+                try: dt = str(header['DATE-OBS'].decode())
+                except: dt = header['DATE-OBS']
                 gcam['date-obs'][count] = dt
                 gcam['indx'][count] = indx
                 tt = time.Time(dt)

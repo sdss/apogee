@@ -1,0 +1,69 @@
+#!/usr/bin/env python
+# encoding: utf-8
+#
+# @Author: Jon Holtzman
+# @Date: November 2018
+# @Filename: apskywavecal
+# @License: BSD 3-Clause
+# @Copyright: Jon Holtzman
+
+
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import unicode_literals
+
+import argparse
+import datetime
+import time
+import os
+import sys
+import subprocess
+import matplotlib
+import numpy as np
+import pdb
+matplotlib.use('Agg')
+
+from apogee.apred import wave
+
+if __name__ == '__main__' :
+
+    parser = argparse.ArgumentParser(
+        prog=os.path.basename(sys.argv[0]),
+        description='Adjust wavelength solution based on sky lines')
+
+    parser.add_argument("planfile", type=str, help='Planfile for visit reduction')
+    parser.add_argument("--waveid", type=int, help='ID for wavecal', default=None)
+    parser.add_argument("--skyfile", type=str, help='Sky lines file', default='airglow')
+    parser.add_argument("--nosky", help='No sky correction', action='store_true')
+    parser.add_argument("--frameid", type=int, help='Override for single frame', default=None)
+    parser.add_argument("--apred", type=str, help='apred_vers for single frame', default='current')
+    parser.add_argument("--telescope", type=str, help='telescope for single frame', default='apo25m')
+    parser.add_argument("--done")
+    parser.add_argument("--host")
+    parser.add_argument('--clobber', help='Overwrite files?',action="store_true")
+    parser.add_argument("--flag",default='11111')
+
+    args=parser.parse_args()
+
+    now = datetime.datetime.now()
+    start = time.time()
+    print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
+    if args.frameid == None :
+        wave.skycal(args.planfile,waveid=args.waveid,skyfile=args.skyfile,nosky=args.nosky)
+    else :
+        wave.getskywave(args.frameid,args.waveid,vers=args.apred,telescope=args.telescope)
+    now = datetime.datetime.now()
+    print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
+    print("elapsed: ",time.time()-start)
+
+    if args.done is not None :
+        subprocess.call(['setdone',args.done])
+        try:
+            subprocess.call(['setdone',done])
+        except: pass
+        print('host', args.host)
+        if args.host is not None :
+            try: os.remove(args.done+'.'+args.host)
+            except: pass
+

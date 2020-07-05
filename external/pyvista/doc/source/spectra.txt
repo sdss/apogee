@@ -1,0 +1,88 @@
+SPECTRA module
+**************
+
+spectra is a module that implements some classes/tools for handling
+basic spectral data reduction: extraction of spectra and wavelength calibration.
+The routines allow fo both longslit data, echelle data, and a
+combination (multiple orders with longslit, or multiple slitlets).
+
+Data are read and processed using NDData structures, which carry along both 
+the image data and an associated uncertainty array.
+
+The routines are implemented with two basic classes:
+
+spectra.Trace :
+
+spectra.WaveCal : 
+
+In more detail:
+
+Trace 
+=====
+
+Attributes
+   - type
+   - order
+   - pix0
+   - spectrum
+   - rad
+   - model
+   - sc0
+
+
+Methods:
+  - trace
+  - extract
+  - extract2d
+
+WaveCal
+=======
+
+Attributes:
+  - type : type of solution ('poly' or 'chebyshev')
+  - degree : polynomial degree for wavelength
+  - ydegree : polynomial degree for  y dimension
+  - pix0 : reference pixel
+  - order0 : spectral order for first y pixel (needed for cross-dispersed solutions
+  - spectrum : spectrum from which fit is derived
+  - waves
+  - pix
+  - x
+  - y
+  - weights
+
+Wavelength calibration can proceed in several ways:
+
+- if there is a previous WaveCal object with wavelength calibration for this instrument, that can
+  be loaded. A cross-correlation is done between current and saved spectrum to
+  find a pixel shift, then this is used to identify lines. Lines to be used can
+  be read from a file, or taken from the previous solution
+
+- if there is no previous solution, lines are identified given some estimate
+  of the wavelength solution, either from an input wavelength array (wav= keyword)
+  or from a [wave,pix] pair plus a dispersion (wref= and disp=) keyword. This
+  solution will be used to try to find lines: a centroid around the input position
+  of width given by the rad= keyword is computed. then use the fit method to display
+  the fit and residuals. Zooming in on the lines can help identify poorly-centroided
+  and mismatched lines. After weeding out poor matches, save the wcal object, and
+  then input it as a reference wcal using the wcal0 keyword, so that the previous
+  solution is used to re-identify lines. Adjust the rad= keyword as necessary. Once
+  you have a good set of lines, save them with the wcal object; if no lines file is
+  given in the identify method, then the lines from the wcal0 object will be used.
+
+Methods :
+
+  - wave
+  - fit
+  - set_spectrum
+  - get_spectrum
+  - identify
+
+
+spectra functions
+=================
+
+.. automodule:: pyvista.spectra
+   :members:
+   :member-order: bysource
+

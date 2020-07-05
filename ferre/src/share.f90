@@ -19,7 +19,7 @@ integer, parameter      :: flen=300 ! chars in strings for paths/files
 real(dp), parameter :: lambdatol = 1.e-3_dp	!accepted wavelength error 
 real(dp), parameter :: pi=3.1415926535897932384626433832795_dp
 
-character(len=12)    	:: ver = 'v4.8.3'  !version
+character(len=12)    	:: ver = 'v4.8.5'  !version
 
 
 !params to read or built from synthfile 
@@ -87,7 +87,7 @@ integer         	:: nlambda  = 0   !# of frequencies in the input spectra
 integer         	:: nlambda1 = 0   !actual # of frequencies used in chi2 eval
 integer(longenough)	:: nobj	= 10**lmaxnobj	!number of objects
 						!nobj<= 0 program counts them
-character(len=flen) 	:: synthfile(maxsynth)  !grid file(s)
+character(len=flen) 	:: synthfile(maxsynth),synthfile0  !grid file(s)
 character(len=flen) 	:: fixfile(maxsynth)	!file(s) for flux ratio corrections
 character(len=flen)     :: filterfile=''!file with input reference weights
 character(len=flen) 	:: pfile=''		!file with input pars
@@ -112,8 +112,10 @@ integer         	:: balance = 0      !use weights w(i)=1/obs(i)**2 to balance
 integer			:: optimize = 0		!optimize weights
 integer			:: impact = 0		!use impact factors to optimize
 integer			:: cont = 0		!0=no normalization, 1=polynomial fit, 2=pem, 3=running mean
-integer			:: ncont=0		!order/pieces/filter width -1 for cont=1/2/3 respectively
-integer			:: obscont=1	    !if ncont>0 and obscont/=0 normalize both data and models
+integer			:: ncont = 0		!order/pieces/filter width -1 for cont=1/2/3 respectively
+integer			:: obscont = 1	    !if ncont>0 and obscont/=0 normalize both data and models
+real(dp)                :: rejectcont = huge(1.0_dp) ! threshold in relative error beyond which data are
+					      !ignored for polynomial continuum fitting (cont=1)
 integer			:: mforce = 0       !force equal mean/median between obs and 
                                             !flux arrays in fun.f90 (1=force equal mean, 2=force median)
 integer			:: chiout = 0	!output chi**2 surfaces

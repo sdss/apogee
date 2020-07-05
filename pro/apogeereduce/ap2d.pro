@@ -101,13 +101,14 @@ FOR i=0L,nplanfiles-1 do begin
   if tag_exist(planstr,'platetype') then if planstr.platetype eq 'cal' then waveid=0
   if waveid gt 0 then begin
     makecal,multiwave=waveid
-    wavefiles = apogee_filename('Wave',chip=chiptag,num=waveid)
-    wavefile = file_dirname(wavefiles[0])+'/'+string(format='(i8.8)',waveid)
-    wavetest = FILE_TEST(wavefiles)
-    if min(wavetest) eq 0 then begin
-      bd1 = where(wavetest eq 0,nbd1)
-      if nbd1 gt 0 then stop,'halt: ',wavefiles[bd1],' NOT FOUND'
-    endif
+  ; move 1dwavecal to new skycal below
+  ;  wavefiles = apogee_filename('Wave',chip=chiptag,num=waveid)
+  ;  wavefile = file_dirname(wavefiles[0])+'/'+string(format='(i8.8)',waveid)
+  ;  wavetest = FILE_TEST(wavefiles)
+  ;  if min(wavetest) eq 0 then begin
+  ;    bd1 = where(wavetest eq 0,nbd1)
+  ;    if nbd1 gt 0 then stop,'halt: ',wavefiles[bd1],' NOT FOUND'
+  ;  endif
   endif
 
   ; apFlux files : since individual frames are usually made per plate,
@@ -179,7 +180,7 @@ FOR i=0L,nplanfiles-1 do begin
     print,'-----------------------------------------'
 
     ; Run AP2DPROC
-    if tag_exist(planstr,'platetype') then if planstr.platetype eq 'cal' or planstr.platetype eq 'single' then skywave=0 else skywave=1
+    if tag_exist(planstr,'platetype') then if planstr.platetype eq 'cal' then skywave=0 else skywave=1
     if tag_exist(planstr,'platetype') then if planstr.platetype eq 'sky' then plugmap=0
     outdir=apogee_filename('1D',num=framenum,chip='a',/dir)
     if file_test(outdir,/directory) eq 0 then FILE_MKDIR,outdir
@@ -198,6 +199,12 @@ FOR i=0L,nplanfiles-1 do begin
     BOMB1:
 
   Endfor ; frame loop
+  
+  ; now add in wavelength calibration information, with shift from skylines
+  if waveid gt 0 then begin
+      if skywave then spawn,['apskywavecal',planfile],/noshell $
+      else  spawn,['apskywavecal',planfile,'--nosky'],/noshell
+  endif
 
   BOMB:
 
@@ -209,7 +216,7 @@ FOR i=0L,nplanfiles-1 do begin
     for jj=0,n_elements(files)-1 do begin
       if file_test(files[jj]) then begin
         file_delete,files[jj]+'.fz',/allow_nonexistent
-        SPAWN,['fpack','-D','-Y',files[jj]],/noshell
+ ;       SPAWN,['fpack','-D','-Y',files[jj]],/noshell
       endif
       if file_test(modfiles[jj]) then begin
         file_delete,modfiles[jj]+'.fz',/allow_nonexistent

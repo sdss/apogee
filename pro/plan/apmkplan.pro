@@ -77,6 +77,7 @@ for i=0,n_elements(files)-1 do begin
  if plate ne oldplate and nexp gt 0 and n_elements(dome) gt 0 then begin
    write_plateplan,out,oldplate,cmjd,exp,sky,dome,planfiles
    nexp=0
+   nsky=0
    undefine,sky
  endif
 

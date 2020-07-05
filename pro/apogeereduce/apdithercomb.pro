@@ -354,7 +354,7 @@ FOR p=0,npairs-1 do begin
       ; What is the relative shift between this pair and the ABSOLUTE
       ; frame?
       abs_shift = ipairstr.refshift
-      print,ichip,j,shift,abs_shift
+      ;print,ichip,j,shift,abs_shift
 
       ; Dec 2018: use chip and fiber dependent shifts
       ; shifts are all measured in the reverse direction from the maximum shift (which is put in first pair, see apditherpairs)
@@ -368,7 +368,9 @@ FOR p=0,npairs-1 do begin
       shift_i2 = allframes[i2].shift.chipfit[0]*j+allframes[i2].shift.chipfit[ichip+1] 
       new_abs_shift = shift_i0 - shift_i1
       new_shift = shift_i1 - shift_i2
-      print,new_shift,new_abs_shift
+      ;print,new_shift,new_abs_shift
+      shift = new_shift
+      abs_shift = new_abs_shift
 
       ; if abs_shift is positive then we are to the RIGHT of the
       ; absolute frame and we want pixels to the LEFT
@@ -480,9 +482,9 @@ FOR p=0,npairs-1 do begin
       combframe.(ichip).mask[*,j]=0
       getmaskvals,flag,badflag,maskcontrib
       for ibit=0,n_elements(flag)-1 do begin
-        maskval=2^ibit
-        mask1=(data1.mask and maskval)<1
-        mask2=(data2.mask and maskval)<1
+        vmask=2^ibit
+        mask1=(data1.mask and vmask)<1
+        mask2=(data2.mask and vmask)<1
         junk=where(mask1 gt 0,nmask1)
         junk=where(mask2 gt 0,nmask2)
         ; only continue if we have any of these bits set!
@@ -501,7 +503,7 @@ FOR p=0,npairs-1 do begin
           combmask[1:npix*2-1:2] = spec_rthalf[npad:npad+npix-1]
           ; any pixel that has more than allowed contribution from a bad pixel gets this mask set
           bd=where(abs(combmask) gt maskcontrib[ibit],nbd)
-          if nbd gt 0 then combframe.(ichip).mask[bd,j]=combframe.(ichip).mask[bd,j] OR maskval
+          if nbd gt 0 then combframe.(ichip).mask[bd,j]=combframe.(ichip).mask[bd,j] OR vmask
         endif
       endfor
       ; if this maskval corresponds to a bad pixel, inflate the error

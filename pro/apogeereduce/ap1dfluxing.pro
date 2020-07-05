@@ -1,5 +1,4 @@
 pro ap1dfluxing,frame,plugmap,outframe,silent=silent,verbose=verbose,pl=pl,stp=stp
-
 ;+
 ;
 ; AP1DFLUXING
@@ -23,6 +22,7 @@ pro ap1dfluxing,frame,plugmap,outframe,silent=silent,verbose=verbose,pl=pl,stp=s
 ;  IDL>ap1dfluxing,frame,plugmap,outframe
 ;
 ; By D. Nidever  May 2010
+; mods, J. Holtzman 2013 and 2019
 ;-
 
 apgundef,outframe
@@ -40,7 +40,96 @@ if nframe eq 0 or nplugmap eq 0 then begin
   return
 endif
 
-; simple normalization based on H magnitude, since conversion to F_lambda has already been done with response curve
+outframe = frame   ; the format is the same
+
+; first get relative flux curve using tellurics
+j = where(plugmap.fiberdata.spectrographid eq 2 and $
+             plugmap.fiberdata.holetype eq 'OBJECT' and $
+             plugmap.fiberdata.objtype eq 'HOT_STD',nstars)
+
+; make sure we only use good tellurics
+;tell=plugmap.fiberdata[j].fiberid
+tell=[]
+ngd=0
+for i=0,nstars-1 do begin
+  dummy=where((outframe.chipb.mask[*,300-plugmap.fiberdata[j[i]].fiberid] and badmask()) gt 0,nbd)
+  if nbd lt 500 then begin
+    tell=[tell,plugmap.fiberdata[j[i]].fiberid]
+    ngd+=1
+  endif
+endfor
+nstars=ngd
+
+; need tellurics to do relative flux cal
+if nstars gt 0 then begin
+  ; do polynomial fit to log(flux), with 4th order plus offset fo each star,
+  ; using every 10th pixel in each chip, so we have 190 pixels * 3 chips * ntelluric data points
+  ; and 4 + ntellurics parameters
+  npix=190
+  design=fltarr(3L*npix*nstars,4+nstars)
+  y=fltarr(3L*npix*nstars)
+  for ichip=0,2 do begin
+    x=outframe.(ichip).wavelength - 16000.
+    for irow=0L,nstars-1 do begin
+      row=300-tell[irow]
+      design[irow*3*npix+ichip*npix:irow*3*npix+ichip*npix+npix-1,0] = x[100:1990:10,row]^4
+      design[irow*3*npix+ichip*npix:irow*3*npix+ichip*npix+npix-1,1] = x[100:1990:10,row]^3
+      design[irow*3*npix+ichip*npix:irow*3*npix+ichip*npix+npix-1,2] = x[100:1990:10,row]^2
+      design[irow*3*npix+ichip*npix:irow*3*npix+ichip*npix+npix-1,3] = x[100:1990:10,row]
+      design[irow*3*npix+ichip*npix:irow*3*npix+ichip*npix+npix-1,4+irow] = 1.
+      y[irow*3*npix+ichip*npix:irow*3*npix+ichip*npix+npix-1] = alog10(outframe.(ichip).flux[100:1990:10,row])
+    endfor
+  endfor
+  gd=where(finite(y) eq 1)
+  design=design[gd,*]
+  y=y[gd]
+  ; do the fit
+  a=matrix_multiply(design,design,/atranspose)
+  b=matrix_multiply(design,y,/atranspose)
+  pars=invert(a)#b
+  
+  ; with plot option, show results for tellurics
+  pl=0
+  if keyword_set(pl) then begin
+   for irow=0,nstars-1 do begin
+    row=300-tell[irow]
+    for ichip=0,2 do begin
+      w=outframe.(ichip).wavelength[*,row]
+      spec=outframe.(ichip).flux[*,row]
+      x = w-16000.
+      logflux = pars[0]*x^4 + pars[1]*x^3 + pars[2]*x^2 + pars[3]*x
+      logflux += 4*alog10(w/16000.)
+      resp= 10.^logflux
+      if ichip eq 0 then plot,w,spec,xr=[15100,17000],yr=[0,10000] else oplot,w,spec
+      oplot,w,10.^(logflux+pars[4+irow]),color=128
+      oplot,w,spec/resp,color=255
+  
+    endfor
+    stop
+   endfor
+  endif
+  
+  ; apply the fit. Note that a term is added so that response gives 1/lambda**-4 shape
+  for ichip=0,2 do begin
+    for irow=0,299 do begin 
+      w=outframe.(ichip).wavelength[*,row]
+      spec=outframe.(ichip).flux[*,row]
+      x = w-16000.
+      logflux = pars[0]*x^4 + pars[1]*x^3 + pars[2]*x^2 + pars[3]*x
+      logflux += 4*alog10(w/16000.)
+      resp= 10.^logflux
+      outframe.(ichip).flux[*,irow] /= resp
+      bderr=where(outframe.(ichip).err[*,irow] eq baderr(),nbd)
+      outframe.(ichip).err[*,irow] /= resp
+      if nbd gt 0 then outframe.(ichip).err[bderr,irow] = baderr()
+      outframe.(ichip).sky[*,irow] /= resp
+      outframe.(ichip).skyerr[*,irow] /= resp
+    endfor
+  endfor
+  
+endif
+
+; simple absolute normalization based on H magnitude, since conversion to F_lambda has already been done with response curve
 skyind = where(plugmap.fiberdata.spectrographid eq 2 and $
                plugmap.fiberdata.holetype eq 'OBJECT' and $
                plugmap.fiberdata.objtype eq 'SKY',nskyind)
@@ -51,7 +140,6 @@ endif else medsky=0
 objind = where(plugmap.fiberdata.spectrographid eq 2 and $
                plugmap.fiberdata.holetype eq 'OBJECT' and $
                plugmap.fiberdata.objtype ne 'SKY',nobjind)
-outframe = frame   ; the format is the same
 zero=fltarr(n_elements(objind))
 norm=fltarr(n_elements(objind))
 print,'Fluxing: '
@@ -123,6 +211,9 @@ endfor
 outframe = create_struct(outframe,'FLUXCORR',fluxcorr)
 return
 
+;==========================
+; remainder is unused
+;=========================
 ; Constants
 ;h = 6.626076d-34  ; planck's constant (J s)
 hconst_cgs = 6.626076d-27          ; planck's constant (erg s)

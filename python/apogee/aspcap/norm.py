@@ -23,23 +23,27 @@ from scipy.ndimage.filters import median_filter
 from scipy import interpolate
 from tools import plots
 
-def cont(spec,specerr,chips=False,order=4,poly=True) :
+def cont(spec,specerr,chips=False,order=4,poly=True,apstar=True,medfilt=0) :
     """ Returns continuum normalized spectrum
     """
     x = np.arange(0,len(spec))
    
     if chips :
         cont=np.full_like(spec,np.nan)
-        pranges=aspcap.gridPix(apStar=True)
+        pranges=aspcap.gridPix(apStar=apstar)
         for prange in pranges :
             s = spec[prange[0]:prange[1]]
             serr = specerr[prange[0]:prange[1]]
             xx = x[prange[0]:prange[1]]
             if poly :
                 cont[prange[0]:prange[1]] = polyfit(xx,s,serr,order)
+            else :
+                cont[prange[0]:prange[1]] = median_filter(s,[medfilt],mode='reflect')
     else :
         if poly :
             cont = polyfit(x,spec,specerr,order)
+        else :
+            cont=median_filter(spec,[medfilt],mode='reflect')
 
     return cont
 
@@ -48,7 +52,7 @@ def polyfit(x,y,yerr,order) :
     """
     gd = np.where(np.isfinite(y))[0]
     # note unconventional definition in numpy.polyfit for weights!
-    p = np.poly1d(np.polyfit(x[gd],y[gd],order,w=1./yerr))
+    p = np.poly1d(np.polyfit(x[gd],y[gd],order,w=1./yerr[gd]))
     return p(x)
 
 def correct(field,libfile,plot=True,write=None,width=151) :
@@ -86,8 +90,9 @@ def correct(field,libfile,plot=True,write=None,width=151) :
             p1+=npix
         if plot : pdb.set_trace()
     if write is not None:  
-        bd=np.where(norm < 0.01)[0]
-        norm[bd]=1.
+        # make sure we have no zeros
+        bd=np.where(norm.ravel() < 0.01)[0]
+        norm.ravel()[bd]=1.
         ferre.writespec(write,norm)
     return norm
 

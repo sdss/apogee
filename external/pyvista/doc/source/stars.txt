@@ -1,0 +1,20 @@
+Stars module
+************
+
+stars is the pyvista module that implements routines for dealing with stellar images
+
+
+mark : interactively add stars to internal list
+
+photom : do aperture photometry of stars on internal list
+
+save : save internal list to file
+
+get : load internal list from file
+
+stars functions:
+
+.. automodule:: pyvista.stars
+   :members:
+   :member-order: bysource
+

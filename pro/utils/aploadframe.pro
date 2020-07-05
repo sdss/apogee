@@ -130,8 +130,8 @@ For i=0,2 do begin
   ; Make the chip structure
   if n_elements(wave) gt 0 then begin
     if n_elements(wcoef) gt 0 then $
-    (SCOPE_VARFETCH('chip'+chiptag[i],/enter)) = {filename:files[i],header:head,flux:flux,err:err,mask:mask,wave:wave,wcoef:wcoef} else $
-    (SCOPE_VARFETCH('chip'+chiptag[i],/enter)) = {filename:files[i],header:head,flux:flux,err:err,mask:mask,wave:wave}
+    (SCOPE_VARFETCH('chip'+chiptag[i],/enter)) = {filename:files[i],header:head,flux:flux,err:err,mask:mask,wavelength:wave,wcoef:wcoef} else $
+    (SCOPE_VARFETCH('chip'+chiptag[i],/enter)) = {filename:files[i],header:head,flux:flux,err:err,mask:mask,wavelength:wave}
   endif else begin
     (SCOPE_VARFETCH('chip'+chiptag[i],/enter)) = {filename:files[i],header:head,flux:flux,err:err,mask:mask}
   endelse

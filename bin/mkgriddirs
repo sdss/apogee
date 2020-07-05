@@ -3,8 +3,7 @@
 #
 # @Author: Jon Holtzman
 # @Date: Dec 1, 2017
-# @Filename: mkgriddirs
-# @License: BSD 3-Clause
+# @Filename: mkgriddirs # @License: BSD 3-Clause
 # @Copyright: Jon Holtzman
 
 from __future__ import division
@@ -25,6 +24,9 @@ if __name__ == '__main__' :
         description='Makes a set of grid directories')
 
     parser.add_argument('grid', type=str, help='Master grid configuration file')
+    parser.add_argument('--nosynth', help='Skip synthesis directory file creation',action="store_true")
+    parser.add_argument('--writeraw', help='Create raw FERRE files',action="store_true")
+    parser.add_argument('--queryport', type=int, help='queryhost port to use',default=1052)
     args=parser.parse_args()
 
-    mkplan.mkgriddirs(args.grid)
+    mkplan.mkgriddirs(args.grid,nosynth=args.nosynth,queryport=args.queryport,writeraw=args.writeraw)

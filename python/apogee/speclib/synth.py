@@ -42,6 +42,7 @@ import matplotlib.pyplot as plt
 from tools import plots
 from tools import match
 from tools import html
+from synple import synple
 
 colors=['r','g','b','c','m','y']
 
@@ -123,9 +124,367 @@ def marcs2turbo(infile,outfile,trim=0,fill=True) :
                 fout.write(line)
     return 0
 
+def get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type='marcs',atmosroot=None,nskip=0,fill=True,workdir='./',atmosdir=None) :
+    """ Copy atmosphere file to working directory in Turbospec format,  trimming as requested
+    """
+    # directory setup
+    if atmosroot is None : atmosroot=os.environ['APOGEE_SPECLIB']+'/atmos/'
+ 
+    # atmosphere and filename set up 
+    geo = 'p'
+    if atmos_type == 'kurucz' : 
+        atmoscode= 'k'
+        model = 'Kurucz'
+        if atmosdir is None : atmosdir = '/kurucz/'
+    elif atmos_type == 'marcs' : 
+        atmoscode = 'm'
+        model = 'MARCS'
+        if atmosdir is None : atmosdir = '/marcs/MARCS_v3_2016/'
+        if logg <= 3.001 : geo = 's'
+    else :
+        print('unknown atmos_type: ', atmos_type)
+        pdb.set_trace()
+    atmosdir=atmosroot+'/'+atmosdir+'/'
+    atmod=atmosdir+atmos.filename(teff,logg,mh,cm,am,model=model)
+
+    # atmosphere: make local copy in Turbospectrum input format, allowing for trimmed layers
+    # note that [N/M] is solar for atmospheres (since it doesn't have a big effect)
+    outmod = workdir+'/'+os.path.basename(atmod)
+    if atmos_type == 'kurucz' :
+        if nskip == 0 : trim=0
+        if nskip == 1 : trim=7
+        if nskip == 2 : trim=15
+        if nskip > 2 : return 0.,0.
+        kurucz2turbo(atmod,outmod,trim=trim )
+    else :
+        try :        
+            ret = marcs2turbo(atmod,outmod,trim=nskip,fill=fill )
+            if not fill and ret<0 : return ret
+        except:
+            return -2
+    return outmod
+
+def get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=False,save=False,elemgrid=None,vmicro=1.) :
+    """ Create work directory name for synthesis
+    """
+    if atmos_type == 'kurucz' : 
+        atmoscode= 'k'
+    elif atmos_type == 'marcs' : 
+        atmoscode = 'm'
+    else :
+        print('unknown atmosphere type: ', atmos_type)
+        pdb.set_trace()
+
+    if abs(solarisotopes)==1: prefix=atmoscode+'d' 
+    else : prefix=atmoscode+'g'
+
+    if save :
+        workdir=(prefix+'m{:s}a{:s}c{:s}n{:s}v{:s}'+elemgrid).format(
+                 atmos.cval(mh),atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(vmicro))
+        workdir=os.environ['APOGEE_LOCALDIR']+'/'+workdir
+        try: os.mkdir(workdir)
+        except: pass
+    else :
+        workdir=tempfile.mkdtemp(dir=os.environ['APOGEE_LOCALDIR'],suffix=os.environ['HOSTNAME'])
+
+    return workdir
+
+def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
+    els=None,atmod=None,atmos_type='marcs',atmosroot=None,atmosdir=None,nskip=0,fill=True,
+    linelist='20180901',h2o=0,linelistdir=None,atoms=True,molec=True, msuffix='', save=False,run=True) :
+    """ Do synthesis
+
+    Args:
+        code (str) : 'turbospec' or 'synspec'
+        teff (int) : Effective temperature
+        logg (float) : log(surface gravity)
+        mh (float ) : [M/H]
+        am (float ) : [alpha/M]
+        cm (float ) : [C/M]
+        nm (float ) : [N/M]
+        wrange (list) : wavelength range (default [15100,17000.])
+        dw (float)  : wavelength spacing (default 0.05 A)
+        vmicro (float ) : microturbulent velocity (default 2.0 km/s)
+        solarisotopes (bool) : use solar isotope ratios, else "giant" isotope ratios ( default False )
+        elemgrid (str) :  name of element for minigrid calculation
+        welem (str) :  NOT IMPLEMENTED set of wavelength ranges
+        els (list of pairs) : list of [element name, abundance] pairs
+        atmod (str) : name of atmosphere model (default=None, model is determined from input parameters)
+        atmosroot (str) : root atmosphere directory (default=None --> $APOGEE_SPECLIB/atmos)
+        atmosdir (str) :  atmosphere directory under atmosroot (default=None --> kurucz or marcs/MARCS_v3_2016, depending on kurucz boolean)
+        nskip (int)  : number of layers to strip (for kurucz, nskip*7), default=0
+        fill (bool)  : use filled atmosphere hole if model requests it ( default = True), else skip synthesis
+        linelist (str) : name of linelist (default='20150714')
+        linelistdir (str) : directory for linelist (default=None --> $APOGEE_SPECLIB/linelists)
+        h2o (int or None) : H2O linelist to use: 0=chooses by Teff, [M/H], [a/M], 1=8.5V, 2=9.5V, None= none
+        save (bool ) : save temporary directory and files for synthesis (default=False)
+        run (bool) :  actually do the synthesis (default=True)
+
+    Returns:
+        spec (np.array) : synthetic spectrum
+        specnorm (np.array) : synthetic spectrum, normalized
+    """
+ 
+    # output directory and filename
+    workdir = get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=solarisotopes,save=save,elemgrid=elemgrid,vmicro=vmicro)
+    root=(atmos_type+'_t{:04d}g{:s}m{:s}a{:s}c{:s}n{:s}v{:s}'+elemgrid).format(int(teff), atmos.cval(logg), 
+                      atmos.cval(mh), atmos.cval(am), atmos.cval(cm), atmos.cval(nm),atmos.cval(vmicro))
+    print(root)
+
+    # atmosphere: make local copy in Turbospectrum input format, allowing for trimmed layers
+    # note that [N/M] is solar for atmospheres (since it doesn't have a big effect)
+    atmod = get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type=atmos_type,nskip=nskip, atmosroot=atmosroot,atmosdir=atmosdir,workdir=workdir)
+    if type(atmod) is int :
+        if atmod == -1 :        
+            print('HOLE NOT SYNTHESIZED: ', atmod)
+            return 0.,0.
+        else :
+            print('PROBLEM: ',atmod)
+            fail('mkturbospec problem: '+atmod)
+            return 0.,0.
+
+    # linelists
+    if linelistdir is None : linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/' 
+    if code == 'turbospec' :
+        linelists = []
+        n_HI = len(open(linelistdir+'/turbospec.'+linelist+'.Hlinedata').readlines())
+        if n_HI > 2 : linelists.append(linelistdir+'/turbospec.'+linelist+'.Hlinedata')
+        if atoms : linelists.append(linelistdir+'/turbospec.'+linelist+'.atoms')
+        if molec : 
+            linelists.append(linelistdir+'/turbospec.'+linelist+msuffix+'.molec')
+            tfactor=1
+            if h2o == 0 :
+              if teff < 4000 :
+                if mh+am < -1.5 or teff > 3250 :
+                    linelists.append(linelistdir+'/turbospec.h2o-BC8.5V'+'.molec')
+                    tfactor=2
+                else  :
+                    linelists.append(linelistdir+'/turbospec.h2o-BC9.5V'+'.molec')
+                    tfactor=5
+            elif h2o == 1 :
+                linelists.append(linelistdir+'/turbospec.h2o-BC8.5V'+'.molec')
+                tfactor=2
+            elif h2o == 2 :
+                linelists.append(linelistdir+'/turbospec.h2o-BC9.5V'+'.molec')
+                tfactor=5
+            elif h2o == 3 :
+                linelists.append(linelistdir+'/turbospec.h2o'+'.molec')
+                tfactor=5
+    elif code == 'synspec' :
+        linelists = [linelistdir+'/synspec/synspec.'+linelist+'.atoms']
+        if molec :
+            #if solarisotopes : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'sun_nofeh_noh2o_noc2.molec')
+            #else : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'giant_nofeh_noh2o_noc2.molec')
+            if solarisotopes : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'sun'+msuffix+'.molec')
+            else : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'giant'+msuffix+'.molec')
+            if h2o is not None :
+                linelists.append(linelistdir+'/synspec/synspec.h2o.molec')
+        #linelists = ['apogeeDR16.20180901.19','apogeeDR16_arc.20']
+    else :
+        print('unknown code!')
+        pdb.set_trace()
+    print('linelists: ',linelists)
+
+
+    # default abundances
+    abundances = atomic.solar()
+    abundances[2:] += mh
+    abundances[6-1] += cm
+    abundances[7-1] += nm
+    for i in [8,10,12,14,16,18,20,22] : abundances[i-1] += am
+
+    # abundance overrides from els, given as [X/M]
+    if els is not None :
+        for el in els :
+            atomic_num = atomic.periodic(el[0])
+            abundances[atomic_num-1] = atomic.solar(el[0]) + mh + el[1] 
+
+    if elemgrid != '' :
+        elemnum=atomic.periodic(elemgrid)[0]
+        elem0=abundances[elemnum-1]
+        eabun=np.arange(-0.75,1.20,0.25)
+    else :
+        eabun=np.array([0.])
+
+    cwd = os.getcwd()
+    os.chdir(workdir)
+
+    # if turbospec do the opacity calculations first, then synthesis for all eabun
+    if code == 'turbospec' :
+        out = do_turbospec(root,atmod,linelists,mh,am,abundances,wrange,dw,save=save,run=run,
+                           solarisotopes=solarisotopes,bsyn=False,atmos_type=atmos_type,vmicro=vmicro)
+    elif code == 'synspec' :
+        abundances = 10.**(np.array(abundances)-abundances[0])
+
+    # if this is an elemgrid, loop over abundances
+    for ielem,abun in enumerate(eabun) :
+        file = root+'{:02d}'.format(ielem)
+        if elemgrid != '' :
+            abundances[elemnum-1] = elem0+abun
+     
+        if code == 'turbospec' :
+            if atmos_type == 'marcs' and logg <= 3.001 :  spherical= True
+            else : spherical = False
+            if ielem == 0 : 
+                wave,flux,fluxnorm = do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,
+                                                  save=save,run=run,solarisotopes=solarisotopes,
+                                                  babsma=root+'opac',atmos_type=atmos_type,spherical=spherical,tfactor=tfactor)
+            else :
+                out = do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,
+                                   save=save,run=run,solarisotopes=solarisotopes,
+                                   babsma=root+'opac',atmos_type=atmos_type,spherical=spherical,tfactor=tfactor)
+        elif code == 'synspec' :
+            print('synple.syn: ',atmod,wrange,linelists,dw,vmicro,save)
+            wave,flux,cont = synple.syn(atmod,wrange,linelist=linelists,dw=dw,vmicro=vmicro,save=save,clean=not save)
+            #wave,flux,cont = synple.syn(atmod,wrange,linelist=linelists,dw=dw,abu=abundances,vmicro=vmicro,save=save)
+            fluxnorm = flux/cont
+        else :
+            print('unknown synth code!')
+            pdb.set_trace()
+
+        # load into final arrays
+        if ielem == 0 :
+            spec = flux
+            specnorm = fluxnorm
+        else :
+            spec=np.vstack([spec,flux])
+            specnorm=np.vstack([specnorm,fluxnorm])
+
+    os.chdir(cwd)
+    if run :
+        if not save : shutil.rmtree(workdir)
+        return spec, specnorm
+    pdb.set_trace()
+
+
+def do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,save=False,run=True,solarisotopes=False,babsma=None,bsyn=True,atmos_type='marcs',spherical=True,vmicro=1.0,tfactor=1.) :
+    """ Runs Turbospectrum for specified input parameters
+
+    Args:
+
+    Returns:
+    """
+
+    # Turbospectrum setup
+    try: os.symlink(os.environ['APOGEE_DIR']+'/src/turbospec/DATA','./DATA')
+    except: pass
+
+    if save : stdout = None
+    else : stdout = open(os.devnull, 'w')
+
+    # individual element grid?
+    nels = len(abundances)
+
+    welem=np.array(wrange)
+    # only compute opacities for a single nominal abundance
+    if babsma is None :
+        fout=open(file+'_babsma.csh','w')
+        fout.write("#!/bin/csh -f\n")
+        fout.write("{:s}/bin/babsma_lu << EOF\n".format(os.environ['APOGEE_DIR']))
+        fout.write("'LAMBDA_MIN:'   '{:12.3f}'\n".format(welem.min()-dw))
+        fout.write("'LAMBDA_MAX:'   '{:12.3f}'\n".format(welem.max()+dw))
+        fout.write("'LAMBDA_STEP:'  '{:8.3f}'\n".format(dw))
+        fout.write("'MODELINPUT:'  '{:s}'\n".format(os.path.basename(atmod)))
+        if atmos_type != 'marcs' : fout.write("'MARCS-FILE:'  '.false.'\n")
+        fout.write("'MODELOPAC:'  '{:s}opac'\n".format(os.path.basename(file)))
+        fout.write("'METALLICITY:'  '{:8.3f}'\n".format(mh))
+        fout.write("'ALPHA/Fe:'  '{:8.3f}'\n".format(am))
+        fout.write("'HELIUM:'  '{:8.3f}'\n".format(0.00))
+        fout.write("'R-PROCESS:'  '{:8.3f}'\n".format(0.00))
+        fout.write("'S-PROCESS:'  '{:8.3f}'\n".format(0.00))
+        fout.write("'INDIVIDUAL ABUNDANCES:'  '{:2d}'\n".format(nels))
+        for iel,abun in enumerate(abundances) :
+            fout.write("{:5d}  {:8.3f}\n".format(iel+1,abun))
+        if not solarisotopes :
+          fout.write("'ISOTOPES:'  '2'\n")
+          # adopt ratio of 12C/13C=15
+          fout.write("   6.012 0.9375\n")
+          fout.write("   6.013 0.0625\n")
+        fout.write("'XIFIX:'  'T'\n")
+        fout.write("{:8.3f}\n".format(vmicro))
+        fout.write("EOF\n")
+        fout.close()
+        if run :
+            os.chmod(file+'_babsma.csh', 0o777)
+            subprocess.call(['time','./'+os.path.basename(file)+'_babsma.csh'],stdout=stdout)
+        babsma = os.path.basename(file)+'opac'
+
+    if not bsyn : return
+
+    # create bsyn control file
+    bsynfile = file
+    fout = open(bsynfile+'.inp','w')
+    fout.write("'LAMBDA_STEP:'  '{:8.3f}'\n".format(dw))
+    fout.write("'LAMBDA_MIN:'   '{:12.3f}'\n".format(welem.min()))
+    fout.write("'LAMBDA_MAX:'   '{:12.3f}'\n".format(welem.max()))
+    fout.write("'INTENSITY/FLUX:'  'Flux'\n")
+    fout.write("'COS(THETA):'  '1.00'\n")
+    fout.write("'ABFIND:'  '.false.'\n")
+    fout.write("'MODELINPUT:'  '{:s}'\n".format(os.path.basename(atmod)))
+    if atmos_type != 'marcs' : fout.write("'MARCS-FILE:'  '.false.'\n")
+    fout.write("'MODELOPAC:'  '{:s}'\n".format(babsma))
+    fout.write("'RESULTFILE:'  '{:s}'\n".format(os.path.basename(file)))
+    fout.write("'METALLICITY:'  '{:8.3f}'\n".format(mh))
+    fout.write("'ALPHA/Fe:'  '{:8.3f}'\n".format(am))
+    fout.write("'HELIUM:'  '{:8.3f}'\n".format(0.00))
+    fout.write("'R-PROCESS:'  '{:8.3f}'\n".format(0.00))
+    fout.write("'S-PROCESS:'  '{:8.3f}'\n".format(0.00))
+    fout.write("'INDIVIDUAL ABUNDANCES:'  '{:2d}'\n".format(len(abundances)))
+    for iel,abun in enumerate(abundances) :
+        fout.write("{:5d}  {:8.3f}\n".format(iel+1,abun))
+    if  not solarisotopes :
+        fout.write("'ISOTOPES:'  '2'\n")
+        # adopt ratio of 12C/13C=15
+        fout.write("   6.012 0.9375\n")
+        fout.write("   6.013 0.0625\n")
+    fout.write("'NFILES:'  '{:4d}'\n".format(len(linelists)))
+    for linelist in linelists: 
+        fout.write(linelist+"\n")
+    if spherical: fout.write("'SPHERICAL:'  'T'\n")
+    else : fout.write("'SPHERICAL:'  'F'\n")
+    fout.write("30\n")
+    fout.write("300.00\n")
+    fout.write("15\n")
+    fout.write("1.3\n")
+    fout.close()
+
+    # control file, with special handling in case bsyn goes into infinite loop ...
+    fout = open(file+"_bsyn.csh",'w')
+    fout.write("#!/bin/csh -f\n")
+    fout.write("{:s}/bin/bsyn_lu < {:s} &\n".format(os.environ['APOGEE_DIR'],os.path.basename(bsynfile)+'.inp'))
+    fout.write('set bsynjob = $!\n')
+    fout.write("set ok = 0\n")
+    fout.write("set runtime = `ps -p $bsynjob -o cputime | tail -1 | awk -F: '{print ($1*3600)+($2*60)+$3}'`\n")
+    tmax=120*int(.05/min([0.05,dw]))*tfactor
+    fout.write('while ( $runtime < {:d} && $ok == 0 )\n'.format(tmax))
+    fout.write('  usleep 200000\n')
+    fout.write("  set runtime = `ps -p $bsynjob -o cputime | tail -1 | awk -F: '{print ($1*3600)+($2*60)+$3}'`\n")
+    fout.write('  if ( `ps -p $bsynjob -o comm=` == "" ) then\n')
+    fout.write('    echo process done, exiting!\n')
+    fout.write('    set ok = 1\n')
+    fout.write('  endif\n')
+    fout.write('end\n')
+    fout.write('if ( $ok == 0 ) then\n')
+    fout.write('  echo expired, killing job\n')
+    fout.write('  kill $bsynjob\n')
+    fout.write('endif\n')
+    fout.close()
+    if run :
+        os.chmod(file+'_bsyn.csh', 0o777)
+        subprocess.call(['time','./'+os.path.basename(file)+'_bsyn.csh'],stdout=stdout)
+        try:
+            out=np.loadtxt(file)
+            wave=out[:,1]
+            specnorm=out[:,1]
+            spec=out[:,2]
+        except :
+            print('failed...',file,atmod,mh,am)
+            return 0.,0.,0.
+        return wave,spec,specnorm
+
 def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
     els=None,atmod=None,kurucz=True,atmosroot=None,atmosdir=None,nskip=0,fill=True,
-    linelist='20150714',h2o=None,linelistdir=None,atoms=True,molec=True,
+    linelist='20150714',h2o=0,linelistdir=None,atoms=True,molec=True,
     save=False,run=True) :
     """ Runs Turbospectrum for specified input parameters
 
@@ -150,7 +509,7 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
         fill (bool)  : use filled atmosphere hole if model requests it ( default = True), else skip synthesis
         linelist (str) : name of linelist (default='20150714')
         linelistdir (str) : directory for linelist (default=None --> $APOGEE_SPECLIB/linelists)
-        h2o (int or None) : H2O linelist to use: 0=none, 1=8.5V, 2=9.5V, None-->chooses by Teff and [alpha/H]
+        h2o (int or None) : H2O linelist to use: None=none, 1=8.5V, 2=9.5V, 0=chooses by Teff and [alpha/H]
         save (bool ) : save temporary directory and files for synthesis (default=False)
         run (bool) :  actually do the synthesis (default=True)
 
@@ -336,6 +695,8 @@ def mkturbospec(teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,s
           fout.write("   6.013 0.0625\n")
         # do we need to add the H2O linelist?
         if h2o is None : 
+          h2o=0
+        elif h2o==0 :
           if teff < 4000 :
             if mh+am < -1.5 or teff > 3250 :
               h2o=1    
@@ -439,9 +800,8 @@ def prange(start,delta,n) :
     """
     return float(start)+np.arange(int(n))*float(delta)
 
-def get_vmicro(vmicrofit,vmicro) :
-    """ NOT YET IMPLEMENTED: placeholder routine to return vmicro given a fit type
-        CURRENTLY returns vmicro
+def get_vmicro(vmicrofit,vmicro,teff=None,logg=None,mh=None) :
+    """ Return vmicro from input functional type and coefficients
    
     Args :
         vmicrofit (int) : input vmicro code to set fitting function
@@ -452,13 +812,19 @@ def get_vmicro(vmicrofit,vmicro) :
 
     """ 
     if vmicrofit == 0 :
-        return float(vmicro)
+        vm = vmicro[0]
+    elif vmicrofit == 1 :
+        #cubic in logg
+        vm = 10.**(vmicro[0]+vmicro[1]*logg+vmicro[2]*logg**2+vmicro[3]*logg**3)
+    elif vmicrofit == 2 :
+        #linear with terms in  teff, logg, mh
+        vm = 10.**(vmicro[0]+vmicro[1]*teff+vmicro[2]*logg+vmicro[3]*mh)
     else :
         print('need to implement vmicrofit: ', vmicrofit)
         pdb.set_trace()
-    return  float(vmicro)
+    return vm
 
-def mkgrid(planfile,clobber=False,save=False,run=True) :
+def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec=True,h2o=0) :
     """ Create a grid of synthetic spectra using Turbospectrum given specifications in  input parameter file
         Outputs results in FITS file
 
@@ -487,12 +853,15 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
     elem = p['elem'] if p.get('elem') else ''
     maskdir = p['maskdir'] if p.get('maskdir') else None
     vmicrofit = int(p['vmicrofit']) if p.get('vmicrofit') else 0
-    vmicro = p['vmicro'] if p.get('vmicro') else 0
+    vmicro = np.array(p['vmicro'].split()).astype(float) if p.get('vmicro') else 0.
     vmacrofit = int(p['vmacrofit']) if p.get('vmacrofit') else 0
     vmacro = p['vmacro'] if p.get('vmacro') else 0
     specdir = os.environ['APOGEE_SPECLIB']+'/synth/'+p['specdir'] if p.get('specdir') else './'
     linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/' 
     linelist = p['linelist'] if p.get('linelist') else None
+    oa0 = p['oa0'] if p.get('oa0') else 0.
+    doa = p['doa'] if p.get('doa') else 0.
+    noa = p['noa'] if p.get('noa') else 1
 
     # wavelength array
     nspec=int((wrange[1]-wrange[0])/dw)+1
@@ -501,34 +870,36 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
     # if element minigrid, create mini linelist and get wavelengths to store
     if elem == '' :
         nelem=1
-        gd=range(nspec)
+        gdspec=range(nspec)
         nwind = 1
         pixels=[[0,nspec]]
     else :
         # number of minigrid abundances
         nelem=8
-        wvac,wair = mini_linelist(elem,linelist,maskdir)
+        wvac,wair = mini_linelist(elem,linelist,maskdir=maskdir)
         nwind=wair.shape[0]
-        gd=[]
+        gdspec=[]
         pixels=[]
         for iwind in range(nwind) :
             pix=np.where( (rawwave >= wair[iwind,0]) & (rawwave <= wair[iwind,1]) )[0]
-            gd.extend(pix)
+            gdspec.extend(pix)
             pixels.append([pix[0],pix[-1]+1])
-        nspec=len(gd)
+        nspec=len(gdspec)
         # for elem with all waves, use next line and comment out previous 8
-        #gd=range(nspec)
+        #gdspec=range(nspec)
         #nwind = 1
         #pixels=[[0,nspec]]
 
     # make the grid(s)
-    for am in prange(p['am0'],p['dam'],p['nam']) :
-      if enhanced_o : oam = [('O',2*am)]
-      else : oam = None
+    for oa in prange(oa0,doa,noa) :
+     for am in prange(p['am0'],p['dam'],p['nam']) :
+      if enhanced_o : oa = [('O',2*am)]
+      else : oa = [('O',oa+am)]
       for cm in prange(p['cm0'],p['dcm'],p['ncm']) :
         for nm in prange(p['nm0'],p['dnm'],p['nnm']) :
           specdata=np.zeros([nelem,int(p['nmh']),int(p['nlogg']),int(p['nteff']),nspec],dtype=np.float32)
-          specnormdata=np.zeros([nelem,int(p['nmh']),int(p['nlogg']),int(p['nteff']),nspec],dtype=np.int16)
+          #specnormdata=np.zeros([nelem,int(p['nmh']),int(p['nlogg']),int(p['nteff']),nspec],dtype=np.int16)
+          specnormdata=np.zeros([nelem,int(p['nmh']),int(p['nlogg']),int(p['nteff']),nspec],dtype=np.float32)
           # allow for restart after certain number of [M/H] have been completed
           if clobber :
               nmh = 0
@@ -557,13 +928,21 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
                 sys.stdout.flush()
                 nskip=0 
                 dskip = 1 if kurucz else 2
-                vout = get_vmicro(vmicrofit,vmicro)
+                vout = get_vmicro(vmicrofit,vmicro,teff=teff,logg=logg,mh=mh)
+                print(teff,logg,mh,am,cm,nm,oa,vout)
                 while nskip >= 0 and nskip < 10 :
-                  spec,specnorm=mkturbospec(int(teff),logg,mh,am,cm,nm,els=oam,
-                    wrange=wrange,dw=dw,atmosdir=marcsdir,
-                    elemgrid=elem,linelistdir=linelistdir+'/'+elem+'/',linelist=linelist,vmicro=vout,
-                    solarisotopes=solarisotopes,
-                    nskip=nskip,kurucz=kurucz,run=run,save=save) 
+                  if code is None :
+                      spec,specnorm=mkturbospec(int(teff),logg,mh,am,cm,nm,els=oa,
+                        wrange=wrange,dw=dw,atmosdir=marcsdir,
+                        elemgrid=elem,linelistdir=linelistdir+'/'+elem+'/',linelist=linelist,vmicro=vout,
+                        solarisotopes=solarisotopes,
+                        nskip=nskip,kurucz=kurucz,run=run,save=save) 
+                  else :
+                      spec,specnorm=mk_synthesis(code,int(teff),logg,mh,am,cm,nm,els=oa,
+                        wrange=wrange,dw=dw,atmosdir=marcsdir,
+                        elemgrid=elem,linelistdir=linelistdir+'/'+elem+'/',linelist=linelist,vmicro=vout,
+                        solarisotopes=solarisotopes,
+                        nskip=nskip,atmos_type=p['atmos'],run=run,save=save,atoms=atoms,molec=molec,h2o=h2o) 
                   nskip = nskip+dskip if isinstance(spec,float) else -1
                 if nskip > 0 : 
                     print('FAILED Turbospec',nskip)
@@ -572,10 +951,12 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
                 try:
                     if elem == '' :
                         specdata[0,imh,ilogg,iteff,:]=spec
-                        specnormdata[0,imh,ilogg,iteff,:]=np.round((specnorm-0.5)*65534.).astype(int)
+                        #specnormdata[0,imh,ilogg,iteff,:]=np.round((specnorm-0.5)*65534.).astype(int)
+                        specnormdata[0,imh,ilogg,iteff,:]=specnorm
                     else :
-                        specdata[:,imh,ilogg,iteff,:]=spec[:,gd]
-                        specnormdata[:,imh,ilogg,iteff,:]=np.round((specnorm[:,gd]-0.5)*65534).astype(int)
+                        specdata[:,imh,ilogg,iteff,:]=spec[:,gdspec]
+                        #specnormdata[:,imh,ilogg,iteff,:]=np.round((specnorm[:,gdspec]-0.5)*65534).astype(int)
+                        specnormdata[:,imh,ilogg,iteff,:]=specnorm
                 except :
                     print(specdata.shape)
                     specdata[:,imh,ilogg,iteff,:]=0.
@@ -633,10 +1014,12 @@ def mkgrid(planfile,clobber=False,save=False,run=True) :
                 hdulist.append(hdu)
             hdunorm=fits.ImageHDU(np.squeeze(specnormdata))
             hdunorm.header.extend(hdu.header.copy(strip=True))
-            hdunorm.header['BZERO'] = 0.5
-            hdunorm.header['BSCALE'] = 1./65534.
+            #hdunorm.header['BZERO'] = 0.5
+            #hdunorm.header['BSCALE'] = 1./65534.
             hdulist.append(hdunorm)
             hdulist.writeto(specdir+'/'+p['name']+elem+'.fits',overwrite=True)
+
+          return hdulist
 
 def mkgridlink(planfile,suffix=None) :
     """  DEVELOPMENT : create coarse grid by merging syntheses from multiple grids
@@ -727,7 +1110,7 @@ def getindex(header,axes,vals) :
         out.append(int(round(i)))
     return out
 
-def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None) :
+def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,telescope=None) :
     """ Create a grid of LSF-convolved spectra given specifications in input parameter file and existing raw syntheses
 
     Args :
@@ -749,34 +1132,15 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None) :
     if fiber is None : fiber=np.array(p.get('lsffiber').split()).astype(int).tolist()
     if isinstance(fiber,int): fiber= [fiber]
     if apred is None :apred = p['apred'] if p.get('apred') else 'r10'
+    if telescope is None : telescope = p['telescope'] if p.get('telescope') else 'apo25m'
     lsfid=int(p.get('lsfid'))
     waveid=int(p.get('waveid'))
+    vmacrofit = int(p['vmacrofit']) if p.get('vmacrofit') else 0
+    vmacro_arr=np.array(p['vmacro'].split()).astype(float)
+    kernel=p['kernel'] if p.get('kernel') else 'rot'
 
     if ls is None :
-        lsfile = 'lsf_{:08d}_{:08d}.fits'.format(lsfid,waveid)
-        while os.path.isfile(lsfile+'.lock') : 
-            print('waiting for lock: ',lsfile+'.lock')
-            time.sleep(10)
-
-        if os.path.isfile(lsfile) :
-            x=fits.open(lsfile)[1].data
-            ls=fits.open(lsfile)[2].data
-        else :
-            fp = open(lsfile+'.lock','w')
-            fp.close()
-            x,ls = lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred)
-            hdu=fits.HDUList()
-            hdu.append(fits.PrimaryHDU())
-            hdu[0].header['APRED'] = apred
-            hdu[0].header['LSFID'] = lsfid
-            hdu[0].header['WAVEID'] = waveid
-            hdu[0].header['HIGHRES'] = highres
-            for i,f in enumerate(fiber) :
-                hdu[0].header['FIBER{:d}'.format(i)] = f
-            hdu.append(fits.ImageHDU(x))
-            hdu.append(fits.ImageHDU(ls))
-            hdu.writeto(lsfile,overwrite=True)
-            os.remove(lsfile+'.lock') 
+        x, ls = getlsf(lsfid,waveid,apred=apred,telescope=telescope,fiber=fiber,highres=highres)
     else :
         x = ls[0]
         ls = ls[1]
@@ -785,73 +1149,100 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None) :
     if prefix is None :  
         if p.get('r0') and float(p['r0']) >= -0.001 : prefix = 'rbf_'
         else : prefix=''
-    specdata = fits.open(specdir+'/'+prefix+p['name']+'.fits')[0]
-    npix = specdata.data.shape[-1]
-    nspec=1
-    for i in range(len(specdata.data.shape)-1) :
-        nspec*=specdata.data.shape[i]
-    print('nspec: ', nspec)
-    specdata.data=np.reshape(specdata.data,(nspec,npix))
 
-    # synthesis is in air, we want vacuum
-    ws=spectra.fits2vector(specdata.header,1)
-    ws=spectra.airtovac(ws)
+    # get the synthesis
+    # for regular grids, we just want to process the first extension,
+    # for minigrids, we want to process all except the last (which is the normalized synthesis)
+    speclist = fits.open(specdir+'/'+prefix+p['name']+'.fits')
+    nexten = len(speclist) - 1
+
+    hdulist=fits.HDUList()
+    for exten in range(nexten) :
+
+        specdata = speclist[exten]
+        npix = specdata.data.shape[-1]
+        nspec=1
+        for i in range(len(specdata.data.shape)-1) :
+            nspec*=specdata.data.shape[i]
+        print('nspec: ', nspec)
+        specdata.data=np.reshape(specdata.data,(nspec,npix))
+
+        # synthesis is in air, we want vacuum
+        ws=spectra.fits2vector(specdata.header,1)
+        ws=spectra.airtovac(ws)
 
     # output wavelength grid
-    wa=aspcap.apStarWave()
-    nout=wa.shape[0]
+    #wa=aspcap.apStarWave()
+    #nout=wa.shape[0]
 
-    # create vmacro array
-    vmacro=[]
-    dlam=np.log10(wa[1])-np.log10(wa[0])
-    for k,mh in enumerate(prange(p['mh0'],p['dmh'],p['nmh'])) :
-      for j,logg in enumerate(prange(p['logg0'],p['dlogg'],p['nlogg'])) :
-        for i,teff in enumerate(prange(p['teff0'],p['dteff'],p['nteff'])) :
-            vm = 10.**(0.470794-0.254*mh)
-            vm = vm if vm<15 else 15.
-            vmacro.append(vm)
-    vmacro=np.array(vmacro)
+        # is this a minigrid?
+        try :
+            if p['elem'] == '' : nelem = 1
+            else : nelem=8
+        except : nelem=1
 
-    # LSF and rotation convolution all spectra at the same time
-    nmh=int(p['nmh'])
-    nlogg=int(p['nlogg'])
-    nteff=int(p['nteff'])
-    nrot = int(p['nrot'])
-    try :
-        if p['elem'] == '' : nelem = 1
-        else : nelem=8
-    except : nelem=1
+        # create vmacro array
+        vmacro=[]
+        #dlam=np.log10(wa[1])-np.log10(wa[0])
+        for l in range(nelem) :
+          for k,mh in enumerate(prange(p['mh0'],p['dmh'],p['nmh'])) :
+            for j,logg in enumerate(prange(p['logg0'],p['dlogg'],p['nlogg'])) :
+              for i,teff in enumerate(prange(p['teff0'],p['dteff'],p['nteff'])) :
+                if vmacrofit == 1 :
+                    vm = 10.**(0.470794-0.254*mh)
+                    vm = 10.**(vmacro_arr[0]+vmacro_arr[1]*teff+vmacro_arr[2]*logg+vmacro_arr[3]*mh)
+                    vm = vm if vm<15 else 15.
+                elif vmacrofit == 0 :
+                    vm = 0.
+                vmacro.append(vm)
+        vmacro=np.array(vmacro)
 
-    if nrot == 1 :
-        vrot=10.**.176
-        smoothdata=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=vrot,vmacro=vmacro)
-        smoothdata=np.reshape(smoothdata,(nelem,nmh,nlogg,nteff,nout)).astype(np.float32)
-    else :
-        smoothdata=np.zeros([nrot,nelem,nmh,nlogg,nteff,nout],dtype=np.float32)
-        for irot,vrot in enumerate(prange(p['rot0'],p['drot'],p['nrot'])) :
-            smooth=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=10.**vrot,vmacro=vmacro)
-            smoothdata[irot,:,:,:,:,:]=np.reshape(smooth,(nelem,nmh,nlogg,nteff,nout)).astype(np.float32)
+        # LSF and rotation convolution all spectra at the same time
+        nmh=int(p['nmh'])
+        nlogg=int(p['nlogg'])
+        nteff=int(p['nteff'])
+        nrot = int(p['nrot'])
 
-    specdata.data=np.reshape(specdata.data,(nelem,nmh,nlogg,nteff,npix))
+        if nrot == 1 :
+            vrot=10.**.176
+            smoothdata,waveout=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=vrot,vmacro=vmacro)
+            nout=smoothdata.shape[-1]
+            smoothdata=np.reshape(smoothdata,(nelem,nmh,nlogg,nteff,nout)).astype(np.float32)
+        else :
+            smoothdata=np.zeros([nrot,nelem,nmh,nlogg,nteff,nout],dtype=np.float32)
+            for irot,vrot in enumerate(prange(p['rot0'],p['drot'],p['nrot'])) :
+                if kernel == 'rot' :
+                    smooth,waveout=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=10.**vrot,vmacro=vmacro)
+                elif kernel == 'gauss' :
+                    smooth,waveout=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vmacro=10.**vrot)
+                else :
+                    print('Unknown kernel!')
+                    pdb.set_trace()
+                smoothdata[irot,:,:,:,:,:]=np.reshape(smooth,(nelem,nmh,nlogg,nteff,nout)).astype(np.float32)
 
-    hdu=fits.PrimaryHDU(np.squeeze(smoothdata))
-    hdu.header.extend(specdata.header.copy(strip=True))
-    hdu.header['CRVAL1'] = aspcap.logw0
-    hdu.header['CDELT1'] = aspcap.dlogw
-    hdu.header['CTYPE1'] = 'LOG(WAVELENGTH)'
-    if nrot > 1 :
-        hdu.header.insert('CTYPE4',('CRVAL5',float(p['rot0']),''),after=True)
-        hdu.header.insert('CRVAL5',('CDELT5',float(p['drot']),''),after=True)
-        hdu.header.insert('CDELT5',('CRPIX5',1,''),after=True)
-        hdu.header.insert('CRPIX5',('CTYPE5','LOG(VSINI)',''),after=True)
-    hdu.header['INFILE'] = p['specdir']+'/'+prefix+p['name']+'.fits'
-    hdu.header['APRED'] = apred
-    hdu.header['LSFID'] = lsfid
-    hdu.header['WAVEID'] = waveid
-    hdu.header['HIGHRES'] = highres
-    hdu.header.add_comment('LSF convolved spectra')
-    hdu.header.add_comment('APOGEE_VER:'+os.environ['APOGEE_VER'])
-    hdu.writeto(p['name']+'.fits',overwrite=True)
+        specdata.data=np.reshape(specdata.data,(nelem,nmh,nlogg,nteff,npix))
+        if exten == 0 : hdu=fits.PrimaryHDU(np.squeeze(smoothdata))
+        else : hdu=fits.ImageHDU(np.squeeze(smoothdata))
+        hdu.header.extend(specdata.header.copy(strip=True))
+        #hdu.header['CRVAL1'] = aspcap.logw0
+        hdu.header['CRVAL1'] = np.log10(waveout[0])
+        hdu.header['CDELT1'] = aspcap.dlogw
+        hdu.header['CTYPE1'] = 'LOG(WAVELENGTH)'
+        if nrot > 1 :
+            hdu.header.insert('CTYPE4',('CRVAL5',float(p['rot0']),''),after=True)
+            hdu.header.insert('CRVAL5',('CDELT5',float(p['drot']),''),after=True)
+            hdu.header.insert('CDELT5',('CRPIX5',1,''),after=True)
+            hdu.header.insert('CRPIX5',('CTYPE5','LOG(VSINI)',''),after=True)
+        hdu.header['INFILE'] = p['specdir']+'/'+prefix+p['name']+'.fits'
+        hdu.header['APRED'] = apred
+        hdu.header['LSFID'] = lsfid
+        hdu.header['WAVEID'] = waveid
+        hdu.header['HIGHRES'] = highres
+        hdu.header.add_comment('LSF convolved spectra')
+        hdu.header.add_comment('APOGEE_VER:'+os.environ['APOGEE_VER'])
+        hdulist.append(hdu)
+
+    hdulist.writeto(p['name']+'.fits',overwrite=True)
 
     return smoothdata
 
@@ -900,17 +1291,18 @@ def mkspec(input) :
     vmicro=pars[6]
     vrot=pars[7]
     elems=[]
-    els = ['O','Na','Mg','Al','Si','P','S','K','Ca','Ti','V','Cr','Mn','Co','Ni','Cu','Ge','Rb','Ce','Nd']
+    els = ['O','Na','Mg','Al','Si','P','S','K','Ca','Ti','V','Cr','Mn','Co','Fe','Ni','Cu','Ge','Rb','Ce','Nd']
     for j,el in enumerate(els) :
         elems.append([el,pars[8+j]])
     print(teff,logg,mh,vmicro,am,cm,nm)
     spec,specnorm=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=indata['kurucz'],fill=False,
-                              linelist=indata['linelist'],wrange=[15100.,17000.],h2o=indata['h2o'],atoms=indata['atoms'],save=False)
-    #spec,specnorm=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=False,fill=False,linelist='20180901.OH',h2o=0,atoms=False,wrange=[15100.,17000.],save=False)
+                              linelist=indata['linelist'],linelistdir=indata['linelistdir'],
+                              wrange=indata['wrange'],dw=indata['dw'],h2o=indata['h2o'],atoms=indata['atoms'],save=False)
     return pars,specnorm
     
 
-def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fiber='combo',linelist='20180901',kurucz=False,h2o=None,atoms=True,plot=False,lines=None,ls=None) :
+def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',telescope='apo25m',
+            fiber='combo',linelist='20180901',linelistdir=None,kurucz=False,h2o=0,atoms=True,plot=False,lines=None,ls=None) :
     """ Make a series of spectra from parameters in an input file, with parallel processing for turbospec
         Outputs to FITS file {file}.fits
 
@@ -925,42 +1317,42 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fi
         plot (bool) : plot each spectrum (default=False)
         lines (list) : specify limited range of input lines to calculate (default=None, i.e. all lines)
     """
+    names=ascii.read(file).colnames
     pars=np.loadtxt(file)
     if lines is not None :
-        pars = pars[lines[0]:lines[1]]
+        pars = pars[lines[0]:min([len(pars),lines[1]])]
         suffix = '_{:d}'.format(lines[0])
     else :
         suffix = ''
 
     indata={}
     indata['linelist']=linelist
+    indata['linelistdir']=linelistdir
     indata['kurucz']=kurucz
     indata['h2o']=h2o
     indata['atoms']=atoms
+    indata['wrange']=[15100.,17000.]
+    indata['dw']=0.05
+    nspec=38001
     inputs=[]
     for par in pars :
         inputs.append((par,indata))
 
-    pool = mp.Pool(threads)
-    #specs = pool.map_async(mkspec, pars).get()
-    specs = pool.map_async(mkspec, inputs).get()
-    pool.close()
-    pool.join()
+    if threads == 0 :
+        specs=[]
+        for input in inputs :
+            specs.append(mkspec(input))
+    else :
+        pool = mp.Pool(threads)
+        specs = pool.map_async(mkspec, inputs).get()
+        pool.close()
+        pool.join()
 
     # convolved and bundle output spectra into output fits file
     wa=aspcap.apStarWave()
+    prefix='lsf_'
     if ls is None :
-        print('getting lsf...')
-        lsfile = 'lsf_{:08d}_{:08d}.fits'.format(lsfid,waveid)
-        if os.path.isfile(lsfile) :
-            x=fits.open(lsfile)[0].data
-            ls=fits.open(lsfile)[1].data
-        else :
-            x,ls=lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred)
-            hdu=fits.HDUList()
-            hdu.append(fits.ImageHDU(x))
-            hdu.append(fits.ImageHDU(ls))
-            hdu.writeto(lsfile,overwrite=True)
+        x, ls = getlsf(lsfid,waveid,prefix=prefix,apred=apred,telescope=telescope,fiber=fiber,highres=highres)
     else :
         x=ls[0]
         ls=ls[1]
@@ -969,7 +1361,7 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fi
     conv=[]
     outpar=[]
     if plot : plt.clf()
-    ws=np.linspace(15100.,17000., len(specs[0][1]))
+    ws=np.linspace(15100.,17000., nspec)
     # synthesis is in air, we want vacuum
     ws=spectra.airtovac(ws)
     print('convolving...')
@@ -982,7 +1374,7 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fi
             vrot=spec[0][7]
             if vrot < 0.5 : vrot=None
             # convolve one at a time because we have different vrot for each
-            z=lsf.convolve(ws,spec[1],lsf=ls,xlsf=x,vmacro=vmacro,vrot=vrot)
+            z,waveout=lsf.convolve(ws,spec[1],lsf=ls,xlsf=x,vmacro=vmacro,vrot=vrot)
             out.append(spec[1])
             conv.append(np.squeeze(z))
             outpar.append(spec[0])
@@ -990,34 +1382,97 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',fi
 
     # write the spectra out
     hdu=fits.HDUList()
-    hdu.append(fits.ImageHDU(outpar))
+    h=fits.ImageHDU(outpar)
+    h.header['NPAR' ] = len(names)
+    for ipar,par in enumerate(names) : h.header['PAR{:d}'.format(ipar)] = par
+    hdu.append(h)
     hdu.append(fits.ImageHDU(out))
     h=fits.ImageHDU(conv)
-    hdu.append(fits.ImageHDU(conv))
+    h.header['CRVAL1'] = np.log10(wa[0])
+    h.header['CDELT1'] = np.log10(wa[1])-np.log10(wa[0])
+    h.header['CTYPE1'] = 'LOG(WAVELENGTH)'
+    hdu.append(h)
     hdu.writeto(file+suffix+'.fits',overwrite=True)
     return file+suffix+'.fits' 
+
+def getlsf(lsfid,waveid,apred='r10',telescope='apo25m',highres=9,prefix='lsf_',fiber='combo',clobber=False,fill=False) :
+    """ Create LSF FITS file or read if already created
+    """
+    lsfile = prefix+'{:08d}_{:08d}.fits'.format(lsfid,waveid)
+    print(lsfile)
+    while os.path.isfile(lsfile+'.lock') :
+        # if another process is creating LSF wait until done
+        print('waiting for lock: ',lsfile+'.lock')
+        time.sleep(10)
+
+    if os.path.isfile(lsfile) and not clobber :
+        # if file exists, read it
+        x=fits.open(lsfile)[1].data
+        ls=fits.open(lsfile)[2].data
+    else :
+        fp = open(lsfile+'.lock','w')
+        fp.close()
+        # lsf.get does the real work
+        x,ls = lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred,telescope=telescope)
+        hdu=fits.HDUList()
+        hdu.append(fits.PrimaryHDU())
+        hdu[0].header['APRED'] = apred
+        hdu[0].header['LSFID'] = lsfid
+        hdu[0].header['WAVEID'] = waveid
+        hdu[0].header['HIGHRES'] = highres
+        for i,f in enumerate(fiber) :
+            hdu[0].header['FIBER{:d}'.format(i)] = f
+        hdu.append(fits.ImageHDU(x))
+        hdu.append(fits.ImageHDU(ls))
+        hdu.writeto(lsfile,overwrite=True)
+        os.remove(lsfile+'.lock')
+
+    if fill :
+        # for all non-finite pixels, fill in LSF from nearest good pixel
+        gd = np.where(np.isfinite(ls[:,0]))[0]
+        mask = np.zeros(ls.shape[0],dtype=bool)
+        mask[gd] = True
+        bd = np.where(mask == False)[0]
+        for i in bd:
+            j = np.argmin(np.abs(i-gd))
+            ls[i,:] = ls[gd[j],:]
+    return x, ls
+
    
-def elemsens(files=None,outfile='elemsens.fits',highres=9,waveid=2420038,lsfid=5440020,apred='r10',fiber='combo',plot=True,calc=False,htmlfile='elemsens.html',filt=None,filtdir=None) :
+def elemsens(files=None,outfile='elemsens',highres=9,waveid=13140000,lsfid=14600018,apred='r12',telescope='apo25m',fiber='combo',
+             calc=False,plot=True,ls=None,htmlfile='elemsens.html',filt=None,filtdir=None,linelist='20180901') :
     """ Create spectra at a range of paramters with individual abundances varied independently
     """
     if files==None : files=sample.elemsens()
     hdu=fits.HDUList()
-    if calc: x,ls=lsf.get(lsfid,waveid,fiber,highres=highres,apred=apred)
+    hdumask=fits.HDUList()
+    if ls is None :
+        xls, ls = getlsf(lsfid,waveid,apred=apred,telescope=telescope,fiber=fiber,highres=highres)
+    else :
+        xls = ls[0]
+        ls = ls[1]
     grid=[]
     ytit=[]
-    for i,name in enumerate(files) :
+    for i,name in enumerate(files[3:]) :
+        elem=name.replace('.dat','')
         print(name)
         if name == 'C.dat' or name == 'N.dat' : continue
-        if calc : out=mksynth(name,threads=16,ls=(x,ls))
-        else : out=name+'.fits'
-        ehdu=fits.open(out)[2]
-        ehdu.header['ELEM'] = name.replace('.dat','')
+        if calc : 
+            #out=mksynth(name,threads=16,ls=(x,ls))
+            mini_linelist(elem,linelist,only=True)
+            out0=mksynth('ref.dat',threads=16,ls=(xls,ls),linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'_only',h2o=None)
+            os.rename('ref.dat.fits',elem+'_ref.fits')
+            out1=mksynth(name,threads=16,ls=(xls,ls),linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'_only',h2o=None)
+            os.rename(name+'.fits',elem+'.fits')
+        #ehdu=fits.open(out)[2]
+        ehdu=fits.open(elem+'.fits')[2]
+        ref=fits.open(elem+'_ref.fits')[2].data
+        ehdu.header['ELEM'] = elem
         ehdu.header['CRVAL1'] = aspcap.logw0
         ehdu.header['CDELT1'] = aspcap.dlogw
         ehdu.header['CTYPE1'] = 'LOG(WAVELENGTH)'
-        hdu.append(ehdu)
         if plot :
-            if i==0 :
+            if i==-1 :
                 ref=ehdu.data
             else :
                 if filtdir is not None: 
@@ -1025,6 +1480,7 @@ def elemsens(files=None,outfile='elemsens.fits',highres=9,waveid=2420038,lsfid=5
                 fig,ax=plots.multi(3,3,hspace=0.001,wspace=0.001,xtickrot=60,figsize=(12,8))
                 nspec = ehdu.data.shape[0]
                 ispec=0
+                gd=[]
                 for ix in range(3) :
                     te=3500+ix*1000
                     for iy in range(3) :
@@ -1035,15 +1491,84 @@ def elemsens(files=None,outfile='elemsens.fits',highres=9,waveid=2420038,lsfid=5
                         ax[iy,ix].text(0.05,0.9,'Teff:{:6.0f} logg:{:6.1f}'.format(te,logg),transform=ax[iy,ix].transAxes)
                         if filt is not None: plots.plotl(ax[iy,ix],x,filt*0.1+1.005)
                         j=np.where(y < 0.99)[0]
+                        gd.extend(j)
                         ispec+=1
+                mask=np.zeros(ehdu.data.shape[-1])
+                mask[list(set(gd))] = 1.
                 figname = ehdu.header['ELEM'].strip()+'.png'
                 fig.savefig(figname)
                 plt.close()
                 grid.append([figname])
                 ytit.append(ehdu.header['ELEM'])
+                mhdu=fits.ImageHDU(mask)
+                mhdu.header['ELEM'] = name.replace('.dat','')
+                mhdu.header['CRVAL1'] = aspcap.logw0
+                mhdu.header['CDELT1'] = aspcap.dlogw
+                mhdu.header['CTYPE1'] = 'LOG(WAVELENGTH)'
+                hdumask.append(mhdu)
+        ehdu.data -= ref
+        hdu.append(ehdu)
     # output single file
-    if outfile is not None: hdu.writeto(outfile,overwrite=True)
+    if outfile is not None: 
+        hdu.writeto(outfile+'.fits',overwrite=True)
+        hdumask.writeto(outfile+'_mask.fits',overwrite=True)
     html.htmltab(grid,ytitle=ytit,file=htmlfile)
+
+def mkmask(file='elemsens')  :
+
+    mask=fits.open(file+'.fits')
+    els=[]
+    for i in range(len(mask)) : els.append(mask[i].header['ELEM'])
+    els = np.array(els)
+    alphas=np.array(['O','Mg','Si','S','Ca','Ti'])
+    metals=np.array(['Na','Al','P','K','V','Cr','Mn','Co','Fe','Ni','Cu','Ge','Rb','Ce','Nd'])
+    fig,ax=plots.multi(1,2,hspace=0.001,sharex=True)
+    x=10.**spectra.fits2vector(mask[0].header,1)
+    for i,el in enumerate(els) :
+        print(el)
+        gd=[]
+        ax[0].cla()
+        for k in range(9) : 
+            plots.plotl(ax[0],x,mask[i].data[k,:])
+            gd.extend(np.where(mask[i].data[k,:] < -0.01)[0])
+        if el in alphas :
+            bd=[]
+            for al in alphas :
+                ax[1].cla()
+                if el != al :
+                    print(el,al)
+                    j=np.where(els == al)[0][0]
+                    for k in range(9) : 
+                        plots.plotl(ax[1],x,mask[j].data[k,:])
+                        #plots.plotl(ax[1],x,mask[j].data[k,:]/mask[i].data[k,:] )
+                        bd.extend(np.where((mask[j].data[k,:]/mask[i].data[k,:] < 0.2) & (mask[j].data[k,:]<-0.01) )[0])
+                    plt.show()
+                    #gd=np.where(abs(mask[j].data) > 0.)[0]
+                    #mask[i].data[gd] = -1.*mask[i].data[gd]
+        elif el in metals :
+            for al in metals :
+                ax[1].cla()
+                if el != al :
+                    print(el,al)
+                    j=np.where(els == al)[0][0]
+                    for k in range(9) : 
+                        plots.plotl(ax[1],x,mask[j].data[k,:])
+                        #plots.plotl(ax[1],x,mask[j].data[k,:]/mask[i].data[k,:] )
+                        bd.extend(np.where((mask[j].data[k,:]/mask[i].data[k,:] < 0.2) & (mask[j].data[k,:]<-0.01) )[0])
+                    #gd=np.where(abs(mask[j].data) > 0.)[0]
+                    #print(el,al,j,len(gd))
+                    #mask[i].data[gd] = -1.*abs(mask[i].data[gd])
+                    plt.show()
+
+        new=np.zeros(mask[i].data.shape[-1])
+        new[gd] = 1.
+        new[bd] = -1*new[bd]
+        ax[1].cla()
+        plots.plotl(ax[1],x,new)
+          
+        plt.draw()
+        plt.show()
+        pdb.set_trace()
 
 def filter_lines(infile,outfile,wind,nskip=0) :
     """ Read from input linelist file, output comments and lines falling in windows of [w1,w2] to outfile
@@ -1074,18 +1599,29 @@ def filter_lines(infile,outfile,wind,nskip=0) :
     fout.close()
     return nout
  
-def mini_linelist(elem,linelist,maskdir) :
-    """ Produce an abbreviated line list for minigrid construction given mask file and linelist file IN AIR
+def mini_linelist(elem,linelist,maskdir=None,only=False,clobber=False) :
+    """ Produce abbreviated Turbospec linelists, e.g. for minigrid construction, given mask file and linelist file IN AIR
+        With only, produce linelist with only lines from input element 
         Return arrays of wavelength ranges wind,wair
     """
 
     # get window ranges in vacuum and convert to air
-    wind=np.loadtxt(os.environ['APOGEE_DIR']+'/data/windows/'+maskdir+'/'+elem+'.wave')
-    nwind=wind.shape[0]
-    wair=spectra.vactoair(wind)
+    if maskdir is not None :
+        wind=np.loadtxt(os.environ['APOGEE_DIR']+'/data/windows/'+maskdir+'/'+elem+'.wave')
+        nwind=wind.shape[0]
+        wair=spectra.vactoair(wind)
+    else : 
+        nwind = 1
+        wair=np.zeros([2,2])
+        wair[0,0] = -1.
+        wair[0,1] = 1.e10
+        wind = wair
 
     # setup output directory
-    outdir = os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'/'
+    if only :
+        outdir = os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'_only/'
+    else :
+        outdir = os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'/'
     try: os.mkdir(outdir)
     except: pass
 
@@ -1095,7 +1631,7 @@ def mini_linelist(elem,linelist,maskdir) :
         time.sleep(10)
 
     # if files are already created, return, otherwise open .lock file and create
-    if os.path.isfile(outdir+elem+'.done') : return wind,wair
+    if not clobber and os.path.isfile(outdir+elem+'.done') : return wind,wair
     fp = open(outdir+elem+'.lock','w')
     fp.close()
 
@@ -1103,9 +1639,9 @@ def mini_linelist(elem,linelist,maskdir) :
     # Turbospectrum files are in air wavelengths
     lists=['turbospec.'+linelist+'.atoms','turbospec.'+linelist+'.molec',
            'turbospec.'+linelist+'.Hlinedata','turbospec.h2o-BC8.5V.molec','turbospec.h2o-BC9.5V.molec']
-    for i,list in enumerate(lists) :
-        filepath=os.environ['APOGEE_SPECLIB']+'/linelists/'+list
-        fout=open(outdir+list,'w')
+    for i,linelist in enumerate(lists) :
+        filepath=os.environ['APOGEE_SPECLIB']+'/linelists/'+linelist
+        fout=open(outdir+linelist,'w')
         with open(filepath) as fp:  
             out = ''
             nelem = 0
@@ -1113,17 +1649,28 @@ def mini_linelist(elem,linelist,maskdir) :
             line = fp.readline()
             while line :
                 if line[0] == "'" :
+                    # we have a new element
                     if nelem > 0 :
+                        # if it's not the first element, write out the previous one!
                         if n > 0 :
-                            j=head.split("'")[2].split()[0]
-
-                            fout.write("'"+head.split("'")[1]+"'   "+j+'{:10d}\n'.format(n))
-                            fout.write(out)
+                            if 'molec' in linelist :
+                                tmp = int(float(head.split("'")[1]))
+                                elemcode = [tmp//100,tmp%100]
+                            else :
+                                elemcode = [int(float(head.split("'")[1]))]
+                            if not only or atomic.periodic(elem) in elemcode :
+                                j=head.split("'")[2].split()[0]
+                                # for the header line, include the new number of lines
+                                fout.write("'"+head.split("'")[1]+"'   "+j+'{:10d}\n'.format(n))
+                                # write the accumlated data output
+                                fout.write(out)
                             n=0
                     head = line
+                    # start the line data output with the comment line
                     out = fp.readline()
                     nelem += 1
                 else :
+                    # accumulate the linelist for this element if it's within the desired range
                     w = line.split()[0]
                     for i in range(nwind) :
                       if (float(w) >= wair[i,0]) and (float(w) <=wair[i,1]) : 
@@ -1131,9 +1678,16 @@ def mini_linelist(elem,linelist,maskdir) :
                           n+=1
                 line = fp.readline()          
             if n > 0 :
-                j=head.split("'")[2].split()[0]
-                fout.write("'"+head.split("'")[1]+"'   "+j+'{:10d}\n'.format(n))
-                fout.write(out)
+                # last element
+                if 'molec' in linelist :
+                    tmp = int(float(head.split("'")[1]))
+                    elemcode = [tmp//100,tmp%100]
+                else :
+                    elemcode = [int(float(head.split("'")[1]))]
+                if not only or atomic.periodic(elem) in elemcode :
+                    j=head.split("'")[2].split()[0]
+                    fout.write("'"+head.split("'")[1]+"'   "+j+'{:10d}\n'.format(n))
+                    fout.write(out)
         fout.close()
 
     # write .done file and remove .lock
@@ -1142,7 +1696,7 @@ def mini_linelist(elem,linelist,maskdir) :
     os.remove(outdir+elem+'.lock') 
     return wind,wair
 
-def cross(a,val=[0,0,0],hard=None,sum=True) :
+def plotcross(a,val=[0,0,0],hard=None,sum=True) :
     """ plot cross sections of input 3D grid of synthetic spectra
 
         Args:
@@ -1182,4 +1736,14 @@ def cross(a,val=[0,0,0],hard=None,sum=True) :
     if hard is not None : 
         fig.savefig(hard+'_teff.pdf')
         plt.close()
+
+    dim=a.data.shape
+    if len(dim) == 5 :
+        for i in range(dim[0]) :
+            if i == 0 : fig,ax=aspcap.plot(x,data[i,val[0],val[1],val[2],:],color=colors[i],sum=sum)
+            else : aspcap.plot(x,data[i,val[0],val[1],val[2],:],ax=ax,color=colors[i],sum=sum)
+        #fig.suptitle('vsini varied from {:6.0f} to {:6.0f} at logg {:6.1f}, [M/H] {:6.2f}'.format(teff[0],teff[-1],logg[val[1]],mh[val[0]]))
+        if hard is not None : 
+            fig.savefig(hard+'_vsini.pdf')
+            plt.close()
 

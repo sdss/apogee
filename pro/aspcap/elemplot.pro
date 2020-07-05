@@ -38,7 +38,6 @@ s[n-3]=s[n-2]
 n-=2
 froot=strjoin(s[0:n-1],'/')
 field=file_basename(froot)
-
 ; need to set first pixel off or else ranges are screwed up
 elem_mask[0]=0
 plot,wave,str.spec[istar].spec,xrange=xrange
@@ -47,9 +46,14 @@ plot,wave,str.spec[istar].spec,xrange=xrange
 if tag_exist(str.param,'file') then name=strtrim(str.param[istar].file,2) else name=strtrim(str.param[istar].apogee_id,2)
 for i=0,n_elements(str.lib.elem_symbol)-1 do begin
  el=strtrim(str.lib.elem_symbol[i],2)
- if file_test('/'+froot+'/elem_'+el+'/'+el+'-'+strtrim(str.param[istar].class,2)+'-'+field+'.spm') then begin
-  load,'/'+froot+'/elem_'+el+'/'+el+'-'+strtrim(str.param[istar].class,2)+'-'+field+'.spm',fspm
-  load,'/'+froot+'/elem_'+el+'/'+el+'-'+strtrim(str.param[istar].class,2)+'-'+field+'.mdl',fmodel
+ print,'/'+froot+'/elem_'+el+'/'+el+'-'+strtrim(str.param[istar].class,2)+'-'+field+'.spm'
+ indir=hard+'../ferre/elem_'+el+'/'
+ ;if file_test('/'+froot+'/elem_'+el+'/'+el+'-'+strtrim(str.param[istar].class,2)+'-'+field+'.spm') then begin
+ ; load,'/'+froot+'/elem_'+el+'/'+el+'-'+strtrim(str.param[istar].class,2)+'-'+field+'.spm',fspm
+ ; load,'/'+froot+'/elem_'+el+'/'+el+'-'+strtrim(str.param[istar].class,2)+'-'+field+'.mdl',fmodel
+ if file_test(indir+el+'-'+strtrim(str.param[istar].class,2)+'-'+field+'.spm') then begin
+  load,indir+el+'-'+strtrim(str.param[istar].class,2)+'-'+field+'.spm',fspm
+  load,indir+el+'-'+strtrim(str.param[istar].class,2)+'-'+field+'.mdl',fmodel
   j=where(strtrim(fspm[0,*],2) eq name)
   model=fmodel[*,j]
   if keyword_set(hard) then device,file=hard+name+'.'+el+'.eps',/encap,/color,xsize=16,ysize=10,/in

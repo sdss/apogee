@@ -32,7 +32,7 @@ def showtime(string) :
     print(string+' {:8.2f}'.format(time.time()))
     sys.stdout.flush()
 
-def get(lsfid,waveid,fiber,highres=9,apred=None) :
+def get(lsfid,waveid,fiber,highres=9,apred=None,telescope=None) :
     """  Return standard sparsified LSF
 
     Args:
@@ -47,6 +47,7 @@ def get(lsfid,waveid,fiber,highres=9,apred=None) :
 
     """
     if apred is not None: load.apred = apred
+    if telescope is not None: load.settelescope(telescope)
     x=numpy.arange(-15.,15.01,1./highres)
     x=numpy.arange(-7.,7.01,1./highres)
     l=eval(x,fiber=fiber,waveid=waveid,lsfid=lsfid)
@@ -54,7 +55,7 @@ def get(lsfid,waveid,fiber,highres=9,apred=None) :
 
 def convolve(wav,spec,
              lsf=None,xlsf=None,dxlsf=None,fiber='combo',
-             vmacro=6.,vrot=None):
+             vmacro=6.,vrot=None, highout=False):
     """ convolve an input spectrum with APOGEE LSF and resample to APOGEE's apStar wavelength grid
     Args:
        wav - wavelength array (linear in wavelength in \AA)
@@ -125,7 +126,10 @@ def convolve(wav,spec,
         # Use sparse representations to quickly calculate the convolution
         tmp= sparse.csr_matrix(tmp)
 
-    return lsf.dot(tmp.T).T.toarray()[:,::hires]
+    if highout :
+        return lsf.dot(tmp.T).T.toarray(),waveout[gd]
+    else :
+        return lsf.dot(tmp.T).T.toarray()[:,::hires],waveout[gd]
 
 def sparsify(lsf):
     """convert an LSF matrix calculated with eval [ncen,npixoff] to a sparse [ncen,ncen] matrix with the LSF on the diagonals (for quick convolution with the LSF)

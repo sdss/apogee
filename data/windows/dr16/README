@@ -1,0 +1,18 @@
+mask_v01 is from Henrik analysis, with 8575 pixels
+mask_v01_aspcap is from Henrik analysis, with 7514 pixels
+mask_v02_aspcap is from Henrik analysis + Br11, with 7514 pixels
+global is just edges to mask to original 7214 pixels
+global_mask_01 is v01 combined with global
+global_mask_02 is v02 combined with global, with Br11 masked
+
+param_v01.mask made from edge, global, plus remove elements except C, N, O, Mg, Fe, Ni
+param_v02.mask made from edge, global, plus remove elements except C, N, Mg, Fe, Ni
+param_v03.mask made from C, N, Mg, Fe, minus contributions from edge, global and other elements
+param_v04.mask made from C, N, O, Fe, minus contributions from edge, global and other elements
+
+Elements:
+ .filt files are original window from Ricardo Carrera analysis
+ mask.mkwind extracts the window wavelength ranges into .wind files
+ These are edited by hand to turn off windows, e.g. from individual line analysis (henrik)
+ mask.mkmask then turns these back into .mask files, with option of masking additional
+   pixels from global mask above

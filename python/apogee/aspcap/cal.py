@@ -1,8 +1,12 @@
 from apogee.utils import apload
 from apogee.utils import apselect
+from apogee.utils import bitmask
 from apogee.aspcap import elem
 from apogee.aspcap import teffcomp
 from apogee.aspcap import loggcomp
+from apogee.aspcap import aspcap
+from apogee.aspcap import err
+from apogee.aspcap import qa
 from tools import html
 from tools import match
 from tools import struct
@@ -10,17 +14,25 @@ from tools import plots
 from tools import fit
 try: from tools import vfit
 except: pass
+import copy
 import os
 import shutil
 import pdb
 import glob
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from astropy.io import fits
 from astropy.io import ascii
+from astropy.table import Table
+from astropy.table import Column
 
-def allField(files=['apo*/*/apField-*.fits','apo*/*/apFieldC-*.fits'],out='allField.fits',verbose=False) :
+
+os.environ['ISOCHRONE_DIR']='/uufs/chpc.utah.edu/common/home/apogee/isochrones/'
+
+def allField(files=['apo*/*/a?Field-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?Field-*.fits'],out='allField.fits',verbose=False) :
     '''
     Concatenate set of apField files
     '''
@@ -39,7 +51,7 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
     Concatenate aspcapField files, adding ELEM tags if not there
     '''
     # concatenate the structures
-    all=struct.concat(files,verbose=True)
+    all=struct.concat(files,verbose=True,fixfield=True)
 
     # add elements tags if we don't have them
     try :
@@ -63,7 +75,174 @@ def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nel
     # write out the file
     if out is not None:
         print('writing',out)
-        struct.wrfits(all,out)
+        #struct.wrfits(all,out)
+        hdulist=fits.HDUList()
+        hdu=fits.BinTableHDU.from_columns(all)
+        hdulist.append(hdu)
+        filelist=glob.glob(files[0])
+        hdu=fits.open(filelist[0])[3]
+        hdulist.append(hdu)
+        hdu=fits.open(filelist[0])[3]
+        hdulist.append(hdu)
+        hdulist.writeto(out,overwrite=True)
+
+def dr16(allstar='allStar-r12-l33cal.fits',allcal='allCal-r12-l33.fits') :
+    """ Run the summary routines for DR16 allStar and allCal
+    """
+    if allstar is not None : summary(out=allstar,prefix='allStar/',cal='dr16',repeat=False)
+    if allcal is not None : summary(out=allcal,prefix='allCal/',cal='dr16',calib=False)
+
+def writecal(allstar='allStar',allcal='allCal') :
+    """ Write the calibration FITS files into output calibration directory
+        Replace errpar parameters with those from repeats
+    """
+    # replace the scatter coefficients in calibration relations with these
+    giant_errfit=fits.open(allcal+'/repeat/giant_errfit.fits')
+    dwarf_errfit=fits.open(allcal+'/repeat/dwarf_errfit.fits')
+    giant_abuncal=Table.read(allstar+'/calib/giant_abuncal.fits')
+    dwarf_abuncal=Table.read(allstar+'/calib/dwarf_abuncal.fits')
+    giant_abuncal.remove_column('errpar')
+    dwarf_abuncal.remove_column('errpar')
+    errfit=np.vstack([giant_errfit[2].data['ERRFIT'],giant_errfit[1].data['ERRFIT'][3:7:3,:]])
+    giant_abuncal.add_column(Column(errfit, name='errpar'))
+    errfit=np.vstack([dwarf_errfit[2].data['ERRFIT'],dwarf_errfit[1].data['ERRFIT'][3:7:3,:]])
+    dwarf_abuncal.add_column(Column(errfit, name='errpar'))
+    shutil.copy(allstar+'/calib/all_tecal.fits','cal/')
+    shutil.copy(allstar+'/calib/giant_loggcal.fits','cal/')
+    shutil.copy(allstar+'/calib/dwarf_loggcal.fits','cal/')
+    giant_abuncal.write('cal/giant_abuncal.fits',overwrite=True)
+    dwarf_abuncal.write('cal/dwarf_abuncal.fits',overwrite=True)
+
+
+def summary(out='allCal.fits',prefix='allcal/',cal='dr16',hr=True,repeat=True,dr14comp=True,teff=True,logg=True,elemcal=True, calib=True, doqa=True, calibrate=True) :
+    """ Create QA summary page and plots
+    """
+    hdulist=fits.open(out)
+    all=hdulist[1].data
+    try: os.mkdir(prefix)
+    except: pass
+    try: os.mkdir(prefix+'hr/')
+    except: pass
+    try: os.mkdir(prefix+'calib/')
+    except: pass
+    try: os.mkdir(prefix+'calibrated/')
+    except: pass
+    try: os.mkdir(prefix+'optical/')
+    except: pass
+    try: os.mkdir(prefix+'qa/')
+    except: pass
+    try: os.mkdir(prefix+'qa_calibrated/')
+    except: pass
+    try: os.mkdir(prefix+'repeat/')
+    except: pass
+
+    # HR diagrams
+    if hr :
+        aspcap.hr(all,hard=prefix+'hr/hr.png',xr=[8000,3000],grid=True,iso=[9.0,10.0],alpha=1.0,snrbd=5,target=prefix+'hr/hr',size=1)
+        aspcap.hr(all,hard=prefix+'hr/hrhot.png',xr=[20000,3000],iso=[8.0,10.0],snrbd=30,size=1)
+        aspcap.multihr(all,hard=prefix+'hr/multihr.png',size=1)
+        aspcap.hr(all,hard=prefix+'hr/hr_cal.png',xr=[8000,3000],grid=True,iso=[9.0,10.0],alpha=1.0,snrbd=5,param='PARAM',target=prefix+'hr/hr_cal',size=1)
+    grid=[[prefix+'hr/hr.png',prefix+'hr/multihr.png',prefix+'hr/hrhot.png'],
+          [prefix+'hr/hr_main.png',prefix+'hr/hr_targ.png',''],
+          [prefix+'hr/hr_cal_main.png',prefix+'hr/hr_cal.png','']] 
+
+    # Master summary HTML file
+    f=html.head(file=out.replace('.fits','.html'))
+    f.write(html.table(grid,ytitle=['uncalibrated','uncalibrated','calibrated']))
+    f.write('<br>Uncalibrated parameters:<br>')
+    ids = ['VESTA','2M14153968+1910558']
+    j=[]
+    try: 
+        for id in ids: j.extend( np.where( (np.core.defchararray.strip(all['APOGEE_ID']) == id) & (all['VISIT'] == 0)) [0] )
+    except: 
+        for id in ids: j.extend( np.where( (np.core.defchararray.strip(all['APOGEE_ID']) == id) ) [0] )
+    ids = ['VESTA','Arcturus']
+    f.write(html.table(all['FPARAM'][j],plots=False,ytitle=ids,xtitle=aspcap.params()[1]))
+    f.write('<br>calibrated parameters:<br>')
+    f.write(html.table(all['PARAM'][j],plots=False,ytitle=ids,xtitle=aspcap.params()[1]))
+    # table of abundances (relative to M)
+    f.write('<br>Uncalibrated abundances:<br>')
+    try: abun=all['FELEM'][j,0,:]
+    except: abun=all['FELEM'][j,:]
+    xtit=[]
+    for i in range(len(hdulist[3].data['ELEM_SYMBOL'][0])) : 
+        if hdulist[3].data['ELEMTOH'][0][i] == 1 : abun[:,i]-=all['FPARAM'][j,3]
+        xtit.append('['+hdulist[3].data['ELEM_SYMBOL'][0][i]+'/M]')
+    f.write(html.table(abun,plots=False,ytitle=ids,xtitle=xtit))
+
+    f.write('<br>calibrated abundances:<br>')
+    xtit=[]
+    for i in range(len(hdulist[3].data['ELEM_SYMBOL'][0])) : 
+        xtit.append('['+hdulist[3].data['ELEM_SYMBOL'][0][i]+'/M]')
+    f.write(html.table(all['X_M'][j],plots=False,ytitle=ids,xtitle=xtit))
+
+    f.write('<p> Calibration relations<ul>\n')
+    f.write('<li> <a href='+prefix+'calib/'+out.replace('.fits','.html')+'> Calibration plots</a>\n')
+    f.write('<li> <a href='+prefix+'calibrated/'+out.replace('.fits','.html')+'> Calibration check (calibration plots from calibrated values) </a>\n')
+    f.write('<li> <a href='+prefix+'qa/calib.html> Calibrated-uncalibrated plots</a>\n')
+    f.write('</ul>\n')
+    f.write('<p> Comparisons<ul>\n')
+    f.write('<li> <a href='+prefix+'optical/optical.html> Comparison with optical abundances</a>\n')
+    f.write('<li> <a href='+prefix+'qa/apolco.html> APO-LCO comparison</a>\n')
+    f.write('<li> <a href='+prefix+'qa/m67.html> M67 abundances</a>\n')
+    f.write('</ul>\n')
+    f.write('<p> Chemistry plots<ul>\n')
+    f.write('<li> <a href='+prefix+'qa/elem_chem.html> Chemistry plots with uncalibrated abundances</a>\n')
+    f.write('<li> <a href='+prefix+'qa_calibrated/elem_chem.html> Chemistry plots with calibrated abundances, main sample</a>\n')
+    f.write('<li> <a href='+prefix+'qa_calibrated/all_elem_chem.html> Chemistry plots with calibrated abundances, all</a>\n')
+    f.write('<li> <a href='+prefix+'qa_calibrated/named_elem_chem.html> Chemistry plots with calibrated abundances, named tags</a>\n')
+    f.write('</ul>\n')
+    f.write('<p> QA checks<ul>\n')
+    f.write('<li> <a href='+prefix+'qa/cn.html> C,N parameters vs abundances</a>\n')
+    f.write('<li> <a href='+prefix+'qa/flags.html> Bitmasks</a>\n')
+    f.write('<li> <a href='+prefix+'qa/elem_errs.html> Abundance uncertainties</a>\n')
+    f.write('<li> <a href='+prefix+'qa/dr14_diffs.html> DR14 comparison plots</a>')
+    f.write('</ul>\n')
+    f.write('<br> Duplicates/repeats, for empirical uncertainties: <ul>\n')
+    f.write('<li> <a href='+prefix+'repeat/giant_repeat_elem.html> Elemental abundances, giants</a>\n')
+    f.write('<li> <a href='+prefix+'repeat/giant_repeat_param.html> Parameters,  giants</a>\n')
+    f.write('<li> <a href='+prefix+'repeat/dwarf_repeat_elem.html> Elemental abundances, dwarfs</a>\n')
+    f.write('<li> <a href='+prefix+'repeat/dwarf_repeat_param.html> Parameters,  dwarfs</a>\n')
+    f.write('</ul>\n')
+    html.tail(f)
+
+    # optical comparison index
+    grid=[]
+    grid.append(['r12_uncal_paramcomp.png','r12_cal_paramcomp.png'])
+    grid.append(['dr14_uncal_paramcomp.png','dr14_cal_paramcomp.png'])
+    yt=['DR16 Parameters','DR14 parameters']
+    for el in hdulist[3].data['ELEM_SYMBOL'][0] :
+        grid.append(['r12_uncal_abundcomp_{:s}.png'.format(el),'r12_cal_abundcomp_{:s}.png'.format(el)])
+        yt.append(el)
+    html.htmltab(grid,file=prefix+'optical/optical.html',ytitle=yt,xtitle=['uncalibrated','calibrated'])
+   
+    # do the calibration and calibration and QA plots
+    if calibrate :
+        allcal=docal(out,clobber=False,hr=False,teff=teff,logg=logg,vmicro=False,vmacro=False,elemcal=elemcal,
+              out=prefix+'calib/',stp=False,cal=cal,calib=False) 
+    if repeat :
+        # get scatter from repeat observations
+        giant_param_errfit,giant_elem_errfit=err.repeat(hdulist,out=prefix+'repeat/giant_',elem=elemcal,logg=[-1,3.8])
+        dwarf_param_errfit,dwarf_elem_errfit=err.repeat(hdulist,out=prefix+'repeat/dwarf_',elem=elemcal,logg=[3.8,5.5])
+
+    # now get plots for calibrated data
+    if calib : 
+        docal(out,clobber=False,hr=False,teff=teff,logg=logg,vmicro=False,vmacro=False,elemcal=elemcal,
+              out=prefix+'calibrated/',stp=False,cal=cal,calib=True) 
+    hdulist=fits.open(out)
+    if dr14comp :
+        qa.dr14comp(hdulist,out=prefix+'qa/',elem=elemcal)
+    if doqa : 
+        qa.plotelems(hdulist,out=prefix+'qa/')
+        qa.plotelem_errs(hdulist,out=prefix+'qa/')
+        qa.plotelems(hdulist,calib=True,out=prefix+'qa_calibrated/')
+        qa.plotelems(hdulist,out=prefix+'qa_calibrated/all_',main=False)
+        qa.plotelems(hdulist,out=prefix+'qa_calibrated/named_',named=True)
+        qa.plotcn(hdulist,out=prefix+'qa/')
+        qa.calib(hdulist,out=prefix+'qa/')
+        qa.m67(hdulist,out=prefix+'qa/')
+        qa.apolco(hdulist,out=prefix+'qa/')
+        qa.flags(hdulist,out=prefix+'qa/')
 
     return all
 
@@ -109,17 +288,17 @@ def hrsample(indata,hrdata,maxbin=50,raw=True) :
                 gd.extend(x)
     return i1[gd],i2[gd]
 
-def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v3.6.0',cal1m=True,coolstars=True,dir='cal',hrdata=None,optical=True,ns=True) :
+def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v4.4.2',
+              cal1m=True,coolstars=True,dir='cal',hrdata=None,optical='cal_stars_20190329.txt',ns=True,special=None,Ce=True,ebvmax=None,snmin=75,mkall=True) :
     '''
     selects a calibration subsample from an input apField structure, including several calibration sub-classes: 
         cluster, APOKASC stars, 1m calibration stars. Creates cluster web pages/plots if requested
     '''
 
     if indata is None :
-        indata=allField(files=['apo25m/*/apField-*.fits','lco25m/*/apField-*.fits','apo1m/calibration/apField-*.fits'],out=None,verbose=True)
-        return indata
+        indata=allField(files=['apo25m/*/a?Field-*.fits','lco25m/*/a?Field-*.fits','apo1m/calibration/a?Field-*.fits'],out=None,verbose=True)
 
-    j=np.where(indata['COMMISS'] == 0)[0]
+    j=np.where((indata['COMMISS'] == 0) & (indata['SNR'] > 75) )[0]
     data=indata[j]
 
     try: os.mkdir(dir)
@@ -128,21 +307,31 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
     if clusters :
         jc=[]
         clusts=apselect.clustdata()
+        fstars=open(dir+'/allclust.txt','w')
         f=html.head(file=dir+'/'+file)
+        f.write('<A HREF=allclust.txt> cluster stars list </a>')
         f.write('<TABLE BORDER=2>\n')
+        f.write('<TR><TD>NAME<TD>RA<TD>DEC<TD>Radius<TD>RV<TD>Delta RV<TD>Position criterion<TD>RV criterion<TD>PM criterion<TD>Parallax criterion<TD> CMD')
         clust=apselect.clustdata()
         for ic in range(len(clust.name)) :
+            print(clust[ic].name)
             j=apselect.clustmember(data,clust[ic].name,plot=plot,hard=dir)
             print(clust[ic].name,len(j))
-            jc.extend(j)
-            f.write('<TR><TD>'+clust[ic].name+'<TD>{:12.6f}<TD>{:12.6f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
+            # clusters to exclude here
+            if (clust[ic].name not in ['OmegaCen','Pal1','Pal6','Pal5','Terzan12'])  and (len(j) >= 5): jc.extend(j)
+            f.write('<TR><TD><A HREF='+clust[ic].name+'.txt>'+clust[ic].name+'</A><TD>{:12.6f}<TD>{:12.6f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
                     clust[ic].ra,clust[ic].dec,clust[ic].rad,clust[ic].rv,clust[ic].drv))
-            f.write('<TD><A HREF='+clust[ic].name+'_pos.jpg><IMG SRC='+clust[ic].name+'_pos.jpg width=300></A>\n')
-            f.write('<TD><A HREF='+clust[ic].name+'_pos.jpg><IMG SRC='+clust[ic].name+'_rv.jpg width=300></A>\n')
-            f.write('<TD><A HREF='+clust[ic].name+'_pos.jpg><IMG SRC='+clust[ic].name+'_cmd.jpg width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_pos.png><IMG SRC='+clust[ic].name+'_pos.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_rv.png><IMG SRC='+clust[ic].name+'_rv.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_pm.png><IMG SRC='+clust[ic].name+'_pm.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_parallax.png><IMG SRC='+clust[ic].name+'_parallax.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_cmd.png><IMG SRC='+clust[ic].name+'_cmd.png width=300></A>\n')
+            np.savetxt(dir+'/'+clust[ic].name+'.txt',data[jc]['APOGEE_ID'],fmt='%s')
+            for star in data[jc]['APOGEE_ID'] : fstars.write('{:s} {:s}\n'.format(star,clust[ic].name))
         html.tail(f)
+        fstars.close()
         print('Number of cluster stars: ',len(jc))
-        mklinks(data,jc,dir+'/clust')
+        mklinks(data,jc,dir+'_clust')
         all.extend(jc)
     
     if apokasc is not None :
@@ -150,8 +339,8 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         apokasc = fits.open(os.environ['APOGEE_DIR']+'/data/apokasc/'+apokasc+'.fits')[1].data
         i1,i2=match.match(data['APOGEE_ID'],apokasc['2MASS_ID'])
         rgb=np.where(apokasc['CONS_EVSTATES'][i2] == 'RGB')[0]
-        print('Number of APOKASC RGB stars (every 3rd): ',len(rgb[0:-1:3]))
-        jc.extend(i1[rgb][0:-1:3])
+        print('Number of APOKASC RGB stars (every 4th): ',len(rgb[0:-1:3]))
+        jc.extend(i1[rgb][0:-1:4])
         rc=np.where(apokasc['CONS_EVSTATES'][i2] == 'RC')[0]
         print('Number of APOKASC RC stars (every 2nd): ',len(rc[0:-2:2]))
         jc.extend(i1[rc][0:-1:2])
@@ -161,16 +350,20 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         rc=np.where(apokasc['CONS_EVSTATES'][i2] == 'RC/2CL')[0]
         print('Number of APOKASC RC/2CL stars: ',len(rc))
         jc.extend(i1[rc])
-        lowg=np.where((apokasc['LOGG_SYD_SCALING'][i2] < 2) & (apokasc['LOGG_SYD_SCALING'][i2] > 0.1))[0]
+        logg = 'APOKASC2_LOGG'  # older version used LOGG_SYSD_SCALING
+        lowg=np.where((apokasc[logg][i2] < 2) & (apokasc[logg][i2] > 0.1))[0]
         print('Number of APOKASC low log g  stars: ',len(lowg))
         jc.extend(i1[lowg])
-        highg=np.where((apokasc['LOGG_SYD_SCALING'][i2] > 3.8) & (apokasc['LOGG_SYD_SCALING'][i2] < 5.5))[0]
+        highg=np.where((apokasc[logg][i2] > 3.8) & (apokasc[logg][i2] < 5.5))[0]
         print('Number of APOKASC high log g  stars: ',len(highg))
+        jc.extend(i1[highg])
+        highg=np.where((apokasc['LOGG_DW'][i2] > 3.8) & (apokasc['LOGG_DW'][i2] < 5.5))[0]
+        print('Number of APOKASC high LOGG_DW stars: ',len(highg))
         jc.extend(i1[highg])
         lowz=np.where((apokasc['FE_H_ADOP_COR'][i2] < -1.) & (apokasc['FE_H_ADOP_COR'][i2] > -90.))[0]
         print('Number of APOKASC low [Fe/H] stars: ',len(lowz))
         jc.extend(i1[lowz])
-        mklinks(data,jc,dir+'/apokasc')
+        mklinks(data,jc,dir+'_apokasc')
         all.extend(jc)
     
     if coolstars :
@@ -182,46 +375,80 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         i1,i2=match.match(data['APOGEE_ID'],stars['id'])
         print('Number of cool stars: ',len(i1))
         jc.extend(i1)
-        mklinks(data,jc,dir+'/galcen')
+        mklinks(data,jc,dir+'_galcen')
         all.extend(jc)
 
     if cal1m :
         j=np.where(data['FIELD'] == 'calibration')[0]
         print('Number of 1m calibration stars: ',len(j))
-        mklinks(data,j,dir+'/cal')
         all.extend(j)
         j=np.where(data['FIELD'] == 'RCB')[0]
         print('Number of 1m RCB stars: ',len(j))
         all.extend(j)
+        mklinks(data,j,dir+'_cal1m')
 
-    if optical :
+    if optical is not None:
         #stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/validation_stars_DR16.txt',names=['id'],format='fixed_width_no_header')
-        stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/all_comparisons.txt',names=['id'],format='fixed_width_no_header')
+        stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/'+optical,names=['id'],format='fixed_width_no_header')
         i1,i2=match.match(data['APOGEE_ID'],stars['id'])
         print('Number of optical validation stars: ',len(i1))
-        mklinks(data,i1,dir+'/optical')
+        mklinks(data,i1,dir+'_optical')
+        all.extend(i1)
+
+    if Ce :
+        stars = np.loadtxt(os.environ['APOGEE_DIR']+'/data/calib/Ce_test_stars.txt',dtype=str)[:,0]
+        i1,i2=match.match(data['APOGEE_ID'],stars)
+        print('Number of Ce test stars: ',len(i1))
+        mklinks(data,i1,dir+'_Ce')
         all.extend(i1)
 
     if ns :
         #north-south overlap
         jn=np.where((data['FIELD'] == 'N2243') | (data['FIELD'] == '000+08') |
-                    (data['FIELD'] == '300+75') | (data['FIELD'] == 'M12-N') | (data['FIELD'] == 'SA57-N') )[0]
+                    (data['FIELD'] == '300+75') | (data['FIELD'] == 'M12-N') )[0]
         js=np.where((data['FIELD'] == 'N2243-S') | (data['FIELD'] == '000+08-S') |
-                    (data['FIELD'] == '300+75-S') | (data['FIELD'] == 'M12-S') | (data['FIELD'] == 'SA57-S')  )[0]
+                    (data['FIELD'] == '300+75-S') | (data['FIELD'] == 'M12-S') )[0]
         i1,i2=match.match(data['APOGEE_ID'][jn], data['APOGEE_ID'][js])
-        jc=jn[i1]
-        mklinks(data,jc,dir+'/ns')
+        jc=list(jn[i1])
+        jc.extend(js[i2])
+        stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/apogee_overlap.txt',names=['id'],format='fixed_width_no_header')
+        jn=np.where(data['TELESCOPE'] == 'apo25m')[0]
+        js=np.where(data['TELESCOPE'] == 'lco25m')[0]
+        i1,i2=match.match(data['APOGEE_ID'][jn],stars['id'])
+        jc.extend(jn[i1])
+        i1,i2=match.match(data['APOGEE_ID'][js],stars['id'])
+        jc.extend(js[i2])
+        mklinks(data,jc,dir+'_ns')
+        print('Number of N/S overlap stars: ',len(jc))
         all.extend(jc)
-        pdb.set_trace()
+
+    if special is not None:
+        stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/'+special,names=['id'],format='fixed_width_no_header')
+        jn=np.where(data['TELESCOPE'] == 'apo25m')[0]
+        js=np.where(data['TELESCOPE'] == 'lco25m')[0]
+        i1,i2=match.match(data['APOGEE_ID'][jn],stars['id'])
+        jc=list(jn[i1])
+        i1,i2=match.match(data['APOGEE_ID'][js],stars['id'])
+        jc.extend(js[i2])
+        print('Number of '+special+' stars: ',len(i1))
+        mklinks(data,jc,dir+'_special')
+        all.extend(jc)
+
+    if ebvmax is not None:
+        jc=np.where( (data['SFD_EBV']>0) & (data['SFD_EBV'] < ebvmax) )[0]
+        print('Number of low E(B-V) stars: ',len(jc))
+        mklinks(data,jc,dir+'_ebv')
+        all.extend(jc)
 
     if hrdata is not None:
         i1, i2 = hrsample(data,hrdata)
         print('Number of HR sample stars: ',len(i1))
-        mklinks(data,i1,dir+'/hr')
+        mklinks(data,i1,dir+'_hr')
         all.extend(i1)
 
     # create "all" directories with all stars, removing duplicates
-    mklinks(data,list(set(all)),dir+'/all')
+    print('Total number of stars: ',len(list(set(all))))
+    if mkall: mklinks(data,list(set(all)),dir+'_all')
 
     return indata
 
@@ -229,12 +456,15 @@ def mklinks(data,j,out,n=48) :
     """ Create links in n different output directories for requested indices
     """
 
-    # remove existing output directories, create new ones
-    cleandir(out,n)
-    # create symbolic links in output directories
-    nsplit=len(j)//n+1
-    for i in range(len(j)) :
-        symlink(data[j[i]],out,i//nsplit)
+    for tel in ['apo1m','apo25m','lco25m'] :
+        # create symbolic links in output directories, separate for each instrument
+        outdir=tel+'/'+out+'_'+tel
+        # remove existing output directories, create new ones
+        cleandir(outdir,n)
+        gd=np.where(data['TELESCOPE'][j] == tel )[0]
+        nsplit=len(gd)//n+1
+        for i in range(len(gd)) :
+            symlink(data[j[gd[i]]],outdir,i//nsplit)
 
 
 def cleandir(out,n) :
@@ -246,7 +476,7 @@ def cleandir(out,n) :
             shutil.rmtree('{:s}{:03d}'.format(out,i))
         except : pass
         try:
-            os.mkdir('{:s}{:03d}'.format(out,i))
+            os.makedirs('{:s}{:03d}'.format(out,i))
         except : pass
 
 def symlink(data,out,idir) :
@@ -263,33 +493,17 @@ def symlink(data,out,idir) :
         infile='{:s}/calibration/{:s}'.format(data['TELESCOPE'],data['FILE'])
     os.symlink('../../'+infile,outfile)
 
-def docal(vers,clobber=False,allstar=True,hr=True,teff=True,logg=True,vmicro=True,vmacro=True,elemcal=True,out=None,stp=False,cal='dr14',calib=False) :
+def docal(infile,clobber=False,hr=True,teff=True,logg=True,vmicro=True,vmacro=True,elemcal=True,out=None,stp=False,cal='dr14',calib=False) :
     '''
     Derives all calibration relations and creates plots of them, as requested
     '''
 
     # output subdirectory
-    try:
-        os.mkdir('cal')
-    except:
-        pass
+    try: os.mkdir('cal')
+    except: pass
     print(os.getcwd())
 
-    # combine aspcapField files into allCal
-    if clobber :
-        allc=allCal(['hr???/aspcapField*.fits','cal???/aspcapField*.fits','clust???/aspcapField*.fits'],out='allCal-'+vers+'.fits')
-    else :
-        try:
-            allc=fits.open('allCal-'+vers+'.fits')[1].data
-        except:
-            allc=allCal(['hr???/aspcapField*.fits','cal???/aspcapField*.fits','clust???/aspcapField*.fits'],out='allCal-'+vers+'.fits')
-    if allstar :
-        c=fits.open('allStar-'+vers+'.fits')[1].data
-        cc=fits.open('allStar-'+vers+'.fits')[3].data
-    else :
-        c=allc
-        cc=apl.allStar()[3].data
-    print('Total stars:',len(c))
+    c=fits.open(infile)
 
     figs=[]
     ytitle=[]
@@ -300,82 +514,88 @@ def docal(vers,clobber=False,allstar=True,hr=True,teff=True,logg=True,vmicro=Tru
         if calib : param='PARAM'
         else : param='FPARAM'
         plots.plotc(ax,c[param][:,0],c[param][:,1],c[param][:,3],xr=[6000,3000],yr=[5,-1],zr=[-2,0.5])
-        plt.savefig(out+'hr.jpg')                                                                                                 
-    figs.append(['hr.jpg','hr.jpg'])
-    ytitle.append('HR')
+        plt.savefig(out+'hr.png')                                                                                                 
+        figs.append(['hr.png','hr.png'])
+        ytitle.append('HR')
 
     allcal={}
     # Teff vs photometric
     if teff :
-        allcal['giant_teffcal'] = teffcomp.ghb(c,ebvmax=0.02,glatmin=10,out=out+'giant_teffcomp',yr=[-750,750],dwarf=False,calib=calib)
+        allcal['teffcal'] = teffcomp.ghb(c[1].data,ebvmax=0.02,glatmin=10,out=out+'tecal',yr=[-750,750],trange=[4500,7000],loggrange=[-1,6],calib=calib)
+        allcal['giant_teffcal'] = teffcomp.ghb(c[1].data,ebvmax=0.02,glatmin=10,out=out+'giant_tecal',yr=[-750,750],loggrange=[-1,3.8],calib=calib)
+        allcal['dwarf_teffcal'] = teffcomp.ghb(c[1].data,ebvmax=0.02,glatmin=10,trange=[4500,7000],out=out+'dwarf_tecal',yr=[-750,750],loggrange=[3.8,6],calib=calib)
         if out is not None :
+            struct.wrfits(struct.dict2struct(allcal['teffcal']),out+'all_tecal.fits')
             struct.wrfits(struct.dict2struct(allcal['giant_teffcal']),out+'giant_tecal.fits')
-        allcal['dwarf_teffcal'] = teffcomp.ghb(c,ebvmax=0.02,glatmin=10,trange=[4000,7500],out=out+'dwarf_teffcomp',yr=[-750,750],dwarf=True,calib=calib)
-        if out is not None :
             struct.wrfits(struct.dict2struct(allcal['dwarf_teffcal']),out+'dwarf_tecal.fits')
         if stp : pdb.set_trace()
-    figs.append(['giant_teffcomp.jpg','dwarf_teffcomp.jpg'])
-    ytitle.append('Teff')
-    figs.append(['giant_teffcomp_b.jpg','dwarf_teffcomp_b.jpg'])
-    ytitle.append('Teff')
+    figs.append(['tecal.png','tecal_b.png'])
+    ytitle.append('Teff all together')
+    figs.append(['giant_tecal.png','dwarf_tecal.png'])
+    ytitle.append('Teff, giants and dwarfs')
+    figs.append(['giant_tecal_b.png','dwarf_tecal_b.png'])
+    ytitle.append('Teff, giants and dwarfs')
 
     # log g vs asteroseismic
     if logg :
-        allcal['rgbrcsep' ] = loggcomp.rcrgb(c,out=out+'rcrgbsep')
-        allcal['loggcal'] = loggcomp.apokasc(c,plotcal=False,out=out+'loggcomp',calib=calib)
+        allcal['rgbrcsep' ] = loggcomp.rcrgb(c[1].data,out=out+'rcrgbsep')
+        allcal['giant_loggcal'] = loggcomp.apokasc(c[1].data,plotcal=False,out=out+'rcrgb_loggcal',calib=calib)
+        allcal['dwarf_loggcal'] = loggcomp.dwarf(c[1].data,out=out+'logg',calib=calib)
         if out is not None :
-            struct.wrfits(struct.dict2struct(dict(allcal['rgbrcsep'].items()+allcal['loggcal'].items())),out+'loggcal.fits')
+            struct.wrfits(struct.dict2struct(dict(allcal['rgbrcsep'].items()+allcal['giant_loggcal'].items())),
+                            out+'giant_loggcal.fits')
+            struct.wrfits(struct.dict2struct(allcal['dwarf_loggcal']),out+'dwarf_loggcal.fits')
         if stp : pdb.set_trace()
-    figs.append(['rcrgbsep.jpg','none.jpg'])
-    ytitle.append('log g')
-    figs.append(['loggcomp_b.jpg','loggcomp.jpg'])
-    ytitle.append('log g')
+    figs.append(['rcrgbsep.png','rcrgb_loggcal.png'])
+    ytitle.append('log g, RGB/RC')
+    figs.append(['rcrgb_loggcal_b.png','logg_dwarfs.png'])
+    ytitle.append('log g, RGB/RC and dwarfs')
+    figs.append(['logg_all.png','logg_all.png'])
+    ytitle.append('log g ')
 
     # vmicro calibration
     if vmicro :
         print("vmicro fit, cubic in log g, linear in [M/H]")
         print("sample limited to FERRE vmicro error <0.01 ")
-        vfit.fit_vmicro(c,degree=3,reject=0.15,mhrange=[-2,1],loggrange=[-0.3,4.9],vmrange=[0,7],teffrange=[3550,6500],vrange=[0.55,4],maxerr=0.01,func=vfit.vm3_1,out=out+'vmicro3_1')
+        vfit.fit_vmicro(c[1].data,degree=3,reject=0.15,mhrange=[-2,1],loggrange=[-0.3,4.9],vmrange=[0,7],
+                        teffrange=[3550,6500],vrange=[0.55,4],maxerr=0.01,func=vfit.vm3_1,out=out+'vmicro3_1')
 
         print("full sample (maxerr=0.1)")
-        vfit.fit_vmicro(c,degree=3,reject=0.15,mhrange=[-2,1],loggrange=[-0.3,4.9],vmrange=[0,7],teffrange=[3500,6500],vrange=[0.55,4],maxerr=0.1,func=vfit.vm3_1,out=out+'vmicro3_1all')
+        vfit.fit_vmicro(c[1].data,degree=3,reject=0.15,mhrange=[-2,1],loggrange=[-0.3,4.9],vmrange=[0,7],
+                        teffrange=[3500,6500],vrange=[0.55,4],maxerr=0.1,func=vfit.vm3_1,out=out+'vmicro3_1all')
 
         #dwarfs only
         print("dwarfs only, fit as f(Teff)")
-        dw=np.where(c['FPARAM'][:,1] > 4)[0]
-        vfit.fit_vmicro(c,reject=0.15,mhrange=[-2,1],loggrange=[4,5],vmrange=[0,7],teffrange=[3500,8000],vrange=[0.55,4],maxerr=0.1,func=vfit.vm1t,out=out+'vmicro1t')
+        dw=np.where(c[1].data['FPARAM'][:,1] > 4)[0]
+        vfit.fit_vmicro(c[1].data,reject=0.15,mhrange=[-2,1],loggrange=[4,5],vmrange=[0,7],teffrange=[3500,8000],
+                        vrange=[0.55,4],maxerr=0.1,func=vfit.vm1t,out=out+'vmicro1t')
         fig,ax=plots.multi(1,1)
-        plots.plotc(ax,c['FPARAM'][dw,0],10**c['FPARAM'][dw,2],c['FPARAM'][dw,3],xr=[3500,8000],xt='Teff',
+        plots.plotc(ax,c[1].data['FPARAM'][dw,0],10**c[1].data['FPARAM'][dw,2],c[1].data['FPARAM'][dw,3],xr=[3500,8000],xt='Teff',
            yr=[0,4],yt='vmicro',zr=[-2,0.5],zt='[M/H]',colorbar=True)
 
     # vmacro
     if vmacro :
-        vfit.fit_vmacro(c,mhrange=[-2.5,1],reject=0.3,maxerr=0.1,out=out+'vmacro_2d')
+        vfit.fit_vmacro(c[1].data,mhrange=[-2.5,1],reject=0.3,maxerr=0.1,out=out+'vmacro_2d')
 
     # elemental abundances
     if elemcal :
-        elems=np.append(cc['ELEM_SYMBOL'][0],['M','alpha'])
-        # use allCal file for uncertainty calibration, so we have multiple visits
-        # use allstar for calibration, so we have full solar circle sample
-        errcal=elem.cal(allc,cc['ELEM_SYMBOL'][0],cc['ELEMTOH'][0],elems,hard=out+'giants_',cal=cal,errpar=True,plot=False,calib=calib)
-        allcal['giantcal']=elem.cal(c,cc['ELEM_SYMBOL'][0],cc['ELEMTOH'][0],elems,hard=out+'giants_',cal=cal,errpar=True,calib=calib)
-        allcal['giantcal']['errpar']=errcal['errpar']
+        elems=np.append(c[3].data['ELEM_SYMBOL'][0],['M','alpha'])
+        allcal['giant_abuncal']=elem.cal(c,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'giants_',cal=cal,errpar=True,calib=calib)
+        allcal['dwarf_abuncal']=elem.cal(c,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'dwarfs_',dwarfs=True,cal=cal,calib=calib)
         if out is not None :
-            struct.wrfits(allcal['giantcal'],out+'giantcal.fits')
-        errcal=elem.cal(allc,cc['ELEM_SYMBOL'][0],cc['ELEMTOH'][0],elems,hard=out+'dwarfs_',dwarfs=True,errpar=True,plot=False,cal=cal,calib=calib)
-        allcal['dwarfcal']=elem.cal(c,cc['ELEM_SYMBOL'][0],cc['ELEMTOH'][0],elems,hard=out+'dwarfs_',dwarfs=True,cal=cal,calib=calib)
-        allcal['dwarfcal']['errpar']=errcal['errpar']
-        if out is not None :
-            struct.wrfits(allcal['dwarfcal'],out+'dwarfcal.fits')
+            struct.wrfits(allcal['giant_abuncal'],out+'giant_abuncal.fits')
+            struct.wrfits(allcal['dwarf_abuncal'],out+'dwarf_abuncal.fits')
         if stp : pdb.set_trace()
-    figs.append(['giants_all.jpg','dwarfs_all.jpg'])
+    figs.append(['giants_all.png','dwarfs_all.png'])
     ytitle.append('clusters')
-    figs.append(['giants_allsolar.jpg','dwarfs_allsolar.jpg'])
-    ytitle.append('solar circule')
-    figs.append(['giants_M.jpg','dwarfs_M.jpg'])
+    figs.append(['giants_allsolar.png','dwarfs_allsolar.png'])
+    ytitle.append('solar circle')
+    figs.append(['giants_M.png','dwarfs_M.png'])
     ytitle.append('cluster [M/H]')
+    figs.append(['giants_clust_key.png','dwarfs_clust_key.png'])
+    ytitle.append('cluster ID')
 
-    html.htmltab(figs,xtitle=['giants','dwarfs'],ytitle=ytitle,file=out+vers+'.html')
+    html.htmltab(figs,xtitle=['giants','dwarfs'],ytitle=ytitle,file=out+infile.replace('.fits','.html'))
     return allcal
 
 def comp(plots=['hr','giant_teffcomp','dwarf_teffcomp','rcrgbsep','loggcomp_b','loggcomp','giants_all','clust_key','dwarfs_all','giants_allsolar','dwarfs_allsolar','giants_M','dwarfs_M','giants_err_all','dwarfs_err_all'],runs=['l31a','l31b','l30b_vm4','l31b_vm4','l31a_asset'],out=None) :
@@ -391,7 +611,7 @@ def comp(plots=['hr','giant_teffcomp','dwarf_teffcomp','rcrgbsep','loggcomp_b','
     for plot in plots :
         y=[]
         for run in runs :
-            y.append(run+'/'+run+out+plot+'.jpg')
+            y.append(run+'/'+run+out+plot+'.png')
         grid.append(y)
             
     html.htmltab(grid,file=out,ytitle=plots,xtitle=runs)
@@ -414,7 +634,7 @@ def compstars(d1,d2,out=None) :
     plots.plotc(ax[5],v1['FPARAM'][i1,0],v2['FPARAM'][i2,5]-v1['FPARAM'][i1,5],v1['FPARAM'][i1,3],zr=[-2,0.5],colorbar=True,zt='[M/H]',yt=r'$\Delta [N/M]$',yr=[-0.75,0.75],xt='Teff')
     plots.plotc(ax[6],v1['FPARAM'][i1,0],v2['FPARAM'][i2,6]-v1['FPARAM'][i1,6],v1['FPARAM'][i1,3],zr=[-2,0.5],colorbar=True,zt='[M/H]',yt=r'$\Delta \alpha/M]$',yr=[-0.75,0.75],xt='Teff')
     if out is not None:
-        plt.savefig(out+'.jpg')
+        plt.savefig(out+'.png')
 
     # plots as a function of delta logvmicro
     fig,ax=plots.multi(1,7,hspace=0.001,figsize=(8,20))
@@ -426,7 +646,7 @@ def compstars(d1,d2,out=None) :
     plots.plotc(ax[5],v1['FPARAM'][i1,2]-v2['FPARAM'][i2,2],v2['FPARAM'][i2,5]-v1['FPARAM'][i1,5],v1['FPARAM'][i1,3],zr=[-2,0.5],colorbar=True,zt='[M/H]',yt=r'$\Delta [N/M]$',yr=[-0.75,0.75],xt=r'$\Delta log vmicro$' )
     plots.plotc(ax[6],v1['FPARAM'][i1,2]-v2['FPARAM'][i2,2],v2['FPARAM'][i2,6]-v1['FPARAM'][i1,6],v1['FPARAM'][i1,3],zr=[-2,0.5],colorbar=True,zt='[M/H]',yt=r'$\Delta \alpha/M]$',yr=[-0.75,0.75],xt=r'$\Delta log vmicro$' )
     if out is not None:
-        plt.savefig(out+'_dvmicro.jpg')
+        plt.savefig(out+'_dvmicro.png')
 
 def starcomp(ref='l31a',comps=['l31b','l31b_vm4','l30b_vm4','l31a_asset'],out=None) :
     '''
@@ -435,7 +655,7 @@ def starcomp(ref='l31a',comps=['l31b','l31b_vm4','l30b_vm4','l31a_asset'],out=No
     grid=[]
     for comp in comps :
         compstars(ref,comp,out='comp/'+ref+'_'+comp)
-        y=[ref+'_'+comp+'.jpg',ref+'_'+comp+'_dvmicro.jpg']
+        y=[ref+'_'+comp+'.png',ref+'_'+comp+'_dvmicro.png']
         grid.append(y)
     html.htmltab(np.asarray(grid).T.tolist(),file=out,xtitle=comps)
 
@@ -449,7 +669,7 @@ def errcomp(vers=['dr14','dr13','dr12'],els=['alpha','O','Mg','Ni','M'],out='com
         ytit=[]
         for el in els :
           for plot in ['err','err_sn','clusterr_all'] :
-             y.append('../'+ver+'/cal/'+el+'_'+plot+'.jpg')
+             y.append('../'+ver+'/cal/'+el+'_'+plot+'.png')
              ytit.append(el+'_'+plot)
         grid.append(y)
     html.htmltab(np.asarray(grid).T.tolist(),file=out,xtitle=vers,ytitle=ytit)
@@ -495,4 +715,84 @@ def allplots() :
     os.chdir('../dr12')
     apl=apload.apLoad(dr='dr12')
     errplots(tags=['PARAM_ALPHA_M','O_H','MG_H','NI_H','PARAM_M_H'])
+
+def check() :
+    """ Check IDL corrections for log g
+    """
+    a=fits.open('allStar-r12-l33.fits')[1].data
+
+    aspcapmask=bitmask.AspcapBitMask()
+    parammask=bitmask.ParamBitMask()
+    starmask=bitmask.StarBitMask()
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
+
+    cal=fits.open('cal/giant_loggcal.fits')[1].data
+    rgbsep=cal['rgbsep'][0]
+    cnsep=cal['cnsep'][0]
+    rclim=cal['rclim'][0]
+    rcfit2=cal['rcfit2'][0]
+    rgbfit2=cal['rgbfit2'][0]
+    calloggmin=cal['calloggmin']
+    calloggmax=cal['calloggmax']
+    calteffmin=cal['calteffmin']
+    calteffmax=cal['calteffmax']
+
+    # for stars that aren't bad, get cn and dt
+    cn=a['FPARAM'][gd,4]-a['FPARAM'][gd,5]
+    dt=a['FPARAM'][gd,0] - (rgbsep[0] + rgbsep[1]*(a['FPARAM'][gd,1]-2.5) +rgbsep[2]*a['FPARAM'][gd,3])
+
+    new=np.zeros(len(a))-9999.99
+
+    # select RC
+    rc=np.where((a['FPARAM'][gd,1]<rclim[1])&(a['FPARAM'][gd,1]>rclim[0])&
+                (cn>cnsep[0]+cnsep[1]*a['FPARAM'][gd,3] + cnsep[2]*dt)&
+                (a['FPARAM'][gd,0]<6000)&(a['FPARAM'][gd,0]>3000))[0]
+    rccorr=rcfit2[0] + rcfit2[1]*a['FPARAM'][gd,1] + rcfit2[2]*a['FPARAM'][gd,1]**2
+    new[gd[rc]]=a['FPARAM'][gd[rc],1]-rccorr[rc]
+    rcidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RC')) >0)[0]
+
+    # select RGB
+    rgb=np.where(((a['FPARAM'][gd,1]>rclim[1])|(a['FPARAM'][gd,1]<rclim[0])|
+                (cn<cnsep[0]+cnsep[1]*a['FPARAM'][gd,3] + cnsep[2]*dt)) &
+                (a['FPARAM'][gd,1]<calloggmax)&(a['FPARAM'][gd,1]>calloggmin) &
+                (a['FPARAM'][gd,0]<6000)&(a['FPARAM'][gd,0]>3000))[0]
+    #clip logg at loggmin and loggmax
+    logg=clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
+    mh=clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
+    # get correction
+    rgbcorr=(rgbfit2[0] + rgbfit2[1]*logg + rgbfit2[2]*logg**2 +
+                       rgbfit2[3]*logg**3 + rgbfit2[4]*mh )
+    new[gd[rgb]]=a['FPARAM'][gd[rgb],1]-rgbcorr[rgb]
+    rgbidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RGB')) >0)[0]
+
+    cal=fits.open('cal/dwarf_loggcal.fits')[1].data
+    teff=clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
+    logg=clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
+    mh=clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
+    msfit=cal['msfit'][0]
+    mscorr=msfit[0]+msfit[1]*teff+msfit[2]*mh
+    ms=np.where(a['FPARAM'][gd,1] > cal['calloggmin'])[0]
+    new[gd[ms]]=a['FPARAM'][gd[ms],1]-mscorr[ms]
+    msidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_MS')) >0)[0]
+
+    trans=np.where((a['FPARAM'][gd,1] < 4) & (a['FPARAM'][gd,1] > 3.5) &
+                (a['FPARAM'][gd,0] < calteffmax) )[0]
+    ms_weight=(a['FPARAM'][gd[trans],1]-3.5)/0.5
+    new[gd[trans]] = a['FPARAM'][gd[trans],1]-(mscorr[trans]*ms_weight+rgbcorr[trans]*(1-ms_weight))
+
+    diff =a['PARAM'][:,1]-new
+    bd = np.where (np.isclose(diff,0.,1.e-6,0.01) == False)[0]
+    pdb.set_trace()
+
+def clip(x,xmin,xmax) :
+    """ clip input array so that x<xmin becomes xmin, x>xmax becomes xmax, return clipped array
+    """
+    new=copy.copy(x)
+    bd=np.where(x<xmin)[0]
+    new[bd]=xmin
+    bd=np.where(x>xmax)[0]
+    new[bd]=xmax
+    return new
+
+
 

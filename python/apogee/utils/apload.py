@@ -20,9 +20,89 @@ import sys
 from sdss import yanny
 import numpy as np
 
+
+from doppler.lsf import GaussianLsf, GaussHermiteLsf
+# LSF class dictionary
+lsfclass = {'gaussian': GaussianLsf, 'gauss-hermite': GaussHermiteLsf}
+from apogee.apred import wave
+from apogee.apred import sincint
+
+class ApSpec() :
+    """ a simple class to hold APOGEE spectra
+    """
+    def __init__(self,flux,header=None,err=None,wave=None,mask=None,bitmask=None,
+                 sky=None,skyerr=None,telluric=None,telerr=None,cont=None,filename='',
+                 sptype='apStar',waveregime='NIR',instrument='APOGEE',snr=100) :
+        # Initialize the object
+        self.flux = flux
+        self.header = header
+        self.err = err
+        self.bitmask = bitmask
+        self.wavevac = True
+        self.wave = wave
+        self.sky = sky
+        self.skyerr = skyerr
+        self.telluric = telluric
+        self.telerr = telerr
+        self.cont = cont
+        self.filename = filename
+        self.sptype = sptype
+        self.waveregime = waveregime
+        self.instrument = instrument
+        self.snr = snr
+        if flux.ndim==1:
+            npix = len(flux)
+            norder = 1
+        else:
+            norder,npix = flux.shape
+        self.ndim = flux.ndim
+        self.npix = npix
+        self.norder = norder
+
+        return
+
+    def mask(self,bdval) :
+        """ Make boolean mask from bitmask with input pixelmask for bad values
+        """
+        self.mask=(np.bitwise_and(self.bitmask,bdval)!=0) | (np.isfinite(self.flux)==False)
+
+    def Spec1D(self,res=22500) :
+        """ Convert to a Nidever spec1D object, with axes flipped
+        """
+        self.flux = self.flux.T
+        if self.err is not None : self.err = self.err.T
+        if self.bitmask is not None : self.bitmask = self.bitmask.T
+        if self.mask is not None : self.mask = self.mask.T
+        if self.sky is not None : self.sky = self.sky.T
+        if self.skyerr is not None : self.skyerr = self.skyerr.T
+        if self.telluric is not None : self.telluric = self.telluric.T
+        if self.telerr is not None : self.telerr = self.telerr.T
+        bd = np.where( (np.isfinite(self.flux)==False) | (self.err <= 0.0) )[0]
+        if len(bd)>0:
+            self.flux[bd] = 0.0
+            self.err[bd] = 1e30
+            self.mask[bd] = True
+        self.lsftype = 'Gaussian'
+        self.lsfsig =  self.wave/res/2.354
+        self.lsf = lsfclass[self.lsftype.lower()](wave=self.wave,xtype='Wave',lsftype=self.lsftype,sigma=self.lsfsig)
+
+    def interp(self,new,nres) :
+        """ Interpolate to new wavelengths
+        """
+        pix=wave.wave2pix(new,self.wave)
+        gd = np.where(np.isfinite(pix))[0]
+        raw = [[self.flux,self.err]]
+        out=sincint.sincint(pix[gd],nres,raw)
+        self.wave=new
+        self.flux=out[0][0]
+        self.err=out[0][1]
+
+
 class ApLoad :
 
-    def __init__(self,dr=None,apred='r8',apstar='stars',aspcap='l31c',results='l31c.2',telescope='apo25m',instrument=None,verbose=False) :
+
+    def __init__(self,dr=None,apred='r8',apstar='stars',aspcap='l31c',results='l31c.2',
+                 telescope='apo25m',instrument=None,verbose=False,pathfile=None) :
         self.apred=apred
         self.apstar=apstar
         self.aspcap=aspcap
@@ -34,10 +114,12 @@ class ApLoad :
         elif dr == 'dr12' : self.dr12()
         elif dr == 'dr13' : self.dr13()
         elif dr == 'dr14' : self.dr14()
+        elif dr == 'dr16' : self.dr16()
         # set up 
         self.sdss_path=path.Path()
         self.http_access=HttpAccess(verbose=verbose)
         self.http_access.remote()
+        self.plateplans = yanny.yanny(os.environ['PLATELIST_DIR']+'/platePlans.par')['PLATEPLANS']
    
     def settelescope(self,telescope) :
         self.telescope=telescope
@@ -67,6 +149,10 @@ class ApLoad :
         self.apred='r8'
         self.aspcap='l31c'
         self.results='l31c.2'
+
+    def dr16(self) :
+        self.apred='r12'
+        self.aspcap='l33'
 
     def printerror(self) :
         print('cannot find file: do you have correct version? permission? wget authentication?')
@@ -291,15 +377,12 @@ class ApLoad :
                  if hdu=N : returns dictionaries (data, header) for specified HDU
                  if tuple=True : returns tuples rather than dictionaries
         """
-        fz=''
-        for key in kwargs : 
-            if key == 'fz' : fz='fz'
         if len(args) != 1 :
             print('Usage: ap2D(imagenumber)')
         else :
             try :
                 file = self.allfile(
-                   '2D'+fz,num=args[0],mjd=self.cmjd(args[0]),chips=True)
+                   '2D',num=args[0],mjd=self.cmjd(args[0]),chips=True,**kwargs)
                 print('file: ', file)
                 return self._readchip(file,'2D',**kwargs)
             except :
@@ -320,7 +403,7 @@ class ApLoad :
         else :
             try :
                 file = self.allfile(
-                   '2Dmodel',num=args[0],mjd=self.cmjd(args[0]),chips=True)
+                   '2Dmodel',num=args[0],mjd=self.cmjd(args[0]),chips=True,**kwargs)
                 return self._readchip(file,'2Dmodel',**kwargs)
             except :
                 self.printerror()
@@ -365,7 +448,7 @@ class ApLoad :
             except :
                 self.printerror()
     
-    def apVisit(self,*args, **kwargs) :
+    def apVisit(self,*args, load=False, **kwargs) :
         """
         NAME: apload.apVisit
         PURPOSE:  read apVisit file (downloading if necessary)
@@ -379,6 +462,13 @@ class ApLoad :
             try :
                 file = self.allfile(
                    'Visit',plate=args[0],mjd=args[1],fiber=args[2])
+                if load : 
+                    hdulist=self._readhdu(file)
+                    spec=ApSpec(hdulist[1].data,header=hdulist[0].header,
+                                err=hdulist[2].data,bitmask=hdulist[3].data,wave=hdulist[4].data,
+                                sky=hdulist[5].data,skyerr=hdulist[5].data,
+                                telluric=hdulist[7].data,telerr=hdulist[8].data)
+                    return spec
                 return self._readhdu(file,**kwargs)
             except :
                 self.printerror()
@@ -397,6 +487,11 @@ class ApLoad :
             try :
                 file = self.allfile(
                    'Visit1m',plate=args[0],mjd=args[1],obj=args[2],telescope='apo1m')
+                if load : 
+                    hdulist=self._readhdu(file)
+                    spec=ApSpec(hdulist[1].data,header=hdulist[0].header,
+                                err=hdulist[2].data,bitmask=hdulist[3].data,wave=hdulist[4].data)
+                    return spec
                 return self._readhdu(file,**kwargs)
             except :
                 self.printerror()
@@ -405,16 +500,16 @@ class ApLoad :
         """
         NAME: apload.apVisitSum
         PURPOSE:  read apVisitSum file (downloading if necessary)
-        USAGE:  ret = apload.apVisitSum(location,plate,mjd)
+        USAGE:  ret = apload.apVisitSum(plate,mjd)
         RETURNS: if hdu==None : ImageHDUs (all extensions)
                  if hdu=N : returns (data, header) for specified HDU
         """
-        if len(args) != 3 :
-            print('Usage: apVisitSum(location,plate,mjd)')
+        if len(args) != 2 :
+            print('Usage: apVisitSum(plate,mjd)')
         else :
             try :
                 file = self.allfile(
-                   'VisitSum',location=args[0],plate=args[1],mjd=args[2])
+                   'VisitSum',plate=args[0],mjd=args[1])
                 return self._readhdu(file,**kwargs)
             except :
                 self.printerror()
@@ -468,7 +563,7 @@ class ApLoad :
         else :
             try :
                 file = self.allfile(
-                   'aspcapStar',location=args[0],obj=args[1])
+                   'aspcapStar',field=args[0],obj=args[1])
                 return self._readhdu(file,**kwargs)
             except :
                 self.printerror()
@@ -486,6 +581,23 @@ class ApLoad :
         else :
             try :
                 file = self.allfile('Field',field=args[0])
+                return self._readhdu(file,**kwargs)
+            except :
+                self.printerror()
+    
+    def apFieldVisits(self,*args, **kwargs) :
+        """
+        NAME: apload.apFieldVisits
+        PURPOSE:  read apFieldVisits file (downloading if necessary)
+        USAGE:  ret = apload.apFieldVisits(field)
+        RETURNS: if hdu==None : ImageHDUs (all extensions)
+                 if hdu=N : returns (data, header) for specified HDU
+        """
+        if len(args) != 1 :
+            print('Usage: apFieldVisits(field)')
+        else :
+            try :
+                file = self.allfile('FieldVisits',field=args[0])
                 return self._readhdu(file,**kwargs)
             except :
                 self.printerror()
@@ -573,14 +685,18 @@ class ApLoad :
 
     def allfile(self,root,dr=None,apred=None,apstar=None,aspcap=None,results=None,
                 location=None,obj=None,plate=None,mjd=None,num=None,fiber=None,chips=False,field=None,
-                download=True) :
+                download=True,fz=False) :
         '''
         Uses sdss_access to create filenames and download files if necessary
         '''
 
-        if self.verbose: print('allfile...')
+        if self.verbose: 
+            print('allfile... chips=',chips)
+            pdb.set_trace()
         if self.instrument == 'apogee-n' : prefix='ap'
         else : prefix='as'
+        if fz : suffix = '.fz'
+        else : suffix = ''
 
         # get the sdss_access root file name appropriate for telescope and file 
         # usually just 'ap'+root, but not for "all" files, raw files, and 1m files, since
@@ -599,9 +715,9 @@ class ApLoad :
             sdssroot = 'ap'+root
 
         if plate is not None :
-            plateplans = yanny.yanny(os.environ['PLATELIST_DIR']+'/platePlans.par')['PLATEPLANS']
-            j = np.where(np.array(plateplans['plateid']) == plate)[0][0]
-            field = plateplans['name'][j]
+            #plateplans = yanny.yanny(os.environ['PLATELIST_DIR']+'/platePlans.par')['PLATEPLANS']
+            j = np.where(np.array(self.plateplans['plateid']) == plate)[0][0]
+            field = self.plateplans['name'][j].replace('APG_','')
  
         if chips == False :
             # First make sure the file doesn't exist locally
@@ -614,11 +730,12 @@ class ApLoad :
             if os.path.exists(filePath) is False and download: 
                 downloadPath = self.sdss_path.url(sdssroot,
                                       apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
-                                      location=location,obj=obj,plate=plate,mjd=mjd,num=num,
+                                      field=field,location=location,obj=obj,plate=plate,mjd=mjd,num=num,
                                       telescope=self.telescope,fiber=fiber,prefix=prefix,instrument=self.instrument)
+                if self.verbose: print('downloadPath',downloadPath)
                 self.http_access.get(sdssroot,
                                 apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
-                                location=location,obj=obj,plate=plate,mjd=mjd,num=num,
+                                field=field,location=location,obj=obj,plate=plate,mjd=mjd,num=num,
                                 telescope=self.telescope,fiber=fiber,prefix=prefix,instrument=self.instrument)
             return filePath
         else :
@@ -628,7 +745,7 @@ class ApLoad :
                                 apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
                                 field=field, location=location,obj=obj,plate=plate,mjd=mjd,num=num,
                                 telescope=self.telescope,fiber=fiber,
-                                chip=chip,prefix=prefix,instrument=self.instrument)
+                                chip=chip,prefix=prefix,instrument=self.instrument)+suffix
                 if self.verbose : print('filePath: ', filePath, os.path.exists(filePath))
                 if os.path.exists(filePath) is False and download : 
                   try:

@@ -12,6 +12,7 @@ module load apogee/$apogee_ver
 cd $APOGEE_REDUX/$apred_vers
 mkdir $apstar_vers
 
+
 idl  << endidl
   fields='$*'
   field=strsplit(fields,' ',/ext)
@@ -22,4 +23,25 @@ idl  << endidl
   mkstarplan,field,apred_vers='$apred_vers',apstar_vers='$apstar_vers',mjdstart='$mjdstart',mjdend='$mjdend'
 
 endidl
+
+cd $apstar_vers
+mkslurm "apred plan/a?Star*.par" --maxrun=32 --idlthreads=1
+
+rm slurm/fields.dat
+touch slurm/fields.dat
+foreach field ( ../visit/apo25m/* ../visit/lco25m/* )
+  echo $field
+  set nvisit = `ls -d $field/apVisitSum* | wc -l`
+  set name = `basename $field`
+  set tel = `echo $field | awk -F/ '{print $3}'`
+  if $tel == "apo25m" then
+    set plan = apStar-$name.par
+  else if $tel == "lco25m" then
+    set plan = asStar-$name.par
+  endif
+  echo $plan $nvisit >> slurm/fields.dat
+end
+sort -r -n --key=2 slurm/fields.dat > slurm/fields.sort
+
+echo "Modify apred to use order from fields.sort if desired!"
 

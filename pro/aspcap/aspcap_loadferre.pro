@@ -21,6 +21,7 @@ err=float(data)
 aspcap_load,name+'.mdl',data
 mdl=float(data)
 if file_test(name+'.con') then aspcap_load,name+'.con',data else data*=0.
+if n_elements(data) eq n_elements(flux) then pseudo=float(data) else pseudo=0.*flux
 aspcap_load,name+'.spm',data
 sz=size(data,/dim)
 ; if we only have one object, make 2D arrays
@@ -28,10 +29,10 @@ if n_elements(sz) eq 1 then begin
   flux=reform(flux,n_elements(flux),1)
   err=reform(err,n_elements(err),1)
   mdl=reform(mdl,n_elements(mdl),1)
+  pseudo=reform(pseudo,n_elements(pseudo),1)
   data=reform(data,n_elements(data),1)
   sz=size(data,/dim)
 endif
-if n_elements(data) eq n_elements(flux) then pseudo=float(data) else pseudo=0.*flux
 if file_test(name+'.ipf') then readcol,name+'.ipf',inputstars,format='(a)'
 ;if file_test(name+'.vrd') then readcol,name+'.vrd',stars,format='(a)'
 stars=strarr(sz[1])
@@ -103,6 +104,7 @@ for i=0,nlock-1 do begin
  ; if no PLOCKs, then we will have a single blank entry
  if strlen(libpar.plock[i].lock) gt 0 then begin
   j=where(strtrim(params,2) eq strtrim(libpar.plock[i].lock,2),nj)
+  if nj eq 0 then if strtrim(libpar.plock[i].lock,2) eq 'alpha' then j=where(strtrim(params,2) eq 'O Mg Si S Ca Ti',nj)
   if nj eq 0 then stop,'Unknown locked parameter ...'
   if i eq 0 then ilock=j else ilock=[ilock,j]
  endif

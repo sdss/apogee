@@ -72,15 +72,18 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
         print('{:s} does not exist'.format(planfile))
         return
     p=yanny.yanny(planfile,np=True)
+    if not p.get('oa0') : p['oa0'] = 0.
+    if not p.get('doa') : p['doa'] = 0.
+    if not p.get('noa') : p['noa'] = 1
 
     if dir is None :
         if int(p['solarisotopes']) == 1 : isodir = 'solarisotopes'
         else : isodir = 'giantisotopes'
-        dir = p['atmos'] + '/' + isodir + '/' + p['name']+'/' if p.get('name') else './'
+        dir = p['synthcode'] + '/' + p['atmos'] + '/' + isodir + '/' + p['name']+'/' if p.get('name') else './'
 
     showtime('start:')
     # input directory 
-    indir=os.environ['APOGEE_SPECLIB']+'/synth/turbospec/'+dir+'/'
+    indir=os.environ['APOGEE_SPECLIB']+'/synth/'+dir+'/'
     print('indir: ', indir)
 
     outfile=os.path.basename(p['name'])
@@ -91,7 +94,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
         p['nnm'] = '1'
         outfile = 'test'+outfile
 
-    nmod = int(p['nvt'])*int(p['ncm'])*int(p['nnm'])*int(p['nam'])*int(p['nrot'])*int(p['nmh'])*int(p['nlogg'])*int(p['nteff'])
+    nmod = int(p['noa'])*int(p['nvt'])*int(p['ncm'])*int(p['nnm'])*int(p['nam'])*int(p['nrot'])*int(p['nmh'])*int(p['nlogg'])*int(p['nteff'])
 
     # loop over requested combinations of npieces and npca
     if pcas is None : pcas = (int(p['npart']),int(p['npca']))
@@ -107,7 +110,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
     indata['rawsynth'] = rawsynth
     indata['prefix'] = prefix
     indata['incremental'] = incremental
-    for key in ['am0','dam','nam','cm0','dcm','ncm','nm0','dnm','nnm','vt0','dvt','nvt','mh0','dmh','nmh','logg0','dlogg','nlogg','teff0','dteff','nteff','rot0','drot','nrot'] :
+    for key in ['oa0','doa','noa','am0','dam','nam','cm0','dcm','ncm','nm0','dnm','nnm','vt0','dvt','nvt','mh0','dmh','nmh','logg0','dlogg','nlogg','teff0','dteff','nteff','rot0','drot','nrot'] :
         indata[key] = p[key]
 
     # determine number of pixels per piece
@@ -238,14 +241,8 @@ def dopca(pars) :
     rawsynth=p['rawsynth']
     prefix=p['prefix']
 
-    if p['incremental'] :
-        print('using incremental PCA')
-        pca = IncrementalPCA(n_components=npca,whiten=whiten,batch_size=1000)
-    else :
-        pca = PCA(n_components=npca,whiten=whiten)
-
     # load data for this piece
-    pcadata=np.zeros([int(p['nam'])*int(p['ncm'])*int(p['nnm'])*int(p['nvt'])*
+    pcadata=np.zeros([int(p['noa'])*int(p['nam'])*int(p['ncm'])*int(p['nnm'])*int(p['nvt'])*
                       int(p['nrot'])*int(p['nmh'])*int(p['nlogg'])*int(p['nteff']),npix],dtype=np.float32)
     nmod=0
     pix_apstar=aspcap.gridPix()
@@ -256,15 +253,23 @@ def dopca(pars) :
     else :
         nwave=aspcap.nw_chip.sum()
 
-    for ivm,vm in enumerate(spectra.vector(p['vt0'],p['dvt'],p['nvt'])) :
+    for ioa,oa in enumerate(spectra.vector(p['oa0'],p['doa'],p['noa'])) :
+     for ivm,vm in enumerate(spectra.vector(p['vt0'],p['dvt'],p['nvt'])) :
       for icm,cm in enumerate(spectra.vector(p['cm0'],p['dcm'],p['ncm'])) :
         for inm,nm in enumerate(spectra.vector(p['nm0'],p['dnm'],p['nnm'])) :
           for iam,am in enumerate(spectra.vector(p['am0'],p['dam'],p['nam'])) :
-            file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
-                   atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
+            if int(p['noa']) == 1 and int(p['nvt']) >= 1 :
+              file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
+                     atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
+            elif int(p['noa']) > 1 and int(p['nvt']) == 1 :
+              file=('a{:s}c{:s}n{:s}o{:s}.fits').format(
+                     atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(oa))
+            else :
+              file=('a{:s}c{:s}n{:s}.fits').format(
+                     atmos.cval(am),atmos.cval(cm),atmos.cval(nm))
             # read file and pack into ASPCAP grid size
             sap=fits.open(indir+prefix+file)[0].data
-            sap.reshape((int(p['nrot']),int(p['nmh']),int(p['nlogg']),int(p['nteff']),sap.shape[-1]))
+            sap=sap.reshape((int(p['nrot']),int(p['nmh']),int(p['nlogg']),int(p['nteff']),sap.shape[-1]))
             s=np.zeros([int(p['nrot']),int(p['nmh']),int(p['nlogg']),int(p['nteff']),nwave])
             for pasp,pap in zip(pix_aspcap,pix_apstar) :
                 s[:,:,:,:,pasp[0]:pasp[1]]=sap[:,:,:,:,pap[0]:pap[1]]
@@ -290,6 +295,11 @@ def dopca(pars) :
 
     # do the PCA decomposition 
     if npca > 0 :
+        if p['incremental'] :
+            print('using incremental PCA')
+            pca = IncrementalPCA(n_components=npca,whiten=whiten,batch_size=1000)
+        else :
+            pca = PCA(n_components=npca,whiten=whiten)
         print(pcadata.shape)
         showtime('start pca: '+str(ipiece))
         model=pca.fit_transform(pcadata)
@@ -297,6 +307,7 @@ def dopca(pars) :
         eigen = pca.components_
         mean = pca.mean_
     else :
+        pca = 0
         eigen = 0.
         mean = 0.
 
@@ -388,10 +399,10 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
     try: os.remove('test/raw/test.ipf')
     except: pass
     os.symlink(prefix+'test/test_'+grid+'.ipf','test/raw/test.ipf')
-    l=ferre.rdlibhead('f_aps'+outfile+'.hdr')[0]
-    ferre.writenml('test/raw/input.nml','test',l,nov=0,ncpus=1,f_access=1)
-    mkslurm.write('ferre.x',outdir='test/raw/',runplans=False,cwd=os.getcwd()+'/test/raw',fast=fast)
     if runraw : 
+        l=ferre.rdlibhead('f_aps'+outfile+'.hdr')[0]
+        ferre.writenml('test/raw/input.nml','test',l,nov=0,ncpus=1,f_access=1)
+        mkslurm.write('ferre.x',outdir='test/raw/',runplans=False,cwd=os.getcwd()+'/test/raw',fast=fast)
         print('running ferre in raw to create spectra')
         subprocess.call(['test/raw/ferre.x'],shell=False)
         # create uncertainty spectra
@@ -467,7 +478,7 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
 
     # produce PCA version of test spectra
     if runpca : 
-        print('running ferre in 12_75 to create spectra')
+        print('running ferre in {:d}_{_d} to create spectra'.format(npiece,npca))
         subprocess.call([root+'/ferre.x'],shell=False)
     pca=np.loadtxt(root+'/test.mdl')
     # histogram of ratio of pca to true
@@ -477,6 +488,7 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
     plots.plotl(ax[0],np.linspace(0.8005,1.2,4000),hist/hist.sum(),semilogy=True,xt='pca/true')
     ax[1].hist(np.abs((pca-true).flatten()),bins=np.logspace(-7,3,50),histtype='step',normed=True,cumulative=True,color='k')
     ax[1].set_xlim(0.,0.01)
+    ax[1].set_ylim(0.,1.0)
     ax[1].set_xlabel('|pca-true|')
     ax[1].set_ylabel('Cumulative fraction')
     fig.tight_layout()

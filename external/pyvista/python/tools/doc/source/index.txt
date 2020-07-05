@@ -1,0 +1,40 @@
+.. tools documentation master file, created by
+   sphinx-quickstart on Sat Apr  2 12:58:24 2016.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
+Welcome to tools's documentation!
+=================================
+
+A variety of relatively simple Python convenience routines to simplify some frequently-used
+tasks.
+
+plots provides a set of one-line routines to make plots, allowing multiple plot
+attributes (limits, labels, etc.) to be specified with a single call
+
+html provides some routines to generate HTML, in particular, HTML tables of
+figures.
+
+struct provides some routines related to numpy structured arrays
+
+match provides a routine for matching two numpy arrays.
+
+Contents:
+
+.. toctree::
+   :maxdepth: 2
+
+   plots
+   html
+   struct
+   fit
+   match
+
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+

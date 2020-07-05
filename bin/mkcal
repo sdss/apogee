@@ -1,0 +1,33 @@
+#!/bin/csh
+
+# make calibration frames: darks, waves, LSFs
+#
+set vers = "$1"
+shift
+set telescope = "$1"
+shift
+
+set host = `hostname -s`
+rm $APOGEE_LOCALDIR/*
+
+# make darks sequentially first
+idl -e "makecal,dark=1,vers='$vers',telescope='$telescope'" >& log/mkdark-$telescope.$host.log
+
+# make wavecals in parallel
+set n = 0
+while ( $n < 10 ) 
+  idl -e "makecal,multiwave=1,vers='$vers',telescope='$telescope'" >& log/mkwave-$telescope"$n".$host.log &
+  sleep 20
+  @ n = $n + 1
+end
+wait
+
+# make LSFs in parallel
+set n = 0
+while ( $n < 10 ) 
+  idl -e "makecal,lsf=1,/full,/pl,vers='$vers',telescope='$telescope'" >& log/mklsf-$telescope"$n".$host.log &
+  sleep 20
+  @ n = $n + 1
+end
+wait
+echo DONE

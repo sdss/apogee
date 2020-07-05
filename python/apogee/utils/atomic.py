@@ -17,7 +17,7 @@ def periodic(n) :
         else :
             return elem[n-1]
 
-def solar(el) :
+def solar(el=None) :
     """ Return solar abundances
     """
     sunabund_2007  =  np.array([
@@ -32,8 +32,9 @@ def solar(el) :
        -0.17,  1.11,  0.23,  1.25,  1.38,  1.64,  1.01,  1.13,  0.90,   # 73 - 81
         2.00,  0.65, -99.0, -99.0, -99.0, -99.0, -99.0, -99.0,  0.06,   # 82 - 90
        -99.0, -0.52 ])                                                  # 91 - 9
+    if el is None : return sunabund_2007
     n = periodic(el)
-    return(sunabund_2007[n-1])
+    return sunabund_2007[n-1]
 
 def rydberg(n1,n2) :
     """ Rydberg formula to give H wavelengths for transitions between levels n1 and n2

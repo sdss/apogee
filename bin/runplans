@@ -17,11 +17,14 @@ foreach suffix ( 0 1 2 3 4 5 6 7 8 9 A B C D E F G H I J K L M N O P Q R S T U V
   'rm' -rf `find $APOGEE_LOCALDIR -mtime +1 -name tmp__"$suffix"\*`
   'rm' -rf `find $APOGEE_LOCALDIR -mtime +1 -name tmp___"$suffix"\*`
 end
+'rm' -rf $APOGEE_LOCALDIR/*
 echo apogee_localdir: $APOGEE_LOCALDIR
 
 set clobber=`printenv APOGEE_CLOBBER`
-if ( $clobber == "") then
-  set clobber = 0
+if ( $?APOGEE_CLOBBER ) then
+  set clobber='--clobber'
+else
+  set clobber = ''
 endif
 echo clobber: $clobber
 
@@ -88,10 +91,10 @@ foreach plan ( $plans )
          if ( $n == 0 ) set usenode = $node
        end
        touch log/$base.$usenode.$host
-       taskset $usenode $cmd $plan --host $usenode.$host --flag $flag --done log/$base >& log/$base.$host.log &
+       taskset $usenode $cmd $plan --host $usenode.$host --flag $flag $clobber --done log/$base >& log/$base.$host.log &
      else
        touch log/$base.$host
-       $cmd $plan --host $host --flag $flag --done log/$base >& log/$base.$host.log &
+       $cmd $plan --host $host --flag $flag $clobber --done log/$base >& log/$base.$host.log &
      endif
 
 

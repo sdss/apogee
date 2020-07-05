@@ -2,7 +2,6 @@
 pro mkmultiwave,waveid,name=name,clobber=clobber,nowait=nowait,file=calfile
 
   if ~keyword_set(name) then name=string(waveid[0])
-
   dirs=getdir(apodir,caldir,spectrodir,vers)
   caldir=dirs.caldir
   file=dirs.prefix+string(format='("Wave-",i8.8)',name)
@@ -32,8 +31,10 @@ pro mkmultiwave,waveid,name=name,clobber=clobber,nowait=nowait,file=calfile
   cmd=['apmultiwavecal','--name',name,'--vers',dirs.apred,'--plot','--hard','--inst',dirs.instrument] ;,'--verbose']
   for i=0,n_elements(waveid)-1 do cmd=[cmd,string(waveid[i])]
   spawn,cmd,/noshell
-  openw,1,caldir+'/wave/'+file+'py.dat'
-  close,1
+  if file_test(apogee_filename('Wave',num=waveid[0],chip='a')) then begin
+    openw,1,caldir+'/wave/'+file+'py.dat'
+    close,1
+  endif else stop,'HALT:  failed to make wavecal',waveid
 ;
 ;  cmjd=getcmjd(waveid[0])
 ;  wavefile = dirs.expdir+cmjd+'/'+string(format='(i8.8)',waveid)

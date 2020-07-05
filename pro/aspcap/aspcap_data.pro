@@ -1,4 +1,4 @@
-pro aspcap_data,str,files,getobject=getobject
+pro aspcap_data,str,files,getobject=getobject,keepid=keepid
 
 if keyword_set(getobject) then begin
   targetdir=getenv('APOGEE_TARGET')
@@ -95,9 +95,10 @@ for i=0,n_elements(str.param)-1 do begin
     endif
   endif
 
+  telescope=sxpar(hdr,'TELESCOP')
   field=apogee_fixfield(sxpar(hdr,'FIELD'))
   objid=sxpar(hdr,'OBJID')
-  if size(objid,/type) eq 3 then objid=str.param[i].apogee_id
+  if size(objid,/type) eq 3 or keyword_set(keepid) then objid=str.param[i].apogee_id
   loc=sxpar(hdr,'LOC')
   if loc eq 0 then loc=sxpar(hdr,'LOCATION')
   if loc eq 0 then loc=sxpar(hdr,'LOCID')
@@ -160,6 +161,7 @@ for i=0,n_elements(str.param)-1 do begin
   objparam={$
 	    file: str.param[i].apogee_id,$
 	    red_vers: strtrim(red_vers,2),$
+            telescope: telescope,$
             field: field,$
             location_id: loc,$
 	    apogee_id: objid,$

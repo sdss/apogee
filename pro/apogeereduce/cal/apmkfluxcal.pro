@@ -324,24 +324,43 @@ CASE exptype of
       ;refspec0[*,i] = smmaxspec 
     end
 
-    ; we want to take out spectral structure of the median to 
-    ; remove any spectral structure in the lamp, e.g. at LCO
 
-    ; Before Dec 2018, we fit a polynomial to the spectra, all chips together
+    ; we want to take out spectral structure of the lamp, which we
+    ; do by fitting a global polynomial. However, at LCO there is structure
+    ; in the red chip that is apparently from the lamp/screen, so for that particular
+    ; chip, we want to preserve that feature in the reference spectrum, so it
+    ; is not propagated
+
+    ; fit a polynomial to the spectra, all chips together, avoiding LCO red dip
     x = [ [findgen(npix)-1023.5-2048-150], [findgen(npix)-1023.5], [findgen(npix)-1023.5+2048+150] ]
-    ;coef = robust_poly_fit(x,refspec0,4)
+    if dirs.telescope eq 'lco25m' then begin
+      pix=indgen(3*npix)
+      gd=where(pix lt 700 or pix gt 1900)
+      coef = robust_poly_fit(x[gd],refspec0[gd],4)
+    endif else coef = robust_poly_fit(x,refspec0,4)
     ;; We're using the polynomial fit
-    ;refspec = poly(x,coef)
+    refspec = poly(x,coef)
+
+    ; try to get the LCO dip from the ratio of red chip flux to a low order fit
+    ; and multiply that back into the reference spectrum
+    if dirs.telescope eq 'lco25m' then begin
+      pix=indgen(2048)
+      gd=where(pix lt 700 or pix gt 1900)
+      fit=robust_poly_fit(pix[gd],refspec0[gd,0],2)
+      dip = refspec0[*,0]/poly(pix,fit)
+      refspec[*,0] *= dip
+    endif
 
     ; chip by chip fit used to remove small scale structure
-    refspec=refspec0*0.
-    mask=intarr(2048)
-    mask[20:2028]=1
-    for i=0,2 do begin
-      ;coef=robust_poly_fit(x[*,i],refspec0[*,i],4)
-      ;refspec[*,i]=poly(x[*,i],coef)
-      refspec[*,i] = normalize_sincos(x[*,i],refspec0[*,i],l=5000,nwave=8,mask=mask)
-    endfor
+    ;refspec=refspec0*0.
+    ;mask=intarr(2048)
+    ;mask[20:2028]=1
+    ;for i=0,2 do begin
+    ;  ;coef=robust_poly_fit(x[*,i],refspec0[*,i],4)
+    ;  ;refspec[*,i]=poly(x[*,i],coef)
+    ;  refspec[*,i] = normalize_sincos(x[*,i],refspec0[*,i],l=5000,nwave=8,mask=mask)
+    ;endfor
+
     if keyword_set(pl) then begin
       plot,x,refspec0,/nodata,tit='Reference Spectrum'
       for i=0,2 do begin
@@ -458,6 +477,7 @@ For i=0,2 do begin
   login_info = GET_LOGIN_INFO()
   sxaddhist,leadstr+login_info.user_name+' on '+login_info.machine_name,head
   sxaddhist,leadstr+'IDL '+!version.release+' '+!version.os+' '+!version.arch,head
+  sxaddhist,leadstr+' APOGEE Reduction Pipeline Version: '+getvers(),head
   sxaddhist,leadstr+'Output File:',head
   sxaddhist,leadstr+' HDU1 - Relative Flux Calibration [Npix,Nfibers,3]',head
   sxaddhist,leadstr+' HDU2 - Throughput [Nfibers,3]',head
@@ -495,6 +515,13 @@ For i=0,2 do begin
   sxaddpar,head3,'CTYPE3','Chip'
   sxaddpar,head3,'BUNIT','Relative Flux'
   MWRFITS,refspec[*,i],outfile,head3,/silent    
+
+  ; HDU4 - reference spectrum
+  MKHDR,head4,refspec0[*,i],/image
+  sxaddpar,head4,'CTYPE1','Pixel'
+  sxaddpar,head4,'CTYPE3','Chip'
+  sxaddpar,head4,'BUNIT','Relative Flux'
+  MWRFITS,refspec0[*,i],outfile,head4,/silent    
   ;stop
 
 End ; chip loop

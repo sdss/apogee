@@ -45,10 +45,11 @@ for i=0,n_elements(istar)-1 do begin
       ;   be at the edge of the grid (e.g., a  hot star in the Mcoarse grid!)
       ;if (allparam[allgd[index[jj]]].paramflag[0] and paramflagval('GRIDEDGE_WARN')) gt 0 then chi2[jj]*=1.25
       if (allparam[allgd[index[jj]]].paramflag[0] and paramflagval('GRIDEDGE_BAD')) gt 0 then chi2[jj]*=1.25
+      if (allparam[allgd[index[jj]]].paramflag[1] and paramflagval('GRIDEDGE_BAD')) gt 0 then chi2[jj]*=1.25
       ; penalize M grid above 3550 (l30e)
-      if strpos(allparam[allgd[index[jj]]].class,'M') ge 0 and allparam[allgd[index[jj]]].fparam[0] gt 3500.+250./8. then chi2[jj]*=10.
+  ;    if strpos(allparam[allgd[index[jj]]].class,'M') ge 0 and allparam[allgd[index[jj]]].fparam[0] gt 3500.+250./8. then chi2[jj]*=10.
       ; penalize GK grid below 3750/3990 (l30f and l30g)
-      ;if strpos(allparam[allgd[index[jj]]].class,'GK') ge 0 and allparam[allgd[index[jj]]].fparam[0] lt 3990. then chi2[jj]*=10.
+      if strpos(allparam[allgd[index[jj]]].class,'GK') ge 0 and allparam[allgd[index[jj]]].fparam[0] lt 3985. then chi2[jj]*=10.
     endfor
     gdchi2=where(chi2 gt 0)
     bestchi2=min(chi2[gdchi2],ibest)

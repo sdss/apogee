@@ -36,7 +36,7 @@
 pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,lsf=lsf,bpm=bpm,$
     psf=psf,flux=flux,sparse=sparse,fiber=fiber,$
     littrow=littrow,persist=persist,modelpersist=modelpersist,response=response,mjd=mjd,full=full,$
-    newwave=newwave,nskip=nskip,average=average,clobber=clobber,vers=vers,telescope=telescope,nofit=nofit
+    newwave=newwave,nskip=nskip,average=average,clobber=clobber,vers=vers,telescope=telescope,nofit=nofit,pl=pl
 
   if keyword_set(vers) and keyword_set(telescope) then apsetver,vers=vers,telescope=telescope
   dirs=getdir(apo_dir,cal_dir,spectro_dir,apo_vers,lib_dir)
@@ -70,6 +70,12 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
   if keyword_set(dark) then begin
     print,'makecal dark: ', dark
     if dark gt 1 then begin
+      file=apogee_filename('Dark',num=dark,/nochip)
+      file=file_dirname(file)+'/'+file_basename(file,'.fits')
+      if file_test(file+'.tab') and not keyword_set(clobber) then begin
+        print,' dark file: ',file+'.tab',' already made'
+        return
+      endif
       i=where(darkstr.name eq dark)
       if i lt 0 then begin
         print,'No matching calibration line for ', dark
@@ -101,6 +107,12 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
   if keyword_set(flat) then begin
     print,'makecal flat: ', flat
     if flat gt 1 then begin
+      file=apogee_filename('Flat',num=flat,/nochip)
+      file=file_dirname(file)+'/'+file_basename(file,'.fits')
+      if file_test(file+'.tab') and not keyword_set(clobber) then begin
+        print,' flat file: ',file+'.tab',' already made'
+        return
+      endif
       i=where(flatstr.name eq flat)
       if i lt 0 then begin
         print,'No matching calibration line for ', flat
@@ -131,6 +143,11 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
   if keyword_set(bpm) then begin
     print,'makecal bpm: ', bpm
     if bpm gt 1 then begin
+      file=apogee_filename('BPM',num=bpm,chip='c')
+      if file_test(file) and not keyword_set(clobber) then begin
+        print,' BPM file: ',file, ' already made'
+        return
+      endif
       i=where(bpmstr.name eq bpm)
       if i lt 0 then begin
         print,'No matching calibration line for ', bpm
@@ -157,6 +174,12 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
   if keyword_set(sparse) then begin
     print,'makecal sparse: ', sparse
     if sparse gt 1 then begin
+      file=apogee_filename('EPSF',num=sparse,chip='c')
+      if file_test(file) and not keyword_set(clobber) then begin
+        print,' EPSF file: ',file, ' already made'
+        return
+      endif
+
       i=where(sparsestr.name eq sparse)
       if i lt 0 then begin
         print,'No matching calibration line for ', sparse
@@ -253,6 +276,12 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
   if keyword_set(response) then begin
     print,'makecal response: ', response
     if response gt 1 then begin
+      file=apogee_filename('Response',num=response,chip='c')
+      if file_test(file) and not keyword_set(clobber) then begin
+        print,' Response file: ',file, ' already made'
+        return
+      endif
+
       i=where(responsestr.name eq response,nres)
       if nres eq 0 then begin
         print,'No matching calibration line for ', response
@@ -310,6 +339,12 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
   if keyword_set(multiwave) then begin
     print,'makecal multiwave: ', multiwave
     if multiwave gt 1 then begin
+      file=apogee_filename('Wave',num=multiwave,/nochip)
+      file=file_dirname(file)+'/'+file_basename(file,'.fits')
+      if file_test(file+'.dat') and not keyword_set(clobber) then begin
+        print,' multiwave file: ',file+'.dat',' already made'
+        return
+      endif
       i=where(multiwavestr.name eq multiwave,nwave)
       if nwave le 0 then begin
         print,'No matching calibration line for ', multiwave
@@ -332,6 +367,13 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
   endif
   if keyword_set(lsf) then begin
     print,'makecal lsf: ', lsf
+    file=apogee_filename('LSF',num=lsf,/nochip)
+    file=file_dirname(file)+'/'+file_basename(file,'.fits')
+    if file_test(file+'.sav') and not keyword_set(clobber) then begin
+      print,' LSF file: ',file+'.sav',' already made'
+      return
+    endif
+
     if lsf gt 1 then begin
       i=where(lsfstr.name eq lsf,nlsf)
       if nlsf le 0 then begin
@@ -340,8 +382,9 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
       endif
       ims=getnums(lsfstr[i[0]].frames)
       cmjd=getcmjd(ims[0],mjd=mjd)
-      getcal,mjd,calfile,darkid=darkid,flatid=flatid,multiwaveid=waveid
-      mklsf,ims,waveid,darkid=darkid,flatid=flatid,psfid=lsfstr[i[0]].psfid,full=full,newwave=newwave,clobber=clobber
+      getcal,mjd,calfile,darkid=darkid,flatid=flatid,multiwaveid=waveid,fiberid=fiberid
+      makecal,multiwave=waveid
+      mklsf,ims,waveid,darkid=darkid,flatid=flatid,psfid=lsfstr[i[0]].psfid,fiberid=fiberid,full=full,newwave=newwave,clobber=clobber,pl=pl
     endif else begin
       if keyword_set(mjd) then  begin
         num=getnum(mjd) 
@@ -351,8 +394,10 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
        for i=0,n_elements(red)-1,nskip do begin
         ims=getnums(lsfstr[red[i]].frames)
         cmjd=getcmjd(ims[0],mjd=mjd)
-        getcal,mjd,calfile,darkid=darkid,flatid=flatid,waveid=waveid
-        mklsf,ims,waveid,darkid=darkid,flatid=flatid,psfid=lsfstr[i].psfid,full=full,newwave=newwave,clobber=clobber
+        getcal,mjd,calfile,darkid=darkid,flatid=flatid,multiwaveid=waveid,fiberid=fiberid
+        makecal,multiwave=waveid
+        print,'caling mklsf'
+        mklsf,ims,waveid,darkid=darkid,flatid=flatid,psfid=lsfstr[i].psfid,fiberid=fiberid,full=full,newwave=newwave,clobber=clobber,pl=pl,/nowait
        endfor
       endif
     endelse

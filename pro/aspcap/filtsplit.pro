@@ -1,4 +1,4 @@
-function filtsplit,el,maxwind=maxwind,outdir=outdir
+function filtsplit,el,maxwind=maxwind,outdir=outdir,unitweight=unitweight,maskdir=maskdir
 
 ; Read in filter (mask) file for given element
 ; Split it into discrete non-zero chunks
@@ -9,8 +9,8 @@ if ~keyword_set(maxwind) then maxwind=0
 if ~keyword_set(outdir) then outdir='./'
 
 ; read in master filter and wavelengths
-readcol,getenv('APOGEE_DIR')+'/data/windows/filters_26042016/'+el+'.filt',mask,/silent
-readcol,getenv('APOGEE_DIR')+'/data/windows/filters_26042016/'+'wave.dat',wave,/silent
+readcol,getenv('APOGEE_DIR')+'/data/windows/'+maskdir+'/'+el+'.mask',mask,/silent
+readcol,getenv('APOGEE_DIR')+'/data/windows/'+maskdir+'/'+'wave.dat',wave,/silent
 
 ; loop through mask finding non-zero windows
 nfilt=0
@@ -35,7 +35,7 @@ endfor
 sz=size(wall,/dim)
 if n_elements(sz) eq 2 then nwind=sz[1] else if sz eq 0 then nwind=0 else nwind=1
 print,'nwind:',nwind,maxwind
-if nwind gt 0 and (nwind le maxwind or maxwind eq 0) then begin
+if nwind gt 1 and (nwind le maxwind or maxwind eq 0) then begin
   ; open output file
   openw,sum,outdir+el+'.wind',/get_lun
 
@@ -43,7 +43,7 @@ if nwind gt 0 and (nwind le maxwind or maxwind eq 0) then begin
     openw,out,outdir+el+'_'+string(format='(i2.2)',iwind+1)+'.mask',/get_lun
     printf,sum,wave[wall[0,iwind]],wave[wall[1,iwind]],weight[iwind]
     for i=0,n_elements(mask)-1 do begin
-      if i lt wall[0,iwind] or i gt wall[1,iwind] then val=0. else val=mask[i]
+      if i lt wall[0,iwind] or i gt wall[1,iwind] then val=0. else if keyword_set(unitweight) then val=1. else val=mask[i]
       printf,out,val
     endfor
     free_lun,out

@@ -57,7 +57,7 @@ free_lun,lun
 
 ; establish generic variable types
 mjd1=0L & mjd2=0L & name=0L & frames='' & darkframes='' & nframes=0 & nrep=0 & dithered=0 & maxread=''
-darkid=0L & flatid=0L & psfid=0L & fluxid=0L & linid=0L & fixfiberid=0L
+darkid=0L & flatid=0L & psfid=0L & fluxid=0L & linid=0L & fixfiberid=0L & waveid=0 & multiwaveid=0
 
 ; extract the darks information and load dark structure
 darks=where(strpos(line,'dark') eq 0)

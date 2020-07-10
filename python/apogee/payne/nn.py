@@ -960,13 +960,15 @@ def fitmastar(model='test',field='mastar-goodspec-v2_7_1-trunk',star=None,nfit=0
     # output FITS table
     out=Table()
     out['MANGAID']=stars['MANGAID']
-    out['PLATE']=stars['PLATE']
-    out['IFUDESIGN']=stars['IFUDESIGN']
-    out['MJD']=stars['MJD']
-    out['MJDQUAL']=stars['MJDQUAL']
-    out['OBJRA']=stars['OBJRA']
-    out['OBJDEC']=stars['OBJDEC']
     out['EBV']=stars['EBV']
+    try:
+        out['OBJRA']=stars['OBJRA']
+        out['OBJDEC']=stars['OBJDEC']
+        out['PLATE']=stars['PLATE']
+        out['IFUDESIGN']=stars['IFUDESIGN']
+        out['MJD']=stars['MJD']
+        out['MJDQUAL']=stars['MJDQUAL']
+    except : pass
     length=len(out)
     params=np.array([o.x for o in output])
     out.add_column(Column(name='FPARAM',data=params))

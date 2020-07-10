@@ -32,7 +32,8 @@ class ApSpec() :
                  sptype='apStar',waveregime='NIR',instrument='APOGEE',snr=100) :
         # Initialize the object
         self.flux = flux
-        self.header = header
+        if header is None : self.header = fits.PrimaryHDU().header
+        else : self.header = header
         self.err = err
         self.bitmask = bitmask
         self.wavevac = True
@@ -74,6 +75,20 @@ class ApSpec() :
         self.flux=out[0][0]
         self.err=out[0][1]
 
+    def write(self,filename) :
+        hdulist=fits.HDUList()
+        hdu=fits.PrimaryHDU()
+        hdu.header=self.header
+        hdulist.append(hdu)
+        hdulist.append(fits.ImageHDU(self.flux))
+        hdulist.append(fits.ImageHDU(self.err))
+        hdulist.append(fits.ImageHDU(self.bitmask))
+        hdulist.append(fits.ImageHDU(self.wave))
+        hdulist.append(fits.ImageHDU(self.sky))
+        hdulist.append(fits.ImageHDU(self.skyerr))
+        hdulist.append(fits.ImageHDU(self.telluric))
+        hdulist.append(fits.ImageHDU(self.telerr))
+        hdulist.writeto(filename)
 
 class ApLoad :
 
@@ -692,9 +707,7 @@ class ApLoad :
             sdssroot = 'ap'+root
 
         if plate is not None :
-            #plateplans = yanny.yanny(os.environ['PLATELIST_DIR']+'/platePlans.par')['PLATEPLANS']
-            j = np.where(np.array(self.plateplans['plateid']) == plate)[0][0]
-            field = self.plateplans['name'][j].replace('APG_','')
+            field = apfield(plate,plans=self.plateplans)[0]
  
         if chips == False :
             # First make sure the file doesn't exist locally
@@ -733,4 +746,26 @@ class ApLoad :
                                 chip=chip,prefix=prefix,instrument=self.instrument)
                   except: pdb.set_trace()
             return filePath.replace('-c','')
-    
+   
+
+def apfield(plateid,loc=0,plans=None,addloc=False) :
+    """ Get field name given plateid and plateplans
+    """
+
+    if plans is None : plans = yanny.yanny(os.environ['PLATELIST_DIR']+'/platePlans.par')['PLATEPLANS']
+    j = np.where(np.array(plans['plateid']) == plateid)[0][0]
+
+    survey = plans['survey'][j]
+    programname = plans['programname'][j]
+    if survey == 'manga-apogee2' : field = plans['comments'][j]
+    else : field = plans['name'][j]
+
+    field=field.split()[0]
+    field = field.replace('APGS_','')
+    field = field.replace('APG_','')
+    field = field.replace('MC-','MC')
+
+    if survey == 'manga-apogee2' and addloc : field = '{:s}_loc{:04d}'.format(field,loc)
+
+    return field, survey, programname
+

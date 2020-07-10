@@ -185,6 +185,7 @@ def concat(files,hdu=1,verbose=False,fixfield=False) :
 
         if file == allfiles[0] :
             app=a
+            dt=a.dtype.descr
         else :
             app,dt=append(app,a)
         ntot+=len(a)

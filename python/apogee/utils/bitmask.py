@@ -71,7 +71,7 @@ class StarBitMask(BitMask):
 
     name=(['BAD_PIXELS','COMMISSIONING','BRIGHT_NEIGHBOR','VERY_BRIGHT_NEIGHBOR','LOW_SNR','','','',
           '','PERSIST_HIGH','PERSIST_MED','PERSIST_LOW','PERSIST_JUMP_POS','PERSIST_JUMP_NEG','','',
-          'SUSPECT_RV_COMBINATION','SUSPECT_BROAD_LINES','BAD_RV_COMBINATION','','','','','',
+          'SUSPECT_RV_COMBINATION','SUSPECT_BROAD_LINES','BAD_RV_COMBINATION','RV_REJECT','RV_SUSPECT','MULTIPLE_SUSPECT','','',
           '','','','','','','',''])
     level=([1,0,0,1,0,0,0,0,
              0,0,0,0,0,0,0,0,
@@ -98,9 +98,9 @@ class StarBitMask(BitMask):
      'RVs from synthetic template differ significantly (~2 km/s) from those from combined template: WARN', 
      'Cross-correlation peak with template significantly broader than autocorrelation of template: WARN',
      'RVs from synthetic template differ very significatly (~10 km/s) from those from combined template: BAD',
-     '',
-     '',
-     '',
+     'Rejected visit because cross-correlation RV differs significantly from least squares RV',
+     'Suspect visit (but used!) because cross-correlation RV differs slightly from least squares RV',
+     'Suspect multiple components from Gaussian decomposition of cross-correlation',
      '',
      '',
      '',
@@ -272,7 +272,7 @@ class Apogee2Target2(BitMask) :
               'APOGEE2_DISK_SUBSTRUCTURE_CANDIDATE','APOGEE2_TELLURIC','APOGEE2_CALIB_CLUSTER','APOGEE2_K2_PLANETHOST',
               'APOGEE2_TIDAL_BINARY','APOGEE2_LITERATURE_CALIB','APOGEE2_GES_OVERLAP','APOGEE2_ARGOS_OVERLAP',
               'APOGEE2_GAIA_OVERLAP','APOGEE2_GALAH_OVERLAP','APOGEE2_RAVE_OVERLAP','APOGEE2_COMMIS_SOUTH_SPEC',
-              'APOGEE2_HALO_MEMBER','APOGEE2_HALO_CANDIDATE','APOGEE2_1MTARGET','APOGEE2_MOD_BRIGHT_LIMIT',
+              'APOGEE2_HALO_MEMBER','APOGEE2_HALO_CANDIDATE','APOGEE2_1M_TARGET','APOGEE2_MOD_BRIGHT_LIMIT',
               'APOGEE2_CIS','APOGEE2_CNTAC','APOGEE2_EXTERNAL','APOGEE2_CVZ_AS4_OBAF',
               'APOGEE2_CVZ_AS4_GI','APOGEE2_CVZ_AS4_CTL','APOGEE2_CVZ_AS4_GIANT',''])
 

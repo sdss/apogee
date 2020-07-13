@@ -25,6 +25,7 @@ import multiprocessing as mp
 import numpy as np
 import time
 import struct
+import yaml
 from apogee.aspcap import aspcap
 from apogee.aspcap import ferre
 from apogee.speclib import atmos
@@ -32,7 +33,6 @@ from apogee.speclib import lsf
 from apogee.speclib import sample
 from apogee.utils import atomic
 from apogee.utils import spectra
-#from sdss.utilities import yanny
 from sdss import yanny
 from astropy.io import ascii
 from astropy.io import fits
@@ -839,10 +839,11 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec
     if not os.path.isfile(planfile): 
         print('{:s} does not exist'.format(planfile))
         return
-    p=yanny.yanny(planfile,np=True)
+    p=yaml.safe_load(open(planfile,'r'))
 
     # grid specifications from input planfile
-    wrange=[float(x) for x in p['wrange'].split()]
+    if code == None : code = p['synthcode'] if p.get('synthcode') else None
+    wrange=p['wrange']
     dw=float(p['dw'])
     vacuum = int(p['vacuum']) if p.get('vacuum') else 0
     kurucz = True if p['atmos'] == 'kurucz' else False
@@ -853,7 +854,7 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec
     elem = p['elem'] if p.get('elem') else ''
     maskdir = p['maskdir'] if p.get('maskdir') else None
     vmicrofit = int(p['vmicrofit']) if p.get('vmicrofit') else 0
-    vmicro = np.array(p['vmicro'].split()).astype(float) if p.get('vmicro') else 0.
+    vmicro = np.array(p['vmicro']) if p.get('vmicro') else 0.
     vmacrofit = int(p['vmacrofit']) if p.get('vmacrofit') else 0
     vmacro = p['vmacro'] if p.get('vmacro') else 0
     specdir = os.environ['APOGEE_SPECLIB']+'/synth/'+p['specdir'] if p.get('specdir') else './'

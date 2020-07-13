@@ -1,80 +1,75 @@
+import copy
 import numpy as np
 import os
 import glob
 import pdb
 import subprocess
+import yaml
+try:
+    from yaml import CLoader as Loader, CDumper as Dumper
+except ImportError:
+    from yaml import Loader, Dumper
+
 from sdss import yanny
 from apogee.speclib import atmos
 from apogee.utils import spectra
 from apogee.plan import mkslurm
 
-
-def mkgriddirs(configfile,nosynth=False,writeraw=False,queryport=1052) :
+def mkgriddirs(configfile,nosynth=False,synthonly=False,writeraw=False,queryport=1052) :
     """ Script to create output directories and plan and batch queue files for all grids listed in master grid configuration file
-        Calls IDL routine to make the individual subplan files
     """
 
     # Read grid configuration file
-    if not os.path.isfile(configfile):
-        print('{:s} does not exist'.format(configfile))
+    if not os.path.isfile(configfile+'.yml'):
+        print('{:s} does not exist'.format(configfile+'.yml'))
         return
-    p=yanny.yanny(configfile,np=True)
+    p=yaml.safe_load(open(configfile+'.yml','r'))
 
     # loop over each grid
-    for i in range(len(p['GRID']['specdir'])) :
+    for i in range(len(p['GRID'])) :
 
       # do both "raw" directory and final directory: former may be repeated!
-      if nosynth : names = [ p['GRID']['specdir'][i]+'_'+p['GRID']['smooth'][i] ]
-      else : names = [ p['GRID']['specdir'][i]+'_'+p['GRID']['smooth'][i], p['GRID']['specdir'][i] ]
+      specdir=p['GRID'][i]['specdir']
+      smooth=p['GRID'][i]['smooth']
+      synthcode=p['GRID'][i]['synthcode']
+      atmos=p['GRID'][i]['atmos']
+      if synthonly : names = [ specdir ]
+      elif nosynth : names = [ specdir+'_'+smooth ]
+      else : names = [ specdir+'_'+smooth, specdir ]
       for igrid,name in enumerate(names) :
         # construct name and create output directory
-        #name = p['GRID']['specdir'][i]+'_'+p['GRID']['smooth'][i]
 
-        if abs(p['GRID']['solarisotopes'][i]) == 1 :
+        if abs(p['GRID'][i]['solarisotopes']) == 1 :
             iso = 'solarisotopes'
-        elif abs(p['GRID']['solarisotopes'][i]) == 2 :
+        elif abs(p['GRID'][i]['solarisotopes']) == 2 :
             iso = 'giantisotopes'
-        elif p['GRID']['solarisotopes'][i] < 0 :
+        elif p['GRID'][i]['solarisotopes'] < 0 :
             iso = 'tests/'+iso
-        dir = os.getenv('APOGEE_SPECLIB')+'/synth/'+p['GRID']['synthcode'][i].strip("'")+'/'+p['GRID']['atmos'][i]+'/'+iso+'/'+name+'/plan/'
+        dir = os.getenv('APOGEE_SPECLIB')+'/synth/'+synthcode.strip("'")+'/'+atmos+'/'+iso+'/'+name+'/plan/'
         print(dir)
         try: os.makedirs(dir)
         except: pass
 
         # remove any old plan files
         os.chdir(dir)
-        for filePath in glob.glob("*.par"):
+        for filePath in glob.glob("*.yml"):
             if os.path.isfile(filePath): os.remove(filePath)
 
-        # write the master planfile and one for each minigrid
-        elems=['']
-        elems.extend(p['GRID']['elem'][i])
-        f = open(dir+name+'.par','w')
-        f.write('{:20s}{:20s}\n'.format('name', name))
-        for key in p.keys() :
-            if ( key != 'GRID' ) & (key != 'symbols') :
-                f.write('{:30s}{:30s}\n'.format(key, p[key].strip("'")))
-        for key in p['GRID'].dtype.names :
-            if igrid == 0 or key != 'smooth' :
-              out='{:30s}'.format(str(p['GRID'][key][i])).strip("'").strip('[]')
-              out='{:30s}{:30s}\n'.format(key,out.replace(']',''))
-              f.write(out.strip('[]'))
-        f.close()
+        # move GRID keys up one level
+        out = copy.deepcopy(p)
+        for key in out['GRID'][i].keys() : out[key] = out['GRID'][i][key]
+        out.pop('GRID')
 
-        # make all of the individual planfiles from the master planfile
-        for elem in elems : speclib_split(dir+name,el=elem)
-        #subprocess.call(['idl','-e',"speclib_allplan,'"+name+".par'"])
+        fp = open(dir+name+'.yml','w')
+        fp.write(yaml.dump(out,sort_keys=False))
+        fp.close()
+        for elem in p['GRID'][i]['elem'] : speclib_split(dir+name,el=elem)
 
         # make pbs scripts
         os.chdir('..')
-        specdir = p['GRID']['synthcode'][i].strip("'")+'/'+p['GRID']['atmos'][i]+'/'+iso+'/'+name
-        #os.environ['NO_NODES'] = 'yes'
-        #subprocess.call(['mkslurm.csh','mkgrid','"plan/'+name+'_a[mp]*vp20.par"','"plan/'+name+'_a[mp]*vp48.par"','"plan/'+name+'_a[mp]*vp??.par"'],shell=False)
-        #subprocess.call(['mkslurm.csh','mkrbf','"plan/'+name+'_c[mp]*vp??.par"'],shell=False)
-        #subprocess.call(['mkslurm.csh','mkgridlsf','"plan/'+name+'_a[mp]*vp??.par"'],shell=False)
-        #subprocess.call(['mkslurm.csh','bundle','"plan/'+name+'_??.par"'],shell=False)
+        specdir = synthcode.strip("'")+'/'+atmos+'/'+iso+'/'+name
 
-        if name == p['GRID']['specdir'][i] :
+        if name == p['GRID'][i]['specdir'] :
             speclib_split(dir+name,amsplit=False)
             mkslurm.write('mkgrid plan/'+name+'_a[mp]*vp20.par plan/'+name+'_a[mp]*vp48.par plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=queryport,maxrun=32)
             mkslurm.write('mkrbf plan/'+name+'_c[mp]*vp??.par',queryhost=os.uname()[1],queryport=queryport,maxrun=1,time='72:00:00')
@@ -92,7 +87,8 @@ def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,oasplit=True,v
     """ Make a bunch of individual plan files from master, splitting [alpha/M],[C/M],[N/M],vt
     """
     # read master plan file
-    p=yanny.yanny(planfile+'.par')
+    print('splitting: ', planfile)
+    p=yaml.safe_load(open(planfile+'.yml','r'))
 
     # some cards removed in split par files
     p.pop('npart',None)
@@ -105,8 +101,8 @@ def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,oasplit=True,v
     if int(p['solarisotopes']) == 1 : isodir='solarisotopes'
     elif int(p['solarisotopes']) == 2 : isodir='giantisotopes'
 
-    for key in ['synthcode','atmos','specdir','linelist','config'] : 
-        p[key] = p[key].strip("'")
+    #for key in ['synthcode','atmos','specdir','linelist','config'] : 
+    #    p[key] = p[key].decode().strip("'")
  
     p['specdir'] = p['synthcode']+'/'+p['atmos']+'/'+isodir+'/'+p['specdir']
 
@@ -147,17 +143,17 @@ def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,oasplit=True,v
     # loop through all and make individual plan files
     dw = float(p['dw'])
     for am in amrange :
-        if amsplit : p['am0'] = am
+        if amsplit : p['am0'] = float(am)
         for cm in cmrange :
-            if cmsplit : p['cm0'] = cm
+            if cmsplit : p['cm0'] = float(cm)
             for nm in nmrange :
-                if nmsplit : p['nm0'] = nm
+                if nmsplit : p['nm0'] = float(nm)
                 for oa in oarange :
-                    if oasplit : p['oa0'] = oa
+                    if oasplit : p['oa0'] = float(oa)
                     for vt in vtrange :
                         # vmicro handled differently
                         if int(p['vmicrofit']) == 0 : 
-                            p['vmicro'] = 10.**vt
+                            p['vmicro'] = [float(10.**vt)]
                             # special handling for dw
                             if np.isclose(dw,-1.) :
                                 if p['vmicro'] < 3.99 : p['dw'] = 0.05
@@ -170,5 +166,6 @@ def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,oasplit=True,v
                         if oasplit : suffix+='o'+atmos.cval(oa)
                         if vtsplit : suffix+='v'+atmos.cval(10.**vt)
                         p['name'] = suffix
-                        p.write(planfile+'_'+suffix+el+'.par')
 
+                        with open(planfile+'_'+suffix+el+'.yml', 'w') as fp:
+                            fp.write(yaml.dump(p,sort_keys=False,Dumper=Dumper))

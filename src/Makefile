@@ -31,7 +31,7 @@ MAKEFLAGS = w
 # in these subdirectories should also understand 'make all' & 'make clean'.
 # This list can be empty, but should still be defined.
 #
-SUBDIRS = queue turbospec rbf ferre
+SUBDIRS = queue turbospec rbf ferre synspec
 #
 # This line helps prevent make from getting confused in the case where you
 # have a file named 'clean'.

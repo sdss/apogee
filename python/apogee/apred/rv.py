@@ -563,7 +563,9 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',obj=None,
     else :
         allvisits=struct.concat(files)
     starmask=bitmask.StarBitMask()
-    gd=np.where(((allvisits['STARFLAG'] & starmask.badval()) == 0) & (allvisits['SNR'] > snmin) )[0]
+    gd=np.where(((allvisits['STARFLAG'] & starmask.badval()) == 0) & 
+                 (allvisits['APOGEE_ID'] != b'') &
+                 (allvisits['SNR'] > snmin) )[0]
     print(len(allvisits),len(gd))
     allvisits=Table(allvisits)
 
@@ -834,7 +836,12 @@ def dorv(visitfiles) :
     for i in range(len(allvisit)) :
 
         # load all of the visits into doppler Spec1D objects
-        visitfile= load.allfile('Visit',plate=int(allvisit['PLATE'][i]),
+        if load.telescope == 'apo1m' :
+            visitfile= load.allfile('Visit',plate=allvisit['PLATE'][i],
+                                 mjd=allvisit['MJD'][i],reduction=allvisit['APOGEE_ID'][i])
+            pdb.set_trace()
+        else :
+            visitfile= load.allfile('Visit',plate=int(allvisit['PLATE'][i]),
                                  mjd=allvisit['MJD'][i],fiber=allvisit['FIBERID'][i])
         spec=doppler.read(visitfile)
 
@@ -1109,17 +1116,22 @@ def mkhtml(field,suffix='') :
  
     # get IDL results
     r13 = apload.ApLoad(apred='r13')
-    apfieldvisits = r13.apFieldVisits(field)[1].data
-    apfield = r13.apField(field)[1].data
+    try :
+        apfieldvisits = r13.apFieldVisits(field)[1].data
+        apfield = r13.apField(field)[1].data
+        doapfield = True
+    except : 
+        print('No apField files found ...')
+        doapfield = False
 
     # match
-    i1,i2 = match.match(dop[2].data['FILE'],apfieldvisits['FILE'])
+    if doapfield: i1,i2 = match.match(dop[2].data['FILE'],apfieldvisits['FILE'])
     fig,ax=plots.multi(1,2)
     ax[0].hist(dop[1].data['VHELIO_AVG'],bins=np.arange(-300,300,5),label='doppler',color='g',histtype='step')
-    ax[0].hist(apfield['VHELIO_AVG'],bins=np.arange(-300,300,5),label='IDL',color='r',histtype='step')
+    if doapfield: ax[0].hist(apfield['VHELIO_AVG'],bins=np.arange(-300,300,5),label='IDL',color='r',histtype='step')
     ax[0].legend()
     ax[1].hist(dop[1].data['VSCATTER'],bins=np.arange(0,1,0.02),label='doppler',color='g',histtype='step')
-    ax[1].hist(apfield['VSCATTER'],bins=np.arange(0,1,0.02),label='IDL',color='r',histtype='step')
+    if doapfield: ax[1].hist(apfield['VSCATTER'],bins=np.arange(0,1,0.02),label='IDL',color='r',histtype='step')
     ax[1].legend()
     fig.savefig(field+'/'+field+'_rvhist.png')
 
@@ -1146,7 +1158,7 @@ def mkhtml(field,suffix='') :
         # get object in apField
         try: k=np.where(apfield['APOGEE_ID'] == obj)[0][0]
         except: k=-1
-        jj=np.where(apfieldvisits['APOGEE_ID'] == obj)[0]
+        if doapfield :jj=np.where(apfieldvisits['APOGEE_ID'] == obj)[0] 
 
         # star information
         if star['TARGFLAGS'].find('TELLURIC') >=0 :
@@ -1155,7 +1167,7 @@ def mkhtml(field,suffix='') :
             fp.write('<TR><TD>')
         fp.write('{:s}'.format(obj))
         fp.write('(<A HREF="http://simbad.cfa.harvard.edu/simbad/sim-basic?Ident={:12.5f}%09{:12.5f}++&submit=SIMBAD+search"> SIMBAD </A>)<BR>'.format
-                   (apfield['RA'][k],apfield['DEC'][k]))
+                   (star['RA'],star['DEC']))
         fp.write('H  = {:7.2f}<br>'.format(star['H']))
         fp.write('SNR  = {:7.2f}<br>'.format(star['SNR']))
         fp.write('{:s}<br>'.format(star['TARGFLAGS']))
@@ -1183,9 +1195,17 @@ def mkhtml(field,suffix='') :
 
         # individual visit velocities
         fp.write('<TABLE BORDER=2>')
-        fp.write('<TR><TD>JD<TD>PLATE<TD>MJD<TD>FIBER<TD>S/N<TD>Doppler xcorr<TD> xcorr_err<TD>Doppler<TD>VERR<TD>IDL<TD>VERR,<TD>BC<TD>BC\n')
+        fp.write('<TR><TD>JD<TD>PLATE<TD>MJD<TD>FIBER<TD>S/N<TD>Doppler xcorr<TD> xcorr_err<TD>Doppler<TD>VERR<TD>IDL<TD>VERR<TD>ESTBC<TD>Dop BC<TD>apS BC\n')
         for ind,i in enumerate(j) :
-            ii = np.where(apfieldvisits['FILE'] == dop[2].data['FILE'][i])[0][0]
+            try : 
+                ii = np.where(apfieldvisits['FILE'] == dop[2].data['FILE'][i])[0][0]
+                vhelio_idl =  apfieldvisits['VHELIO'][ii]
+                vrelerr_idl =  apfieldvisits['VRELERR'][ii]
+                bc_idl =  apfieldvisits['BD'][ii]
+                vscatter_idl = apfield['VSCATTER'][k]
+            except : 
+                vhelio_idl,vrelerr_idl,bc_idl = -99999,-99999,-99999
+                vscatter_idl = -99999
             if np.isfinite(dop[2].data['VHELIO'][i]) == False :
                 bgcolor='bgcolor=red'
             elif dop[2].data['STARFLAG'][i] & starmask.getval('RV_REJECT') > 0 :
@@ -1202,20 +1222,24 @@ def mkhtml(field,suffix='') :
                       dop[2].data['SNR'][i],
                       dop[2].data['XCORR_VHELIO'][i],dop[2].data['XCORR_VRELERR'][i],
                       dop[2].data['VHELIO'][i],dop[2].data['VRELERR'][i],
-                      apfieldvisits['VHELIO'][ii],apfieldvisits['VRELERR'][ii],dop[2].data['ESTBC'][i],dop[2].data['BC'][i],apfieldvisits['BC'][ii]))
+                      vhelio_idl, vrelerr_idl, dop[2].data['ESTBC'][i],dop[2].data['BC'][i],bc_idl))
         fp.write('</TABLE>\n')
 
         # vscatter difference with IDL
-        fp.write('<TD> {:8.2f}\n'.format(star['VSCATTER']-apfield['VSCATTER'][k]))
+        fp.write('<TD> {:8.2f}\n'.format(star['VSCATTER']-vscatter_idl))
         fp.write('<TD> {:8.2f}\n'.format(star['H']))
         fp.write('<TD> {:8.2f}\n'.format(star['RV_TEFF']))
         fp.write('<TD> {:d}\n'.format(star['N_COMPONENTS']))
 
         # plot visit RVs
-        vidl=apfieldvisits['VHELIO'][jj]
-        gd = np.where(np.abs(vidl) < 999)[0]
-        vmax=np.nanmax(np.append(vhelio,vidl[gd]))
-        vmin=np.nanmin(np.append(vhelio,vidl[gd]))
+        if doapfield : 
+            vidl=apfieldvisits['VHELIO'][jj]
+            gd = np.where(np.abs(vidl) < 999)[0]
+            vmax=np.nanmax(np.append(vhelio,vidl[gd]))
+            vmin=np.nanmin(np.append(vhelio,vidl[gd]))
+        else :
+            vmax=np.nanmax(vhelio)
+            vmin=np.nanmin(vhelio)
         yr=[vmin-0.1*(vmax-vmin),vmax+0.1*(vmax-vmin)]
         try :
             fig,ax=plots.multi(1,1)
@@ -1225,9 +1249,10 @@ def mkhtml(field,suffix='') :
             bd_dop = np.where((dop[2].data['STARFLAG'][j] & starmask.getval('RV_REJECT')) > 0)[0]
             if len(bd_dop) > 0 : ax.scatter(dop[2].data['MJD'][j[bd_dop]],vhelio[bd_dop],s=15,
                                             facecolors='none',edgecolors='g',label='rejected Doppler')
-            plots.plotp(ax,apfieldvisits['MJD'][jj[gd]],vidl[gd],size=15,color='r',yr=yr,label='IDL')
             ax.plot(ax.get_xlim(),[star['VHELIO_AVG'],star['VHELIO_AVG']],color='g')
-            ax.plot(ax.get_xlim(),[apfield['VHELIO_AVG'][k],apfield['VHELIO_AVG'][k]],color='r')
+            if doapfield : 
+                plots.plotp(ax,apfieldvisits['MJD'][jj[gd]],vidl[gd],size=15,color='r',yr=yr,label='IDL')
+                ax.plot(ax.get_xlim(),[apfield['VHELIO_AVG'][k],apfield['VHELIO_AVG'][k]],color='r')
             ax.legend()
             fig.savefig(field+'/'+obj+'_rv.png')
             plt.close()

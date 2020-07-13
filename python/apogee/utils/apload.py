@@ -465,7 +465,7 @@ class ApLoad :
             except :
                 self.printerror()
     
-    def apVisit1m(self,*args, **kwargs) :
+    def apVisit1m(self,*args, load=False, **kwargs) :
         """
         NAME: apload.apVisit
         PURPOSE:  read apVisit file (downloading if necessary)
@@ -478,7 +478,7 @@ class ApLoad :
         else :
             try :
                 file = self.allfile(
-                   'Visit1m',plate=args[0],mjd=args[1],obj=args[2],telescope='apo1m')
+                   'Visit',plate=args[0],mjd=args[1],reduction=args[2])
                 if load : 
                     hdulist=self._readhdu(file)
                     spec=ApSpec(hdulist[1].data,header=hdulist[0].header,
@@ -537,7 +537,7 @@ class ApLoad :
         else :
             try :
                 file = self.allfile(
-                   'Star',location=args[0],obj=args[1],telescope='apo1m')
+                   'Star',location=args[0],obj=args[1])
                 return self._readhdu(file,**kwargs)
             except :
                 self.printerror()
@@ -676,7 +676,7 @@ class ApLoad :
                             download=False)
 
     def allfile(self,root,dr=None,apred=None,apstar=None,aspcap=None,results=None,
-                location=None,obj=None,plate=None,mjd=None,num=None,fiber=None,chips=False,field=None,
+                location=None,obj=None,reduction=None,plate=None,mjd=None,num=None,fiber=None,chips=False,field=None,
                 download=True,fz=False) :
         '''
         Uses sdss_access to create filenames and download files if necessary
@@ -707,25 +707,25 @@ class ApLoad :
             sdssroot = 'ap'+root
 
         if plate is not None :
-            field = apfield(plate,plans=self.plateplans)[0]
+            field = apfield(plate,plans=self.plateplans,telescope=self.telescope)[0]
  
         if chips == False :
             # First make sure the file doesn't exist locally
             #print(sdssroot,apred,apstar,aspcap,results,location,obj,self.telescope,field,prefix)
             filePath = self.sdss_path.full(sdssroot,
                                       apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
-                                      field=field,location=location,obj=obj,plate=plate,mjd=mjd,num=num,
+                                      field=field,location=location,obj=obj,reduction=reduction,plate=plate,mjd=mjd,num=num,
                                       telescope=self.telescope,fiber=fiber,prefix=prefix,instrument=self.instrument)
             if self.verbose: print('filePath',filePath)
             if os.path.exists(filePath) is False and download: 
                 downloadPath = self.sdss_path.url(sdssroot,
                                       apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
-                                      field=field,location=location,obj=obj,plate=plate,mjd=mjd,num=num,
+                                      field=field,location=location,obj=obj,reduction=reduction,plate=plate,mjd=mjd,num=num,
                                       telescope=self.telescope,fiber=fiber,prefix=prefix,instrument=self.instrument)
                 if self.verbose: print('downloadPath',downloadPath)
                 self.http_access.get(sdssroot,
                                 apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
-                                field=field,location=location,obj=obj,plate=plate,mjd=mjd,num=num,
+                                field=field,location=location,obj=obj,reduction=reduction,plate=plate,mjd=mjd,num=num,
                                 telescope=self.telescope,fiber=fiber,prefix=prefix,instrument=self.instrument)
             return filePath
         else :
@@ -733,7 +733,7 @@ class ApLoad :
                 #print(chip,root,num,mjd,prefix)
                 filePath = self.sdss_path.full(sdssroot,
                                 apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
-                                field=field, location=location,obj=obj,plate=plate,mjd=mjd,num=num,
+                                field=field, location=location,obj=obj,reduction=reduction,plate=plate,mjd=mjd,num=num,
                                 telescope=self.telescope,fiber=fiber,
                                 chip=chip,prefix=prefix,instrument=self.instrument)+suffix
                 if self.verbose : print('filePath: ', filePath, os.path.exists(filePath))
@@ -741,16 +741,21 @@ class ApLoad :
                   try:
                     self.http_access.get(sdssroot,
                                 apred=self.apred,apstar=self.apstar,aspcap=self.aspcap,results=self.results,
-                                field=field, location=location,obj=obj,plate=plate,mjd=mjd,num=num,
+                                field=field, location=location,obj=obj,reduction=reduction,plate=plate,mjd=mjd,num=num,
                                 telescope=self.telescope,fiber=fiber,
                                 chip=chip,prefix=prefix,instrument=self.instrument)
                   except: pdb.set_trace()
             return filePath.replace('-c','')
    
 
-def apfield(plateid,loc=0,plans=None,addloc=False) :
+def apfield(plateid,loc=0,plans=None,addloc=False,telescope='apo25m') :
     """ Get field name given plateid and plateplans
     """
+
+    if telescope == 'apo1m' :
+        # for apo1m, plateid is the field and programname
+        survey='apo1m'
+        return plateid, survey, plateid
 
     if plans is None : plans = yanny.yanny(os.environ['PLATELIST_DIR']+'/platePlans.par')['PLATEPLANS']
     j = np.where(np.array(plans['plateid']) == plateid)[0][0]

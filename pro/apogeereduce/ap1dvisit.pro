@@ -596,7 +596,10 @@ FOR i=0L,nplanfiles-1 do begin
   targ3 = plugmap.fiberdata[objind].target3
 
   if keyword_set(single) then begin
-    visitfile=apread('Visit',plate=planstr.plateid,mjd=planstr.mjd,fiber=objdata[0].fiberid,reduction=obj)
+    if tag_exist(planstr,'mjdfrac') then if planstr.mjdfrac eq 1 then $
+      mjd=sxpar(finalframe.(0).header,'JD-MID')-2400000.5  else $
+      mjd=planstr.mjd
+    visitfile=apread('Visit',plate=planstr.plateid,mjd=mjd,fiber=objdata[0].fiberid,reduction=obj)
     header0=visitfile[0].hdr
   endif else begin
     finalframe=apread('Plate',mjd=planstr.mjd,plate=planstr.plateid)

@@ -29,6 +29,7 @@ if __name__ == '__main__' :
         description='Makes a synthetic spectral grid')
 
     parser.add_argument('planfile', type=str, help='Plan file')
+    parser.add_argument('--clobber', help='overwrite existing file?',action="store_true")
     parser.add_argument('--save', help='Save intermediate file?',action="store_true")
     parser.add_argument("--flag",default='11111')
     parser.add_argument("--done")
@@ -38,7 +39,7 @@ if __name__ == '__main__' :
     now = datetime.datetime.now()
     start = time.time()
     print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
-    synth.mkgrid(args.planfile,save=args.save)
+    synth.mkgrid(args.planfile,save=args.save,clobber=args.clobber)
     now = datetime.datetime.now()
     print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     print("elapsed: ",time.time()-start)

@@ -28,7 +28,7 @@ class ApSpec() :
     """ a simple class to hold APOGEE spectra
     """
     def __init__(self,flux,header=None,err=None,wave=None,mask=None,bitmask=None,
-                 sky=None,skyerr=None,telluric=None,telerr=None,cont=None,filename='',
+                 sky=None,skyerr=None,telluric=None,telerr=None,cont=None,template=None,filename='',
                  sptype='apStar',waveregime='NIR',instrument='APOGEE',snr=100) :
         # Initialize the object
         self.flux = flux
@@ -43,6 +43,7 @@ class ApSpec() :
         self.telluric = telluric
         self.telerr = telerr
         self.cont = cont
+        self.template = template
         self.filename = filename
         self.sptype = sptype
         self.waveregime = waveregime
@@ -75,7 +76,7 @@ class ApSpec() :
         self.flux=out[0][0]
         self.err=out[0][1]
 
-    def write(self,filename) :
+    def write(self,filename,overwrite=True) :
         hdulist=fits.HDUList()
         hdu=fits.PrimaryHDU()
         hdu.header=self.header
@@ -88,7 +89,7 @@ class ApSpec() :
         hdulist.append(fits.ImageHDU(self.skyerr))
         hdulist.append(fits.ImageHDU(self.telluric))
         hdulist.append(fits.ImageHDU(self.telerr))
-        hdulist.writeto(filename)
+        hdulist.writeto(filename,overwrite=overwrite)
 
 class ApLoad :
 
@@ -111,7 +112,6 @@ class ApLoad :
         self.sdss_path=path.Path()
         self.http_access=HttpAccess(verbose=verbose)
         self.http_access.remote()
-        self.plateplans = yanny.yanny(os.environ['PLATELIST_DIR']+'/platePlans.par')['PLATEPLANS']
    
     def settelescope(self,telescope) :
         self.telescope=telescope
@@ -482,7 +482,9 @@ class ApLoad :
                 if load : 
                     hdulist=self._readhdu(file)
                     spec=ApSpec(hdulist[1].data,header=hdulist[0].header,
-                                err=hdulist[2].data,bitmask=hdulist[3].data,wave=hdulist[4].data)
+                                err=hdulist[2].data,bitmask=hdulist[3].data,wave=hdulist[4].data,
+                                sky=hdulist[5].data,skyerr=hdulist[5].data,
+                                telluric=hdulist[7].data,telerr=hdulist[8].data)
                     return spec
                 return self._readhdu(file,**kwargs)
             except :
@@ -707,7 +709,7 @@ class ApLoad :
             sdssroot = 'ap'+root
 
         if plate is not None :
-            field = apfield(plate,plans=self.plateplans,telescope=self.telescope)[0]
+            field = apfield(plate,telescope=self.telescope)[0]
  
         if chips == False :
             # First make sure the file doesn't exist locally
@@ -748,16 +750,21 @@ class ApLoad :
             return filePath.replace('-c','')
    
 
-def apfield(plateid,loc=0,plans=None,addloc=False,telescope='apo25m') :
+plans=None
+
+def apfield(plateid,loc=0,addloc=False,telescope='apo25m') : #,plans=None
     """ Get field name given plateid and plateplans
     """
+    global plans
 
     if telescope == 'apo1m' :
         # for apo1m, plateid is the field and programname
         survey='apo1m'
         return plateid, survey, plateid
 
-    if plans is None : plans = yanny.yanny(os.environ['PLATELIST_DIR']+'/platePlans.par')['PLATEPLANS']
+    if plans == None : 
+        print('reading platePlans')
+        plans = yanny.yanny(os.environ['PLATELIST_DIR']+'/platePlans.par')['PLATEPLANS']
     j = np.where(np.array(plans['plateid']) == plateid)[0][0]
 
     survey = plans['survey'][j]

@@ -38,6 +38,7 @@ from astropy.io import ascii
 from astropy.io import fits
 from sklearn.decomposition import PCA
 from sklearn.decomposition import IncrementalPCA
+import matplotlib
 import matplotlib.pyplot as plt
 from tools import plots
 from tools import match
@@ -277,7 +278,17 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
             #else : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'giant_nofeh_noh2o_noc2.molec')
             if solarisotopes : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'sun'+msuffix+'.molec')
             else : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'giant'+msuffix+'.molec')
-            if h2o is not None :
+            if h2o == 0 :
+                if teff < 4000 : 
+                    if mh+am < -1.5 or teff > 3250 :
+                        linelists.append(linelistdir+'/synspec/synspec.h2o-BC8.5V'+'.molec')
+                    else  :
+                        linelists.append(linelistdir+'/synspec/synspec.h2o-BC9.5V'+'.molec')
+            elif h2o == 1 :
+                linelists.append(linelistdir+'/synspec/synspec.h2o-BC8.5V.molec')
+            elif h2o == 2 :
+                linelists.append(linelistdir+'/synspec/synspec.h2o-BC9.5V.molec')
+            elif h2o == 3 :
                 linelists.append(linelistdir+'/synspec/synspec.h2o.molec')
         #linelists = ['apogeeDR16.20180901.19','apogeeDR16_arc.20']
     else :
@@ -1099,6 +1110,93 @@ def mkgridlink(planfile,suffix=None) :
                 spectra.add_dim(hdu.header,float(p['mh0']),float(p['dmh']),1,'M_H',idim)
             hdulist.append(hdu)
             hdulist.writeto(file,overwrite=True)
+
+def comp(testdir,libdir,name='ap00cp00np00vp12.fits',thresh=0.005,yr=None,pause=True,outdir='./',mh=None) :
+    """ compare test grid with library grid
+    """
+    test = fits.open(testdir+'/'+name)[1]
+    lib = fits.open(libdir+'/'+name)[1]
+    wave=spectra.fits2vector(test.header,1)
+    nmh,nlogg,nte,nwave = test.shape
+
+    sfig,sax=plots.multi(nte,nlogg,hspace=0.001,wspace=0.001,figsize=(10,4))
+    sfig.suptitle(testdir+' / '+libdir)
+    fig,ax=plots.multi(nte,nlogg,hspace=0.001,wspace=0.001,figsize=(10,4))
+    fig.suptitle(testdir+' / '+libdir)
+    color=['m','b','g','r']
+    if mh is None : 
+        mhlist =  spectra.fits2vector(test.header,4)
+        mhlab= False
+    else : 
+        mhlist = [mh]
+        mhlab= True
+        
+    for ite,te in enumerate(spectra.fits2vector(test.header,2)) :
+        for ilogg,logg in enumerate(spectra.fits2vector(test.header,3)) :
+            if mhlab :
+                sax[ilogg,ite].text(0.1,0.9,'Te: {:.0f} logg: {:6.2f} [M/H]: {:5.1f}'.format(te,logg,mh),
+                               transform=ax[ilogg,ite].transAxes)
+                ax[ilogg,ite].text(0.1,0.9,'Te: {:.0f} logg: {:6.2f} [M/H]: {:5.1f}'.format(te,logg,mh),
+                               transform=ax[ilogg,ite].transAxes)
+            else :
+                sax[ilogg,ite].text(0.1,0.9,'Te: {:.0f} logg: {:6.2f}'.format(te,logg),
+                               transform=ax[ilogg,ite].transAxes)
+                ax[ilogg,ite].text(0.1,0.9,'Te: {:.0f} logg: {:6.2f}'.format(te,logg),
+                               transform=ax[ilogg,ite].transAxes)
+            for mh in mhlist :
+                ind=getindex(test.header,[2,3,4],[te,logg,mh])
+                imh=ind[2]
+                print(te,logg,mh)
+                print(mh,imh)
+                ind=getindex(lib.header,[2,3,4],[te,logg,mh])
+                #print(ind)
+                ax[ilogg,ite].plot(wave,test.data[imh,ilogg,ite,:]/lib.data[ind[2],ind[1],ind[0],:],
+                    color=color[imh],label='{:.2}'.format(mh))
+                sax[ilogg,ite].plot(wave,test.data[imh,ilogg,ite,:],
+                    label='{:.2}'.format(mh))
+                sax[ilogg,ite].plot(wave,lib.data[ind[2],ind[1],ind[0],:],
+                    label='{:.2}'.format(mh))
+                sax[ilogg,ite].set_ylim([0,1.2])
+                if yr is not None : ax[ilogg,ite].set_ylim(yr)
+                plt.draw()
+                if np.abs(test.data[imh,ilogg,ite,:]-lib.data[ind[2],ind[1],ind[0],:]).max() > thresh:
+                    if pause: pdb.set_trace()
+    ax[-1,-1].legend(fontsize='xx-small')
+    sax[-1,-1].legend(fontsize='xx-small')
+    if mhlab :
+      outfile = os.path.basename(testdir)+'_'+os.path.basename(libdir)+'_{:.1f}'.format(mh)
+    else :
+      outfile = os.path.basename(testdir)+'_'+os.path.basename(libdir)
+    fig.savefig(outdir+'/'+outfile+'.png')
+    sfig.savefig(outdir+'/'+outfile+'_spec.png')
+    plt.close()
+    plt.close()
+    return [outfile+'_spec.png',outfile+'.png']
+
+def allcomp() :
+    """ create grid of synthesis comparisons, with web page
+    """
+
+    matplotlib.use('Agg')
+    #grids = ['solarisotopes/testFd','solarisotopes/testGKd','solarisotopes/testMd',
+    #         'giantisotopes/testGKg','giantisotopes/testMg']
+    #tab=[]
+    #for grid in grids :
+    #    try: out=comp('synspec/marcs/'+grid,'synspec/marcs/'+grid+'_h2o0',outdir='comp',pause=False,yr=[0.98,1.02])
+    #    except : out=['','']
+    #    tab.append(out)
+    #html.htmltab(tab,file='comp/comph2o.html')
+    grids = ['solarisotopes/testFd','solarisotopes/testGKd','solarisotopes/testMd',
+             'giantisotopes/testGKg','giantisotopes/testMg']
+    tab=[]
+    ytit=[]
+    for grid in grids :
+      for mh in [-2.5,-1.5,-0.5,0.5] :
+        try: out=comp('synspec/marcs/'+grid,'turbospec/marcs/'+grid,outdir='comp',pause=False,yr=[0.5,1.5],mh=mh)
+        except : out=['','']
+        tab.append(out)
+        ytit.append('{:s} {:6.1f}'.format(grid,mh))
+    html.htmltab(tab,file='comp/comp_syn_turbo.html',ytitle=ytit)
 
 def getindex(header,axes,vals) :
     """ DEVELOPMENT : get index of requested model from input grid header

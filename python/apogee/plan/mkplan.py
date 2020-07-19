@@ -71,17 +71,17 @@ def mkgriddirs(configfile,nosynth=False,synthonly=False,writeraw=False,queryport
 
         if name == p['GRID'][i]['specdir'] :
             speclib_split(dir+name,amsplit=False)
-            mkslurm.write('mkgrid plan/'+name+'_a[mp]*vp20.par plan/'+name+'_a[mp]*vp48.par plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=queryport,maxrun=32)
-            mkslurm.write('mkrbf plan/'+name+'_c[mp]*vp??.par',queryhost=os.uname()[1],queryport=queryport,maxrun=1,time='72:00:00')
-            mkslurm.write('mkrbf --nofill plan/'+name+'.par',name='mkrbfholes',runplans=False,time='72:00:00')
+            mkslurm.write('mkgrid plan/'+name+'_a[mp]*vp20.yml plan/'+name+'_a[mp]*vp48.yml plan/'+name+'_a[mp]*vp??.yml',queryhost=os.uname()[1],queryport=queryport,maxrun=32)
+            mkslurm.write('mkrbf plan/'+name+'_c[mp]*vp??.yml',queryhost=os.uname()[1],queryport=queryport,maxrun=1,time='72:00:00')
+            mkslurm.write('mkrbf --nofill plan/'+name+'.yml',name='mkrbfholes',runplans=False,time='72:00:00')
         else :
             if writeraw : raw = '--writeraw'
             else : raw = ''
-            mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=queryport,maxrun=12,time='24:00:00')
-            #mkslurm.write('bundle plan/'+name+'_??.par',queryhost=os.uname()[1],queryport=queryport,maxrun=32)
-            mkslurm.write('pca --pcas 12 75 --incremental --threads 0 '+raw+' plan/'+name+'.par',runplans=False,time='72:00:00')
-            mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.par',queryhost=os.uname()[1],queryport=queryport,maxrun=12,time='72:00:00',
-                          postcmd='pca --pcas 12 75 --incremental --threads 0 '+raw+' plan/'+name+'.par',name='mkgridlsf_pca')
+            mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.yml',queryhost=os.uname()[1],queryport=queryport,maxrun=12,time='24:00:00')
+            #mkslurm.write('bundle plan/'+name+'_??.yml',queryhost=os.uname()[1],queryport=queryport,maxrun=32)
+            mkslurm.write('pca --pcas 12 75 --incremental --threads 0 '+raw+' plan/'+name+'.yml',runplans=False,time='72:00:00')
+            mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.yml',queryhost=os.uname()[1],queryport=queryport,maxrun=12,time='72:00:00',
+                          postcmd='pca --pcas 12 75 --incremental --threads 0 '+raw+' plan/'+name+'.yml',name='mkgridlsf_pca')
 
 def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,oasplit=True,vtsplit=True,el='') :
     """ Make a bunch of individual plan files from master, splitting [alpha/M],[C/M],[N/M],vt

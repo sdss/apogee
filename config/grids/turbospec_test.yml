@@ -76,7 +76,7 @@ GKg : &GKg
     nteff : 3
     logg0 : 0
     dlogg : 2
-    nlogg : 2
+    nlogg : 3
 Mg : &Mg
     <<: *giant
     specdir : testMg
@@ -84,7 +84,7 @@ Mg : &Mg
     dteff : 500
     nteff : 3
     logg0 : -0.5
-    dlogg : 2
+    dlogg : 1.5
     nlogg : 3
 Fd: &Fd
     <<: *dwarf
@@ -104,7 +104,7 @@ GKd: &GKd
     dteff : 1000
     nteff : 3
     logg0 : 2.5
-    dlogg : 1
+    dlogg : 1.5
     nlogg : 3
 Md: &Md
     <<: *dwarf

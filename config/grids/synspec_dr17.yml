@@ -20,25 +20,25 @@ defaults : &defaults
     vmicrofit : 0
     vmicro : [0.372160,-0.090531,-0.000802,0.001263,-0.027321]
     elem : ['']
-    h2o : 2
+    h2o : 0
 
 giant: &giant
     <<: *defaults
     mh0 : -2.5
-    dmh : 1
-    nmh : 4
-    am0 : 0
+    dmh : 0.25
+    nmh : 15
+    am0 : -0.75
     dam : 0.25
-    nam : 1
-    cm0 : 0
+    nam : 8
+    cm0 : -1.5
     dcm : 0.25
-    ncm : 1
-    nm0 : 0
+    ncm : 11
+    nm0 : -0.5
     dnm : 0.5
-    nnm : 1
-    vt0 : 0.0791812
+    nnm : 6
+    vt0 : -0.522878
     dvt : 0.301030
-    nvt : 1
+    nvt : 5
     rot0 : 0.176091
     drot : 0.301030
     nrot : 1
@@ -48,113 +48,112 @@ giant: &giant
 dwarf: &dwarf
     <<: *defaults
     mh0 : -2.5
-    dmh : 1
-    nmh : 4
-    am0 : 0
+    dmh : 0.25
+    nmh : 15
+    am0 : -0.75
     dam : 0.25
-    nam : 1
-    cm0 : 0
+    nam : 8
+    cm0 : -0.5
     dcm : 0.25
-    ncm : 1
-    nm0 : 0
+    ncm : 5
+    nm0 : -0.5
     dnm : 0.5
-    nnm : 1
-    vt0 : 0.0791812
+    nnm : 5
+    vt0 : -0.522878
     dvt : 0.301030
-    nvt : 1
+    nvt : 5
     rot0 : 0.176091
     drot : 0.301030
-    nrot : 1
+    nrot : 7
     kernel : rot
     npca : 75
     solarisotopes : 1
 
 GKg : &GKg
     <<: *giant
-    specdir : testGKg_h2o1
+    specdir : sgGK_200709
     teff0 : 3500
-    dteff : 1000
-    nteff : 3
+    dteff : 250
+    nteff : 11
     logg0 : 0
-    dlogg : 2
-    nlogg : 3
+    dlogg : 0.5
+    nlogg : 10
 Mg : &Mg
     <<: *giant
-    specdir : testMg_h2o1
+    specdir : sgM_200709
     teff0 : 3000
-    dteff : 500
-    nteff : 3
+    dteff : 100
+    nteff : 11
     logg0 : -0.5
-    dlogg : 1.5
-    nlogg : 3
+    dlogg : 0.5
+    nlogg : 8
 Fd: &Fd
     <<: *dwarf
-    specdir : testFd_h2o1
+    specdir : sdF_200709
     solarisotopes : 1
     teff0 : 5500
-    dteff : 1000
-    nteff : 3
+    dteff : 250
+    nteff : 11
     logg0 : 2.5
-    dlogg : 1.0
-    nlogg : 3
+    dlogg : 0.5
+    nlogg : 7
 GKd: &GKd
     <<: *dwarf
-    specdir : testGKd_h2o1
+    specdir : sdGK_200709
     solarisotopes : 1
     teff0 : 3500
-    dteff : 1000
-    nteff : 3
+    dteff : 250
+    nteff : 11
     logg0 : 2.5
-    dlogg : 1.5
-    nlogg : 3
+    dlogg : 0.5
+    nlogg : 7
 Md: &Md
     <<: *dwarf
-    specdir : testMd_h2o2
+    specdir : sdM_200709
     teff0 : 3000
-    dteff : 500
-    nteff : 3
+    dteff : 100
+    nteff : 11
     logg0 : 2.5
-    dlogg : 1.5
-    nlogg : 3
+    dlogg : 0.5
+    nlogg : 7
 AB: &AB
-   <<: *dwarf
-    specdir : testAB
+    <<: *dwarf
+    specdir : sdAB_200709
     teff0 : 7000
     dteff : 500
     nteff : 27
     logg0 : 2.5
     dlogg : 0.5
-    nlogg : 6
+    nlogg : 7
 
 lsfcombo: &lsfcombo
-    smooth : lsfcombo5_l33
-    suffix : l33
+    smooth : lsfcombo5_dr17
+    suffix : dr17
     lsffiber : [50,100,150,200,250]
 lsfa: &lsfa
-    smooth : lsfa_l33
-    suffix : l33
+    smooth : lsfa_dr17
+    suffix : dr17
     lsffiber : [266,272,280,288,296]
 lsfb: &lsfb
-    smooth : lsfb_l33
-    suffix : l33
+    smooth : lsfb_dr17
+    suffix : dr17
     lsffiber : [160,183,206,228,250]
 lsfc: &lsfc
-    smooth : lsfc_l33
-    suffix : l33
+    smooth : lsfc_dr17
+    suffix : dr17
     lsffiber : [60,80,100,119,140]
 lsfd: &lsfd
-    smooth : lsfd_l33
-    suffix : l33
+    smooth : lsfd_dr17
+    suffix : dr17
     lsffiber : [5,15,25,35,45]
 GRID :
-#  - <<: *GKg
-#    <<: *lsfcombo 
-#  - <<: *Mg
-#    <<: *lsfcombo 
-#  - <<: *Fd
-#    <<: *lsfcombo 
-#  - <<: *GKd
-#    <<: *lsfcombo 
+  - <<: *GKg
+    <<: *lsfcombo 
+  - <<: *Mg
+    <<: *lsfcombo 
+  - <<: *Fd
+    <<: *lsfcombo 
+  - <<: *GKd
+    <<: *lsfcombo 
   - <<: *Md
     <<: *lsfcombo 
-

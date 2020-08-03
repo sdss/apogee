@@ -82,13 +82,11 @@ that the driver routine rv.doppler_rv() can run multiple
 stars in different threads. Note that, for this to be effective,
 the doppler.rv and lower level routines must be single-threaded,
 accomplished by setting environment variables:
-
-setenv OMP_NUM_THREADS 1
-setenv OPENBLAS_NUM_THREADS 1
-setenv MKL_NUM_THREADS 1
-setenv VECLIB_MAXIMUM_THREADS 1
-setenv NUMEXPR_NUM_THREADS 1
-
+|setenv OMP_NUM_THREADS 1
+|setenv OPENBLAS_NUM_THREADS 1
+|setenv MKL_NUM_THREADS 1
+|setenv VECLIB_MAXIMUM_THREADS 1
+|setenv NUMEXPR_NUM_THREADS 1
 before loading the packages. This is significantly more efficient
 that running a single object at a time with multi-threaded
 lower levels.

@@ -15,6 +15,7 @@ import numpy as np
 import pdb
 from tools import match
 from apogee.aspcap import aspcap
+from apogee.utils import bitmask
 import glob
 try: import corner
 except: pass
@@ -117,7 +118,7 @@ def writeipf(name,libfile,stars,param=None) :
     # get the index numbers in input parameter array for correct library parameter order
     index=np.zeros(nparams,dtype=int)
     for i in range(nparams) :
-        index[i] = np.where(params == libhead0['LABEL'][i])[0]
+        index[i] = np.where(params == libhead0['LABEL'][i].decode())[0]
         print(i,index[i])
     # if input parameters aren't specified, use zeros
     if param is None :
@@ -127,7 +128,7 @@ def writeipf(name,libfile,stars,param=None) :
     for i,star in enumerate(stars) :
         f.write('{:<40s}'.format(star))
         for ipar in range(nparams) : 
-            lims = [libhead0['LLIMITS'][ipar],libhead0['LLIMITS'][ipar]+libhead0['STEPS'][ipar]*libhead0['N_P'][ipar]]
+            lims = [libhead0['LLIMITS'][ipar],libhead0['LLIMITS'][ipar]+libhead0['STEPS'][ipar]*(libhead0['N_P'][ipar]-1)]
             f.write('{:12.3f}'.format(clip(param[i][index[ipar]],lims,eps=0.001)))
         f.write('\n')
     f.close()
@@ -176,31 +177,52 @@ def read(name,libfile) :
     covar=np.reshape(covar,(nobj,nparam,nparam))
 
     # load param array
-    params=aspcap.params()[0]
+    params,tagnames,flagnames=aspcap.params()
     ntotparams=len(params)
     index=np.zeros(ntotparams,dtype=int)
     a=np.zeros(nobj, dtype=[('APOGEE_ID','S100'),
                               ('FPARAM','f4',(ntotparams)),
                               ('FPARAM_COV','f4',(ntotparams,ntotparams)),
-                              ('PARAM_CHI2','f4')])
+                              ('PARAM_CHI2','f4'),
+                              ('PARAMFLAG','i4',(ntotparams)),
+                              ('ASPCAPFLAG','i4')])
     a['APOGEE_ID']=ipfobj
-    for i in range(ntotparams) :
-        try :
-            index[i] = np.where(libhead0['LABEL'] == params[i])[0]
-            a['FPARAM'][:,i] = param[:,index[i]]
-            for j in range(ntotparams) :
-                a['FPARAM_COV'][:,i,j]=covar[:,index[i],index[j]]
-        except :
-            index[i] = -1
     a['PARAM_CHI2']=chi2
 
-    # put it all into a structured array
+    parammask=bitmask.ParamBitMask()
+    aspcapmask=bitmask.AspcapBitMask()
+    for i in range(nparam) :
+        # load FPARAM and FPARAM_COV into the right order of parameters
+        pname = libhead0['LABEL'][i].decode()
+        index = np.where(params == pname)[0][0]
+        val = param[:,i]
+        a['FPARAM'][:,index] = val
+        for j in range(nparam) :
+            jindex = np.where(params == libhead0['LABEL'][j].decode())[0][0]
+            a['FPARAM_COV'][:,index,jindex]=covar[:,i,j]
+
+        # check for grid edge and flag
+        warn = np.where((val < libhead0['LLIMITS'][i]+libhead0['STEPS'][i]/2.) |
+                        (val > libhead0['LLIMITS'][i]+libhead0['STEPS'][i]*(libhead0['N_P'][i]-1-1./2)) )
+        a['PARAMFLAG'][warn,index] |= parammask.getval('GRIDEDGE_WARN')
+        a['ASPCAPFLAG'][warn] |= aspcapmask.getval(flagnames[index]+'_WARN')
+        bad = np.where((val < libhead0['LLIMITS'][i]+libhead0['STEPS'][i]/8.) )
+        if pname != 'N' and pname !='LOG10VDOP' and pname != 'LGVSINI' :
+            a['PARAMFLAG'][bad,index] |= parammask.getval('GRIDEDGE_BAD')
+            a['ASPCAPFLAG'][bad] |= aspcapmask.getval(flagnames[index]+'_BAD')
+        bad = np.where((val > libhead0['LLIMITS'][i]+libhead0['STEPS'][i]/8.) )
+        if pname != 'N' :
+            a['PARAMFLAG'][bad,index] |= parammask.getval('GRIDEDGE_BAD')
+            a['ASPCAPFLAG'][bad] |= aspcapmask.getval(flagnames[index]+'_BAD')
+
+    # put spectral data into a structured array
     form='{:d}f4'.format(nwave)
     sform='{:d}f4'.format(spm.shape[1])
-    out=np.empty(nobj, dtype=[('obj','S24'),('spm',sform),('obs',form),('err',form),('mdl',form),('chi2',form)])
+    out=np.empty(nobj, dtype=[('obj','S24'),('spm',sform),('obs',form),('frd',form),('err',form),('mdl',form),('chi2',form)])
     out['obj']=ipfobj
     out['spm'][i1,:]=spm[i2,:]
-    out['obs']=readspec(name+'.frd')[i2,:]
+    out['obs']=readspec(name+'.obs')[i2,:]
+    out['frd']=readspec(name+'.frd')[i2,:]
     out['err']=readspec(name+'.err')[i2,:]
     out['mdl']=readspec(name+'.mdl')[i2,:]
     out['chi2']=(out['obs']-out['mdl'])**2/out['err']**2

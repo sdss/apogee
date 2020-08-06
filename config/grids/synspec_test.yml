@@ -109,7 +109,7 @@ GKd: &GKd
     nlogg : 3
 Md: &Md
     <<: *dwarf
-    specdir : testMd_h2o0
+    specdir : testMd
     teff0 : 3000
     dteff : 200
     nteff : 6

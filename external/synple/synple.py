@@ -40,6 +40,7 @@ To perform the calculations above in python and compare the emergent normalized 
 
 
 """
+import pdb
 import os
 import sys
 import subprocess
@@ -2295,8 +2296,16 @@ def read_marcs_model2(modelfile):
 
   for i in range(nd-1):
     line = f.readline()
-    entries = line.split()
-
+    #entries = line.split()
+    import struct
+    fmtstring='3s 6s 12s 12s 6s 11s 8s 14s'
+    fieldstruct = struct.Struct(fmtstring)
+    if sys.version_info[0] < 3:
+        parse = fieldstruct.unpack_from
+    else:
+        unpack = fieldstruct.unpack_from
+        parse = lambda line: tuple(s.decode() for s in unpack(line.encode()))
+    entries = parse(line)
     rho.append( float(entries[3]))
     dm.append(  float(entries[7]))
     mmw.append(  float(entries[4]))
@@ -2310,7 +2319,6 @@ def read_marcs_model2(modelfile):
   atmos['ne'] = ne
 
   return (teff,logg,vmicro,abu,nd,atmos)
-
 
 def read_phoenix_model(modelfile):
 

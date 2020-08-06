@@ -147,14 +147,14 @@ lsfd: &lsfd
     suffix : l33
     lsffiber : [5,15,25,35,45]
 GRID :
-#  - <<: *GKg
-#    <<: *lsfcombo 
-#  - <<: *Mg
-#    <<: *lsfcombo 
-#  - <<: *Fd
-#    <<: *lsfcombo 
-#  - <<: *GKd
-#    <<: *lsfcombo 
+  - <<: *GKg
+    <<: *lsfcombo 
+  - <<: *Mg
+    <<: *lsfcombo 
+  - <<: *Fd
+    <<: *lsfcombo 
+  - <<: *GKd
+    <<: *lsfcombo 
   - <<: *Md
     <<: *lsfcombo 
 

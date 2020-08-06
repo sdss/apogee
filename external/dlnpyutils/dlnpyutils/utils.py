@@ -848,7 +848,11 @@ def poly_resid(coef,x,y,sigma=1.0):
     return (poly(x,coef)-y)/sig
 
 def poly_fit(x,y,nord,robust=False,sigma=None,initpar=None,bounds=(-np.inf,np.inf),error=False,max_nfev=None):
-    if initpar is None: initpar = np.zeros(nord+1)
+    if initpar is None: 
+        initpar = np.zeros(nord+1)
+        # start with linear from first and last points
+        initpar[-2] = (y[-1]-y[0]) / (x[-1]-x[0])
+        initpar[-1] = y[0] - initpar[-2]*x[0]
     # Normal polynomial fitting
     #if sigma is None: sigma=np.zeros(len(x))+1
     #coef, cov = curve_fit(poly, x, y, p0=initpar, sigma=sigma, bounds=bounds)
@@ -875,7 +879,7 @@ def poly_fit(x,y,nord,robust=False,sigma=None,initpar=None,bounds=(-np.inf,np.in
     if sigma is None: sigma=np.zeros(len(x))+1
     res = least_squares(poly_resid, initpar, loss=loss, f_scale=0.1, args=(x,y,sigma), max_nfev=max_nfev)
     if res.success is False:
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         raise Exception("Problem with least squares polynomial fitting. Status="+str(res.status))
         return initpar+np.nan
     coef = res.x

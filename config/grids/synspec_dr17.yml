@@ -90,6 +90,7 @@ Mg : &Mg
 Fd: &Fd
     <<: *dwarf
     specdir : sdF_200709
+    r0 : 0.5
     solarisotopes : 1
     teff0 : 5500
     dteff : 250

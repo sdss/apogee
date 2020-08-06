@@ -56,9 +56,10 @@ def mkgriddirs(configfile,nosynth=False,synthonly=False,writeraw=False,queryport
             if os.path.isfile(filePath): os.remove(filePath)
 
         # move GRID keys up one level
-        out = copy.deepcopy(p)
-        for key in out['GRID'][i].keys() : out[key] = out['GRID'][i][key]
-        out.pop('GRID')
+        #out = copy.deepcopy(p)
+        out = p['GRID'][i]
+        #for key in out['GRID'][i].keys() : out[key] = out['GRID'][i][key]
+        #out.pop('GRID')
 
         fp = open(dir+name+'.yml','w')
         fp.write(yaml.dump(out,sort_keys=False))

@@ -18,12 +18,14 @@ import numpy as np
 import glob
 import os
 import pdb
+import yaml
 from shutil import copyfile
 import subprocess
 import scipy.ndimage.filters
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy.io import ascii
+from astropy.table import Table, Column
 #from holtz.tools import struct
 from tools import plots
 from tools import match
@@ -777,3 +779,238 @@ def average(a,ind,apred='r12',aspcap='l33', median=False) :
     if median: return np.median(spec,axis=0), np.median(err,axis=0), np.median(ratio,axis=0)
     else : return spec.mean(axis=0) ,err.mean(axis=0), ratio.mean(axis=0)
 
+def dofield(planfile,clobber=True,nobj=None) :
+    """ run ASPCAP on a field
+    """
+
+    # read configuration file
+    plan=yaml.safe_load(open(planfile,'r'))
+    apred=plan['apred_vers']
+    aspcap_vers=plan['aspcap_vers']
+    aspcap_config=plan['aspcap_config']
+    instrument=plan['instrument']
+    telescope=plan['telescope']
+    field=plan['field']
+
+    # setup reader and load apField file
+    load = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope=telescope)
+    #apfieldname=load.filename('Field',field=field)
+    ##apfieldname=apfieldname.replace('/stars/','/rv/')
+    #apfield = fits.open(apfieldname)[1].data
+    apfield=load.apField(field)[1].data
+    aspcapfield=Table(apfield)
+    if nobj is not None : aspcapfield=aspcapfield[0:nobj]
+    try : test = aspcapfield['MEANFIB']
+    except : aspcapfield['MEANFIB'] = 150
+    # add new columns
+    nparam = len(params()[0])
+
+    # read ASPCAP configuration
+    config = yaml.safe_load(open(os.environ['APOGEE_DIR']+'/config/aspcap/'+aspcap_config+'/'+instrument+'.yml','r'))
+ 
+    # add tags to structure
+    ngrids=len(config['grids'])
+    aspcapfield.add_column(Column(name='CLASS',dtype='S8',length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='FPARAM_CLASS',dtype=float,shape=(ngrids,nparam),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='FPARAM_COV_CLASS',dtype=float,shape=(ngrids,nparam,nparam),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='CHI2_CLASS',dtype=float,shape=(ngrids),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='FPARAM',dtype=float,shape=(nparam),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='FPARAM_COV',dtype=float,shape=(nparam,nparam),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='PARAM_CHI2',dtype=float,length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='ASPCAPFLAG',dtype=int,length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='ASPCAPFLAGS',dtype='S132',length=len(aspcapfield)))
+
+    aspcapspec = Table()
+    nwave = nw_chip.sum()
+    aspcapspec.add_column(Column(name='SPEC',dtype=float,shape=(nwave),length=len(aspcapfield)))
+    aspcapspec.add_column(Column(name='ERR',dtype=float,shape=(nwave),length=len(aspcapfield)))
+    aspcapspec.add_column(Column(name='SPEC_BESTFIT',dtype=float,shape=(nwave),length=len(aspcapfield)))
+
+    # pixel masking
+    pixelmask=bitmask.PixelBitMask()
+    badval=pixelmask.badval()|pixelmask.getval('SIG_SKYLINE')
+    aspcapmask=bitmask.AspcapBitMask()
+
+    # loop over all grids
+    param_class=[]
+    spec_class=[]
+    chi2_class=[]
+    for igrid,grid in enumerate(config['grids']) :
+
+        out='test_'+grid['name']
+        libfile = 'lib/'+grid['lib']+'.hdr'
+        libhead0,libhead = ferre.rdlibhead(libfile)
+
+        gd = np.where((aspcapfield['RV_TEFF'] >= grid['teff_range'][0]) &
+                      (aspcapfield['RV_TEFF'] <= grid['teff_range'][1]) &
+                      (aspcapfield['RV_LOGG'] >= grid['logg_range'][0]) &
+                      (aspcapfield['RV_LOGG'] <= grid['logg_range'][1]) &
+                      (aspcapfield['MEANFIB'] >= grid['fibermin']) &
+                      (aspcapfield['MEANFIB'] < grid['fibermax']) ) [0]
+        print(grid['name'],len(gd))
+        if len(gd) == 0 : continue
+
+        inpars=[]
+        flux=[]
+        err=[]
+        stars=[]
+        for star in aspcapfield[gd] :
+            #print(load.filename('Star',field=field,obj=star))
+            apstar=load.apStar(field,star['APOGEE_ID'],load=True)
+
+            stars.append(star['APOGEE_ID'])
+            #stars.append(star['APOGEE_ID']+'norm')
+            inpars.append([star['RV_TEFF'],star['RV_LOGG'],np.log10(1.2),star['RV_FEH'],0.,0.,0.,1.,0.])
+            #inpars.append([star['RV_TEFF'],star['RV_LOGG'],np.log10(1.2),star['RV_FEH'],0.,0.,0.,1.,0.])
+            #flux.append(apStar2aspcap(apstar.flux[0,:]))
+            norm=np.median(apStar2aspcap(apstar.flux[0,:]))
+            flux.append(apStar2aspcap(apstar.flux[0,:])/norm)
+            mask= np.where((apstar.bitmask[0,:] & badval) > 0)[0]
+            tmp = apstar.err[0,:]
+            tmp[mask] *= 100.
+            #err.append(apStar2aspcap(tmp))
+            err.append(apStar2aspcap(tmp)/norm)
+
+        if clobber or not os.path.exists(out+'.spm') :
+            ferre.writeipf(out,libfile,stars,param=np.array(inpars))
+            ferre.writespec(out+'.obs',flux)
+            ferre.writespec(out+'.err',err)
+            ferre.writenml(out+'.nml',os.path.basename(out),libhead0,init=0,algor=grid['algor'],ncpus=plan['ncpus'],
+                       obscont=grid['obscont'],rejectcont=grid['rejectcont'],renorm=abs(grid['renorm']),
+                       filterfile=os.environ['APOGEE_DIR']+'/data/windows/'+grid['mask'])
+            subprocess.call(['ferre.x',out+'.nml'],shell=False)
+
+        # read FERRE output
+        param,spec,wave=ferre.read(out,libfile)
+        # fill in locked parameters
+        fill_plock(param,grid['PLOCK'])
+        param_class.append(param) 
+        spec_class.append(spec) 
+
+        # load into apField
+        for istar,star in enumerate(aspcapfield[gd]) :
+            i = np.where(param['APOGEE_ID'] == star['APOGEE_ID'].encode())[0]
+            aspcapfield['FPARAM_CLASS'][gd[istar],igrid,:] = param['FPARAM'][i]
+            aspcapfield['FPARAM_COV_CLASS'][gd[istar],igrid,:] = param['FPARAM_COV'][i]
+            aspcapfield['CHI2_CLASS'][gd[istar],igrid] = param['PARAM_CHI2'][i]
+            # if this is the lowest CHI2, store in FPARAM and PARAM_CHI2
+            # penalize GK grid in favor of finer M grid
+            chi2 = param['PARAM_CHI2'][i]
+            if ('GK' in grid['name']) and (param['FPARAM'][i,0] < 3985) : 
+                print('penalizing GK')
+                chi2 *= 10
+            if chi2 < aspcapfield['PARAM_CHI2'][gd[istar]] or aspcapfield['PARAM_CHI2'][gd[istar]]<=0 :
+                aspcapfield['CLASS'][gd[istar]] = grid['name']
+                aspcapfield['PARAM_CHI2'][gd[istar]] = param['PARAM_CHI2'][i]
+                aspcapfield['FPARAM'][gd[istar]] = param['FPARAM'][i]
+                aspcapfield['FPARAM_COV'][gd[istar]] = param['FPARAM_COV'][i]
+                aspcapfield['ASPCAPFLAG'][gd[istar]] = param['ASPCAPFLAG'][i]
+                aspcapfield['ASPCAPFLAGS'][gd[istar]] = aspcapmask.getname(aspcapfield['ASPCAPFLAG'][gd[istar]])
+                aspcapspec['SPEC'][gd[istar]] = spec['frd'][i]
+                aspcapspec['ERR'][gd[istar]] =  spec['err'][i]*spec['frd'][i]/spec['obs'][i]
+                aspcapspec['SPEC_BESTFIT'][gd[istar]] =  spec['mdl'][i]
+ 
+    #output apField and apFieldVisits
+    outfield=load.filename('aspcapField',field=field)
+    outfield=outfield.replace(aspcap_vers,aspcap_vers+'.new')
+    hdulist=fits.HDUList()
+    hdulist.append(fits.table_to_hdu(Table(aspcapfield)))
+    hdulist.append(fits.table_to_hdu(aspcapspec))
+    try: os.makedirs(os.path.dirname(outfield))
+    except: pass
+    hdulist.writeto(outfield,overwrite=True)
+
+    mkhtml(field,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
+
+
+def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
+    """ Create ASPCAP field web page and plots
+    """
+
+    matplotlib.use('Agg')
+
+    load = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope=telescope)
+    infile=load.filename('aspcapField',field=field)
+    infile=infile.replace(aspcap_vers,aspcap_vers+'.new')
+    a=fits.open(infile)
+    aspcapfield=a[1].data
+    aspcapspec=a[2].data
+
+    outdir=os.path.dirname(infile)
+    try: os.makedirs(outdir+'/plots/')
+    except: pass
+    fp=open(outdir+'/'+field+suffix+'.html','w')
+    fp.write('<HTML>\n')
+    fp.write('<HEAD><script type=text/javascript src=../../../html/sorttable.js></script></head>')
+    fp.write('<BODY>\n')
+    fp.write('<H2> Field: {:s}</H2><p>\n'.format(field))
+
+    fig,ax=plots.multi(1,1)
+    plots.plotc(ax,aspcapfield['FPARAM'][:,0],aspcapfield['FPARAM'][:,1],aspcapfield['FPARAM'][:,3],
+                xr=[8000,3000],yr=[6,-1],zr=[-2,0.5],size=10,colorbar=True,xt='Teff',yt='logg',zt='[M/H]')
+    fig.savefig(outdir+'/plots/'+field+'_hr.png')
+    plt.close()
+    fp.write('<TD><A HREF=plots/{:s}_hr.png><IMG SRC=plots/{:s}_hr.png></A>\n'.format(field,field))
+
+    fp.write('<BR>Click on column headers to sort by column value<BR>\n')
+    fp.write('<TABLE BORDER=2 CLASS=sortable>\n')
+    fp.write('<TR><TD>Obj<TD>Grid<TD>CHI2\n')
+    parnames=params()[0]
+    for ipar in range(8) :
+        parname=parnames[ipar]
+        if ipar == 2 : parname = 'VMICRO'
+        if ipar == 7 : parname = 'VSINI/ VMACRO'
+        fp.write('<TD>{:s}\n'.format(parname))
+
+    w = np.hstack(gridWave())
+    pix = gridPix(apStar=False)    
+    for istar,star in enumerate(aspcapfield['APOGEE_ID']) :
+        #fig,ax = plots.multi(1,3,hspace=0.5,figsize=(12,6))
+        fig,ax = plots.multi(1,1,figsize=(18,3))
+        gd = np.where(aspcapspec['err'] < 0.5)[0]
+        plots.plotl(ax,w.flatten(),aspcapspec[istar]['spec'],yr=[0.,1.2],color='k')
+        plots.plotl(ax,w.flatten()[gd],aspcapspec[istar]['spec'][gd],yr=[0.,1.2],color='g')
+        plots.plotl(ax,w.flatten(),aspcapspec[istar]['spec_bestfit'],yr=[0.,1.2],color='r')
+        plots.plotl(ax,w.flatten(),aspcapspec[istar]['err'],yr=[0.,1.2],color='m')
+        #for ichip in range(3) :
+        #    plots.plotl(ax,w[ichip],aspcapspec[istar]['spec'][pix[ichip][0]:pix[ichip][1]],yr=[0.,1.2],color='k')
+        #    plots.plotl(ax,w[ichip],aspcapspec[istar]['spec_bestfit'][pix[ichip][0]:pix[ichip][1]])
+        #    plots.plotl(ax,w[ichip],aspcapspec[istar]['err'][pix[ichip][0]:pix[ichip][1]],color='r')
+        pars=r'T$_e$: {:8.1f} logg: {:5.2f} log(v$_{{micro}}$): {:5.2f}  [M/H]: {:5.2f}  [C/M]: {:5.2f}  [N/M]: {:5.2f} [$\alpha$/M]: {:5.2f}  log(vsini/v$_{{macro}}$): {:5.2f}'.format(*aspcapfield['FPARAM'][istar,0:8])
+        fig.suptitle(star+' : '+pars)
+        fig.savefig(outdir+'/plots/'+star+'.png')
+        plt.close()
+
+        fp.write('<TR><TD>{:s}<BR>\n'.format(star))
+        fp.write('{:s}\n'.format(aspcapfield['STARFLAGS'][istar]))
+        fp.write('{:s}\n'.format(aspcapfield['ASPCAPFLAGS'][istar]))
+        fp.write('<TD>{:s}\n'.format(aspcapfield['CLASS'][istar]))
+        fp.write('<TD>{:6.1f}\n'.format(aspcapfield['PARAM_CHI2'][istar]))
+        for ipar in range(8) :
+            p = aspcapfield['FPARAM'][istar,ipar]
+            perr = np.sqrt(aspcapfield['FPARAM_COV'][istar,ipar,ipar])
+            if ipar==2 or ipar==7 : 
+                p = 10.**p
+                perr = perr * p * np.log(10)
+            pm = '&plusmn;'
+            fp.write(r'<TD>{:8.2f}{:s}{:8.2f}'.format(p,pm,perr))
+        fp.write('<TD><A HREF=plots/{:s}.png><IMG SRC=plots/{:s}.png></A>\n'.format(star,star))
+
+    fp.write('</TABLE></BODY></HTML>')
+    fp.close()
+
+def fill_plock(a,plocks) :
+    """ Fill FPARAM array in input structure with values of locked parameters
+    """
+    te_index=np.where(params()[0] == 'TEFF')[0]
+    logg_index=np.where(params()[0] == 'LOGG')[0]
+    mh_index=np.where(params()[0] == 'METALS')[0]
+    for plock in plocks :
+        index = np.where(params()[0] == plock['name'])[0]
+        a['FPARAM'][:,index] = (plock['const']+
+                               plock['te_coef']*a['FPARAM'][:,te_index]+
+                               plock['logg_coef'][0]*a['FPARAM'][:,logg_index]+
+                               plock['logg_coef'][1]*a['FPARAM'][:,logg_index]**2+
+                               plock['logg_coef'][2]*a['FPARAM'][:,logg_index]**3+
+                               plock['mh_coef']*a['FPARAM'][:,mh_index])
+        

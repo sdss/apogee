@@ -20,9 +20,9 @@ import sys
 from sdss import yanny
 import numpy as np
 
-
 from apogee.apred import wave
 from apogee.apred import sincint
+from apogee.utils import spectra
 
 class ApSpec() :
     """ a simple class to hold APOGEE spectra
@@ -60,7 +60,7 @@ class ApSpec() :
 
         return
 
-    def mask(self,bdval) :
+    def setmask(self,bdval) :
         """ Make boolean mask from bitmask with input pixelmask for bad values
         """
         self.mask=(np.bitwise_and(self.bitmask,bdval)!=0) | (np.isfinite(self.flux)==False)
@@ -81,14 +81,27 @@ class ApSpec() :
         hdu=fits.PrimaryHDU()
         hdu.header=self.header
         hdulist.append(hdu)
-        hdulist.append(fits.ImageHDU(self.flux))
-        hdulist.append(fits.ImageHDU(self.err))
-        hdulist.append(fits.ImageHDU(self.bitmask))
-        hdulist.append(fits.ImageHDU(self.wave))
-        hdulist.append(fits.ImageHDU(self.sky))
-        hdulist.append(fits.ImageHDU(self.skyerr))
-        hdulist.append(fits.ImageHDU(self.telluric))
-        hdulist.append(fits.ImageHDU(self.telerr))
+        header=fits.Header()
+        header['CRVAL1'] = hdu.header['CRVAL1']
+        header['CDELT1'] = hdu.header['CDELT1']
+        header['CRPIX1'] = hdu.header['CRPIX1']
+        header['CTYPE1'] = hdu.header['CTYPE1']
+        header['BUNIT'] = 'Flux (10^-17 erg/s/cm^2/Ang)'
+        hdulist.append(fits.ImageHDU(self.flux,header=header))
+        header['BUNIT'] = 'Err (10^-17 erg/s/cm^2/Ang)'
+        hdulist.append(fits.ImageHDU(self.err,header=header))
+        header['BUNIT'] = 'Pixel bitmask'
+        hdulist.append(fits.ImageHDU(self.bitmask,header=header))
+        header['BUNIT'] = 'Wavelength'
+        hdulist.append(fits.ImageHDU(self.wave,header=header))
+        header['BUNIT'] = 'Sky (10^-17 erg/s/cm^2/Ang)'
+        hdulist.append(fits.ImageHDU(self.sky,header=header))
+        header['BUNIT'] = 'Sky error (10^-17 erg/s/cm^2/Ang)'
+        hdulist.append(fits.ImageHDU(self.skyerr,header=header))
+        header['BUNIT'] = 'Telluric'
+        hdulist.append(fits.ImageHDU(self.telluric,header=header))
+        header['BUNIT'] = 'Telluric error'
+        hdulist.append(fits.ImageHDU(self.telerr,header=header))
         hdulist.writeto(filename,overwrite=overwrite)
 
 class ApLoad :
@@ -483,7 +496,7 @@ class ApLoad :
                     hdulist=self._readhdu(file)
                     spec=ApSpec(hdulist[1].data,header=hdulist[0].header,
                                 err=hdulist[2].data,bitmask=hdulist[3].data,wave=hdulist[4].data,
-                                sky=hdulist[5].data,skyerr=hdulist[5].data,
+                                sky=hdulist[5].data,skyerr=hdulist[6].data,
                                 telluric=hdulist[7].data,telerr=hdulist[8].data)
                     return spec
                 return self._readhdu(file,**kwargs)
@@ -508,7 +521,7 @@ class ApLoad :
             except :
                 self.printerror()
     
-    def apStar(self,*args, **kwargs) :
+    def apStar(self,*args, load=False, **kwargs) :
         """
         NAME: apload.apStar
         PURPOSE:  read apStar file (downloading if necessary)
@@ -522,6 +535,14 @@ class ApLoad :
             try :
                 file = self.allfile(
                    'Star',field=args[0],obj=args[1])
+                if load : 
+                    hdulist=self._readhdu(file)
+                    wave=spectra.fits2vector(hdulist[1].header,1)
+                    spec=ApSpec(hdulist[1].data,header=hdulist[0].header,
+                                err=hdulist[2].data,bitmask=hdulist[3].data,wave=wave,
+                                sky=hdulist[4].data,skyerr=hdulist[5].data,
+                                telluric=hdulist[6].data,telerr=hdulist[7].data)
+                    return spec
                 return self._readhdu(file,**kwargs)
             except :
                 self.printerror()
@@ -670,14 +691,14 @@ class ApLoad :
             hd.close()
             return data, header
     
-    def filename(self,root,dr=None,apred=None,apstar=None,aspcap=None,results=None,
+    def filename(self,root,
                  location=None,obj=None,plate=None,mjd=None,num=None,fiber=None,chips=False,field=None) :
 
-        return self.allfile(root,dr=dr,apred=apred,apstar=apstar,aspcap=aspcap,results=results,
+        return self.allfile(root,
                             location=location,obj=obj,plate=plate,mjd=mjd,num=num,fiber=fiber,chips=chips,field=field,
                             download=False)
 
-    def allfile(self,root,dr=None,apred=None,apstar=None,aspcap=None,results=None,
+    def allfile(self,root,
                 location=None,obj=None,reduction=None,plate=None,mjd=None,num=None,fiber=None,chips=False,field=None,
                 download=True,fz=False) :
         '''

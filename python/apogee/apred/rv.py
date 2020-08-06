@@ -572,8 +572,13 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',obj=None,
     allvisits=Table(allvisits)
 
     # output directory
-    try: os.mkdir(field)
+    load=apload.ApLoad(apred=apred,telescope=telescope)
+    outfield=load.filename('Field',field=field)
+    outfield=outfield.replace('/stars/','/rv/')
+    try : os.makedirs(os.path.dirname(outfield))
     except FileExistsError: pass
+    outfieldvisits=load.filename('FieldVisits',field=field)
+    outfieldvisits=outfieldvisits.replace('/stars/','/rv/')
 
     # get all unique (or requested) objects
     if obj is None :
@@ -598,7 +603,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',obj=None,
                           ('VHELIO_AVG',float),('VSCATTER',float),('VERR',float),
                           ('RV_TEFF',float),('RV_LOGG',float),('RV_FEH',float),('RV_ALPHA',float),('RV_CARB',float),
                           ('RV_CCPFWHM',float),('RV_AUTOFWHM',float),
-                          ('N_COMPONENTS',int)
+                          ('N_COMPONENTS',int),('MEANFIB',float),('SIGFIB',float)
                          ])
     allfield = np.zeros(len(allobj),dtype=fieldtype)
     allfield['TELESCOPE'] = telescope
@@ -606,7 +611,6 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',obj=None,
 
     allfiles=[]
     allv=[]
-    load=apload.ApLoad(apred=apred,telescope=telescope)
     nobj=0
     nvisit=0
     pixelmask=bitmask.PixelBitMask()
@@ -686,7 +690,8 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',obj=None,
                 allvisits[visit]['RV_TEFF']=v['teff']
                 allvisits[visit]['RV_LOGG']=v['logg']
                 allvisits[visit]['RV_FEH']=v['feh']
-                allvisits[visit]['N_COMPONENTS']=out[1][i]['N_components']
+                if g is None : allvisits[visit]['N_COMPONENTS']=0
+                else : allvisits[visit]['N_COMPONENTS']=g['N_components']
                 if allvisits[visit]['N_COMPONENTS'] > 1 :
                     allvisits[visit]['STARFLAG'] |= starmask.getval('MULTIPLE_SUSPECT')
                     n=len(g['best_fit_parameters'])//3
@@ -709,7 +714,6 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',obj=None,
                 gdrv = np.where((allvisits[visits]['STARFLAG'] & starmask.getval('RV_REJECT')) == 0)[0]
                 if len(gdrv) > 0 : 
                     allv.append([allvisits[visits[gdrv]],load,(field,apogee_id,clobber)])
-
 
     # do the visit combination, in parallel if requested
     if threads == 0 :
@@ -764,7 +768,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',obj=None,
         allfield['VHELIO_AVG'][j] = apstar.header['VHELIO']
 
         # mostly unmodified names
-        for key in ['STARFLAG','ANDFLAG','SNR','VSCATTER','VERR','RV_TEFF','RV_LOGG','RV_FEH','NVISITS' ] :
+        for key in ['STARFLAG','ANDFLAG','SNR','VSCATTER','VERR','RV_TEFF','RV_LOGG','RV_FEH','NVISITS','MEANFIB','SIGFIB' ] :
             allfield[key][j] = apstar.header[key]
         # add character string for star flags
         allfield['STARFLAGS'][j] = starmask.getname(allfield['STARFLAG'][j])
@@ -777,17 +781,11 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',obj=None,
     #output apField and apFieldVisits
     hdulist=fits.HDUList()
     hdulist.append(fits.table_to_hdu(Table(allfield)))
-    outfile=load.filename('Field',field=field)
-    outfile=outfile.replace('/stars/','/rv/')
-    try : os.makedirs(os.path.dirname(outfile))
-    except : pass
-    hdulist.writeto(outfile,overwrite=True)
+    hdulist.writeto(outfield,overwrite=True)
 
     hdulist=fits.HDUList()
     hdulist.append(fits.table_to_hdu(allvisits))
-    outfile=load.filename('FieldVisits',field=field)
-    outfile=outfile.replace('/stars/','/rv/')
-    hdulist.writeto(outfile,overwrite=True)
+    hdulist.writeto(outfieldvisits,overwrite=True)
 
     # make web page
     if obj is not None : suffix='_obj'
@@ -819,7 +817,7 @@ def dorv(visitfiles) :
 
     if os.path.exists(outdir+'/'+obj+suffix+'.pkl') and not clobber:
         print(obj,' already done')
-        fp=open(field+'/'+obj+suffix+'.pkl','rb')
+        fp=open(outdir+'/'+obj+suffix+'.pkl','rb')
         try: 
             out=pickle.load(fp)
             fp.close()
@@ -839,10 +837,10 @@ def dorv(visitfiles) :
     lowsnr_visits=np.where(allvisit['SNR']<10)[0]
     if (len(lowsnr_visits) > 1) & (len(lowsnr_visits)/len(allvisit) > 0.1) :
         try :
-            apstar_bc=visitcomb(allvisit,bconly=True,load=load,write=False) 
-            apstar_bc.mask(badval)
-            spec=doppler.Spec1D(apstar_bc.flux,err=apstar_bc.err,bitmask=apstar_bc.bitmask,
-                 mask=apstar_bc.mask,wave=apstar_bc.wave,lsfpars=np.array([0]),
+            apstar_bc=visitcomb(allvisit,bconly=True,load=load,write=False,dorvfit=False) 
+            apstar_bc.setmask(badval)
+            spec=doppler.Spec1D(apstar_bc.flux[0,:],err=apstar_bc.err[0,:],bitmask=apstar_bc.bitmask[0,:],
+                 mask=apstar_bc.mask[0,:],wave=apstar_bc.wave,lsfpars=np.array([0]),
                  lsfsigma=apstar_bc.wave/22500/2.354,instrument='APOGEE',
                  filename=apstar_bc.filename)
             print('running BC jointfit for :',obj)
@@ -903,17 +901,19 @@ def dorv(visitfiles) :
     except KeyboardInterrupt : 
         raise
     except ValueError as err:
-        print('Exception raised for: ', field, obj)
+        print('Exception raised in dorv for: ', field, obj)
         print("ValueError: {0}".format(err))
         return
     except RuntimeError as err:
-        print('Exception raised for: ', field, obj)
+        print('Exception raised in dorv for: ', field, obj)
         print("Runtime error: {0}".format(err))
         return
     except :
-        print('Exception raised for: ', field, obj)
+        raise
+        print('Exception raised in dorv for: ', field, obj)
         return
 
+    # return summary RV info, visit RV info, decomp info 
     return [out[0:2],gout]
 
 def dovisitcomb(allv) :
@@ -927,7 +927,6 @@ def dovisitcomb(allv) :
     pixelmask=bitmask.PixelBitMask()
 
     # already done?
-    apstar=visitcomb(allvisits,load=load,plot=False)
     outdir=os.path.dirname(load.filename('Field',field=field))
     outdir=outdir.replace('/stars/','/rv/')
     if os.path.exists(outdir+'/'+apogee_id+'.pkl') and not clobber:
@@ -947,20 +946,6 @@ def dovisitcomb(allv) :
     # dump
     pickle.dump(apstar,open(outdir+'/'+apogee_id+'.pkl','wb'))
 
-    # plot
-    gd=np.where((apstar.bitmask & (pixelmask.badval()|pixelmask.getval('SIG_SKYLINE'))) == 0) [0]
-    fig,ax=plots.multi(1,3,hspace=0.001,figsize=(48,6))
-    med=np.nanmedian(apstar.flux)
-    plots.plotl(ax[0],aspcap.apStarWave(),apstar.flux,color='k',yr=[0,2*med])
-    ax[0].plot(aspcap.apStarWave()[gd],apstar.flux[gd],color='g')
-    ax[0].set_ylabel('Flux')
-    ax[1].plot(aspcap.apStarWave()[gd],apstar.cont[gd],color='g')
-    ax[1].set_ylabel('Normalized')
-    ax[1].plot(aspcap.apStarWave(),apstar.template,color='r')
-    plots.plotl(ax[2],aspcap.apStarWave(),apstar.flux/apstar.err,yt='S/N')
-    for i in range(3) : ax[i].set_xlim(15100,17000)
-    ax[0].set_xlabel('Wavelength')
-    fig.savefig(outdir+'/plots/'+apogee_id+'.png')
     return apstar
 
 def gaussian(amp, fwhm, mean):
@@ -988,13 +973,20 @@ def gauss_decomp(out,phase='one',alpha1=0.5,alpha2=1.5,thresh=[4,4],plot=None,fi
     g.set('alpha1',alpha1)
     g.set('alpha2',alpha2)
     gout=[]
-    if plot is not None : fig,ax=plots.multi(1,n,hspace=0.001,figsize=(6,2+n))
+    if plot is not None : fig,ax=plots.multi(1,len(out),hspace=0.001,figsize=(6,2+n))
     for i,final in enumerate(out) :
         gd=np.where(np.isfinite(final['x_ccf']))[0]
         x=final['x_ccf'][gd]
-        y=final['ccf'][gd]
-        decomp=g.decompose(x,y,final['ccferr'][gd])
-        n=decomp['N_components']
+        y=final['ccf'][gd] 
+        # high pass filter for better performance
+        if filt : final['ccf'][gd]-= gaussian_filter(final['ccf'][gd],50,mode='nearest')
+        try : 
+            decomp=g.decompose(x,final['ccf'][gd],final['ccferr'][gd])
+            n=decomp['N_components']
+        except :
+            print('Exception in Gaussian decomposition, setting to 0 components')
+            n=0
+            decomp=None
         if filt and n>0 :
             # remove components if they are within width of brighter component, or <0.25 peak ,
             #   or more than twice as wide, or if primary component is wide
@@ -1003,16 +995,16 @@ def gauss_decomp(out,phase='one',alpha1=0.5,alpha2=1.5,thresh=[4,4],plot=None,fi
                 for k in range(j) :
                     pars_k = decomp['best_fit_parameters'][k::n]
                     if (pars_j[0]>pars_k[0] and pars_k[0]>0 and 
-                                (abs(pars_j[2]-pars_k[2])<pars_j[1]  or 
+                                (abs(pars_j[2]-pars_k[2])<abs(pars_j[1])  or 
                                  pars_k[0]<0.25*pars_j[0] or 
-                                 pars_j[1]>100 or
+                                 abs(pars_j[1])>100 or
                                  np.abs(pars_k[1])>2*np.abs(pars_j[1]) ) ) :
                         decomp['best_fit_parameters'][k] = 0
                         decomp['N_components'] -= 1
                     elif (pars_k[0]>pars_j[0] and pars_j[0]>0 and
-                                (abs(pars_j[2]-pars_k[2])<pars_k[1] or 
+                                (abs(pars_j[2]-pars_k[2])<abs(pars_k[1]) or 
                                  pars_j[0]<0.25*pars_k[0] or 
-                                 pars_k[1]>100 or
+                                 abs(pars_k[1])>100 or
                                  np.abs(pars_j[1])>2*np.abs(pars_k[1]) ) )  :
                         decomp['best_fit_parameters'][j] = 0
                         pars_j = decomp['best_fit_parameters'][j::n]
@@ -1089,7 +1081,8 @@ def dop_plot(outdir,obj,out,decomp=None) :
         ax[i].set_xlim(vmed-200,vmed+200)
         ax[i].legend()
         if decomp is not None :
-            n=decomp[i]['N_components']
+            try: n=decomp[i]['N_components']
+            except: n=0
             if n>0 : n=len(decomp[i]['best_fit_parameters'])//3
             x=final['x_ccf']
             for j in range(n) :
@@ -1190,12 +1183,12 @@ def mkhtml(field,suffix='',apred='r13',telescope='apo25m') :
     # create HTML and loop over objects
     fp=open(outdir+'/'+field+suffix+'.html','w')
     fp.write('<HTML>\n')
-    fp.write('<HEAD><script type=text/javascript src=../html/sorttable.js></script></head>')
+    fp.write('<HEAD><script type=text/javascript src=../../../html/sorttable.js></script></head>')
     fp.write('<BODY>\n')
     fp.write('<H2> Field: {:s}</H2><p>\n'.format(field))
     fp.write('<A HREF=plots/{:s}_rvhist.png> <IMG SRC=plots/{:s}_rvhist.png> </A>'.format(field,field))
    
-    fp.write('<BR>Click on column headers to sort by column value<BR>') 
+    fp.write('<BR>Click on column headers to sort by column value<BR>\n') 
     fp.write('<TABLE BORDER=2 CLASS=sortable>\n')
     fp.write('<TR><TD>Obj<TD>Delta(VSCATTER)<TD>H<TD>Doppler RV_TEFF<TD>N_components<TD>Combined spectrum<TD>RV plot<TD>Spectrum<TD>Spectrum windows<TD> continuum\n')
     for star in apf :
@@ -1379,12 +1372,15 @@ from apogee.aspcap import aspcap
 from apogee.apred import wave
 from apogee.apred import sincint
 
-def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.5],bconly=False,plot=False,write=True) :
+def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.5],bconly=False,
+              plot=False,write=True,dorvfit=True) :
     """ Combine multiple visits with individual RVs to rest frame sum
     """
 
     if load is None : load = apload.ApLoad(apred=apred,telescope=telescope)
     cspeed = 2.99792458e5  # speed of light in km/s
+
+    print('doing visitcomb for {:s} '.format(allvisit['APOGEE_ID'][0]))
 
     wnew=aspcap.apStarWave()  
     nwave=len(wnew)
@@ -1420,7 +1416,6 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
 
         # rest-frame wavelengths transformed to this visit spectra
         w=aspcap.apStarWave()*(1.0+vrel/cspeed)
-        print(vrel)
 
         # loop over the chips
         for chip in range(3) :
@@ -1506,17 +1501,32 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
             except: pass
 
     # create final spectrum
-    zeros = np.zeros(nwave)
-    izeros = np.zeros(nwave,dtype=int)
+    zeros = np.zeros([nvisit+2,nwave])
+    izeros = np.zeros([nvisit+2,nwave],dtype=int)
     apstar=apload.ApSpec(zeros,err=zeros.copy(),bitmask=izeros,wave=aspcap.apStarWave(),
                 sky=zeros.copy(),skyerr=zeros.copy(),telluric=zeros.copy(),telerr=zeros.copy(),
                 cont=zeros.copy(),template=zeros.copy())
+    apstar.header['CRVAL1'] = aspcap.logw0
+    apstar.header['CDELT1'] = aspcap.dlogw
+    apstar.header['CRPIX1'] = 1
+    apstar.header['CTYPE1'] = ('LOG-LINEAR','Logarithmic wavelength scale in subsequent HDU')
+    apstar.header['DC-FLAG'] = 1
 
     # pixel-by-pixel weighted average
     cont = np.median(stack.cont,axis=0)
-    apstar.flux = np.sum(stack.flux/stack.err**2,axis=0)/np.sum(1./stack.err**2,axis=0) * cont
-    apstar.err =  np.sqrt(1./np.sum(1./stack.err**2,axis=0)) * cont
-    apstar.bitmask = np.bitwise_and.reduce(stack.bitmask,0)
+    apstar.flux[0,:] = np.sum(stack.flux/stack.err**2,axis=0)/np.sum(1./stack.err**2,axis=0) * cont
+    apstar.err[0,:] =  np.sqrt(1./np.sum(1./stack.err**2,axis=0)) * cont
+    apstar.bitmask[0,:] = np.bitwise_and.reduce(stack.bitmask,0)
+    apstar.cont[0,:] = cont
+
+    # individual visits
+    apstar.flux[2:,:] = stack.flux * stack.cont
+    apstar.err[2:,:] = stack.err * stack.cont
+    apstar.bitmask[2:,:] = stack.bitmask
+    apstar.sky[2:,:] = stack.sky
+    apstar.skyerr[2:,:] = stack.skyerr
+    apstar.telluric[2:,:] = stack.telluric
+    apstar.telerr[2:,:] = stack.telerr
 
     # populate header
     apstar.header['FIELD'] = (allvisit['FIELD'][0], 'APOGEE field name')
@@ -1566,23 +1576,49 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
     apstar.header['SIGFIB'] = (sigfib,'standard deviation (unweighted) of fiber number')
 
     # Do a RV fit just to get a template and normalized spectrum, for plotting
-    try :
-        apstar.mask(pixelmask.badval())
-        spec=doppler.Spec1D(apstar.flux,err=apstar.err,bitmask=apstar.bitmask,
-             mask=apstar.mask,wave=apstar.wave,lsfpars=np.array([0]),
-             lsfsigma=apstar.wave/22500/2.354,instrument='APOGEE',
-             filename=apstar.filename)
-        out= doppler.rv.jointfit([spec],verbose=False,plot=False,tweak=False,maxvel=[-5,5])
-        apstar.cont=out[3][0].flux
-        apstar.template=out[2][0].flux
-    except : pass
+    if dorvfit :
+        try :
+            apstar.setmask(pixelmask.badval())
+            spec=doppler.Spec1D(apstar.flux[0,:],err=apstar.err[0,:],bitmask=apstar.bitmask[0,:],
+                 mask=apstar.mask[0,:],wave=apstar.wave,lsfpars=np.array([0]),
+                 lsfsigma=apstar.wave/22500/2.354,instrument='APOGEE',
+                 filename=apstar.filename)
+            out= doppler.rv.jointfit([spec],verbose=False,plot=False,tweak=False,maxvel=[-50,50])
+            apstar.cont=out[3][0].flux
+            apstar.template=out[2][0].flux
+        except ValueError as err:
+            print('Exception raised in visitcomb RV for: ', apstar.header['FIELD'],apstar.header['OBJID'])
+            print("ValueError: {0}".format(err))
+        except RuntimeError as err:
+            print('Exception raised in visitcomb RV for: ', apstar.header['FIELD'],apstar.header['OBJID'])
+            print("Runtime error: {0}".format(err))
+        except : 
+            print('Exception raised in visitcomb RV fit for: ',apstar.header['FIELD'],apstar.header['OBJID'])
 
     if write :
         outfile=load.filename('Star',field=apstar.header['FIELD'],obj=apstar.header['OBJID'])
         outfile=outfile.replace('/stars/','/rv/') 
+        outdir = os.path.dirname(outfile)
         try: os.makedirs(os.path.dirname(outfile))
         except : pass
         apstar.write(outfile)
+
+        # plot
+        gd=np.where((apstar.bitmask[0,:] & (pixelmask.badval()|pixelmask.getval('SIG_SKYLINE'))) == 0) [0]
+        fig,ax=plots.multi(1,3,hspace=0.001,figsize=(48,6))
+        med=np.nanmedian(apstar.flux[0,:])
+        plots.plotl(ax[0],aspcap.apStarWave(),apstar.flux[0,:],color='k',yr=[0,2*med])
+        ax[0].plot(aspcap.apStarWave()[gd],apstar.flux[0,gd],color='g')
+        ax[0].set_ylabel('Flux')
+        try :
+            ax[1].plot(aspcap.apStarWave()[gd],apstar.cont[gd],color='g')
+            ax[1].set_ylabel('Normalized')
+            ax[1].plot(aspcap.apStarWave(),apstar.template,color='r')
+        except : pass
+        plots.plotl(ax[2],aspcap.apStarWave(),apstar.flux[0,:]/apstar.err[0,:],yt='S/N')
+        for i in range(3) : ax[i].set_xlim(15100,17000)
+        ax[0].set_xlabel('Wavelength')
+        fig.savefig(outdir+'/plots/'+apstar.header['OBJID']+'.png')
 
     #verr = sqrt(TOTAL(visitstr[gdv].vrelerr^2*visitstr.snr^2)/TOTAL(visitstr[gdv].snr)^2)  ; weighted error
     #verr_med = median(reform(visitstr[gdv].vrelerr),/even)
@@ -1632,11 +1668,30 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
 
     return apstar
 
-def emission(spec) :
-    """ Try to flag emission lines
-    """
+def comp_apstar(field,apred='r13',telescope='apo25m') :
 
-    for chip in range(3)  :
-        cont = gaussian_filter(median_filter(spec.flux[chip,:],[501],mode='reflect'),100)
-        emiss = np.where(((spec.flux[chip,:]/cont) > 1.10)  &
-                         (spec.bitmask[chip,:]&(pixelmask.badval()|pixelmask.getval('SIG_SKYLINE'))) ) [0]
+    load=apload.ApLoad(apred=apred,telescope=telescope)
+    apfield=load.apField(field)
+
+    fig,ax=plots.multi(1,3,hspace=0.001)
+    w=aspcap.apStarWave() 
+    for i,star in enumerate(apfield[1].data['APOGEE_ID']) : 
+        old=load.apStar(field,star)
+        plots.plotl(ax[0],w,old[1].data[0,:]*1.e-17)
+        for j in [2] :plots.plotl(ax[1],w,old[2].data[j,:]*1.e-17)
+        plots.plotl(ax[2],w,old[3].data[0,:])
+        #plots.plotl(ax[0],old[3].data['WAVE'][0,:],old[2].data['SPEC'][i,:]) 
+        #plots.plotl(ax[1],old[3].data['WAVE'][0,:],old[2].data['ERR'][i,:]) 
+        #plots.plotl(ax[2],old[3].data['WAVE'][0,:],old[2].data['MASK'][i,:]) 
+
+        new=fits.open('apo25m/K01_082+17/apStar-r13-'+star+'.fits') 
+        plots.plotl(ax[0],w,new[1].data[0,:]*1.e-17) 
+        for j in [2] :plots.plotl(ax[1],w,new[2].data[j,:]*1.e-17)
+        ax[1].set_ylim(0,1.e-16)
+        plots.plotl(ax[2],w,new[3].data[0,:])
+        plt.draw() 
+        pdb.set_trace() 
+        ax[0].cla()    
+        ax[1].cla()    
+        ax[2].cla()    
+

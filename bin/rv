@@ -42,7 +42,12 @@ if __name__ == '__main__' :
     start = time.time()
     print("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
 
-    rv.doppler_rv(args.field,threads=args.threads,clobber=args.clobber,tweak=args.tweak)
+    try:
+        rv.doppler_rv(args.field,threads=args.threads,clobber=args.clobber,tweak=args.tweak)
+        print('rv completed successfully for {:s}'.format(args.field))
+    except:
+        print('rv failed for {:s}'.format(args.field))
+        raise
 
     now = datetime.datetime.now()
     print("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))

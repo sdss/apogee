@@ -5,6 +5,7 @@ import pdb
 import numpy as np
 import multiprocessing as mp
 import subprocess
+import yaml
 from astropy.io import fits
 from sdss import yanny
 from apogee.speclib import atmos
@@ -24,8 +25,10 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
     if not os.path.isfile(planfile):
         print('{:s} does not exist'.format(planfile))
         return
-    p=yanny.yanny(planfile,np=True)
+    p=yaml.safe_load(open(planfile,'r'))
     if p.get('r0') : r0 = float(p['r0'])
+    vmicrofit = int(p['vmicrofit']) if p.get('vmicrofit') else 0
+    vmicro = np.array(p['vmicro']) if p.get('vmicro') else 0.
 
     # input directory 
     if dir is None :
@@ -41,7 +44,7 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
         try:
             vtrange=10.**spectra.vector(p['vt0'],p['dvt'],p['nvt'])
         except :
-            vtrange = [float(p['vmicro'])]
+            vtrange = vmicro
 
     # get configuration for grid
     # sizes of subgrids for RBF interpolation in [alpha/M], [M/H], logg, and Teff

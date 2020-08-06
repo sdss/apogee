@@ -36,6 +36,7 @@ from apogee.utils import spectra
 from sdss import yanny
 from astropy.io import ascii
 from astropy.io import fits
+from astropy.table import Table
 from sklearn.decomposition import PCA
 from sklearn.decomposition import IncrementalPCA
 import matplotlib
@@ -241,7 +242,7 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
             return 0.,0.
         else :
             print('PROBLEM: ',atmod)
-            fail('mkturbospec problem: '+atmod)
+            fail('mkturbospec problem: ',atmod)
             return 0.,0.
 
     # linelists
@@ -279,9 +280,16 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
             if solarisotopes : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'sun'+msuffix+'.molec')
             else : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'giant'+msuffix+'.molec')
             if h2o == 0 :
-                if teff < 4000 : 
-                    if mh+am < -1.5 or teff > 3250 :
+                #if teff < 4000 : 
+                #    if mh+am < -1.5 or teff > 3250 :
+                #        linelists.append(linelistdir+'/synspec/synspec.h2o-BC8.5V'+'.molec')
+                #    else  :
+                #        linelists.append(linelistdir+'/synspec/synspec.h2o-BC9.5V'+'.molec')
+                if teff <= 4000 : 
+                    if mh+am < -1.5 or teff >= 3500 :
                         linelists.append(linelistdir+'/synspec/synspec.h2o-BC8.5V'+'.molec')
+                    elif teff > 3250 :
+                        linelists.append(linelistdir+'/synspec/synspec.h2o-BC9.0V'+'.molec')
                     else  :
                         linelists.append(linelistdir+'/synspec/synspec.h2o-BC9.5V'+'.molec')
             elif h2o == 1 :
@@ -290,6 +298,8 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
                 linelists.append(linelistdir+'/synspec/synspec.h2o-BC9.5V.molec')
             elif h2o == 3 :
                 linelists.append(linelistdir+'/synspec/synspec.h2o.molec')
+            elif h2o == 4 :
+                linelists.append(linelistdir+'/synspec/synspec.h2o-BC9.0V.molec')
         #linelists = ['apogeeDR16.20180901.19','apogeeDR16_arc.20']
     else :
         print('unknown code!')
@@ -365,7 +375,6 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
     if run :
         if not save : shutil.rmtree(workdir)
         return spec, specnorm
-    pdb.set_trace()
 
 
 def do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,save=False,run=True,solarisotopes=False,babsma=None,bsyn=True,atmos_type='marcs',spherical=True,vmicro=1.0,tfactor=1.) :
@@ -835,7 +844,7 @@ def get_vmicro(vmicrofit,vmicro,teff=None,logg=None,mh=None) :
         pdb.set_trace()
     return vm
 
-def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec=True,h2o=0) :
+def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec=True) :
     """ Create a grid of synthetic spectra using Turbospectrum given specifications in  input parameter file
         Outputs results in FITS file
 
@@ -856,6 +865,7 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec
     if code == None : code = p['synthcode'] if p.get('synthcode') else None
     wrange=p['wrange']
     dw=float(p['dw'])
+    h2o = int(p['h2o']) if p.get('h2o') else 0
     vacuum = int(p['vacuum']) if p.get('vacuum') else 0
     kurucz = True if p['atmos'] == 'kurucz' else False
     marcsdir = p['marcsdir'] if p.get('marcsdir') else None
@@ -1143,7 +1153,7 @@ def comp(testdir,libdir,name='ap00cp00np00vp12.fits',thresh=0.005,yr=None,pause=
                                transform=ax[ilogg,ite].transAxes)
                 ax[ilogg,ite].text(0.1,0.9,'Te: {:.0f} logg: {:6.2f}'.format(te,logg),
                                transform=ax[ilogg,ite].transAxes)
-            for mh in mhlist :
+            for mh in reversed(mhlist) :
                 ind=getindex(test.header,[2,3,4],[te,logg,mh])
                 imh=ind[2]
                 print(te,logg,mh)
@@ -1178,25 +1188,37 @@ def allcomp() :
     """
 
     matplotlib.use('Agg')
+    grids = ['solarisotopes/testMd']
+    tab=[]
+    for grid in grids :
+        try: out=comp('synspec/marcs/'+grid+'_h2o2','synspec/marcs/'+grid+'_h2o3',outdir='comp',pause=False,yr=[0.98,1.02])
+        except : out=['','']
+        tab.append(out)
+        try: out=comp('synspec/marcs/'+grid+'_h2o4','synspec/marcs/'+grid+'_h2o3',outdir='comp',pause=False,yr=[0.98,1.02])
+        except : out=['','']
+        tab.append(out)
+        try: out=comp('synspec/marcs/'+grid+'_h2o1','synspec/marcs/'+grid+'_h2o3',outdir='comp',pause=False,yr=[0.98,1.02])
+        except : out=['','']
+        tab.append(out)
+        try: out=comp('synspec/marcs/'+grid+'_noh2o','synspec/marcs/'+grid+'_h2o3',outdir='comp',pause=False,yr=[0.98,1.02])
+        except : out=['','']
+        tab.append(out)
+        try: out=comp('synspec/marcs/'+grid+'_h2o0','synspec/marcs/'+grid+'_h2o3',outdir='comp',pause=False,yr=[0.98,1.02])
+        except : out=['','']
+        tab.append(out)
+    yt=['-9.5EV','-9.0EV','-8.5EV','No H2O','DR17 strawman']
+    html.htmltab(tab,file='comp/comph2o.html',ytitle=yt)
     #grids = ['solarisotopes/testFd','solarisotopes/testGKd','solarisotopes/testMd',
     #         'giantisotopes/testGKg','giantisotopes/testMg']
     #tab=[]
+    #ytit=[]
     #for grid in grids :
-    #    try: out=comp('synspec/marcs/'+grid,'synspec/marcs/'+grid+'_h2o0',outdir='comp',pause=False,yr=[0.98,1.02])
+    #  for mh in [-2.5,-1.5,-0.5,0.5] :
+    #    try: out=comp('synspec/marcs/'+grid,'turbospec/marcs/'+grid,outdir='comp',pause=False,yr=[0.5,1.5],mh=mh)
     #    except : out=['','']
     #    tab.append(out)
-    #html.htmltab(tab,file='comp/comph2o.html')
-    grids = ['solarisotopes/testFd','solarisotopes/testGKd','solarisotopes/testMd',
-             'giantisotopes/testGKg','giantisotopes/testMg']
-    tab=[]
-    ytit=[]
-    for grid in grids :
-      for mh in [-2.5,-1.5,-0.5,0.5] :
-        try: out=comp('synspec/marcs/'+grid,'turbospec/marcs/'+grid,outdir='comp',pause=False,yr=[0.5,1.5],mh=mh)
-        except : out=['','']
-        tab.append(out)
-        ytit.append('{:s} {:6.1f}'.format(grid,mh))
-    html.htmltab(tab,file='comp/comp_syn_turbo.html',ytitle=ytit)
+    #    ytit.append('{:s} {:6.1f}'.format(grid,mh))
+    #html.htmltab(tab,file='comp/comp_syn_turbo.html',ytitle=ytit)
 
 def getindex(header,axes,vals) :
     """ DEVELOPMENT : get index of requested model from input grid header
@@ -1400,7 +1422,7 @@ def mkspec(input) :
     return pars,specnorm
     
 
-def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',telescope='apo25m',
+def mksynth(file,fits=False,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',telescope='apo25m',
             fiber='combo',linelist='20180901',linelistdir=None,kurucz=False,h2o=0,atoms=True,plot=False,lines=None,ls=None) :
     """ Make a series of spectra from parameters in an input file, with parallel processing for turbospec
         Outputs to FITS file {file}.fits
@@ -1416,13 +1438,24 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',te
         plot (bool) : plot each spectrum (default=False)
         lines (list) : specify limited range of input lines to calculate (default=None, i.e. all lines)
     """
-    names=ascii.read(file).colnames
-    pars=np.loadtxt(file)
-    if lines is not None :
-        pars = pars[lines[0]:min([len(pars),lines[1]])]
-        suffix = '_{:d}'.format(lines[0])
+    if fits :
+        # have model parameters in a FITS table
+        tab = Table.read(file)
+        names = pars.colnames
+        pars=[]
+        for name in names :
+            pars.append(tab[name])
+        pars = np.array(pars).T
+        
     else :
-        suffix = ''
+        # have model parameters in an ASCII table
+        names=ascii.read(file).colnames
+        pars=np.loadtxt(file)
+        if lines is not None :
+            pars = pars[lines[0]:min([len(pars),lines[1]])]
+            suffix = '_{:d}'.format(lines[0])
+        else :
+            suffix = ''
 
     indata={}
     indata['linelist']=linelist
@@ -1449,12 +1482,13 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',te
 
     # convolved and bundle output spectra into output fits file
     wa=aspcap.apStarWave()
-    prefix='lsf_'
-    if ls is None :
-        x, ls = getlsf(lsfid,waveid,prefix=prefix,apred=apred,telescope=telescope,fiber=fiber,highres=highres)
-    else :
-        x=ls[0]
-        ls=ls[1]
+    if lsfid is not None :
+        prefix='lsf_'
+        if ls is None :
+            x, ls = getlsf(lsfid,waveid,prefix=prefix,apred=apred,telescope=telescope,fiber=fiber,highres=highres)
+        else :
+            x=ls[0]
+            ls=ls[1]
 
     out=[]
     conv=[]
@@ -1472,10 +1506,11 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',te
             vmacro = vmacro if vmacro<15 else 15.
             vrot=spec[0][7]
             if vrot < 0.5 : vrot=None
-            # convolve one at a time because we have different vrot for each
-            z,waveout=lsf.convolve(ws,spec[1],lsf=ls,xlsf=x,vmacro=vmacro,vrot=vrot)
+            if lsfid is not None :
+                # convolve one at a time because we have different vrot for each
+                z,waveout=lsf.convolve(ws,spec[1],lsf=ls,xlsf=x,vmacro=vmacro,vrot=vrot)
+                conv.append(np.squeeze(z))
             out.append(spec[1])
-            conv.append(np.squeeze(z))
             outpar.append(spec[0])
             if plot : plt.plot(wa,np.squeeze(z))
 
@@ -1486,11 +1521,12 @@ def mksynth(file,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',te
     for ipar,par in enumerate(names) : h.header['PAR{:d}'.format(ipar)] = par
     hdu.append(h)
     hdu.append(fits.ImageHDU(out))
-    h=fits.ImageHDU(conv)
-    h.header['CRVAL1'] = np.log10(wa[0])
-    h.header['CDELT1'] = np.log10(wa[1])-np.log10(wa[0])
-    h.header['CTYPE1'] = 'LOG(WAVELENGTH)'
-    hdu.append(h)
+    if lsfid is not None :
+        h=fits.ImageHDU(conv)
+        h.header['CRVAL1'] = np.log10(wa[0])
+        h.header['CDELT1'] = np.log10(wa[1])-np.log10(wa[0])
+        h.header['CTYPE1'] = 'LOG(WAVELENGTH)'
+        hdu.append(h)
     hdu.writeto(file+suffix+'.fits',overwrite=True)
     return file+suffix+'.fits' 
 

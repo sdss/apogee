@@ -1,16 +1,15 @@
 ---
-config :   'l33'
-linelist : '20200709'
-wrange :   [15100.,17000.]
-continuum :    [4.00,1.00,0.00,0.00]
-npart :     12
-maskdir :   filters_CeNdYbC13
-apred :     r12
-telescope : apo25m
-lsfid :     14600018
-waveid :    13140000
-
 defaults : &defaults
+    config :   'l33'
+    linelist : '20200709'
+    wrange :   [15100.,17000.]
+    continuum :    [4.00,1.00,0.00,0.00]
+    npart :     12
+    maskdir :   filters_CeNdYbC13
+    apred :     r12
+    telescope : apo25m
+    lsfid :     14600018
+    waveid :    13140000
     synthcode : synspec
     atmos : marcs
     r0 : 1
@@ -90,6 +89,7 @@ Mg : &Mg
 Fd: &Fd
     <<: *dwarf
     specdir : testFd
+    npca : 25
     solarisotopes : 1
     teff0 : 5500
     dteff : 1000

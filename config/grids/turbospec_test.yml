@@ -1,16 +1,15 @@
 ---
-config :   'l33'
-linelist : '20180901'
-wrange :   [15100.,17000.]
-continuum :    [4.00,1.00,0.00,0.00]
-npart :     12
-maskdir :   filters_CeNdYbC13
-apred :     r12
-telescope : apo25m
-lsfid :     14600018
-waveid :    13140000
-
 defaults : &defaults
+    config :   'l33'
+    linelist : '20180901'
+    wrange :   [15100.,17000.]
+    continuum :    [4.00,1.00,0.00,0.00]
+    npart :     12
+    maskdir :   filters_CeNdYbC13
+    apred :     r12
+    telescope : apo25m
+    lsfid :     14600018
+    waveid :    13140000
     synthcode : turbospec
     atmos : marcs
     r0 : 1

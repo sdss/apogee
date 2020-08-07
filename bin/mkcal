@@ -8,7 +8,12 @@ set telescope = "$1"
 shift
 
 set host = `hostname -s`
-rm $APOGEE_LOCALDIR/*
+if ( $?UUFSCELL ) then
+  setenv APOGEE_LOCALDIR /scratch/local/$USER/$SLURM_JOB_ID 
+else
+  rm $APOGEE_LOCALDIR/*
+endif
+
 
 # make darks sequentially first
 idl -e "makecal,dark=1,vers='$vers',telescope='$telescope'" >& log/mkdark-$telescope.$host.log

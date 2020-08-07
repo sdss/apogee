@@ -880,7 +880,7 @@ def poly_fit(x,y,nord,robust=False,sigma=None,initpar=None,bounds=(-np.inf,np.in
     res = least_squares(poly_resid, initpar, loss=loss, f_scale=0.1, args=(x,y,sigma), max_nfev=max_nfev)
     if res.success is False:
         #import pdb; pdb.set_trace()
-        raise Exception("Problem with least squares polynomial fitting. Status="+str(res.status))
+        raise RuntimeError("Problem with least squares polynomial fitting. Status="+str(res.status))
         return initpar+np.nan
     coef = res.x
     # Calculate the covariance matrix

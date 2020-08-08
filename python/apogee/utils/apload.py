@@ -13,8 +13,11 @@ from __future__ import unicode_literals
 
 from astropy.io import fits
 import os
-from sdss_access.path import path
-from sdss_access.sync.http import HttpAccess
+try :
+    from sdss_access.path import path
+    from sdss_access.sync.http import HttpAccess
+except :
+    print('sdss_access or dependencies not available!')
 import pdb
 import sys
 from sdss import yanny

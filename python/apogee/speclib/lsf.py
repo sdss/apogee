@@ -18,7 +18,8 @@ from astropy.io import fits
 import matplotlib.pyplot as plt
 
 from apogee.utils import apload
-load=apload.ApLoad()
+try: load=apload.ApLoad()
+except: print('cant initialize load in lsf...')
 
 _SQRTTWO= numpy.sqrt(2.)
 

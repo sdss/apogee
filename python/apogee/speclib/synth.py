@@ -280,11 +280,6 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
             if solarisotopes : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'sun'+msuffix+'.molec')
             else : linelists.append(linelistdir+'/synspec/synspec.'+linelist+'giant'+msuffix+'.molec')
             if h2o == 0 :
-                #if teff < 4000 : 
-                #    if mh+am < -1.5 or teff > 3250 :
-                #        linelists.append(linelistdir+'/synspec/synspec.h2o-BC8.5V'+'.molec')
-                #    else  :
-                #        linelists.append(linelistdir+'/synspec/synspec.h2o-BC9.5V'+'.molec')
                 if teff <= 4000 : 
                     if mh+am < -1.5 or teff >= 3500 :
                         linelists.append(linelistdir+'/synspec/synspec.h2o-BC8.5V'+'.molec')
@@ -300,6 +295,13 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
                 linelists.append(linelistdir+'/synspec/synspec.h2o.molec')
             elif h2o == 4 :
                 linelists.append(linelistdir+'/synspec/synspec.h2o-BC9.0V.molec')
+            elif h2o == 5 :
+                # DR16 match
+                if teff < 4000 : 
+                    if mh+am < -1.5 or teff > 3250 :
+                        linelists.append(linelistdir+'/synspec/synspec.h2o_barber-BC8.5V'+'.molec')
+                    else  :
+                        linelists.append(linelistdir+'/synspec/synspec.h2o_barber-BC9.5V'+'.molec')
         #linelists = ['apogeeDR16.20180901.19','apogeeDR16_arc.20']
     else :
         print('unknown code!')
@@ -1121,7 +1123,7 @@ def mkgridlink(planfile,suffix=None) :
             hdulist.append(hdu)
             hdulist.writeto(file,overwrite=True)
 
-def comp(testdir,libdir,name='ap00cp00np00vp12.fits',thresh=0.005,yr=None,pause=True,outdir='./',mh=None) :
+def comp(testdir,libdir,name='ap00cp00np00vp12.fits',thresh=0.005,yr=None,pause=True,outdir='./',mh=None,names=None) :
     """ compare test grid with library grid
     """
     test = fits.open(testdir+'/'+name)[1]
@@ -1156,16 +1158,22 @@ def comp(testdir,libdir,name='ap00cp00np00vp12.fits',thresh=0.005,yr=None,pause=
             for mh in reversed(mhlist) :
                 ind=getindex(test.header,[2,3,4],[te,logg,mh])
                 imh=ind[2]
+                print('test',mhlab)
                 print(te,logg,mh)
-                print(mh,imh)
+                print(ind)
                 ind=getindex(lib.header,[2,3,4],[te,logg,mh])
-                #print(ind)
-                ax[ilogg,ite].plot(wave,test.data[imh,ilogg,ite,:]/lib.data[ind[2],ind[1],ind[0],:],
+                print('lib')
+                print(ind)
+                print('')
+                ax[ilogg,ite].plot(wave,test.data[imh,ilogg,ite,:]-lib.data[ind[2],ind[1],ind[0],:],
                     color=color[imh],label='{:.2}'.format(mh))
-                sax[ilogg,ite].plot(wave,test.data[imh,ilogg,ite,:],
-                    label='{:.2}'.format(mh))
-                sax[ilogg,ite].plot(wave,lib.data[ind[2],ind[1],ind[0],:],
-                    label='{:.2}'.format(mh))
+                plt.draw()
+                if names is not None : label=names[1]
+                else : label='{:.2}'.format(mh)
+                sax[ilogg,ite].plot(wave,lib.data[ind[2],ind[1],ind[0],:],label=label)
+                if names is not None : label=names[0]
+                else : label='{:.2}'.format(mh)
+                sax[ilogg,ite].plot(wave,test.data[imh,ilogg,ite,:],label=label)
                 sax[ilogg,ite].set_ylim([0,1.2])
                 if yr is not None : ax[ilogg,ite].set_ylim(yr)
                 plt.draw()
@@ -1187,38 +1195,44 @@ def allcomp() :
     """ create grid of synthesis comparisons, with web page
     """
 
-    matplotlib.use('Agg')
-    grids = ['solarisotopes/testMd']
-    tab=[]
-    for grid in grids :
-        try: out=comp('synspec/marcs/'+grid+'_h2o2','synspec/marcs/'+grid+'_h2o3',outdir='comp',pause=False,yr=[0.98,1.02])
-        except : out=['','']
-        tab.append(out)
-        try: out=comp('synspec/marcs/'+grid+'_h2o4','synspec/marcs/'+grid+'_h2o3',outdir='comp',pause=False,yr=[0.98,1.02])
-        except : out=['','']
-        tab.append(out)
-        try: out=comp('synspec/marcs/'+grid+'_h2o1','synspec/marcs/'+grid+'_h2o3',outdir='comp',pause=False,yr=[0.98,1.02])
-        except : out=['','']
-        tab.append(out)
-        try: out=comp('synspec/marcs/'+grid+'_noh2o','synspec/marcs/'+grid+'_h2o3',outdir='comp',pause=False,yr=[0.98,1.02])
-        except : out=['','']
-        tab.append(out)
-        try: out=comp('synspec/marcs/'+grid+'_h2o0','synspec/marcs/'+grid+'_h2o3',outdir='comp',pause=False,yr=[0.98,1.02])
-        except : out=['','']
-        tab.append(out)
-    yt=['-9.5EV','-9.0EV','-8.5EV','No H2O','DR17 strawman']
-    html.htmltab(tab,file='comp/comph2o.html',ytitle=yt)
-    #grids = ['solarisotopes/testFd','solarisotopes/testGKd','solarisotopes/testMd',
-    #         'giantisotopes/testGKg','giantisotopes/testMg']
+    matplotlib.use('TkAgg')
+    #grids = ['solarisotopes/testMd']
     #tab=[]
-    #ytit=[]
     #for grid in grids :
-    #  for mh in [-2.5,-1.5,-0.5,0.5] :
-    #    try: out=comp('synspec/marcs/'+grid,'turbospec/marcs/'+grid,outdir='comp',pause=False,yr=[0.5,1.5],mh=mh)
+    #    try: out=comp('synspec/marcs/'+grid+'_h2o2','synspec/marcs/'+grid+'_h2o3',outdir='comp',pause=False,yr=[0.98,1.02])
     #    except : out=['','']
     #    tab.append(out)
-    #    ytit.append('{:s} {:6.1f}'.format(grid,mh))
-    #html.htmltab(tab,file='comp/comp_syn_turbo.html',ytitle=ytit)
+    #    try: out=comp('synspec/marcs/'+grid+'_h2o4','synspec/marcs/'+grid+'_h2o3',outdir='comp',pause=False,yr=[0.98,1.02])
+    #    except : out=['','']
+    #    tab.append(out)
+    #    try: out=comp('synspec/marcs/'+grid+'_h2o1','synspec/marcs/'+grid+'_h2o3',outdir='comp',pause=False,yr=[0.98,1.02])
+    #    except : out=['','']
+    #    tab.append(out)
+    #    try: out=comp('synspec/marcs/'+grid+'_noh2o','synspec/marcs/'+grid+'_h2o3',outdir='comp',pause=False,yr=[0.98,1.02])
+    #    except : out=['','']
+    #    tab.append(out)
+    #    try: out=comp('synspec/marcs/'+grid+'_h2o0','synspec/marcs/'+grid+'_h2o3',outdir='comp',pause=False,yr=[0.98,1.02])
+    #    except : out=['','']
+    #    tab.append(out)
+    #yt=['-9.5EV','-9.0EV','-8.5EV','No H2O','DR17 strawman']
+    #html.htmltab(tab,file='comp/comph2o.html',ytitle=yt)
+    grids = ['solarisotopes/testFd','solarisotopes/testGKd','solarisotopes/testMd',
+             'giantisotopes/testGKg','giantisotopes/testMg']
+    libs = ['solarisotopes/tdF_180901','solarisotopes/tdGK_180901','solarisotopes/tdM_180901',
+             'giantisotopes/tgGK_180901','giantisotopes/tgM_180901']
+    grids = ['giantisotopes/testMg']
+    libs = ['giantisotopes/tgM_180901']
+    tab=[]
+    ytit=[]
+    for grid,lib in zip(grids,libs):
+      for mh in [-2.5,-1.5,-0.5,0.5] :
+        try: out=comp('synspec/marcs/'+grid,'turbospec/marcs/'+lib,outdir='comp',pause=False,yr=[-.5,0.5],mh=mh,names=['syn','turbo'])
+        except KeyboardInterrupt: 
+            raise
+        except: out=['','']
+        tab.append(out)
+        ytit.append('{:s} {:6.1f}'.format(grid,mh))
+    html.htmltab(tab,file='comp/comp_syn_turbo.html',ytitle=ytit)
 
 def getindex(header,axes,vals) :
     """ DEVELOPMENT : get index of requested model from input grid header

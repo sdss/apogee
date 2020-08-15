@@ -111,7 +111,7 @@ def aspcap2apStar(aspcap):
 def apStar2aspcap(apstar):
     """ from input aspcap spectrum on aspcap grid, return spectrum on apStar grid 
     """
-    aspcap=np.zeros(nw_chip.sum())
+    aspcap=np.zeros(nw_chip.sum(),dtype=apstar.dtype)
     pix_out=gridPix()
     pix_in=gridPix(apStar=False)
     for pin,pout in zip(pix_in,pix_out) :
@@ -779,7 +779,7 @@ def average(a,ind,apred='r12',aspcap='l33', median=False) :
     if median: return np.median(spec,axis=0), np.median(err,axis=0), np.median(ratio,axis=0)
     else : return spec.mean(axis=0) ,err.mean(axis=0), ratio.mean(axis=0)
 
-def dofield(planfile,clobber=True,nobj=None) :
+def dofield(planfile,clobber=False,nobj=None) :
     """ run ASPCAP on a field
     """
 
@@ -794,16 +794,21 @@ def dofield(planfile,clobber=True,nobj=None) :
 
     # setup reader and load apField file
     load = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope=telescope)
-    #apfieldname=load.filename('Field',field=field)
-    ##apfieldname=apfieldname.replace('/stars/','/rv/')
-    #apfield = fits.open(apfieldname)[1].data
-    apfield=load.apField(field)[1].data
+    apfieldname=load.filename('Field',field=field)
+    apfieldname=apfieldname.replace('/stars/','/rv/')
+    apfield = fits.open(apfieldname)[1].data
+    #apfield=load.apField(field)[1].data
     aspcapfield=Table(apfield)
     if nobj is not None : aspcapfield=aspcapfield[0:nobj]
     try : test = aspcapfield['MEANFIB']
     except : aspcapfield['MEANFIB'] = 150
     # add new columns
     nparam = len(params()[0])
+
+    # output directory
+    outfield=load.filename('aspcapField',field=field)
+    outfield=outfield.replace(aspcap_vers,aspcap_vers+'.new')
+    outdir=os.path.dirname(outfield)
 
     # read ASPCAP configuration
     config = yaml.safe_load(open(os.environ['APOGEE_DIR']+'/config/aspcap/'+aspcap_config+'/'+instrument+'.yml','r'))
@@ -837,9 +842,15 @@ def dofield(planfile,clobber=True,nobj=None) :
     chi2_class=[]
     for igrid,grid in enumerate(config['grids']) :
 
-        out='test_'+grid['name']
+        out=outdir+'/ferre/class_'+grid['name']+'/'+grid['name']+'-'+field
+        try: os.makedirs(os.path.dirname(out))
+        except: pass
+        try: os.symlink(os.environ['APOGEE_SPECLIB']+'/synth/',os.path.dirname(out)+'/lib')
+        except: pass
+
         libfile = 'lib/'+grid['lib']+'.hdr'
-        libhead0,libhead = ferre.rdlibhead(libfile)
+        libhead0,libhead = ferre.rdlibhead(os.path.dirname(out)+'/'+libfile)
+        libhead0['FILE'] = libfile
 
         gd = np.where((aspcapfield['RV_TEFF'] >= grid['teff_range'][0]) &
                       (aspcapfield['RV_TEFF'] <= grid['teff_range'][1]) &
@@ -865,11 +876,13 @@ def dofield(planfile,clobber=True,nobj=None) :
             #flux.append(apStar2aspcap(apstar.flux[0,:]))
             norm=np.median(apStar2aspcap(apstar.flux[0,:]))
             flux.append(apStar2aspcap(apstar.flux[0,:])/norm)
-            mask= np.where((apstar.bitmask[0,:] & badval) > 0)[0]
-            tmp = apstar.err[0,:]
+            mask= np.where((apStar2aspcap(apstar.bitmask[0,:]) & badval) > 0)[0]
+            tmp = apStar2aspcap(apstar.err[0,:])
             tmp[mask] *= 100.
-            #err.append(apStar2aspcap(tmp))
-            err.append(apStar2aspcap(tmp)/norm)
+            #err.append(tmp)
+            err.append(tmp/norm)
+            bd = np.where(tmp/apStar2aspcap(apstar.flux[0,:]) > 0.1)[0]
+            print(star['APOGEE_ID'],len(mask),len(bd))
 
         if clobber or not os.path.exists(out+'.spm') :
             ferre.writeipf(out,libfile,stars,param=np.array(inpars))
@@ -878,7 +891,11 @@ def dofield(planfile,clobber=True,nobj=None) :
             ferre.writenml(out+'.nml',os.path.basename(out),libhead0,init=0,algor=grid['algor'],ncpus=plan['ncpus'],
                        obscont=grid['obscont'],rejectcont=grid['rejectcont'],renorm=abs(grid['renorm']),
                        filterfile=os.environ['APOGEE_DIR']+'/data/windows/'+grid['mask'])
-            subprocess.call(['ferre.x',out+'.nml'],shell=False)
+            fout=open(out+'.stdout','w')
+            ferr=open(out+'.stderr','w')
+            subprocess.call(['ferre.x',os.path.basename(out)+'.nml'],shell=False,cwd=os.path.dirname(out),stdout=fout,stderr=ferr)
+            fout.close()
+            ferr.close()
 
         # read FERRE output
         param,spec,wave=ferre.read(out,libfile)
@@ -951,6 +968,12 @@ def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
     fig.savefig(outdir+'/plots/'+field+'_hr.png')
     plt.close()
     fp.write('<TD><A HREF=plots/{:s}_hr.png><IMG SRC=plots/{:s}_hr.png></A>\n'.format(field,field))
+    fig,ax=plots.multi(1,1)
+    plots.plotc(ax,aspcapfield['FPARAM'][:,3],aspcapfield['FPARAM'][:,6],aspcapfield['FPARAM'][:,0],
+                zr=[3000,8000],yr=[-0.5,1],xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt='[alpha/M]',zt='Teff')
+    fig.savefig(outdir+'/plots/'+field+'_alpha.png')
+    plt.close()
+    fp.write('<TD><A HREF=plots/{:s}_alpha.png><IMG SRC=plots/{:s}_alpha.png></A>\n'.format(field,field))
 
     fp.write('<BR>Click on column headers to sort by column value<BR>\n')
     fp.write('<TABLE BORDER=2 CLASS=sortable>\n')
@@ -967,7 +990,7 @@ def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
     for istar,star in enumerate(aspcapfield['APOGEE_ID']) :
         #fig,ax = plots.multi(1,3,hspace=0.5,figsize=(12,6))
         fig,ax = plots.multi(1,1,figsize=(18,3))
-        gd = np.where(aspcapspec['err'] < 0.5)[0]
+        gd = np.where(aspcapspec[istar]['err'] < 0.5)[0]
         plots.plotl(ax,w.flatten(),aspcapspec[istar]['spec'],yr=[0.,1.2],color='k')
         plots.plotl(ax,w.flatten()[gd],aspcapspec[istar]['spec'][gd],yr=[0.,1.2],color='g')
         plots.plotl(ax,w.flatten(),aspcapspec[istar]['spec_bestfit'],yr=[0.,1.2],color='r')

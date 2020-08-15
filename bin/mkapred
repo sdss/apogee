@@ -18,9 +18,27 @@ mkslurm 'apred visit/*/*/*/*/a?Plan*.par' --maxrun=32 --idlthreads=1 --name='ap1
 mkslurm "mkcal $apred_vers apo25m" --name mkcal-n --norunplans --idlthreads 4
 mkslurm "mkcal $apred_vers lco25m" --name mkcal-s --norunplans --idlthreads 4
 
-idl  << endidl
-  apmkallplan,$mjdstart,$mjdend,vers='$apred_vers'
-  @allplan
-endidl
+#idl  << endidl
+#  apmkallplan,$mjdstart,$mjdend,vers='$apred_vers'
+#  @allplan
+#endidl
+
+set n = 0
+@ dn = ($mjdend - $mjdstart) / 15
+set m1 = $mjdstart
+while ( $n < 16 ) 
+  @ m2 = $m1 + $dn
+  echo $m1 $m2
+  set outfile = allplan_"$n".pro
+  echo idl -e "apmkallplan,$m1,$m2,vers='$apred_vers',outfile='$outfile'" 
+  idl -e "apmkallplan,$m1,$m2,vers='$apred_vers',outfile='$outfile'"  >& log/allplan_"$n".log
+  echo idl -e "@$outfile" 
+  idl -e "@$outfile"  >>& log/allplan_"$n".log &
+  @ m1 = $m1 + $dn + 1
+  sleep 2
+  @ n = $n + 1
+end
+wait
+
 
 echo "Remember to copy apPersistModel files !"

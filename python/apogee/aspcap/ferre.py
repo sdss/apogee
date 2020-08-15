@@ -203,14 +203,14 @@ def read(name,libfile) :
 
         # check for grid edge and flag
         warn = np.where((val < libhead0['LLIMITS'][i]+libhead0['STEPS'][i]/2.) |
-                        (val > libhead0['LLIMITS'][i]+libhead0['STEPS'][i]*(libhead0['N_P'][i]-1-1./2)) )
+                        (val > libhead0['LLIMITS'][i]+libhead0['STEPS'][i]*(libhead0['N_P'][i]-1-1./2)) )[0]
         a['PARAMFLAG'][warn,index] |= parammask.getval('GRIDEDGE_WARN')
         a['ASPCAPFLAG'][warn] |= aspcapmask.getval(flagnames[index]+'_WARN')
-        bad = np.where((val < libhead0['LLIMITS'][i]+libhead0['STEPS'][i]/8.) )
+        bad = np.where((val < libhead0['LLIMITS'][i]+libhead0['STEPS'][i]/8.) )[0]
         if pname != 'N' and pname !='LOG10VDOP' and pname != 'LGVSINI' :
             a['PARAMFLAG'][bad,index] |= parammask.getval('GRIDEDGE_BAD')
             a['ASPCAPFLAG'][bad] |= aspcapmask.getval(flagnames[index]+'_BAD')
-        bad = np.where((val > libhead0['LLIMITS'][i]+libhead0['STEPS'][i]/8.) )
+        bad = np.where((val > libhead0['LLIMITS'][i]+libhead0['STEPS'][i]*(libhead0['N_P'][i]-1-1/8.)) )[0]
         if pname != 'N' :
             a['PARAMFLAG'][bad,index] |= parammask.getval('GRIDEDGE_BAD')
             a['ASPCAPFLAG'][bad] |= aspcapmask.getval(flagnames[index]+'_BAD')

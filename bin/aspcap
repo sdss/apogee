@@ -18,6 +18,7 @@ import os
 import sys
 import subprocess
 import pdb
+from apogee.aspcap import aspcap
 
 if __name__ == '__main__' :
 
@@ -38,19 +39,23 @@ if __name__ == '__main__' :
     parser.add_argument("--flag",default='11111')
     args=parser.parse_args()
 
-    if args.clobber: clobber='1'
-    else : clobber='0'
-    if args.noelem: noelem=',/noelem'
-    else : noelem=''
-    if args.noplot: noplot=',/noplot'
-    else : noplot=''
-    if args.elemplot: elemplot=',/elemplot'
-    else : elemplot=''
-    if args.minmjdlast: minmjdlast=',minmjdlast='+args.minmjdlast
-    else : minmjdlast=''
-    if args.cal is not None : cal=',cal="'+args.cal+'"'
-    else :  cal=''
-    subprocess.call(["idl","-e","aspcaprun,'"+args.planfile+"','"+args.flag+"','"+clobber+"'"+noelem+noplot+elemplot+minmjdlast+cal])
+    if '.yml' in args.planfile :
+        aspcap.dofield(args.planfile,clobber=args.clobber)
+
+    else :
+        if args.clobber: clobber='1'
+        else : clobber='0'
+        if args.noelem: noelem=',/noelem'
+        else : noelem=''
+        if args.noplot: noplot=',/noplot'
+        else : noplot=''
+        if args.elemplot: elemplot=',/elemplot'
+        else : elemplot=''
+        if args.minmjdlast: minmjdlast=',minmjdlast='+args.minmjdlast
+        else : minmjdlast=''
+        if args.cal is not None : cal=',cal="'+args.cal+'"'
+        else :  cal=''
+        subprocess.call(["idl","-e","aspcaprun,'"+args.planfile+"','"+args.flag+"','"+clobber+"'"+noelem+noplot+elemplot+minmjdlast+cal])
 
     if args.done is not None :
         subprocess.call(['setdone',args.done])

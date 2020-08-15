@@ -10,7 +10,6 @@ parser.add_argument("--apred", help="apred version to put output in",default='cu
 parser.add_argument("--darkid", help="optional darkid",default='None')
 parser.add_argument("--clobber", help="clobber existing frames?",default=False)
 args=parser.parse_args()
-print args
   
 mjdcube(args.mjd,apred=args.apred,write=args.write,darkid=args.darkid,clobber=args.clobber)
 

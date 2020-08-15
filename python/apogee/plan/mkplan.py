@@ -170,3 +170,27 @@ def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,oasplit=True,v
 
                         with open(planfile+'_'+suffix+el+'.yml', 'w') as fp:
                             fp.write(yaml.dump(p,sort_keys=False,Dumper=Dumper))
+
+def aspcap(field,apred='r13',telescope='apo25m',aspcap_vers='l33',aspcap_config='l33cnmask',ncpus=16, minmjdlast=None) :
+
+    plan={}
+    plan['apogee_ver'] = os.environ['APOGEE_VER']
+    plan['apvisit'] = 0
+    plan['apred_vers'] = apred
+    plan['telescope'] = telescope
+    if telescope == 'lco25m' : plan['instrument'] = 'apogee-s'
+    else : plan['instrument'] = 'apogee-n'
+    plan['apstar_vers'] = 'stars'
+    plan['aspcap_vers'] = aspcap_vers
+    plan['aspcap_config'] = aspcap_config
+    plan['ncpus'] =  ncpus
+    plan['queue'] =  0
+    plan['qname'] =  'apogee'
+    plan['qgroup'] =  'apogee'
+    plan['caldir'] = 'cal'
+    if minmjdlast is not None : plan['minmjdlast'] = 58814
+    plan['field'] = field
+
+    with open('plan/'+field+'_'+telescope+'.yml', 'w') as fp:
+        fp.write(yaml.dump(plan,sort_keys=False,Dumper=Dumper))
+

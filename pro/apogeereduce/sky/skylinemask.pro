@@ -14,7 +14,7 @@ if keyword_set(plot) then begin
   oplot,sm,color=4,psym=10
 endif
 
-; identify all pixels with sky flux more than 0.5 of median filtered star flux
+; identify all pixels with sky flux more than thresh times the median filtered star flux
 medflux=zap(reform(flux,n_elements(flux),1),[50,1])
 bd=where(sm gt thresh*medflux,nhigh,complement=gd)
 if keyword_set(plot) then begin

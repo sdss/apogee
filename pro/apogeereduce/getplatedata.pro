@@ -22,7 +22,7 @@ reads,cmjd,mjd
 ; create the output fiber structure
 tmp={fiberid: 0, ra: 0.d0, dec: 0.d0, eta: 0.d0, zeta: 0.d0, hmag: 0., objtype: 'none', holetype: 'OBJECT', object: '', tmass_style: '', target1: 0L, target2: 0L, target3: 0L, spectrographid: 2, mag: fltarr(5), ak_targ: -99., ak_targ_method : 'none', ak_wise: -99., sfd_ebv: -99.}
 guide=replicate(tmp,16)
-loc=0
+loc=0L
 if keyword_set(obj1m) then begin
   if keyword_set(fixfiberid) then begin
     if fixfiberid eq 1 then begin
@@ -35,7 +35,7 @@ if keyword_set(obj1m) then begin
   endelse
   ;fiber=replicate(tmp,9)
   fiber=replicate(tmp,n_elements(fiberid))
-  platedata={plate: platenum, mjd: mjd, plateid: cplate, locationid: 1, field: ' ', programname: '', $
+  platedata={plate: platenum, mjd: mjd, plateid: cplate, locationid: 1L, field: ' ', programname: '', $
              cmjd: cmjd, ha: [-99.,-99.,-99.], fiberdata: fiber, guidedata: guide}
   platedata.field = cplate
   ;fiber.fiberid=[218,219,220,221,223,226,228,230,231]
@@ -78,7 +78,7 @@ if keyword_set(obj1m) then begin
 endif
 if keyword_set(twilight) then begin
   fiber=replicate(tmp,300)
-  platedata={plate: platenum, mjd: mjd, plateid: cplate, locationid: 1, field: ' ', programname: '', cmjd: cmjd, ha: [-99.,-99.,-99.], fiberdata: fiber, guidedata: guide}
+  platedata={plate: platenum, mjd: mjd, plateid: cplate, locationid: 1L, field: ' ', programname: '', cmjd: cmjd, ha: [-99.,-99.,-99.], fiberdata: fiber, guidedata: guide}
   platedata.field = cplate
   ;j=where(indgen(300) mod 10 eq 0)
   ;fiber[j].target2 = 2L^4
@@ -92,7 +92,7 @@ if keyword_set(twilight) then begin
 endif
 fiber=replicate(tmp,300)
 reads,cplate,platenum
-platedata={plate: platenum, mjd: mjd, plateid: cplate, locationid: 0, field: ' ', programname: '', cmjd: cmjd, ha: [-99.,-99.,-99.], fiberdata: fiber, guidedata: guide}
+platedata={plate: platenum, mjd: mjd, plateid: cplate, locationid: 0L, field: ' ', programname: '', cmjd: cmjd, ha: [-99.,-99.,-99.], fiberdata: fiber, guidedata: guide}
 platedata.field = apogee_field(loc,platenum,survey,programname)
 platedata.locationid = loc
 platedata.programname = programname
@@ -136,7 +136,7 @@ if not keyword_set(mapa) then begin
   ;  wrong
   j=where(strpos(strupcase(hdr),'LOCATIONID') ge 0)
   tmp=strsplit(hdr[j],/ext)
-  loc=0
+  loc=0L
   reads,tmp[1],loc
   platedata.locationid = loc
 endif

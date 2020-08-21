@@ -779,7 +779,7 @@ def average(a,ind,apred='r12',aspcap='l33', median=False) :
     if median: return np.median(spec,axis=0), np.median(err,axis=0), np.median(ratio,axis=0)
     else : return spec.mean(axis=0) ,err.mean(axis=0), ratio.mean(axis=0)
 
-def dofield(planfile,clobber=False,nobj=None) :
+def dofield(planfile,clobber=False,nobj=None,write=True) :
     """ run ASPCAP on a field
     """
 
@@ -825,10 +825,12 @@ def dofield(planfile,clobber=False,nobj=None) :
     aspcapfield.add_column(Column(name='ASPCAPFLAG',dtype=int,length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='ASPCAPFLAGS',dtype='S132',length=len(aspcapfield)))
 
+    # create table for output spectral data
     aspcapspec = Table()
     nwave = nw_chip.sum()
     aspcapspec.add_column(Column(name='SPEC',dtype=float,shape=(nwave),length=len(aspcapfield)))
     aspcapspec.add_column(Column(name='ERR',dtype=float,shape=(nwave),length=len(aspcapfield)))
+    aspcapspec.add_column(Column(name='MASK',dtype=float,shape=(nwave),length=len(aspcapfield)))
     aspcapspec.add_column(Column(name='SPEC_BESTFIT',dtype=float,shape=(nwave),length=len(aspcapfield)))
 
     # pixel masking
@@ -842,16 +844,19 @@ def dofield(planfile,clobber=False,nobj=None) :
     chi2_class=[]
     for igrid,grid in enumerate(config['grids']) :
 
+        # set up output FERRE directory for this grid
         out=outdir+'/ferre/class_'+grid['name']+'/'+grid['name']+'-'+field
         try: os.makedirs(os.path.dirname(out))
         except: pass
         try: os.symlink(os.environ['APOGEE_SPECLIB']+'/synth/',os.path.dirname(out)+'/lib')
         except: pass
 
+        # get FERRE library information
         libfile = 'lib/'+grid['lib']+'.hdr'
         libhead0,libhead = ferre.rdlibhead(os.path.dirname(out)+'/'+libfile)
         libhead0['FILE'] = libfile
 
+        # select stars for this grid
         gd = np.where((aspcapfield['RV_TEFF'] >= grid['teff_range'][0]) &
                       (aspcapfield['RV_TEFF'] <= grid['teff_range'][1]) &
                       (aspcapfield['RV_LOGG'] >= grid['logg_range'][0]) &
@@ -861,6 +866,7 @@ def dofield(planfile,clobber=False,nobj=None) :
         print(grid['name'],len(gd))
         if len(gd) == 0 : continue
 
+        # loop over stars and accumulate input for FERRE
         inpars=[]
         flux=[]
         err=[]
@@ -868,6 +874,7 @@ def dofield(planfile,clobber=False,nobj=None) :
         for star in aspcapfield[gd] :
             #print(load.filename('Star',field=field,obj=star))
             apstar=load.apStar(field,star['APOGEE_ID'],load=True)
+            if apstar is None: continue
 
             stars.append(star['APOGEE_ID'])
             #stars.append(star['APOGEE_ID']+'norm')
@@ -884,16 +891,20 @@ def dofield(planfile,clobber=False,nobj=None) :
             bd = np.where(tmp/apStar2aspcap(apstar.flux[0,:]) > 0.1)[0]
             print(star['APOGEE_ID'],len(mask),len(bd))
 
+        # write FERRE files and run FERRE
         if clobber or not os.path.exists(out+'.spm') :
             ferre.writeipf(out,libfile,stars,param=np.array(inpars))
             ferre.writespec(out+'.obs',flux)
             ferre.writespec(out+'.err',err)
-            ferre.writenml(out+'.nml',os.path.basename(out),libhead0,init=0,algor=grid['algor'],ncpus=plan['ncpus'],
-                       obscont=grid['obscont'],rejectcont=grid['rejectcont'],renorm=abs(grid['renorm']),
+            ferre.writenml(out+'.nml',os.path.basename(out),libhead0,init=0,
+                       algor=grid['algor'],ncpus=plan['ncpus'],
+                       obscont=grid['obscont'],rejectcont=grid['rejectcont'],
+                       renorm=abs(grid['renorm']),
                        filterfile=os.environ['APOGEE_DIR']+'/data/windows/'+grid['mask'])
             fout=open(out+'.stdout','w')
             ferr=open(out+'.stderr','w')
-            subprocess.call(['ferre.x',os.path.basename(out)+'.nml'],shell=False,cwd=os.path.dirname(out),stdout=fout,stderr=ferr)
+            subprocess.call(['ferre.x',os.path.basename(out)+'.nml'],shell=False,
+                            cwd=os.path.dirname(out),stdout=fout,stderr=ferr)
             fout.close()
             ferr.close()
 
@@ -907,6 +918,7 @@ def dofield(planfile,clobber=False,nobj=None) :
         # load into apField
         for istar,star in enumerate(aspcapfield[gd]) :
             i = np.where(param['APOGEE_ID'] == star['APOGEE_ID'].encode())[0]
+            if len(i) == 0 : continue
             aspcapfield['FPARAM_CLASS'][gd[istar],igrid,:] = param['FPARAM'][i]
             aspcapfield['FPARAM_COV_CLASS'][gd[istar],igrid,:] = param['FPARAM_COV'][i]
             aspcapfield['CHI2_CLASS'][gd[istar],igrid] = param['PARAM_CHI2'][i]
@@ -926,18 +938,32 @@ def dofield(planfile,clobber=False,nobj=None) :
                 aspcapspec['SPEC'][gd[istar]] = spec['frd'][i]
                 aspcapspec['ERR'][gd[istar]] =  spec['err'][i]*spec['frd'][i]/spec['obs'][i]
                 aspcapspec['SPEC_BESTFIT'][gd[istar]] =  spec['mdl'][i]
- 
-    #output apField and apFieldVisits
-    outfield=load.filename('aspcapField',field=field)
-    outfield=outfield.replace(aspcap_vers,aspcap_vers+'.new')
+                # get mask from apStar, and supplement with FERRE mask
+                apstar=load.apStar(field,star['APOGEE_ID'],load=True)
+                filterfile=os.environ['APOGEE_DIR']+'/data/windows/'+grid['mask']
+                fmask=np.loadtxt(filterfile)
+                bd = np.where(fmask < 0.001)[0]
+                mask= apStar2aspcap(apstar.bitmask[0,:]) 
+                mask[bd] = mask[bd] | pixelmask.getval('FERRE_MASK')
+                aspcapspec['MASK'][gd[istar]] =  mask
+
+    # Results into an HDUList 
     hdulist=fits.HDUList()
     hdulist.append(fits.table_to_hdu(Table(aspcapfield)))
     hdulist.append(fits.table_to_hdu(aspcapspec))
-    try: os.makedirs(os.path.dirname(outfield))
-    except: pass
-    hdulist.writeto(outfield,overwrite=True)
 
-    mkhtml(field,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
+    if write :
+        #output apField and apFieldVisits
+        outfield=load.filename('aspcapField',field=field)
+        outfield=outfield.replace(aspcap_vers,aspcap_vers+'.new')
+        try: os.makedirs(os.path.dirname(outfield))
+        except: pass
+        hdulist.writeto(outfield,overwrite=True)
+
+        # create output HTML page
+        mkhtml(field,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
+
+    return hdulist
 
 
 def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
@@ -1005,8 +1031,11 @@ def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
         plt.close()
 
         fp.write('<TR><TD>{:s}<BR>\n'.format(star))
-        fp.write('{:s}\n'.format(aspcapfield['STARFLAGS'][istar]))
-        fp.write('{:s}\n'.format(aspcapfield['ASPCAPFLAGS'][istar]))
+        fp.write('H  = {:7.2f}<br>'.format(aspcapfield['H'][istar]))
+        fp.write('SNR  = {:7.2f}<br>'.format(aspcapfield['SNR'][istar]))
+        fp.write('<FONT COLOR=blue> TARGFLAGS </FONT>: {:s}<BR>\n'.format(aspcapfield['TARGFLAGS'][istar]))
+        fp.write('<FONT COLOR=blue> STARFLAGS </FONT>: {:s}<BR>\n'.format(aspcapfield['STARFLAGS'][istar]))
+        fp.write('<FONT COLOR=blue> ASPCAPFLAGS </FONT>: {:s}<BR>\n'.format(aspcapfield['ASPCAPFLAGS'][istar]))
         fp.write('<TD>{:s}\n'.format(aspcapfield['CLASS'][istar]))
         fp.write('<TD>{:6.1f}\n'.format(aspcapfield['PARAM_CHI2'][istar]))
         for ipar in range(8) :

@@ -4,7 +4,7 @@ import os
 import argparse
 
 def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None,idlthreads=1,runplans=True,
-          time='240:00:00',name=None,fast=False,tacc=False, postcmd=None, flag=None) :
+          time='240:00:00',name=None,fast=False,tacc=False, postcmd=None, flag=None, pythreads=None) :
     """ Routine to write a slurm file with specified input command and parameteres
     """
 
@@ -36,6 +36,12 @@ def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None
         f.write('setenv APOGEE_MAXRUN '+str(maxrun)+'\n' )
         if flag is not None :f.write('setenv APOGEE_FLAG '+flag+'\n' )
     f.write('setenv IDL_CPU_TPOOL_NTHREADS '+str(idlthreads)+'\n' )
+    if pythreads is not None :
+        f.write('setenv OMP_NUM_THREADS '+str(pythreads)+'\n')
+        f.write('setenv OPENBLAS_NUM_THREADS '+str(pythreads)+'\n')
+        f.write('setenv MKL_NUM_THREADS '+str(pythreads)+'\n')
+        f.write('setenv VECLIB_MAXIMUM_THREADS '+str(pythreads)+'\n')
+        f.write('setenv NUMEXPR_NUM_THREADS '+str(pythreads)+'\n')
 
     if cwd is None : cwd=os.getcwd()
     f.write('cd '+cwd+'\n' )

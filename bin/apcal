@@ -23,7 +23,7 @@ if __name__ == '__main__' :
 
     parser = argparse.ArgumentParser(
         prog=os.path.basename(sys.argv[0]),
-        description='Makes a synthetic spectral grid')
+        description='Wrapper to run IDL makecal')
 
     parser.add_argument('makecal', type=str, help='makecal argument')
     parser.add_argument("--done")

@@ -574,11 +574,11 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',obj=None,
     # output directory
     load=apload.ApLoad(apred=apred,telescope=telescope)
     outfield=load.filename('Field',field=field)
-    outfield=outfield.replace('/stars/','/rv/')
+    #outfield=outfield.replace('/stars/','/rv/')
     try : os.makedirs(os.path.dirname(outfield))
     except FileExistsError: pass
     outfieldvisits=load.filename('FieldVisits',field=field)
-    outfieldvisits=outfieldvisits.replace('/stars/','/rv/')
+    #outfieldvisits=outfieldvisits.replace('/stars/','/rv/')
 
     # get all unique (or requested) objects
     if obj is None :
@@ -813,7 +813,7 @@ def dorv(visitfiles) :
     if tweak: suffix='_tweak'
     else : suffix='_out'
     outdir = os.path.dirname(load.filename('Star',field=field,obj=obj))
-    outdir = outdir.replace('/stars/','/rv/')
+    #outdir = outdir.replace('/stars/','/rv/')
 
     if os.path.exists(outdir+'/'+obj+suffix+'.pkl') and not clobber:
         print(obj,' already done')
@@ -928,7 +928,7 @@ def dovisitcomb(allv) :
 
     # already done?
     outdir=os.path.dirname(load.filename('Field',field=field))
-    outdir=outdir.replace('/stars/','/rv/')
+    #outdir=outdir.replace('/stars/','/rv/')
     if os.path.exists(outdir+'/'+apogee_id+'.pkl') and not clobber:
         print(apogee_id,' already done visitcomb')
         fp=open(outdir+'/'+apogee_id+'.pkl','rb')
@@ -1145,11 +1145,11 @@ def mkhtml(field,suffix='',apred='r13',telescope='apo25m') :
     load=apload.ApLoad(apred=apred,telescope=telescope)
     #apf=load.apField(field)[1].data
     infile=load.filename('Field',field=field)
-    infile=infile.replace('/stars/','/rv/')
+    #infile=infile.replace('/stars/','/rv/')
     apf=fits.open(infile)[1].data
 
     infile=load.filename('FieldVisits',field=field)
-    infile=infile.replace('/stars/','/rv/')
+    #infile=infile.replace('/stars/','/rv/')
     #apfv=load.apFieldVisits(field)[1].data
     apfv=fits.open(infile)[1].data
 
@@ -1597,7 +1597,7 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
 
     if write :
         outfile=load.filename('Star',field=apstar.header['FIELD'],obj=apstar.header['OBJID'])
-        outfile=outfile.replace('/stars/','/rv/') 
+        #outfile=outfile.replace('/stars/','/rv/') 
         outdir = os.path.dirname(outfile)
         try: os.makedirs(os.path.dirname(outfile))
         except : pass

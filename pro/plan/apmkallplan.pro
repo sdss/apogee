@@ -1,4 +1,4 @@
-pro apmkallplan,mjdstart,mjdend,vers=vers
+pro apmkallplan,mjdstart,mjdend,vers=vers,outfile=outfile
 ;+
 ; procedure to make a single allplan.pro file than runs all of
 ; the individual MJD5.pro files to create plan files, given
@@ -8,8 +8,9 @@ pro apmkallplan,mjdstart,mjdend,vers=vers
 pipedir = getenv('APOGEEREDUCEPLAN_DIR')
 plandir=pipedir+'/pro/'
 dir1m=pipedir+'/data/1m/'
+if ~keyword_set(outfile) then outfile='allplan.pro'
 
-openw,all,'allplan.pro',/get_lun
+openw,all,outfile,/get_lun
 ; vers keyword can be used to override strict versioning! beware
 if keyword_set(vers) then begin
   printf,all,'vers='''+vers+'''' 

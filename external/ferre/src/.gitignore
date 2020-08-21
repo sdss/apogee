@@ -1,3 +1,5 @@
 *~
 *.o
 *.mod
+a.out
+ascii2bin

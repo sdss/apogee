@@ -20,6 +20,12 @@ idl -e "makecal,dark=1,vers='$vers',telescope='$telescope'" >& log/mkdark-$teles
 
 # make wavecals in parallel
 set n = 0
+while ( $n < 5 ) 
+  idl -e "makecal,multiwave=1,vers='$vers',telescope='$telescope'" >& log/mkwave-$telescope"$n".$host.log &
+  sleep 20
+  @ n = $n + 1
+end
+wait
 while ( $n < 10 ) 
   idl -e "makecal,multiwave=1,vers='$vers',telescope='$telescope'" >& log/mkwave-$telescope"$n".$host.log &
   sleep 20
@@ -29,6 +35,12 @@ wait
 
 # make LSFs in parallel
 set n = 0
+while ( $n < 5 ) 
+  idl -e "makecal,lsf=1,/full,/pl,vers='$vers',telescope='$telescope'" >& log/mklsf-$telescope"$n".$host.log &
+  sleep 20
+  @ n = $n + 1
+end
+wait
 while ( $n < 10 ) 
   idl -e "makecal,lsf=1,/full,/pl,vers='$vers',telescope='$telescope'" >& log/mklsf-$telescope"$n".$host.log &
   sleep 20

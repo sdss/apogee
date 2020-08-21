@@ -191,6 +191,9 @@ def aspcap(field,apred='r13',telescope='apo25m',aspcap_vers='l33',aspcap_config=
     if minmjdlast is not None : plan['minmjdlast'] = 58814
     plan['field'] = field
 
-    with open('plan/'+field+'_'+telescope+'.yml', 'w') as fp:
+    outdir=os.environ['APOGEE_ASPCAP']+'/'+apred+'/'+aspcap_vers+'/plan'
+    os.makedirs(outdir,exist_ok=True)
+
+    with open(outdir+'/'+field+'_'+telescope+'.yml', 'w') as fp:
         fp.write(yaml.dump(plan,sort_keys=False,Dumper=Dumper))
 

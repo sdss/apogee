@@ -27,13 +27,16 @@ if __name__ == '__main__' :
 
     cfg = yaml.safe_load(open(args.config,'r'))
 
+    outdir = os.environ['APOGEE_REDUX']+'/'+cfg['apred_vers']+'/'+cfg['apstar_vers']+'/plan'
+    os.makedirs(outdir,exist_ok=True)
+
     for i,field in enumerate(args.fields) :
         comp=field.split('/')
         name=comp[-1]
         telescope=comp[-2]
         if telescope == 'lco25m' : prefix = 'as'
         else : prefix = 'ap'
-        fp = open('plan/{:s}Star-{:s}.yml'.format(prefix,name),'w')
+        fp = open(outdir+'/{:s}Star-{:s}.yml'.format(prefix,name),'w')
         fp.write('---\n')
         fp.write('apogee_ver : {:s}\n'.format(cfg['apogee_ver']))
         fp.write('apred_vers : {:s}\n'.format(cfg['apred_vers']))
@@ -45,7 +48,9 @@ if __name__ == '__main__' :
         fp.write('field : {:s}\n'.format(name))
         fp.close()
 
-    #mkslurm.write('"'+cmd+'" apo*/plan/aspcapStar*.par lco*/plan/aspcapStar*.par',maxrun=2,idlthreads=16,queryport=1051,queryhost=os.uname()[1])
+
+    cmd = 'rv --clobber --threads=32'
+    mkslurm.write('"'+cmd+'" plan/a?Star*.yml' ,maxrun=1,idlthreads=16,queryport=1051,queryhost=os.uname()[1],pythreads=1)
     #sort=np.argsort(nstars)[::-1]
     #fp=open(topdir+'/slurm/fields.sort','w')
     #for i in range(len(sort)) : 

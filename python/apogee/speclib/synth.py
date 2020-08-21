@@ -930,12 +930,13 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec
           else :
               try :
                   # does output file exist?
-                  old=fits.open(specdir+'/'+p['name']+elem+'.fits')[0]
-                  specdata=old.data
-                  if len(old.shape) < 5 : specdata=np.expand_dims(specdata,axis=0)
+                  old=fits.open(specdir+'/'+p['name']+elem+'.fits')
+                  specdata=old[0].data
+                  specnormdata=old[1].data
+                  if len(old[0].shape) < 5 : specdata=np.expand_dims(specdata,axis=0)
                   # is it a partially completed file with nmh card, or a completed file?
                   try:
-                      nmh =old.header['nmh']
+                      nmh =old[0].header['nmh']
                   except :
                       # file is completed
                       nmh = p['nmh']
@@ -1027,6 +1028,7 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec
                 hdu.header['LOGW'] = 0
                 if p.get('width') : hdu.header['width'] = p['width']
                 if p.get('linelist') : hdu.header['linelist'] = p['linelist']
+                if p.get('solarisotopes') : hdu.header['solarisotopes'] = int(p['solarisotopes'])
                 if p['synthcode'] == 'asset'  : hdu.header.add_comment('ASSET generated synthetic spectra')
                 if p['synthcode'] == 'turbospec' : hdu.header.add_comment('Turbospec generated synthetic spectra')
                 if p['synthcode'] == 'moog ' : hdu.header.add_comment('MOOG generated synthetic spectra')

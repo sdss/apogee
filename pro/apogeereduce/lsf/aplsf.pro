@@ -1613,12 +1613,12 @@ for ii=0,n_elements(ifibers)-1 do begin
 End ; fiber loop
 
 
-mwrfits,combframe.chipa.flux,outdir+dirs.prefix+string(format='("LSF-",a)',lsfid)+'_flux.fits'),/create
-mwrfits,combframe.chipb.flux,outdir+dirs.prefix+string(format='("LSF-",a)',lsfid)+'_flux.fits')
-mwrfits,combframe.chipc.flux,outdir+dirs.prefix+string(format='("LSF-",a)',lsfid)+'_flux.fits')
-mwrfits,combframe.chipa.err,outdir+dirs.prefix+string(format='("LSF-",a)',lsfid)+'_res.fits'),/create
-mwrfits,combframe.chipb.err,outdir+dirs.prefix+string(format='("LSF-",a)',lsfid)+'_res.fits')
-mwrfits,combframe.chipc.err,outdir+dirs.prefix+string(format='("LSF-",a)',lsfid)+'_res.fits')
+mwrfits,combframe.chipa.flux,outdir+dirs.prefix+string(format='("LSF-",a)',lsfid)+'_flux.fits',/create
+mwrfits,combframe.chipb.flux,outdir+dirs.prefix+string(format='("LSF-",a)',lsfid)+'_flux.fits'
+mwrfits,combframe.chipc.flux,outdir+dirs.prefix+string(format='("LSF-",a)',lsfid)+'_flux.fits'
+mwrfits,combframe.chipa.err,outdir+dirs.prefix+string(format='("LSF-",a)',lsfid)+'_res.fits',/create
+mwrfits,combframe.chipb.err,outdir+dirs.prefix+string(format='("LSF-",a)',lsfid)+'_res.fits'
+mwrfits,combframe.chipc.err,outdir+dirs.prefix+string(format='("LSF-",a)',lsfid)+'_res.fits'
 htmlfile=outdir+'/html/'+dirs.prefix+string(format='("LSF-",a)',lsfid)
 openw,html,htmlfile+'.html',/get_lun
 printf,html,'<HTML><BODY><TABLE BORDER=2>'

@@ -1,47 +1,66 @@
-#!/bin/tcsh
+#!/usr/bin/env python
 
-set configfile = $1
-shift
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import unicode_literals
 
-set cmd = `awk '{printf("set %s = %s\n",$1,$2)}' $configfile`
-$cmd
+import argparse
+import glob
+import numpy as np
+import os
+import sys
+import subprocess
+import pdb
+from apogee.plan import mkslurm
+import yaml
 
-module purge
-module load apogee/$apogee_ver
+if __name__ == '__main__' :
 
-cd $APOGEE_REDUX/$apred_vers
-mkdir $apstar_vers
+    parser = argparse.ArgumentParser(
+        prog=os.path.basename(sys.argv[0]),
+        description='Creates apStar yaml files')
 
+    parser.add_argument("config",type=str, help='configfile')
+    parser.add_argument("--fields",type=str,nargs='+',help='list of fields',default=[])
+    args=parser.parse_args()
 
-idl  << endidl
-  fields='$*'
-  field=strsplit(fields,' ',/ext)
-  help,fields,field
-  print,fields
-  print,field
-  print,'$apred_vers'
-  mkstarplan,field,apred_vers='$apred_vers',apstar_vers='$apstar_vers',mjdstart='$mjdstart',mjdend='$mjdend'
+    # load configuration file
+    cfg = yaml.safe_load(open(args.config,'r'))
 
-endidl
+    # create output directory
+    outdir = os.environ['APOGEE_REDUX']+'/'+cfg['apred_vers']+'/'+cfg['apstar_vers']+'/plan'
+    os.makedirs(outdir,exist_ok=True)
 
-cd $apstar_vers
-mkslurm "apred plan/a?Star*.par" --maxrun=32 --idlthreads=1
+    # loop over fields
+    for i,field in enumerate(args.fields) :
+        comp=field.split('/')
+        name=comp[-1]
+        telescope=comp[-2]
+        if telescope == 'lco25m' : prefix = 'as'
+        else : prefix = 'ap'
+        fp = open(outdir+'/{:s}Star-{:s}.yml'.format(prefix,name),'w')
+        fp.write('---\n')
+        fp.write('apogee_ver : {:s}\n'.format(cfg['apogee_ver']))
+        fp.write('apred_vers : {:s}\n'.format(cfg['apred_vers']))
+        fp.write('apstar_vers : {:s}\n'.format(cfg['apstar_vers']))
+        fp.write('mjdstart : {:d}\n'.format(cfg['mjdstart']))
+        fp.write('mjdend : {:d}\n'.format(cfg['mjdend']))
+        fp.write('telescope : {:s}\n'.format(telescope))
+        #fp.write('survey : {:s}'.format(survey))
+        fp.write('field : {:s}\n'.format(name))
+        fp.close()
 
-rm slurm/fields.dat
-touch slurm/fields.dat
-foreach field ( ../visit/apo25m/* ../visit/lco25m/* )
-  echo $field
-  set nvisit = `ls -d $field/apVisitSum* | wc -l`
-  set name = `basename $field`
-  set tel = `echo $field | awk -F/ '{print $3}'`
-  if $tel == "apo25m" then
-    set plan = apStar-$name.par
-  else if $tel == "lco25m" then
-    set plan = asStar-$name.par
-  endif
-  echo $plan $nvisit >> slurm/fields.dat
-end
-sort -r -n --key=2 slurm/fields.dat > slurm/fields.sort
+    # make the SLURM file
+    cmd = 'rv --clobber --threads=32'
+    mkslurm.write('"'+cmd+'" plan/a?Star*.yml' ,maxrun=1,idlthreads=16,queryport=1051,queryhost=os.uname()[1],pythreads=1)
 
-echo "Modify apred to use order from fields.sort if desired!"
+    #sort=np.argsort(nstars)[::-1]
+    #fp=open(topdir+'/slurm/fields.sort','w')
+    #for i in range(len(sort)) : 
+    #    tel=args.fields[sort[i]].split('/')[0]
+    #    field=args.fields[sort[i]].split('/')[1]
+    #    fp.write('{:s}/plan/aspcapStar-{:s}.par {:d}\n'.format(tel,field,nstars[sort[i]]))
+    #fp.close()
+    #print('Modify slurm/aspcap to use fields.sort if desired...')
 

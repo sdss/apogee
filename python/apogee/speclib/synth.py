@@ -358,7 +358,12 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
                                    babsma=root+'opac',atmos_type=atmos_type,spherical=spherical,tfactor=tfactor)
         elif code == 'synspec' :
             print('synple.syn: ',atmod,wrange,linelists,dw,vmicro,save)
-            wave,flux,cont = synple.syn(atmod,wrange,linelist=linelists,dw=dw,vmicro=vmicro,save=save,clean=not save)
+            # add 10*dw to range because of synple's spline interpolation
+            wtmp=[wrange[0]-10*dw,wrange[1]+10*dw]
+            wave,flux,cont = synple.syn(atmod,wtmp,linelist=linelists,dw=dw,vmicro=vmicro,save=save,clean=not save)
+            wave=wave[10:-10]
+            flux=flux[10:-10]
+            cont=cont[10:-10]
             #wave,flux,cont = synple.syn(atmod,wrange,linelist=linelists,dw=dw,abu=abundances,vmicro=vmicro,save=save)
             fluxnorm = flux/cont
         else :

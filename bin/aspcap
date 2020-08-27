@@ -40,7 +40,9 @@ if __name__ == '__main__' :
     args=parser.parse_args()
 
     if '.yml' in args.planfile :
-        aspcap.dofield(args.planfile,clobber=args.clobber)
+        out=aspcap.fit_params(args.planfile,clobber=args.clobber,fix=['LOG10VDOP'])
+        out2=aspcap.fit_params(args.planfile,aspcapdata=out,clobber=args.clobber,init='FPARAM')
+        out3=aspcap.fit_elems(args.planfile)
 
     else :
         if args.clobber: clobber='1'

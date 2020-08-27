@@ -52,6 +52,7 @@ if __name__ == '__main__' :
         fp.close()
 
     # make the SLURM file
+    os.chdir(cfg['apstar_vers'])
     cmd = 'rv --clobber --threads=32'
     mkslurm.write('"'+cmd+'" plan/a?Star*.yml' ,maxrun=1,idlthreads=16,queryport=1051,queryhost=os.uname()[1],pythreads=1)
 

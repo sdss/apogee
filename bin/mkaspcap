@@ -1,50 +1,77 @@
-#!/bin/csh
+#!/usr/bin/env python
 
-set configfile = $1.cfg
-shift
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import unicode_literals
 
-# set defaults for non-required params
-set commiss = 0
-set nored = 0
-set npar = 0
-set caldir = 0
-set renorm = 0
-set maxwind = 0
+import argparse
+import glob
+import numpy as np
+import os
+import sys
+import subprocess
+import pdb
+from apogee.plan import mkslurm
+import yaml
 
-# set parameters from configuration file
-set cmd = `awk '{printf("set %s = %s\n",$1,$2)}' $configfile`
-echo $cmd
-$cmd
+if __name__ == '__main__' :
 
-# setup idlwrap version based on config file value
-echo aspcap_vers : $aspcap_vers
-if ( $?UUFSCELL ) then
-  set uva = 0
-  alias idl $IDL_DIR/bin/idl
-endif
+    parser = argparse.ArgumentParser(
+        prog=os.path.basename(sys.argv[0]),
+        description='Creates ASPCAP yaml files')
+
+    parser.add_argument("config",type=str, help='configfile')
+    parser.add_argument("--fields",type=str,nargs='+',help='list of fields',default=[])
+    parser.add_argument("--ncpus",type=int,help='number of threads',default=16)
+    parser.add_argument("--cal",type=str,help='caldir',default='cal')
+    args=parser.parse_args()
+
+    # load configuration file
+    cfg = yaml.safe_load(open(args.config,'r'))
+
+    # create output directory
+    outdir = os.environ['APOGEE_ASPCAP']+'/'+cfg['apred_vers']+'/'+cfg['aspcap_vers']+'/plan'
+    os.makedirs(outdir,exist_ok=True)
+
+    # loop over fields
+    for i,field in enumerate(args.fields) :
+        comp=field.split('/')
+        name=comp[-1]
+        telescope=comp[-2]
+        if telescope == 'lco25m' : instrument = 'apogee-s'
+        else : instrument = 'apogee-n'
+
+        fp = open(outdir+'/{:s}_{:s}.yml'.format(name,telescope),'w')
+        fp.write('---\n')
+        fp.write('apogee_ver : {:s}\n'.format(cfg['apogee_ver']))
+        fp.write('apred_vers : {:s}\n'.format(cfg['apred_vers']))
+        fp.write('apstar_vers : {:s}\n'.format(cfg['apstar_vers']))
+        fp.write('aspcap_vers : {:s}\n'.format(cfg['aspcap_vers']))
+        fp.write('aspcap_config : {:s}\n'.format(cfg['aspcap_config']))
+        fp.write('telescope: {:s}\n'.format(telescope))
+        fp.write('instrument: {:s}\n'.format(instrument))
+        fp.write('apvisit: 0\n')
+        fp.write('ncpus: {:d}\n'.format(args.ncpus))
+        fp.write('queue: 0\n')
+        fp.write('qname: apogee\n')
+        fp.write('qgroup: apogee\n')
+        fp.write('caldir: {:s}\n'.format(args.cal))
+        fp.write('field: {:s}\n'.format(name))
+        fp.close()
 
 
-# make the individual .par files for each requested field
-set fields = ($*)
-echo $fields
-idl << endidl
+    # make the SLURM file
+    os.chdir(os.environ['APOGEE_ASPCAP']+'/'+cfg['apred_vers']+'/'+cfg['aspcap_vers'])
+    cmd = 'aspcap'
+    mkslurm.write('"'+cmd+'" plan/*.yml' ,maxrun=2,idlthreads=16,queryport=1051,queryhost=os.uname()[1],pythreads=1)
 
-  fields='$*'
-  field=strsplit(fields,' ',/ext)
-  help,fields,field
-  print,fields
-  print,field
-  print,'$apred_vers'
-  print,'$apstar_vers'
-  print,'$aspcap_vers'
-  print,'$results_vers'
-  aspcap_mkplan,field,apred_vers='$apred_vers',apstar_vers='$apstar_vers',aspcap_vers='$aspcap_vers',aspcap_config='$aspcap_config',ncpus='$ncpus',queue='$queue',noplot='$noplot',noelem='$noelem',nstars='$nstars',commiss=$commiss,nored=$nored,visits='$visits',caldir='$caldir',npar='$npar',renorm='$renorm',maxwind='$maxwind'
-  aspcap_mkplan,field,apred_vers='$apred_vers',apstar_vers='$apstar_vers',aspcap_vers='$aspcap_vers',aspcap_config='$aspcap_config',ncpus='$ncpus',queue='$queue',noplot='$noplot',noelem='$noelem',nstars='$nstars',commiss=$commiss,nored=$nored,visits='$visits',caldir='$caldir',npar='$npar',renorm='$renorm',maxwind='$maxwind',/single
-endidl
+    #sort=np.argsort(nstars)[::-1]
+    #fp=open(topdir+'/slurm/fields.sort','w')
+    #for i in range(len(sort)) : 
+    #    tel=args.fields[sort[i]].split('/')[0]
+    #    field=args.fields[sort[i]].split('/')[1]
+    #    fp.write('{:s}/plan/aspcapStar-{:s}.par {:d}\n'.format(tel,field,nstars[sort[i]]))
+    #fp.close()
+    #print('Modify slurm/aspcap to use fields.sort if desired...')
 
-
-cd $APOGEE_ASPCAP/$apred_vers/$aspcap_vers
-mkslurm "aspcap apo*/plan/aspcapStar*.par lco*/plan/aspcapStar*.par" --maxrun=2 --idlthreads=16 --queryport=1051
-
-echo "\n\nREMEMBER to modify the aspcapStar*.par files if non-default options,"
-echo "  e.g., noplot, noelem, fits, are desired"

@@ -3,6 +3,7 @@ Routines for handling ASPCAP bitmasks
 """
 
 import numpy as np
+import pdb
 
 class BitMask():
     '''
@@ -23,8 +24,10 @@ class BitMask():
         '''
         strflag=''
         for ibit,name in enumerate(self.name) :
-            if ( val & 2**ibit ) > 0 and ( level == 0 or self.level == level ) :
-              strflag = strflag + name +','
+            try:
+                if ( np.uint64(val) & np.uint64(2**ibit) ) > 0 and ( level == 0 or self.level == level ) :
+                  strflag = strflag + name +','
+            except: pdb.set_trace()
         if strip : return strflag.strip(',')
         else : return strflag
 
@@ -34,11 +37,11 @@ class BitMask():
         """
         if type(name) is str :
             name = [name]
-        bitval = 0
+        bitval = np.uint64(0)
         for n in name :
             try:
                 j=self.name.index(n.strip())
-                bitval|=2**j
+                bitval|=np.uint64(2**j)
             except :
                 print('WARNING: undefined name: ',n)
         return bitval
@@ -48,20 +51,21 @@ class BitMask():
         """
         Return bitmask value of all bits that indicate BAD in input bitmask
         """
-        val=0
+        val=np.uint64(0)
         for i,level in enumerate(self.level) :
             if level == 1 :
-                val=val | 2**i
+                try: val=val | np.uint64(2**i)
+                except: pdb.set_trace()
         return val
 
     def warnval(self) :
         """
         Return bitmask value of all bits that indicate BAD in input bitmask
         """
-        val=0
+        val=np.uint64(0)
         for i,level in enumerate(self.level) :
             if level == 2 :
-                val=val | 2**i
+                val=val | np.uint64(2**i)
         return val
 
 class StarBitMask(BitMask):
@@ -126,11 +130,19 @@ class AspcapBitMask(BitMask):
     name=(['TEFF_WARN','LOGG_WARN','VMICRO_WARN','M_H_WARN','ALPHA_M_WARN','C_M_WARN','N_M_WARN','STAR_WARN',
           'CHI2_WARN','COLORTE_WARN','ROTATION_WARN','SN_WARN','SPEC_HOLE_WARN','ATMOS_HOLE_WARN','VSINI_WARN','',
           'TEFF_BAD','LOGG_BAD','VMICRO_BAD','M_H_BAD','ALPHA_M_BAD','C_M_BAD','N_M_BAD','STAR_BAD',
-          'CHI2_BAD','COLORTE_BAD','ROTATION_BAD','SN_BAD','SPEC_HOLE_BAD','ATMOS_HOLE_BAD','VSINI_BAD','NO_ASPCAP_RESULT'])
+          'CHI2_BAD','COLORTE_BAD','ROTATION_BAD','SN_BAD','SPEC_HOLE_BAD','ATMOS_HOLE_BAD','VSINI_BAD','NO_ASPCAP_RESULT',
+          'MISSING_APSTAR','NO_GRID','','','','','','',
+          '','','','','','','','',
+          '','','','','','','','',
+          '','','','','','','',''])
     level=([2,2,0,0,0,0,0,2,
-              2,2,2,2,2,2,0,0,
-              1,1,0,0,0,0,0,1,
-              1,1,1,1,1,2,0,1])
+            2,2,2,2,2,2,0,0,
+            1,1,0,0,0,0,0,1,
+            1,1,1,1,1,2,0,1,
+            1,2,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0])
 
     descrip=([
      'WARNING on effective temperature (see PARAMFLAG[0] for details) ',
@@ -163,8 +175,11 @@ class AspcapBitMask(BitMask):
      'S/N<50 (BAD)',
      'Grid point within 1 grid steps of hole-filled synthesis ',
      'Grid point within 1 grid steps of hole-filled atmosphere ',
-     ' ',
-     ' '
+     ' ',' ',
+     'Missing apStar file','Not processed by any ASPCAP grid','','','','','','',
+     '','','','','','','','',
+     '','','','','','','','',
+     '','','','','','','',''
      ])
 
 class ParamBitMask(BitMask):

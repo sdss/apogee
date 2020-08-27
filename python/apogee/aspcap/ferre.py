@@ -76,9 +76,10 @@ def writenml(outfile,file,libhead,ncpus=2,nruns=1,inter=3,direct=1,pca=1,errbar=
         f.write(' NRUNS = {:2d}\n'.format(nruns))
     if stopcr is not None : f.write(' STOPCR = {:f}\n'.format(stopcr))
     if ttie is not None :
-        f.write(' NTIE = {:2d}\n'.format(len(ttie)))
+        j=np.where(np.array(ttie) >0)[0]
+        f.write(' NTIE = {:2d}\n'.format(len(j)))
         f.write(' TYPETIE = 1\n')
-        for i,tie in enumerate(ttie) :
+        for i,tie in enumerate(np.array(ttie)[j]) :
             f.write(' INDTIE({:d}) = {:d}\n'.format(i+1,tie))
             f.write(' TTIE0({:d}) = 0.\n'.format(i+1,tie))
             f.write(' TTIE({:d},{:d}) = -1.\n'.format(i+1,indv[0],tie))
@@ -119,7 +120,6 @@ def writeipf(name,libfile,stars,param=None) :
     index=np.zeros(nparams,dtype=int)
     for i in range(nparams) :
         index[i] = np.where(params == libhead0['LABEL'][i].decode())[0]
-        print(i,index[i])
     # if input parameters aren't specified, use zeros
     if param is None :
         param=np.zeros([len(stars),len(params)])

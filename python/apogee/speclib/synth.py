@@ -1597,7 +1597,7 @@ def getlsf(lsfid,waveid,apred='r10',telescope='apo25m',highres=9,prefix='lsf_',f
    
 def elemsens(files=None,outfile='elemsens',highres=9,waveid=13140000,lsfid=14600018,apred='r12',telescope='apo25m',fiber='combo',
              calc=False,plot=True,ls=None,htmlfile='elemsens.html',filt=None,filtdir=None,linelist='20180901') :
-    """ Create spectra at a range of paramters with individual abundances varied independently
+    """ Create spectra at a range of parameters with individual abundances varied independently
     """
     if files==None : files=sample.elemsens()
     hdu=fits.HDUList()

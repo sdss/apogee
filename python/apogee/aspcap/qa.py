@@ -1288,3 +1288,27 @@ def average(a,ind,apred='r12',aspcap='l33', median=False) :
     if median: return np.median(spec,axis=0), np.median(err,axis=0), np.median(ratio,axis=0)
     else : return spec.mean(axis=0) ,err.mean(axis=0), ratio.mean(axis=0)
 
+
+def resid(data,spec,teff=[3000,3500,4000,4500,5000,5500],logg=[0,2,4,6],out='resid') :
+    """ Make average residual plots for different ranges of Teff, logg
+    """
+    wave = np.hstack(aspcap.gridWave()).flatten()
+
+    grid=[]
+    for ite in range(len(teff[0:-1])) :
+        xg=[]
+        for ilogg in range(len(logg[0:-1])) :
+            fig,ax=plots.multi(1,2,hspace=0.001,wspace=0.001,figsize=(24,8))
+            gd = np.where((data['FPARAM'][:,0]>=teff[ite]) & (data['FPARAM'][:,0]<teff[ite+1])  &
+                          (data['FPARAM'][:,1]>=logg[ilogg]) & (data['FPARAM'][:,1]<logg[ilogg+1])  ) [0]
+            res=np.median( spec['SPEC'][gd,:]-spec['SPEC_BESTFIT'][gd,:],axis=0 )
+            plots.plotl(ax[0],wave,res)
+            med=np.median( spec['SPEC'][gd,:],axis=0 )
+            plots.plotl(ax[1],wave,med)
+            name='{:s}_{:d}_{:d}.png'.format(out,ite,ilogg)
+            fig.savefig(name)
+            plt.close()
+            xg.append(name)
+        grid.append(xg)
+
+    html.htmltab(grid,file='resid.html')

@@ -716,17 +716,17 @@ def allplots() :
     apl=apload.apLoad(dr='dr12')
     errplots(tags=['PARAM_ALPHA_M','O_H','MG_H','NI_H','PARAM_M_H'])
 
-def check() :
+def logg(a,caldir='cal/') :
     """ Check IDL corrections for log g
     """
-    a=fits.open('allStar-r12-l33.fits')[1].data
+    #a=fits.open('allStar-r12-l33.fits')[1].data
 
     aspcapmask=bitmask.AspcapBitMask()
     parammask=bitmask.ParamBitMask()
     starmask=bitmask.StarBitMask()
     gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
 
-    cal=fits.open('cal/giant_loggcal.fits')[1].data
+    cal=fits.open(caldir+'/giant_loggcal.fits')[1].data
     rgbsep=cal['rgbsep'][0]
     cnsep=cal['cnsep'][0]
     rclim=cal['rclim'][0]
@@ -749,7 +749,7 @@ def check() :
                 (a['FPARAM'][gd,0]<6000)&(a['FPARAM'][gd,0]>3000))[0]
     rccorr=rcfit2[0] + rcfit2[1]*a['FPARAM'][gd,1] + rcfit2[2]*a['FPARAM'][gd,1]**2
     new[gd[rc]]=a['FPARAM'][gd[rc],1]-rccorr[rc]
-    rcidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RC')) >0)[0]
+    #rcidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RC')) >0)[0]
 
     # select RGB
     rgb=np.where(((a['FPARAM'][gd,1]>rclim[1])|(a['FPARAM'][gd,1]<rclim[0])|
@@ -763,9 +763,9 @@ def check() :
     rgbcorr=(rgbfit2[0] + rgbfit2[1]*logg + rgbfit2[2]*logg**2 +
                        rgbfit2[3]*logg**3 + rgbfit2[4]*mh )
     new[gd[rgb]]=a['FPARAM'][gd[rgb],1]-rgbcorr[rgb]
-    rgbidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RGB')) >0)[0]
+    #rgbidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RGB')) >0)[0]
 
-    cal=fits.open('cal/dwarf_loggcal.fits')[1].data
+    cal=fits.open(caldir+'/dwarf_loggcal.fits')[1].data
     teff=clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
     logg=clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
     mh=clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
@@ -773,7 +773,7 @@ def check() :
     mscorr=msfit[0]+msfit[1]*teff+msfit[2]*mh
     ms=np.where(a['FPARAM'][gd,1] > cal['calloggmin'])[0]
     new[gd[ms]]=a['FPARAM'][gd[ms],1]-mscorr[ms]
-    msidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_MS')) >0)[0]
+    #msidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_MS')) >0)[0]
 
     trans=np.where((a['FPARAM'][gd,1] < 4) & (a['FPARAM'][gd,1] > 3.5) &
                 (a['FPARAM'][gd,0] < calteffmax) )[0]
@@ -782,7 +782,7 @@ def check() :
 
     diff =a['PARAM'][:,1]-new
     bd = np.where (np.isclose(diff,0.,1.e-6,0.01) == False)[0]
-    pdb.set_trace()
+    return new
 
 def clip(x,xmin,xmax) :
     """ clip input array so that x<xmin becomes xmin, x>xmax becomes xmax, return clipped array

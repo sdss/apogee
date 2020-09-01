@@ -618,7 +618,6 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
 
     # loop over grids
     for igrid,grid in enumerate(config['grids']) :
-        print('Grid: ',grid['name'])
 
         # output directory for spectra
         outspec=outdir+'/ferre/spectra/'+grid['name']+'-'+field
@@ -626,16 +625,17 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
         except: pass
 
         libfile = 'lib_'+grid['name']+'/'+grid['lib']+'.hdr'
+        # get stars for which best fit was in this grid
+        gd = np.where(aspcapfield['CLASS'] == grid['name'])[0]
+        print('Grid: ',grid['name'],len(gd))
+        if len(gd) == 0 : continue
+
         if clobber or not os.path.exists(outspec+'.obs') :
             link(os.environ['APOGEE_SPECLIB']+'/synth/',os.path.dirname(outspec)+'/../lib_'+grid['name'])
 
             # get FERRE library information for this grid
             libhead0,libhead = ferre.rdlibhead(outdir+'/ferre/'+libfile)
             libhead0['FILE'] = libfile
-
-            # get stars for which best fit was in this grid
-            gd = np.where(aspcapfield['CLASS'] == grid['name'])[0]
-            if len(gd) == 0 : continue
 
             # loop over stars and accumulate input for FERRE
             inpars=[]

@@ -14,10 +14,13 @@ import matplotlib
 try: matplotlib.use('Agg')
 except: pass
 
+import copy
 import numpy as np
 import glob
 import os
+import shutil
 import pdb
+import time
 import yaml
 from shutil import copyfile
 import subprocess
@@ -32,6 +35,7 @@ from tools import match
 from tools import html
 from apogee.utils import apload
 from apogee.utils import bitmask
+from apogee.utils import gaia
 from apogee.utils import spectra
 from apogee.speclib import isochrones
 try: from apogee.aspcap import ferre
@@ -54,7 +58,7 @@ def elems(nelem=0) :
     elems=['C','CI','N','O','Na','Mg','Al','Si','P','S','K','Ca','Ti','TiII','V','Cr','Mn','Fe','Co','Ni','Cu','Ge','Rb','Ce','Nd','Yb']
     #return,['C','N','O','Na','Mg','Al','Si','S','K','Ca','Ti','V','Mn','Fe','Ni','Nd']
     #return,['C','N','O','Na','Mg','Al','Si','S','K','Ca','Ti','V','Mn','Fe','Ni']
-    elemtoh=[0,0,0,0,1,0,1,0,1,0,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1] #0,0,0,0,0,0,0,0,0]
+    elemtoh=[0,0,0,0,1,0,1,0,1,0,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1] #0,0,0,0,0,0,0,0,0]
     tagnames=[]
     elemfitnames=[]
     for i in range(len(elems) ) :
@@ -64,7 +68,7 @@ def elems(nelem=0) :
         else :
             tagnames.append(elems[i]+'_M')
             elemfitnames.append('['+elems[i]+'/M]')
-    return elems,elemtoh,tagnames,elemfitnames
+    return np.array(elems),np.array(elemtoh),np.array(tagnames),np.array(elemfitnames)
 
 logw0=4.179
 dlogw=6.e-6
@@ -118,47 +122,9 @@ def apStar2aspcap(apstar):
         aspcap[pin[0]:pin[1]] = apstar[pout[0]:pout[1]] 
     return aspcap
 
-def readstars(starlist,libpar) :
-    '''
-    Runs stars in starlist through FERRE using libpar
-    '''
-    for star in starlist :
-        spec,err=readstar(star)
-        cont=cont_normalize(spec)
-
-def getparams(name,lib,coarse=None,n=None) :
-
-    objs=ascii.read(name+'.ipf')['col1']
-    if n is not None : objs = objs[0:n]
-
-    # if we have a coarse library, run FERRE with it first
-    #   to get starting guesses
-    if coarse is not None :
-        l=ferre.rdlibhead(coarse+'.hdr')[0]
-        link(name+'.obs',name+'_coarse.obs')
-        link(name+'.err',name+'_coarse.err')
-        ferre.writeipf(name+'_coarse',coarse+'.hdr',objs)
-        ferre.writenml(name+'_coarse.nml',name+'_coarse',l,algor=3,renorm=4,obscont=1,ncpus=32,init=1)
-        copyfile(name+'_coarse.nml','input.nml')
-        subprocess.call(['ferre.x'],shell=False)
-        out,outspec,outwave=ferre.read(name+'_coarse',coarse+'.hdr')
-        ferre.writeipf(name+'_1',lib+'.hdr',objs,param=out['FPARAM']) 
-    else :
-        ferre.writeipf(name+'_1',lib+'.hdr',objs)
-    l=ferre.rdlibhead(lib+'.hdr')[0]
-    ferre.writenml(name+'_1.nml',name+'_1',l,algor=3,renorm=4,obscont=1,ncpus=32,init=1)
-    copyfile(name+'_1.nml','input.nml')
-    link(name+'.obs',name+'_1.obs')
-    link(name+'.err',name+'_1.err')
-    subprocess.call(['ferre.x'],shell=False)
-    out,outspec,outwave=ferre.read(name+'_1',lib+'.hdr')
-
-
 def link(src,dest) :
-    try :
-        os.remove(dest)
-    except :
-        pass
+    try : os.remove(dest)
+    except : pass
     os.symlink(src,dest)
    
 def elemsens(els=None,plot=None,ylim=[0.1,-0.3],teff=4750,logg=2.,feh=-1.,smooth=None) :
@@ -242,545 +208,16 @@ def data(str,loc=None) :
     return new
 
 def elemmask(el,maskdir='filters_26112015',plot=None,yr=[0,1]) :
-    '''
-    '''
+    """ Reads element window file, optional plot
+    """
     mask=np.loadtxt(os.getenv('SPECLIB_DIR')+'/lib/'+maskdir+'/'+el+'.filt') 
     wave=np.loadtxt(os.getenv('SPECLIB_DIR')+'/lib/'+maskdir+'/wave.dat')
     if plot is not None :
         plots.plotl(plot,wave,mask,yr=yr)
     return wave,mask
 
-def intplot(a=None,param='FPARAM',indir='cal',apred='r10',aspcap='t33b',verbose=False) :
-    """ Given input structure, plot HR diagram, and enter event loop to mark stars to plot spectra
-    """
-
-    load=apload.ApLoad(apred=apred,aspcap=aspcap,verbose=verbose)
-    if a is None : a=load.allCal()[1].data
-
-    fig,ax = hr(a,param=param)
-    plots.event(fig)
-    sf,sa=plots.multi(1,1)
-    nplot = 11
-    hf,ha=plots.multi(1,nplot,figsize=(8.5,11),hspace=0.2)
-    ha2=[]
-    for i in range(nplot) : ha2.append(ha[i].twinx())
-    print('hit any key near object to plot in HR diagram, q to quit')
-    while (1) :
-        ret=plots.mark(fig)
-        if ret[2] == 'q' : break
-        ind=plots._index[0]
-        load.settelescope('apo25m')
-        try : f=load.aspcapField(a['ALTFIELD'][ind])
-        except : f=load.aspcapField(a['FIELD'][ind])
-        if f is None :
-            load.settelescope('lco25m')
-            try : f=load.aspcapField(a['ALTFIELD'][ind])
-            except : f=load.aspcapField(a['FIELD'][ind])
-        if f is None :
-            f=glob.glob(indir+'/*'+a['APOGEE_ID'][plots._index[0]]+'*')
-            dir=os.path.dirname(f[0])
-            f=glob.glob(dir+'/*aspcapField*.fits')
-            f=fits.open(f[0])
-        print('f: ',f)
-        data=f[1].data
-        j=np.where(data['APOGEE_ID'] == a['APOGEE_ID'][plots._index[0]])[0][0]
-        sa.cla()
-        for i in range(11) : 
-            ha[i].cla()
-            ha2[i].cla()
-            ha[i].set_ylabel('Flux')
-            ha2[i].set_ylabel(r'$\chi^2$')
-            ha[i].set_ylim(0.5,1.3)
-            ha2[i].set_ylim(0.,20.)
-        plot(10.**f[3].data['WAVE'][0],f[2].data['SPEC'][j,:],ax=ha,sum=True,color='k')
-        plot(10.**f[3].data['WAVE'][0],f[2].data['SPEC_BESTFIT'][j,:],ax=ha,sum=True,color='b')
-        chi2 = (f[2].data['SPEC'][j,:]-f[2].data['SPEC_BESTFIT'][j,:])**2/f[2].data['ERR'][j,:]**2
-        plot(10.**f[3].data['WAVE'][0],chi2,ax=ha2,sum=True,alpha=0.4)
-        plots.plotl(sa,10.**f[3].data['WAVE'][0],f[2].data['SPEC'][j,:])
-        plots.plotl(sa,10.**f[3].data['WAVE'][0],f[2].data['SPEC_BESTFIT'][j,:])
-        text1=r'ID: {:s} FIELD: {:s} SNR: {:6.1f} $\chi^2$: {:6.1f}'.format(
-             data['APOGEE_ID'][j],data['FIELD'][j],data['SNR'][j],data['PARAM_CHI2'][j])
-        text2=r'Teff: {:5.0f} logg: {:5.1f} [M/H]: {:5.2f} [$\alpha$/M]: {:5.2f} [C/M]: {:5.2f} [N/M]: {:5.2f}'.format(
-             data[param][j,0],data[param][j,1],data[param][j,3],data[param][j,6],data[param][j,4],data[param][j,5])
-        sf.suptitle(text1+'\n'+text2)
-        hf.suptitle(text1+'\n'+text2)
-        plt.draw()
-        plt.show()
-    plt.close(hf)
-    plt.close(sf)
-    plt.close(fig)
-
-def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=None, alpha=0.3,hard=None, gridclass=None,xr=[8000,3000],yr=[6,-1],grid=False,contour=False,snrbd=0,target=None,size=5) :
-    """ Plot an HR diagram from input structure
-
-        Args:
-            all  : structure that includes stellar parameter array with (Teff, logg, ...)
-            param : tag to use (default='FPARAM')
-            colorbar : show colorbar? (default= False)
-    """
-    fig,ax = plots.multi(1,2,figsize=(8,12),hspace=0.001)
-    if gridclass is None :
-        teff=a[param][:,0]
-        logg=a[param][:,1]
-    else :
-        teff=a['FPARAM_CLASS'][:,gridclass,0]
-        logg=a['FPARAM_CLASS'][:,gridclass,1]
-    if zt == '[M/H]' : 
-        z=a[param][:,3]
-        if zr is None : zr=[-2,0.5]
-    elif zt == 'chi2' : 
-        z=a['PARAM_CHI2']
-        if zr is None : zr=[0,10]
-    aspcapmask=bitmask.AspcapBitMask()
-    starmask=bitmask.StarBitMask()
-    bd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) > 0) |
-                 ((a['STARFLAG']&starmask.badval()) > 0) |
-                  (a['SNR']<snrbd) ) [0]
-    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) &
-                 ((a['STARFLAG']&starmask.badval()) == 0) &
-                  (a['SNR']>=snrbd) ) [0]
-    if contour :
-        plots.plotp(ax[0],teff,logg,xr=xr,yr=yr,
-                    xt='Teff',yt='log g',contour=-1)
-        plots.plotp(ax[1],teff,logg,xr=xr,yr=yr,
-                    xt='Teff',yt='log g',contour=-1)
-    else :
-        plots.plotc(ax[0],teff[gd],logg[gd],z[gd],xr=xr,yr=yr,zr=zr,
-                    xt='Teff',yt='log g',zt=zt,colorbar=colorbar,size=size)
-        plots.plotc(ax[1],teff[gd],logg[gd],z[gd],xr=xr,yr=yr,zr=zr,
-                    xt='Teff',yt='log g',zt=zt,colorbar=colorbar,size=size)
-        plots.plotp(ax[1],teff[bd],logg[bd],color='k',size=2)
-    if grid: 
-        ax[0].grid()
-        ax[1].grid()
-    ax[0].text(0.05,0.9,'{:d} stars, S/N>{:5.0f}, no GRIDEDGE_BAD'.format(len(gd),snrbd),transform=ax[0].transAxes)
-    ax[1].text(0.05,0.9,'{:d} stars'.format(len(gd)+len(bd)),transform=ax[1].transAxes)
-    plots._data = a
-    if iso is not None:
-        cmap = matplotlib.cm.get_cmap('rainbow')
-        for mh in [-2.0,-1.0,0.0,0.5] :
-            if mh < -0.01 : name = 'zm{:02d}'.format(int(abs(mh)*10.))
-            else : name = 'zp{:02d}'.format(int(abs(mh)*10.))
-            rgba=cmap((mh-zr[0])/(zr[1]-zr[0]))
-            for age in iso :
-                isodata=isochrones.read(os.environ['ISOCHRONE_DIR']+'/'+name+'.dat',agerange=[age-0.01,age+0.01])
-                isochrones.plot(ax[0],isodata,'teff','logg',color=rgba,alpha=alpha)
-    if hard is not None: 
-        fig.savefig(hard)
-        plt.close()
-
-    if (target is not None) and ('EXTRATARG' in a.columns.names) :
-        tfig,tax=plots.multi(1,1)
-        main =np.where(a['EXTRATARG'][gd] == 0)[0]
-        plots.plotc(tax,teff[gd[main]],logg[gd[main]],z[gd[main]],xr=xr,yr=yr,zr=zr,
-                    xt='Teff',yt='log g',zt=zt,colorbar=colorbar,size=size)
-        tax.text(0.05,0.9,'{:d} stars, main sample, S/N>{:5.0f}, no GRIDEDGE_BAD'.format(len(main),snrbd),transform=tax.transAxes)
-        tax.grid()
-
-        if iso is not None:
-            cmap = matplotlib.cm.get_cmap('rainbow')
-            for mh in [-2.0,-1.0,0.0,0.5] :
-                if mh < -0.01 : name = 'zm{:02d}'.format(int(abs(mh)*10.))
-                else : name = 'zp{:02d}'.format(int(abs(mh)*10.))
-                rgba=cmap((mh-zr[0])/(zr[1]-zr[0]))
-                for age in iso :
-                    isodata=isochrones.read(os.environ['ISOCHRONE_DIR']+'/'+name+'.dat',agerange=[age-0.01,age+0.01])
-                    isochrones.plot(tax,isodata,'teff','logg',color=rgba,alpha=alpha)
-        tfig.savefig(target+'_main.png')
-        plt.close(tfig)
-
-        t1=bitmask.Apogee2Target1()
-        t2=bitmask.Apogee2Target2()
-        t3=bitmask.Apogee2Target3()
-        t1_1=bitmask.ApogeeTarget1()
-        t2_1=bitmask.ApogeeTarget2()
-        tfig,tax=plots.multi(1,1)
-        plots.plotp(tax,teff[gd[main]],logg[gd[main]],color='b',xr=xr,yr=yr,
-                    xt='Teff',yt='log g',label='MAIN')
-
-        mc =np.where(((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_MAGCLOUD_MEMBER'])) > 0) |
-                     ((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_MAGCLOUD_CANDIDATE'])) > 0) )[0]
-        plots.plotp(tax,teff[gd[mc]],logg[gd[mc]],color='g',xr=xr,yr=yr,
-                    xt='Teff',yt='log g',label='MC')
-        dsph =np.where(((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_DSPH_MEMBER'])) > 0) |
-                     ((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_DSPH_CANDIDATE'])) > 0) |
-                     ((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_SGR_DSPH'])) > 0)  )[0]
-        plots.plotp(tax,teff[gd[dsph]],logg[gd[dsph]],color='c',xr=xr,yr=yr,
-                    xt='Teff',yt='log g',label='DSPH')
-        rr =np.where((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_RRLYR'])) > 0 )[0]
-        plots.plotp(tax,teff[gd[rr]],logg[gd[rr]],color='r',xr=xr,yr=yr,
-                    xt='Teff',yt='log g',label='RRLYR')
-        young =np.where(((a['APOGEE2_TARGET3'][gd] & t3.getval(['APOGEE2_YOUNG_CLUSTER'])) > 0) |
-                        ((a['APOGEE_TARGET2'][gd] & t2_1.getval(['APOGEE_EMBEDDEDCLUSTER_STAR'])) > 0) )[0]
-        plots.plotp(tax,teff[gd[young]],logg[gd[young]],color='m',xr=xr,yr=yr,
-                    xt='Teff',yt='log g',label='YOUNG')
-        emission =np.where( ((a['APOGEE_TARGET2'][gd] & t2_1.getval(['APOGEE_EMISSION_STAR'])) > 0) )[0]
-        plots.plotp(tax,teff[gd[emission]],logg[gd[emission]],color='y',xr=xr,yr=yr,
-                    xt='Teff',yt='log g',label='EMISSION')
-        extended =np.where( ((a['APOGEE_TARGET1'][gd] & t1_1.getval(['APOGEE_EXTENDED'])) > 0) |
-                     ((a['APOGEE_TARGET1'][gd] & t1_1.getval(['APOGEE_M31_CLUSTER'])) > 0) |
-                     ((a['APOGEE2_TARGET3'][gd] & t3.getval(['APOGEE2_M31'])) > 0) |
-                     ((a['APOGEE2_TARGET3'][gd] & t3.getval(['APOGEE2_M33'])) > 0) )[0]
-        plots.plotp(tax,teff[gd[extended]],logg[gd[extended]],color='orange',xr=xr,yr=yr,
-                    xt='Teff',yt='log g',label='EXTENDED')
-        tax.grid()
-        tax.legend(loc='upper left')
-        tfig.savefig(target+'_targ.png')
-        plt.close(tfig)
-
-    return fig,ax
-
-def multihr(a,param='FPARAM',colorbar=False,hard=None,xr=[8000,3000],yr=[6,-1],size=5) :
-    """ Series of HR diagram plots, color-coded by different quantities
-    """
-    fig,ax = plots.multi(3,4,hspace=0.001,wspace=0.001,figsize=(12,10))
-
-    aspcapmask=bitmask.AspcapBitMask()
-    starmask=bitmask.StarBitMask()
-    bd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) > 0) |
-                 ((a['STARFLAG']&starmask.badval()) > 0) ) [0]
-    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) &
-                 ((a['STARFLAG']&starmask.badval()) == 0) ) [0]
-
-    z=a[param][gd,3]
-    zr=[-2,0.5]
-    zt='[M/H] (-2:0.5)'
-    plots.plotc(ax[0,0],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
-                xt='Teff',yt='log g',zt=zt,colorbar=colorbar,size=size)
-    ax[0,0].text(0.05,0.9,zt,transform=ax[0,0].transAxes)
-
-    z=10.**a[param][gd,2]
-    zr=[0.3,4]
-    zt='vmicro (0.3:4)'
-    plots.plotc(ax[0,1],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
-                xt='Teff',zt=zt,colorbar=colorbar,size=size)
-    ax[0,1].text(0.05,0.9,zt,transform=ax[0,1].transAxes)
-
-    z=10.**a[param][gd,7]
-    zr=[0,10]
-    zt='vrot (0:10)'
-    plots.plotc(ax[0,2],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
-                xt='Teff',zt=zt,colorbar=colorbar,size=size)
-    ax[0,2].text(0.05,0.9,zt,transform=ax[0,2].transAxes)
-
-    z=a[param][gd,4]
-    zr=[-0.5,0.5]
-    zt='[C/M] (-0.5:0.5)'
-    plots.plotc(ax[1,0],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
-                xt='Teff',yt='log g',zt=zt,colorbar=colorbar,size=size)
-    ax[1,0].text(0.05,0.9,zt,transform=ax[1,0].transAxes)
-
-    z=a[param][gd,5]
-    zr=[-0.5,0.5]
-    zt='[N/M] (-0.5:0.5)'
-    plots.plotc(ax[1,1],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
-                xt='Teff',zt=zt,colorbar=colorbar,size=size)
-    ax[1,1].text(0.05,0.9,zt,transform=ax[1,1].transAxes)
-
-    z=a[param][gd,4]-a[param][gd,5]
-    zr=[-0.5,0.5]
-    zt='[C/N] (-0.5:0.5)'
-    plots.plotc(ax[1,2],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
-                xt='Teff',zt=zt,colorbar=colorbar,size=size)
-    ax[1,2].text(0.05,0.9,zt,transform=ax[1,2].transAxes)
-
-    z=a[param][gd,6]
-    zr=[-1,1.0]
-    zt=r'[$\alpha$/M] (-1:1)'
-    plots.plotc(ax[2,0],a[param][gd,0],a[param][gd,1],z,xr=xr,yr=yr,zr=zr,
-                xt='Teff',yt='log g',zt=zt,colorbar=colorbar,size=size)
-    ax[2,0].text(0.05,0.9,zt,transform=ax[2,0].transAxes)
-
-    z=a['VSCATTER']
-    zr=[0,5]
-    zt='VSCATTER'
-    plots.plotc(ax[2,1],a[param][gd,0],a[param][gd,1],z[gd],xr=xr,yr=yr,zr=zr,
-                xt='Teff',zt=zt,colorbar=colorbar,size=size)
-    ax[2,1].text(0.05,0.9,zt,transform=ax[2,1].transAxes)
-
-    z=a['MEANFIB']
-    zr=[0,300]
-    zt='MEANFIB'
-    plots.plotc(ax[2,2],a[param][gd,0],a[param][gd,1],z[gd],xr=xr,yr=yr,zr=zr,
-                xt='Teff',zt=zt,colorbar=colorbar,size=size)
-    ax[2,2].text(0.05,0.9,zt,transform=ax[2,2].transAxes)
-
-    try: z=np.log10(a['PARAM_CHI2'])
-    except: z=np.log10(a['ASPCAP_CHI2'])
-    zr=[0,2]
-    zt='log(CHI2) (0:2)'
-    plots.plotc(ax[3,0],a[param][gd,0],a[param][gd,1],z[gd],xr=xr,yr=yr,zr=zr,
-                xt='Teff',zt=zt,colorbar=colorbar,size=size)
-    ax[3,0].text(0.05,0.9,zt,transform=ax[3,0].transAxes)
-
-    z=a['SNR']
-    zr=[20,200]
-    zt='SNR (20:200)'
-    plots.plotc(ax[3,1],a[param][gd,0],a[param][gd,1],z[gd],xr=xr,yr=yr,zr=zr,
-                xt='Teff',zt=zt,colorbar=colorbar,size=size)
-    ax[3,1].text(0.05,0.9,zt,transform=ax[3,1].transAxes)
-
-    z=a['SNR']
-    zr=[20,100]
-    zt='SNR (20:100)'
-    plots.plotc(ax[3,2],a[param][gd,0],a[param][gd,1],z[gd],xr=xr,yr=yr,zr=zr,
-                xt='Teff',zt=zt,colorbar=colorbar,size=size)
-    ax[3,2].text(0.05,0.9,zt,transform=ax[3,2].transAxes)
-
-    if hard is not None: 
-        fig.savefig(hard)
-        plt.close()
-
-def plot(wave,spec,color=None,figax=None,ax=None,hard=None,sum=False,title=None,alpha=None,yr=None,lineids=None,multipage=False, refline=None, figsize=(8,11), textsize=8) :
-    """  Multipanel plots of APOGEE spectra
-    """
-    # set up plots
-    if sum : ny=11
-    else : ny=10
-    if figax is not None : fig,ax=figax
-    if ax is None : fig,ax=plots.multi(1,ny,figsize=figsize,hspace=0.2)
-
-    # get line labels if requested
-    if lineids is not None :
-        file = os.environ['APOGEE_DIR']+'/data/lines/atlas_line_ids_apogee.txt'
-        lines = np.loadtxt(file,delimiter=';',dtype={'names' : ('wave','label'), 'formats': ('f4','S24') } )
-        lines['wave'] = spectra.airtovac(lines['wave'])
-
-    # plot chunks of 200 A
-    for i in range(10) :
-        plots.plotl(ax[i],wave,spec,xr=[15000+i*200,15200+i*200],color=color,linewidth=0.3,alpha=alpha,yr=yr)
-        ax[i].xaxis.label.set_size(6)
-        ax[i].yaxis.label.set_size(6)
-        ax[i].tick_params(axis = 'both', which = 'major', labelsize = 6)
-        ax[i].xaxis.set_minor_locator(plt.MultipleLocator(10.))
-        if lineids is not None :
-            gd = np.where( (lines['wave'] > 15000+i*200) & ( lines['wave'] < 15200+i*200) ) [0]
-            for line in lines[gd] :
-                ax[i].text(line['wave'],lineids,line['label'],rotation=90,size=textsize,ha='center',va='bottom')
-        if refline is not None :
-            # plot a reference horizontal line
-            plots.plotl(ax[i],wave,spec*0.+refline,xr=[15000+i*200,15200+i*200],color=color,linewidth=0.3,alpha=alpha,yr=yr,ls=':')
-
-        if multipage :
-            mfig,multiax = plots.multi(1,1)
-            plots.plotl(multiax,wave,spec,xr=[15000+i*200,15200+i*200],color=color,linewidth=0.3,alpha=alpha,yr=yr)
-            multiax.xaxis.label.set_size(6)
-            multiax.yaxis.label.set_size(6)
-            multiax.tick_params(axis = 'both', which = 'major', labelsize = 6)
-            multiax.xaxis.set_minor_locator(plt.MultipleLocator(10.))
-            if lineids is not None :
-                gd = np.where( (lines['wave'] > 15000+i*200) & ( lines['wave'] < 15200+i*200) ) [0]
-                for line in lines[gd] :
-                    multiax.text(line['wave'],1.,line['label'],rotation=90,size=4,ha='left',va='bottom')
-
-    # final panel with full wavelength range if requested
-    if sum :
-        plots.plotl(ax[10],wave,spec,xr=[15100,17000],color=color,linewidth=0.3,alpha=alpha,yr=yr)
-        ax[10].xaxis.label.set_size(6)
-        ax[10].yaxis.label.set_size(6)
-        ax[10].tick_params(axis = 'both', which = 'major', labelsize = 6)
-        ax[10].xaxis.set_minor_locator(plt.MultipleLocator(100.))
-
-    try: 
-        if title is not None : fig.suptitle(title)
-    except: pass
-    if hard is not None : fig.savefig(hard)
-
-    try: return fig,ax
-    except: return
-
-def plotparams(a,title=None,hard=None) :
-    """ Plot parameters vs Teff
-    """
-    fig,ax=plots.multi(1,8,hspace=0.001)
-
-    paramnames,tagnames,flagnames = params()
-
-    for i in range(8) :
-        plots.plotc(ax[i],a['FPARAM'][:,0],a['FPARAM'][:,i],a['FPARAM'][:,3],yt=tagnames[i],xt='Teff')
-    if title is not None : fig.suptitle(title)
-    if hard is not None : fig.savefig(hard)
-
-def multiwind(data,apred='r10',aspcap='t33w',out='plots/') :
-    """ Plot results from different windows for each element
-    """
-    #load=apload.ApLoad(apred=apred,aspcap=aspcap)
-    #data=load.allCal()
-    els=data[3].data['ELEM_SYMBOL'][0]
-    elemtoh=data[3].data['ELEMTOH'][0]
-    grid=[]
-    ytit=[]
-    for iel,el in enumerate(els) :
-        if os.path.exists(os.environ['APOGEE_ASPCAP']+'/'+apred+'/'+aspcap+'/config/apogee-n/'+el+'.wind') :
-            w=np.loadtxt(os.environ['APOGEE_ASPCAP']+'/'+apred+'/'+aspcap+'/config/apogee-n/'+el+'.wind') 
-            nwind=w.shape[0]
-            fig,ax=plots.multi(1,nwind,hspace=0.001,figsize=(6,nwind))
-            fig.suptitle(el)
-            for i in range(1,nwind+1) : 
-                plots.plotc(ax[i-1],data[1].data['FPARAM'][:,0],data[1].data['FELEM'][:,i,iel]-data[1].data['FELEM'][:,0,iel],
-                            data[1].data['FPARAM'][:,3],xr=[3000,6000],yr=[-1,1],zr=[-2,0.5],xt='Teff',size=5,yt=r'$\Delta$(line-global)')
-                ax[i-1].text(0.05,0.8,'{:8.2f}-{:8.2f}   {:8.2f}'.format(w[i-1,0],w[i-1,1],w[i-1,2]),transform=ax[i-1].transAxes,fontsize=10)
-                ax[i-1].yaxis.label.set_size(6)
-            fig.savefig(out+el+'.png')
-            fig,ax=plots.multi(1,nwind,hspace=0.001,figsize=(6,nwind))
-            fig.suptitle(el)
-            for i in range(1,nwind+1) : 
-                if elemtoh[iel] == 1: y = data[1].data['FELEM'][:,i,iel]-data[1].data['FPARAM'][:,3]
-                else : y = data[1].data['FELEM'][:,i,iel]
-                plots.plotc(ax[i-1],data[1].data['FPARAM'][:,3],y,
-                            data[1].data['FPARAM'][:,0],xr=[-2.5,1.],yr=[-0.5,0.5],zr=[3500,5500],xt='[M/H]',size=5,yt='[X/M]')
-                ax[i-1].text(0.05,0.8,'{:8.2f}-{:8.2f}   {:8.2f}'.format(w[i-1,0],w[i-1,1],w[i-1,2]),transform=ax[i-1].transAxes,fontsize=10)
-                ax[i-1].yaxis.label.set_size(6)
-            fig.savefig(out+el+'_2.png')
-            grid.append([el+'.png',el+'_2.png'])
-            ytit.append(el)
-            plt.close()
-            plt.close()
-    html.htmltab(grid,ytitle=ytit,file=out+'wind.html')
-
-def compspec(a,b,j=0,hard=None) :
-    """ compare spectra and best fits from two different input aspcapField files for specified object
-    """
-    nplot=11
-    hf,ha=plots.multi(1,nplot,figsize=(33,44),hspace=0.2)
-    ha2=[]
-    for i in range(nplot) : ha2.append(ha[i].twinx())
-    print(hf.get_size_inches())
-    chi2_a = (a[2].data['SPEC'][j,:]-a[2].data['SPEC_BESTFIT'][j,:])**2/a[2].data['ERR'][j,:]**2
-    chi2_b = (b[2].data['SPEC'][j,:]-b[2].data['SPEC_BESTFIT'][j,:])**2/b[2].data['ERR'][j,:]**2
-    plot(10.**a[3].data['WAVE'][0],a[2].data['SPEC'][j,:] ,sum=True,color='k',figax=(hf,ha),yr=[0.8,1.3],lineids=1.1)
-    plot(10.**a[3].data['WAVE'][0],a[2].data['SPEC_BESTFIT'][j,:] ,sum=True,color='r',figax=(hf,ha),yr=[0.8,1.3])
-    plot(10.**b[3].data['WAVE'][0],b[2].data['SPEC_BESTFIT'][j,:] ,sum=True,color='b',figax=(hf,ha),yr=[0.8,1.3])
-    plot(10.**a[3].data['WAVE'][0],a[2].data['SPEC'][j,:]-b[2].data['SPEC_BESTFIT'][j,:]+0.95 ,sum=True,color='c',
-         figax=(hf,ha),yr=[0.8,1.3],refline=0.9)
-    plot(10.**a[3].data['WAVE'][0],a[2].data['SPEC_BESTFIT'][j,:]-b[2].data['SPEC_BESTFIT'][j,:]+0.9 ,sum=True,color='m',
-         figax=(hf,ha),yr=[0.8,1.3],refline=0.9)
-    plot(10.**a[3].data['WAVE'][0],chi2_a-chi2_b ,sum=True,color='g',multipage=False,figax=(hf,ha2),yr=[-10,10],refline=0.)
-    if hard is not None : hf.savefig(hard+'.pdf')
-
-    fig,ax=plots.multi(1,2,hspace=0.001)
-    plots.plotl(ax[0],10.**a[3].data['WAVE'][0],np.cumsum(chi2_a),xt='Wavelength',yt='Cumulative chi^2')
-    plots.plotl(ax[0],10.**a[3].data['WAVE'][0],np.cumsum(chi2_b))
-    plots.plotl(ax[1],10.**a[3].data['WAVE'][0],np.cumsum(chi2_a)-np.cumsum(chi2_b),yt='Difference in cumulative chi^2')
-    if hard is not None : fig.savefig(hard+'_chi2.pdf')
-    plt.close()
-    plt.close()
-
-def vesta() :
-    """ series of plots for Vesta for DR16 tests
-    """
-    l33_fit = fits.open(os.environ['APOGEE_ASPCAP']+'/r10/test/apo1m/fit/aspcapField-standards.fits')
-    l33_fixed = fits.open(os.environ['APOGEE_ASPCAP']+'/r10/test/apo1m/fixed/aspcapField-standards.fits')
-    l31c_fit = fits.open(os.environ['APOGEE_ASPCAP']+'/r10/testl31c/apo1m/fit/aspcapField-standards.fits')
-    l31c_fixed = fits.open(os.environ['APOGEE_ASPCAP']+'/r10/testl31c/apo1m/fixed/aspcapField-standards.fits')
-    l31crenorm_fit = fits.open(os.environ['APOGEE_ASPCAP']+'/r10/testl31crenorm/apo1m/fit/aspcapField-standards.fits')
-    l31crenorm_fixed = fits.open(os.environ['APOGEE_ASPCAP']+'/r10/testl31crenorm/apo1m/fixed/aspcapField-standards.fits')
-    compspec(l33_fit,l33_fixed,hard='Vesta_l33_fitvsfixed')
-    compspec(l31c_fit,l31c_fixed,hard='Vesta_l31c_fitvsfixed')
-    #compspec(l31c_fixed,l33_fixed,hard='Vesta_fixed_l31cvl33')
-    compspec(l31crenorm_fit,l31crenorm_fixed,hard='Vesta_l31crenorm_fitvsfixed')
-
-def repeat(data,out=None) :
-    """ Comparison of repeat observations of objects
-    """
-
-    a=data[1].data
-    els=data[3].data['ELEM_SYMBOL'][0]
-    stars = set(a['APOGEE_ID'])
-    fig,ax=plots.multi(2,7,figsize=(8,18),wspace=0.4)
-    efig,eax=plots.multi(2,len(els),hspace=0.001,figsize=(8,36),wspace=0.4)
-    telescope=np.zeros(len(a),dtype='S6')
-    colors=['r','g','b']
-    tels=['apo1m','apo25m','lco25m'] 
-    for tel in tels :
-        j=np.where(np.core.defchararray.find(a['ALTFIELD'],tel) >= 0)[0]
-        telescope[j] = tel
-    diff=[]
-    ediff=[]
-    tdiff=[]
-    teldiff=[]
-    for star in stars :
-        j = np.where(a['APOGEE_ID'] == star)[0]
-        n = len(j)
-        if n > 1 :
-            print(star,n,telescope[j])
-            for i in j : 
-                ediff.append(a['FELEM'][i,0,:]-a['FELEM'][j,0,:].mean(axis=0))
-                diff.append(a['FPARAM'][i,:]-a['FPARAM'][j,:].mean(axis=0))
-                tdiff.append(a['FPARAM'][j,0].mean())
-                teldiff.append(telescope[i])
-            for i in range(7)  :
-                plots.plotp(ax[i,0],np.repeat(a['FPARAM'][j,0].mean(),n),a['FPARAM'][j,i]-a['FPARAM'][j,i].mean(),typeref=telescope[j],
-                            types=tels,color=colors)
-                #for itel,tel in enumerate(tels) :
-                #    gd=np.where(np.core.defchararray.find(a['ALTFIELD'][j],tel) >= 0)[0]
-                #    gd=j[gd]
-            for i in range(len(els))  :
-                plots.plotp(eax[i,0],np.repeat(a['FPARAM'][j,0].mean(),n),a['FELEM'][j,0,i]-a['FELEM'][j,0,i].mean(),typeref=telescope[j],
-                            types=tels,color=colors,yr=[-0.2,0.2])
-                #for itel,tel in enumerate(tels) :
-                #    gd=np.where(np.core.defchararray.find(a['ALTFIELD'][j],tel) >= 0)[0]
-                #    gd=j[gd]
-                #    ax[i,1].hist(a['FELEM'][gd,i]-a['FELEM'][gd,i].mean(),color=colors[itel])
-    diff=np.array(diff) 
-    ediff=np.array(ediff) 
-    tdiff=np.array(tdiff) 
-    teldiff=np.array(teldiff) 
-    for itel,tel in enumerate(tels) :
-        gd=np.where(teldiff == tel)[0]
-        if len(gd) > 0 :
-            for i in range(7)  :
-                if i == 0 : bins=np.arange(-200,200,10)
-                elif i ==1 : bins=np.arange(-0.5,0.5,0.025)
-                else : bins=np.arange(-0.2,0.2,0.01)
-                ax[i,1].hist(diff[gd,i],color=colors[itel],histtype='step',bins=bins)
-            for i in range(len(els))  :
-                bins=np.arange(-0.2,0.2,0.01)
-                try: eax[i,1].hist(ediff[gd,i],color=colors[itel],histtype='step',bins=bins)
-                except: pass
-    for i,el in enumerate(els) : 
-        eax[i,0].set_ylabel(el)
-        eax[i,1].text(0.1,0.9,el,transform=eax[i,1].transAxes)
-    for i,param in enumerate(data[3].data['PARAM_SYMBOL'][0]) : 
-        if i < 7 :
-            ax[i,0].set_ylabel(param)
-            ax[i,1].text(0.1,0.9,param,transform=ax[i,1].transAxes)
-    if out is not None :
-        fig.savefig(out+'param_diff.png')
-        efig.savefig(out+'elem_diff.png')
-    else :
-        pdb.set_trace()
-    plt.close(fig)
-    plt.close(efig)
-
-
-def average(a,ind,apred='r12',aspcap='l33', median=False) :
-    ''' Average together multiple aspcapStar spectra
-    '''
-
-    load=apload.ApLoad(apred=apred,aspcap=aspcap)
-
-    spec=np.zeros([8575])
-    err=np.zeros([8575])
-    ratio=np.zeros([8575])
-    spec=[]
-    err=[]
-    ratio=[]
-    for j in ind :
-        load.settelescope(a['TELESCOPE'][j])
-        z=load.aspcapStar(a['FIELD'][j],a['APOGEE_ID'][j])
-        spec.append(z[1].data)
-        err.append(z[2].data)
-        ratio.append(z[1].data/z[3].data)
-    spec=np.array(spec)
-    err=np.array(err)
-    ratio=np.array(ratio)
-
-    if median: return np.median(spec,axis=0), np.median(err,axis=0), np.median(ratio,axis=0)
-    else : return spec.mean(axis=0) ,err.mean(axis=0), ratio.mean(axis=0)
-
-def dofield(planfile,clobber=False,nobj=None,write=True) :
-    """ run ASPCAP on a field
+def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars') :
+    """ create initial aspcapField file from apField file
     """
 
     # read configuration file
@@ -795,20 +232,22 @@ def dofield(planfile,clobber=False,nobj=None,write=True) :
     # setup reader and load apField file
     load = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope=telescope)
     apfieldname=load.filename('Field',field=field)
-    apfieldname=apfieldname.replace('/stars/','/rv/')
-    apfield = fits.open(apfieldname)[1].data
-    #apfield=load.apField(field)[1].data
+    if apstar_vers != 'stars' :
+        apfieldname=apfieldname.replace('/stars/','/'+apstar_vers+'/')
+        apfield = fits.open(apfieldname)[1].data
+    else :
+        apfield=load.apField(field)[1].data
+    print('apField file: ', apfieldname)
+
+    # add GAIA data
+    apfield=gaia.add_gaia(apfield)
+
     aspcapfield=Table(apfield)
     if nobj is not None : aspcapfield=aspcapfield[0:nobj]
     try : test = aspcapfield['MEANFIB']
     except : aspcapfield['MEANFIB'] = 150
     # add new columns
     nparam = len(params()[0])
-
-    # output directory
-    outfield=load.filename('aspcapField',field=field)
-    outfield=outfield.replace(aspcap_vers,aspcap_vers+'.new')
-    outdir=os.path.dirname(outfield)
 
     # read ASPCAP configuration
     config = yaml.safe_load(open(os.environ['APOGEE_DIR']+'/config/aspcap/'+aspcap_config+'/'+instrument+'.yml','r'))
@@ -822,21 +261,119 @@ def dofield(planfile,clobber=False,nobj=None,write=True) :
     aspcapfield.add_column(Column(name='FPARAM',dtype=float,shape=(nparam),length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='FPARAM_COV',dtype=float,shape=(nparam,nparam),length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='PARAM_CHI2',dtype=float,length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='ASPCAPFLAG',dtype=int,length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='PARAM',dtype=float,shape=(nparam),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='PARAM_COV',dtype=float,shape=(nparam,nparam),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='PARAMFLAG',dtype=np.uint64,shape=(nparam),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='ASPCAPFLAG',dtype=np.uint64,length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='ASPCAPFLAGS',dtype='S132',length=len(aspcapfield)))
+    nelem = len(elems()[0])
+    aspcapfield.add_column(Column(name='FELEM',dtype=float,shape=(nelem),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='FELEM_ERR',dtype=float,shape=(nelem),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='X_H',dtype=float,shape=(nelem),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='X_H_ERR',dtype=float,shape=(nelem),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='X_M',dtype=float,shape=(nelem),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='X_M_ERR',dtype=float,shape=(nelem),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='ELEM_CHI2',dtype=float,shape=(nelem),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='ELEMFLAG',dtype=float,shape=(nelem),length=len(aspcapfield)))
 
+    # load spectra
     # create table for output spectral data
     aspcapspec = Table()
     nwave = nw_chip.sum()
     aspcapspec.add_column(Column(name='SPEC',dtype=float,shape=(nwave),length=len(aspcapfield)))
-    aspcapspec.add_column(Column(name='ERR',dtype=float,shape=(nwave),length=len(aspcapfield)))
+    aspcapspec.add_column(Column(name='SPEC_ERR',dtype=float,shape=(nwave),length=len(aspcapfield)))
     aspcapspec.add_column(Column(name='MASK',dtype=float,shape=(nwave),length=len(aspcapfield)))
     aspcapspec.add_column(Column(name='SPEC_BESTFIT',dtype=float,shape=(nwave),length=len(aspcapfield)))
+    aspcapspec.add_column(Column(name='OBS',dtype=float,shape=(nwave),length=len(aspcapfield)))
+    aspcapspec.add_column(Column(name='ERR',dtype=float,shape=(nwave),length=len(aspcapfield)))
+    aspcapspec.add_column(Column(name='NORM',dtype=float,shape=(nwave),length=len(aspcapfield)))
+
+    pixelmask=bitmask.PixelBitMask()
+    badval=pixelmask.badval()|pixelmask.getval('SIG_SKYLINE')
+    aspcapmask=bitmask.AspcapBitMask()
+    for istar,star in enumerate(aspcapfield) :
+
+        apstarfile=load.filename('Star',field=field,obj=star['APOGEE_ID'])
+        if apstar_vers != 'stars' :
+            apstarfile=apstarfile.replace('/stars/','/'+apstar_vers+'/')
+            try: 
+                hdulist=fits.open(apstarfile)
+                wave=spectra.fits2vector(hdulist[1].header,1)
+                apstar=apload.ApSpec(hdulist[1].data,header=hdulist[0].header,
+                              err=hdulist[2].data,bitmask=hdulist[3].data,wave=wave,
+                              sky=hdulist[4].data,skyerr=hdulist[5].data,
+                              telluric=hdulist[6].data,telerr=hdulist[7].data)
+            except: 
+                print('No apStar file found: ',apstarfile)
+                try: aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('MISSING_APSTAR')
+                except: pdb.set_trace()
+                apstar=None
+        else :
+            apstar=load.apStar(field,star['APOGEE_ID'],load=True)
+        print('apstarfile: ',apstarfile)
+        if apstar is None: continue
+
+        norm=np.nanmedian(apStar2aspcap(apstar.flux[0,:]))
+        aspcapspec['OBS'][istar] = apStar2aspcap(apstar.flux[0,:])/norm
+        mask= np.where((apStar2aspcap(apstar.bitmask[0,:]) & badval) > 0)[0]
+        tmp = apStar2aspcap(apstar.err[0,:])
+        tmp[mask] *= 100.
+        # set uncertainty floor to minerr (fractional)
+        ind = np.where(tmp/apStar2aspcap(apstar.flux[0,:]) < minerr)[0]
+        tmp[ind] = minerr*apStar2aspcap(apstar.flux[0,:])[ind]
+        aspcapspec['ERR'][istar] = tmp/norm
+        bd=np.where(~np.isfinite(aspcapspec['ERR'][istar]))[0]
+        if len(bd) > 0 : 
+            aspcapspec['ERR'][istar,bd] = 1.e10
+        bd=np.where(~np.isfinite(aspcapspec['OBS'][istar]))[0]
+        if len(bd) > 0 : 
+            aspcapspec['OBS'][istar,bd] = 0.
+            aspcapspec['ERR'][istar,bd] = 1.e10
+        aspcapspec['MASK'][istar] = apStar2aspcap(apstar.bitmask[0,:])
+        aspcapspec['NORM'][istar] = 1.
+
+    return aspcapfield, aspcapspec
+
+def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,minerr=0.005,apstar_vers=None,plot=False,
+               init='RV',fix=None,renorm=False,suffix='',html=True) :
+    """ run ASPCAP on a field to get parameters
+    """
+    # read configuration file
+    plan=yaml.safe_load(open(planfile,'r'))
+    apred=plan['apred_vers']
+    if apstar_vers is None : apstar_vers=plan['apstar_vers'] if plan.get('apstar_vers') else 'stars'
+    aspcap_vers=plan['aspcap_vers']
+    aspcap_config=plan['aspcap_config']
+    instrument=plan['instrument']
+    telescope=plan['telescope']
+    field=plan['field']
+
+    # get initial aspcapField if not provided
+    if aspcapdata is None : 
+        aspcapfield,aspcapspec=apField2aspcapField(planfile,nobj=nobj,minerr=minerr,apstar_vers=apstar_vers)
+    else :
+        aspcapfield = copy.deepcopy(aspcapdata[0])
+        aspcapspec = copy.deepcopy(aspcapdata[1])
+
+    # output directory
+    load = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope=telescope)
+    outfield=load.filename('aspcapField',field=field)
+    outdir=os.path.dirname(outfield)
+
+    # read ASPCAP configuration
+    config = yaml.safe_load(open(os.environ['APOGEE_DIR']+'/config/aspcap/'+aspcap_config+'/'+instrument+'.yml','r'))
 
     # pixel masking
     pixelmask=bitmask.PixelBitMask()
     badval=pixelmask.badval()|pixelmask.getval('SIG_SKYLINE')
+
+    # set NOGRID bit until we have a grid
     aspcapmask=bitmask.AspcapBitMask()
+    aspcapfield['ASPCAPFLAG'] |= aspcapmask.getval('NO_GRID')
+
+    # reset CHI2 if we are iterating on a previous solution
+    aspcapfield['PARAM_CHI2'] = 0.
+    pars=params()[0]
 
     # loop over all grids
     param_class=[]
@@ -845,66 +382,89 @@ def dofield(planfile,clobber=False,nobj=None,write=True) :
     for igrid,grid in enumerate(config['grids']) :
 
         # set up output FERRE directory for this grid
-        out=outdir+'/ferre/class_'+grid['name']+'/'+grid['name']+'-'+field
+        if  init == 'RV' :
+            out=outdir+'/ferre/class_'+grid['name']+'/'+grid['name']+'-'+field
+        else :
+            out=outdir+'/ferre/class_'+grid['name']+'_'+init+'/'+grid['name']+'-'+field
+
         try: os.makedirs(os.path.dirname(out))
         except: pass
-        try: os.symlink(os.environ['APOGEE_SPECLIB']+'/synth/',os.path.dirname(out)+'/lib')
-        except: pass
+        link(os.environ['APOGEE_SPECLIB']+'/synth/',os.path.dirname(out)+'/lib')
 
         # get FERRE library information
         libfile = 'lib/'+grid['lib']+'.hdr'
         libhead0,libhead = ferre.rdlibhead(os.path.dirname(out)+'/'+libfile)
         libhead0['FILE'] = libfile
+        nparams=libhead0['N_OF_DIM']
+        # get the index numbers in input parameter array for correct library parameter order
+        index=np.zeros(nparams,dtype=int)
+        for i in range(nparams) : index[i] = np.where(params()[0] == libhead0['LABEL'][i].decode())[0]
 
         # select stars for this grid
-        gd = np.where((aspcapfield['RV_TEFF'] >= grid['teff_range'][0]) &
-                      (aspcapfield['RV_TEFF'] <= grid['teff_range'][1]) &
-                      (aspcapfield['RV_LOGG'] >= grid['logg_range'][0]) &
-                      (aspcapfield['RV_LOGG'] <= grid['logg_range'][1]) &
-                      (aspcapfield['MEANFIB'] >= grid['fibermin']) &
-                      (aspcapfield['MEANFIB'] < grid['fibermax']) ) [0]
+        if init == 'RV' :
+            gd = np.where((aspcapfield['RV_TEFF'] >= grid['teff_range'][0]) &
+                          (aspcapfield['RV_TEFF'] <= grid['teff_range'][1]) &
+                          (aspcapfield['RV_LOGG'] >= grid['logg_range'][0]) &
+                          (aspcapfield['RV_LOGG'] <= grid['logg_range'][1]) &
+                          (aspcapfield['MEANFIB'] >= grid['fibermin']) &
+                          (aspcapfield['MEANFIB'] < grid['fibermax']) ) [0]
+        else :
+            gd = np.where(aspcapfield['CLASS'] == grid['name'])[0]
+
         print(grid['name'],len(gd))
         if len(gd) == 0 : continue
+
+        # turn off NO_GRID
+        aspcapfield['ASPCAPFLAG'][gd] &= ~aspcapmask.getval('NO_GRID')
 
         # loop over stars and accumulate input for FERRE
         inpars=[]
         flux=[]
         err=[]
         stars=[]
-        for star in aspcapfield[gd] :
-            #print(load.filename('Star',field=field,obj=star))
-            apstar=load.apStar(field,star['APOGEE_ID'],load=True)
-            if apstar is None: continue
+        for star,spec in zip(aspcapfield[gd],aspcapspec[gd]) :
+            if star['ASPCAPFLAG'] & aspcapmask.getval('MISSING_APSTAR') : continue
 
             stars.append(star['APOGEE_ID'])
-            #stars.append(star['APOGEE_ID']+'norm')
-            inpars.append([star['RV_TEFF'],star['RV_LOGG'],np.log10(1.2),star['RV_FEH'],0.,0.,0.,1.,0.])
-            #inpars.append([star['RV_TEFF'],star['RV_LOGG'],np.log10(1.2),star['RV_FEH'],0.,0.,0.,1.,0.])
-            #flux.append(apStar2aspcap(apstar.flux[0,:]))
-            norm=np.median(apStar2aspcap(apstar.flux[0,:]))
-            flux.append(apStar2aspcap(apstar.flux[0,:])/norm)
-            mask= np.where((apStar2aspcap(apstar.bitmask[0,:]) & badval) > 0)[0]
-            tmp = apStar2aspcap(apstar.err[0,:])
-            tmp[mask] *= 100.
-            #err.append(tmp)
-            err.append(tmp/norm)
-            bd = np.where(tmp/apStar2aspcap(apstar.flux[0,:]) > 0.1)[0]
-            print(star['APOGEE_ID'],len(mask),len(bd))
+            if init == 'RV' :
+                vmicro=np.array([0.372160,-0.090531,-0.000802,0.001263,-0.027321])
+                logg=star['RV_LOGG']
+                vm = vmicro[0]+vmicro[1]*logg+vmicro[2]*logg**2+vmicro[3]*logg**3
+                inpars.append([star['RV_TEFF'],star['RV_LOGG'],vm,star['RV_FEH'],0.,0.,0.,1.,0.])
+            elif init == 'FPARAM' :
+                inpars.append(list(star['FPARAM']))
+            elif init == 'PARAM' :
+                inpars.append(list(star['PARAM']))
+            if renorm :
+                flux.append(spec['OBS']/spec['NORM'])
+                err.append(spec['ERR']/spec['NORM'])
+            else :
+                flux.append(spec['OBS'])
+                err.append(spec['ERR'])
+      
 
         # write FERRE files and run FERRE
         if clobber or not os.path.exists(out+'.spm') :
+            if fix is not None :
+                indv=[]
+                for i,par in enumerate(libhead0['LABEL']) :
+                    if par.decode() not in fix : indv.append(i+1)
+            else : indv=None
             ferre.writeipf(out,libfile,stars,param=np.array(inpars))
             ferre.writespec(out+'.obs',flux)
             ferre.writespec(out+'.err',err)
-            ferre.writenml(out+'.nml',os.path.basename(out),libhead0,init=0,
+            ferre.writenml(out+'.nml',os.path.basename(out),libhead0,init=0,indv=indv,
                        algor=grid['algor'],ncpus=plan['ncpus'],
                        obscont=grid['obscont'],rejectcont=grid['rejectcont'],
                        renorm=abs(grid['renorm']),
                        filterfile=os.environ['APOGEE_DIR']+'/data/windows/'+grid['mask'])
             fout=open(out+'.stdout','w')
             ferr=open(out+'.stderr','w')
+            print('running ferre.x: ', os.path.basename(out)+'.nml')
+            start = time.time()
             subprocess.call(['ferre.x',os.path.basename(out)+'.nml'],shell=False,
                             cwd=os.path.dirname(out),stdout=fout,stderr=ferr)
+            print('elapsed: ',time.time()-start)
             fout.close()
             ferr.close()
 
@@ -915,7 +475,7 @@ def dofield(planfile,clobber=False,nobj=None,write=True) :
         param_class.append(param) 
         spec_class.append(spec) 
 
-        # load into apField
+        # load into apcapField
         for istar,star in enumerate(aspcapfield[gd]) :
             i = np.where(param['APOGEE_ID'] == star['APOGEE_ID'].encode())[0]
             if len(i) == 0 : continue
@@ -936,34 +496,260 @@ def dofield(planfile,clobber=False,nobj=None,write=True) :
                 aspcapfield['ASPCAPFLAG'][gd[istar]] = param['ASPCAPFLAG'][i]
                 aspcapfield['ASPCAPFLAGS'][gd[istar]] = aspcapmask.getname(aspcapfield['ASPCAPFLAG'][gd[istar]])
                 aspcapspec['SPEC'][gd[istar]] = spec['frd'][i]
-                aspcapspec['ERR'][gd[istar]] =  spec['err'][i]*spec['frd'][i]/spec['obs'][i]
                 aspcapspec['SPEC_BESTFIT'][gd[istar]] =  spec['mdl'][i]
-                # get mask from apStar, and supplement with FERRE mask
-                apstar=load.apStar(field,star['APOGEE_ID'],load=True)
-                filterfile=os.environ['APOGEE_DIR']+'/data/windows/'+grid['mask']
-                fmask=np.loadtxt(filterfile)
-                bd = np.where(fmask < 0.001)[0]
-                mask= apStar2aspcap(apstar.bitmask[0,:]) 
-                mask[bd] = mask[bd] | pixelmask.getval('FERRE_MASK')
-                aspcapspec['MASK'][gd[istar]] =  mask
+                # continuum correct
+                width=151
+                p1=0
+                for ichip in range(len(libhead)) :
+                    npix=libhead[ichip]['NPIX']
+                    obs=spec['frd'][i,p1:p1+npix].flatten()
+                    # replace bad pixels with median filtered value
+                    med=scipy.ndimage.filters.median_filter(obs,[5*width],mode='nearest')
+                    bd=np.where(obs < 0.01)[0]
+                    obs[bd] = med[bd]
+                    # populate error with FERRE-normalized error
+                    err= spec['err'][i,p1:p1+npix]*spec['frd'][i,p1:p1+npix]/obs
+                    bd=np.where(~np.isfinite(err))[0]
+                    err[bd] = 1.e10
+                    aspcapspec['SPEC_ERR'][gd[istar]][p1:p1+npix] = err
+                  
+                    # get ratio of observed / model, make sure edge is reasonable number
+                    mdl=spec['mdl'][i,p1:p1+npix].flatten()
+                    ratio=obs/mdl
+                    corr=scipy.ndimage.filters.median_filter(ratio,[width],mode='nearest')
+                    bd=np.where(~np.isfinite(corr) | np.isclose(corr,0.))[0]
+                    corr[bd] = 1.
+                    if not renorm: 
+                        aspcapspec['NORM'][gd[istar]][p1:p1+npix] = corr
+                    p1+=npix
 
-    # Results into an HDUList 
-    hdulist=fits.HDUList()
-    hdulist.append(fits.table_to_hdu(Table(aspcapfield)))
-    hdulist.append(fits.table_to_hdu(aspcapspec))
+                if plot :
+                    plt.figure()
+                    plt.plot(aspcapspec['OBS'][gd[istar]])
+                    plt.plot(aspcapspec['SPEC'][gd[istar]])
+                    plt.plot(aspcapspec['SPEC_BESTFIT'][gd[istar]])
+                    plt.plot(aspcapspec['NORM'][gd[istar]])
+                    plt.plot(aspcapspec['ERR'][gd[istar]])
+                    plt.ylim(0,1.5)
+                    plt.draw()
+                    pdb.set_trace()
+                    plt.close()
+
+                # get mask from apStar, and supplement with FERRE mask
+                try:
+                    filterfile=os.environ['APOGEE_DIR']+'/data/windows/'+grid['mask']
+                    fmask=np.loadtxt(filterfile)
+                    bd = np.where(fmask < 0.001)[0]
+                    aspcapspec['MASK'][gd[istar]][bd] !=  pixelmask.getval('FERRE_MASK')
+                except: pdb.set_trace()
+
+
+    # Results in astropy tables
+    aspcapfield=Table(aspcapfield)
+    aspcapspec=Table(aspcapspec)
+    wave=np.hstack(gridWave())
+    aspcapkey=np.empty(1,dtype=[('WAVE','f4',len(wave)),
+                          ('PARAM_SYMBOL','S16',len(params()[0])),
+                          ('ELEM_SYMBOL','S5',len(elems()[0])),
+                          ('ELEMTOH','i4',len(elems()[0])),
+                          ('ELEM_VALUE','S12',len(elems()[2])),
+                          ('CLASSES','S5',len(config['grids']))])
+    aspcapkey['PARAM_SYMBOL'] = params()[1]
+    aspcapkey['ELEM_SYMBOL'] = elems()[0]
+    aspcapkey['ELEMTOH'] = elems()[1]
+    aspcapkey['ELEM_VALUE'] = elems()[2]
+    grids=[]
+    for grid in config['grids'] : grids.append(grid['name'])
+    aspcapkey['CLASSES'] = grids
+    aspcapkey=Table(aspcapkey)
 
     if write :
-        #output apField and apFieldVisits
+        hdulist=fits.HDUList()
+        hdulist.append(fits.table_to_hdu(aspcapfield))
+        hdulist.append(fits.table_to_hdu(aspcapspec))
+        hdulist.append(fits.table_to_hdu(aspcapkey))
+
+        #output aspcapField
         outfield=load.filename('aspcapField',field=field)
-        outfield=outfield.replace(aspcap_vers,aspcap_vers+'.new')
         try: os.makedirs(os.path.dirname(outfield))
         except: pass
-        hdulist.writeto(outfield,overwrite=True)
+        outfile=os.path.dirname(outfield)+'/'+os.path.splitext(os.path.basename(outfield))[0]+suffix+'.fits'
+        hdulist.writeto(outfile,overwrite=True)
 
+    if html :
         # create output HTML page
         mkhtml(field,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
 
-    return hdulist
+    return aspcapfield,aspcapspec,aspcapkey
+
+def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=False,renorm=True,suffix='',html=True) :
+    """ run ASPCAP on a field for elemental abundances
+    """
+
+    # read configuration file
+    plan=yaml.safe_load(open(planfile,'r'))
+    apred=plan['apred_vers']
+    aspcap_vers=plan['aspcap_vers']
+    aspcap_config=plan['aspcap_config']
+    instrument=plan['instrument']
+    telescope=plan['telescope']
+    field=plan['field']
+
+    # get aspcapField if not provided
+    load = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope=telescope)
+    outfield=load.filename('aspcapField',field=field)
+    outdir=os.path.dirname(outfield)
+    if aspcapdata is None : 
+        aspcapfield=Table(fits.open(outfield)[1].data)
+        aspcapspec=Table(fits.open(outfield)[2].data)
+        aspcapkey=Table(fits.open(outfield)[3].data)
+    else :
+        aspcapfield = copy.deepcopy(aspcapdata[0])
+        aspcapspec = copy.deepcopy(aspcapdata[1])
+        aspcapkey = copy.deepcopy(aspcapdata[2])
+
+    # output directory
+
+    # read ASPCAP configuration
+    config = yaml.safe_load(open(os.environ['APOGEE_DIR']+'/config/aspcap/'+aspcap_config+'/'+instrument+'.yml','r'))
+
+    if calib : useparam='PARAM'
+    else : useparam ='FPARAM'
+
+    # loop over grids
+    for igrid,grid in enumerate(config['grids']) :
+        print('Grid: ',grid['name'])
+
+        # output directory for spectra
+        outspec=outdir+'/ferre/spectra/'+grid['name']+'-'+field
+        try: os.makedirs(os.path.dirname(outspec))
+        except: pass
+
+        libfile = 'lib_'+grid['name']+'/'+grid['lib']+'.hdr'
+        if clobber or not os.path.exists(outspec+'.obs') :
+            link(os.environ['APOGEE_SPECLIB']+'/synth/',os.path.dirname(outspec)+'/../lib_'+grid['name'])
+
+            # get FERRE library information for this grid
+            libhead0,libhead = ferre.rdlibhead(outdir+'/ferre/'+libfile)
+            libhead0['FILE'] = libfile
+
+            # get stars for which best fit was in this grid
+            gd = np.where(aspcapfield['CLASS'] == grid['name'])[0]
+            if len(gd) == 0 : continue
+
+            # loop over stars and accumulate input for FERRE
+            inpars=[]
+            flux=[]
+            err=[]
+            stars=[]
+            for star,spec in zip(aspcapfield[gd],aspcapspec[gd]) :
+                stars.append(star['APOGEE_ID'])
+                inpars.append(star[useparam])
+                print(star['APOGEE_ID'])
+                if renorm :
+                    flux.append(spec['OBS']/spec['NORM'])
+                    err.append(spec['ERR']/spec['NORM'])
+                else :
+                    flux.append(spec['OBS'])
+                    err.append(spec['ERR'])
+
+            ferre.writeipf(outspec,outdir+'/ferre/'+libfile,stars,param=np.array(inpars))
+            ferre.writespec(outspec+'.obs',flux)
+            ferre.writespec(outspec+'.err',err)
+
+        # loop over elements
+        fp=open(outdir+'/ferre/'+grid['name']+'.nmlfiles','w')
+        fit = False
+        for ielem,elem in enumerate(config['elems']) :
+        
+            # set up output FERRE directory for this grid
+            if calib:
+                out=outdir+'/ferre/elem_'+elem['name']+'_PARAM/'+elem['name']+'-'+grid['name']+'-'+field
+            else :
+                out=outdir+'/ferre/elem_'+elem['name']+'/'+elem['name']+'-'+grid['name']+'-'+field
+            try: os.makedirs(os.path.dirname(out))
+            except: pass
+
+            # write FERRE files
+            if clobber or not os.path.exists(out+'.spm') :
+                link(os.environ['APOGEE_SPECLIB']+'/synth/',os.path.dirname(out)+'/lib')
+                filterfile = elem['name']+'.mask'
+                shutil.copyfile(os.environ['APOGEE_DIR']+'/data/windows/'+grid['windows']+'/'+filterfile,
+                                     os.path.dirname(out)+'/'+elem['name']+'.mask')
+
+                # links for ipf, obs, and err files
+                for ext in ['.ipf','.obs','.err'] :
+                    try: os.remove(out+ext)
+                    except: pass
+                    link('../spectra/'+os.path.basename(outspec)+ext,out+ext)
+                index = np.where(libhead0['LABEL'] == elem['griddim'].encode())[0][0]+1
+                if elem['griddim'] == 'METALS' : 
+                    ttie=[]
+                    for dim in ['C','N','O Mg Si S Ca Ti'] :
+                        j=np.where(libhead0['LABEL'] == dim.encode())[0]
+                        if len(j) > 0 : ttie.append(j[0]+1)
+                        else : ttie.append(-1)
+                else : ttie=[-1,-1,-1]
+                ferre.writenml(out+'.nml','elem_'+elem['name']+'/'+os.path.basename(out),libhead0,init=0,
+                           nov=1,indv=[index],ttie=ttie,
+                           algor=grid['algor'],ncpus=plan['ncpus'],
+                           obscont=grid['obscont'],rejectcont=grid['rejectcont'],
+                           renorm=abs(grid['renorm']),
+                           filterfile='elem_'+elem['name']+'/'+filterfile)
+                fp.write('elem_'+elem['name']+'/'+os.path.basename(out)+'.nml\n')
+                fit = True
+
+        fp.close()
+        # run FERRE for all elements for this grid
+        if fit :
+            fout=open(outdir+'/ferre/'+grid['name']+'.stdout','w')
+            ferr=open(outdir+'/ferre/'+grid['name']+'.stderr','w')
+            subprocess.call(['ferre.x','-l',grid['name']+'.nmlfiles'],shell=False,
+                            cwd=outdir+'/ferre',stdout=fout,stderr=ferr)
+            fout.close()
+            ferr.close()
+
+        for ielem,elem in enumerate(config['elems']) :
+            out=outdir+'/ferre/elem_'+elem['name']+'/'+elem['name']+'-'+grid['name']+'-'+field
+            # read FERRE output
+            param,spec,wave=ferre.read(out,outdir+'/ferre/'+libfile)
+            # fill in locked parameters
+            fill_plock(param,grid['PLOCK'])
+            # location for this element in FELEM array
+            jelem=np.where(elems()[0] == elem['name'])[0]
+
+            # load into aspcapField
+            for istar,star in enumerate(aspcapfield[gd]) :
+                i = np.where(param['APOGEE_ID'] == star['APOGEE_ID'].encode())[0]
+                if len(i) == 0 : continue
+                index = np.where(params()[0] == elem['griddim'])[0]
+                try:
+                    aspcapfield['FELEM'][gd[istar],jelem] = param['FPARAM'][i,index]
+                    if param['FPARAM_COV'][i,index,index] > 0 :
+                        aspcapfield['FELEM_ERR'][gd[istar],jelem] = np.sqrt(param['FPARAM_COV'][i,index,index])
+                    aspcapfield['ELEM_CHI2'][gd[istar],jelem] = param['PARAM_CHI2'][i]
+                except: pdb.set_trace()
+
+    # Results into an HDUList 
+
+    if write :
+        hdulist=fits.HDUList()
+        hdulist.append(fits.table_to_hdu(aspcapfield))
+        hdulist.append(fits.table_to_hdu(aspcapspec))
+        hdulist.append(fits.table_to_hdu(aspcapkey))
+
+        #output aspcapField
+        outfield=load.filename('aspcapField',field=field)
+        try: os.makedirs(os.path.dirname(outfield))
+        except: pass
+        outfile=os.path.dirname(outfield)+'/'+os.path.splitext(os.path.basename(outfield))[0]+suffix+'.fits'
+        hdulist.writeto(outfile,overwrite=True)
+
+    if html :
+        # create output HTML page
+        mkhtml(field,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
+
+    return aspcapfield,aspcapspec,aspcapkey
 
 
 def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
@@ -974,7 +760,6 @@ def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
 
     load = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope=telescope)
     infile=load.filename('aspcapField',field=field)
-    infile=infile.replace(aspcap_vers,aspcap_vers+'.new')
     a=fits.open(infile)
     aspcapfield=a[1].data
     aspcapspec=a[2].data
@@ -988,18 +773,68 @@ def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
     fp.write('<BODY>\n')
     fp.write('<H2> Field: {:s}</H2><p>\n'.format(field))
 
+    # parameter plots: Kiel and [alpha/M] vs [M/H]
     fig,ax=plots.multi(1,1)
     plots.plotc(ax,aspcapfield['FPARAM'][:,0],aspcapfield['FPARAM'][:,1],aspcapfield['FPARAM'][:,3],
                 xr=[8000,3000],yr=[6,-1],zr=[-2,0.5],size=10,colorbar=True,xt='Teff',yt='logg',zt='[M/H]')
     fig.savefig(outdir+'/plots/'+field+'_hr.png')
     plt.close()
     fp.write('<TD><A HREF=plots/{:s}_hr.png><IMG SRC=plots/{:s}_hr.png></A>\n'.format(field,field))
+
+    yr=[-0.3,0.75]
     fig,ax=plots.multi(1,1)
     plots.plotc(ax,aspcapfield['FPARAM'][:,3],aspcapfield['FPARAM'][:,6],aspcapfield['FPARAM'][:,0],
-                zr=[3000,8000],yr=[-0.5,1],xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt='[alpha/M]',zt='Teff')
+                zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt='[alpha/M]',zt='Teff')
     fig.savefig(outdir+'/plots/'+field+'_alpha.png')
     plt.close()
     fp.write('<TD><A HREF=plots/{:s}_alpha.png><IMG SRC=plots/{:s}_alpha.png></A>\n'.format(field,field))
+
+    # individual element abundance plots
+    fig,ax=plots.multi(1,4,hspace=0.001)
+    yr=[-0.3,1.5]
+    for iel,el in enumerate(['C','CI','N']) :
+        jel = np.where(elems()[0] == el)[0][0]
+        yt='['+el+'/M]'
+        plots.plotc(ax[iel],aspcapfield['FPARAM'][:,3],aspcapfield['FELEM'][:,jel],aspcapfield['FPARAM'][:,0],
+                zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt=yt,zt='Teff',label=[0.9,0.9,el])
+    plots.plotc(ax[3],aspcapfield['FPARAM'][:,3],aspcapfield['FELEM'][:,0]-aspcapfield['FELEM'][:,2],aspcapfield['FPARAM'][:,0],
+            zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt='[C/N]',zt='Teff',label=[0.9,0.9,'[C/N]'])
+    fig.savefig(outdir+'/plots/'+field+'_cnelem.png')
+    plt.close()
+    fp.write('<TD><A HREF=plots/{:s}_cnelem.png><IMG SRC=plots/{:s}_cnelem.png></A>\n'.format(field,field))
+
+    fig,ax=plots.multi(1,6,hspace=0.001)
+    yr=[-0.3,0.75]
+    for iel,el in enumerate(['O','Mg','Si','S','Ca','Ti']) :
+        jel = np.where(elems()[0] == el)[0][0]
+        yt='['+el+'/M]'
+        plots.plotc(ax[iel],aspcapfield['FPARAM'][:,3],aspcapfield['FELEM'][:,jel],aspcapfield['FPARAM'][:,0],
+                zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt=yt,zt='Teff',label=[0.9,0.9,el])
+    fig.savefig(outdir+'/plots/'+field+'_alphaelem.png')
+    plt.close()
+    fp.write('<TD><A HREF=plots/{:s}_alphaelem.png><IMG SRC=plots/{:s}_alphaelem.png></A>\n'.format(field,field))
+
+    fig,ax=plots.multi(1,4,hspace=0.001)
+    for iel,el in enumerate(['Na','Al','P','K']) :
+        jel = np.where(elems()[0] == el)[0][0]
+        yt='['+el+'/M]'
+        try :
+          plots.plotc(ax[iel],aspcapfield['FPARAM'][:,3],aspcapfield['FELEM'][:,jel]-aspcapfield['FPARAM'][:,3],aspcapfield['FPARAM'][:,0],
+                zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt=yt,zt='Teff',label=[0.9,0.9,el])
+        except: pdb.set_trace()
+    fig.savefig(outdir+'/plots/'+field+'_oddzelem.png')
+    plt.close()
+    fp.write('<TD><A HREF=plots/{:s}_oddzelem.png><IMG SRC=plots/{:s}_oddzelem.png></A>\n'.format(field,field))
+
+    fig,ax=plots.multi(1,7,hspace=0.001)
+    for iel,el in enumerate(['V','Cr','Mn','Fe','Co','Ni','Cu'] ) :
+        jel = np.where(elems()[0] == el)[0][0]
+        yt='['+el+'/M]'
+        plots.plotc(ax[iel],aspcapfield['FPARAM'][:,3],aspcapfield['FELEM'][:,jel]-aspcapfield['FPARAM'][:,3],aspcapfield['FPARAM'][:,0],
+                zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt=yt,zt='Teff',label=[0.9,0.9,el])
+    fig.savefig(outdir+'/plots/'+field+'_feelem.png')
+    plt.close()
+    fp.write('<TD><A HREF=plots/{:s}_feelem.png><IMG SRC=plots/{:s}_feelem.png></A>\n'.format(field,field))
 
     fp.write('<BR>Click on column headers to sort by column value<BR>\n')
     fp.write('<TABLE BORDER=2 CLASS=sortable>\n')
@@ -1040,10 +875,12 @@ def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
         fp.write('<TD>{:6.1f}\n'.format(aspcapfield['PARAM_CHI2'][istar]))
         for ipar in range(8) :
             p = aspcapfield['FPARAM'][istar,ipar]
-            perr = np.sqrt(aspcapfield['FPARAM_COV'][istar,ipar,ipar])
+            if aspcapfield['FPARAM_COV'][istar,ipar,ipar] > 0 :
+                perr = np.sqrt(aspcapfield['FPARAM_COV'][istar,ipar,ipar])
+            else : perr = -999.
             if ipar==2 or ipar==7 : 
                 p = 10.**p
-                perr = perr * p * np.log(10)
+                if perr > 0 : perr = perr * p * np.log(10)
             pm = '&plusmn;'
             fp.write(r'<TD>{:8.2f}{:s}{:8.2f}'.format(p,pm,perr))
         fp.write('<TD><A HREF=plots/{:s}.png><IMG SRC=plots/{:s}.png></A>\n'.format(star,star))
@@ -1065,4 +902,33 @@ def fill_plock(a,plocks) :
                                plock['logg_coef'][1]*a['FPARAM'][:,logg_index]**2+
                                plock['logg_coef'][2]*a['FPARAM'][:,logg_index]**3+
                                plock['mh_coef']*a['FPARAM'][:,mh_index])
-        
+       
+def chi2(data) :
+    """ calculate chi2 and cumulative chi2
+    """ 
+    chi2=(data['SPEC']-data['SPEC_BESTFIT'])**2/data['ERR']**2
+    cumchi2=np.cumsum(chi2,axis=1)
+    return chi2, cumchi2
+
+def comp(a,b,terange=[4500,5000],loggrange=[2.5,3.5]) :
+    """ Compare two versions in region on Kiel diagram
+    """
+    matplotlib.use('TkAgg')
+    gd=np.where( (a[1].data['FPARAM'][:,0]>=terange[0]) &
+                 (a[1].data['FPARAM'][:,0]<terange[1]) &
+                 (a[1].data['FPARAM'][:,1]>=loggrange[0]) &
+                 (a[1].data['FPARAM'][:,1]<loggrange[1]) )[0]
+    wave=np.hstack(gridWave())
+    achi,acum=chi2(a[2].data)
+    bchi,bcum=chi2(b[2].data)
+    fig,ax=plots.multi(1,4,hspace=0.001,sharex=True) 
+    plots.plotl(ax[0],wave,np.nanmedian(bcum-acum,axis=0))
+    plots.plotl(ax[1],wave,np.nanmedian(b[2].data['SPEC_BESTFIT']-a[2].data['SPEC_BESTFIT'],axis=0))
+    pdb.set_trace()
+    for i in gd :
+        print(i)
+        plots.plotl(ax[2],wave,(bcum[i]-acum[i])/(bcum[i]-acum[i]).sum())
+        plots.plotl(ax[3],wave,a[2].data['SPEC'][i])
+        plots.plotl(ax[3],wave,a[2].data['SPEC_BESTFIT'][i])
+        plots.plotl(ax[3],wave,b[2].data['SPEC_BESTFIT'][i])
+

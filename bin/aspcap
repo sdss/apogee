@@ -47,12 +47,14 @@ if __name__ == '__main__' :
             out=aspcap.fit_params(args.planfile,clobber=args.clobber,fix=['LOG10VDOP'],renorm=False,html=False)
             #refit with renomalization and with all paramters fit
             print('Refit with renomalization, initial fit parameters, all parameters fit')
-            out_renorm=aspcap.fit_params(args.planfile,aspcapdata=out,clobber=args.clobber,init='FPARAM',renorm=True,html=False)
+            out_renorm=aspcap.fit_params(args.planfile,aspcapdata=out,clobber=args.clobber,
+                                         init='FPARAM',renorm=True,html=False)
             #calibrate log g
             out_renorm[0]['PARAM'] = out_renorm[0]['FPARAM'] 
             out_renorm[0]['PARAM'][:,1] = cal.logg(out_renorm[0])
             print('Refit with fixed calibrated log g')
-            out_calib=aspcap.fit_params(args.planfile,aspcapdata=out_renorm,clobber=args.clobber,init='PARAM',fix=['LOGG'],renorm=True,suffix='_cal',html=False)
+            out_calib=aspcap.fit_params(args.planfile,aspcapdata=out_renorm,clobber=args.clobber,
+                                        init='PARAM',fix=['LOGG'],renorm=True,suffix='_cal',html=False)
         if not args.noelem :
             print('Abundances with uncalibrated fit parameters')
             out_elem=aspcap.fit_elems(args.planfile,clobber=args.clobber,renorm=True)

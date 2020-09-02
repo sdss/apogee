@@ -282,7 +282,7 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars') :
     nwave = nw_chip.sum()
     aspcapspec.add_column(Column(name='SPEC',dtype=float,shape=(nwave),length=len(aspcapfield)))
     aspcapspec.add_column(Column(name='SPEC_ERR',dtype=float,shape=(nwave),length=len(aspcapfield)))
-    aspcapspec.add_column(Column(name='MASK',dtype=float,shape=(nwave),length=len(aspcapfield)))
+    aspcapspec.add_column(Column(name='MASK',dtype=uint64,shape=(nwave),length=len(aspcapfield)))
     aspcapspec.add_column(Column(name='SPEC_BESTFIT',dtype=float,shape=(nwave),length=len(aspcapfield)))
     aspcapspec.add_column(Column(name='OBS',dtype=float,shape=(nwave),length=len(aspcapfield)))
     aspcapspec.add_column(Column(name='ERR',dtype=float,shape=(nwave),length=len(aspcapfield)))
@@ -624,7 +624,11 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
         try: os.makedirs(os.path.dirname(outspec))
         except: pass
 
+        # get FERRE library information for this grid
         libfile = 'lib_'+grid['name']+'/'+grid['lib']+'.hdr'
+        libhead0,libhead = ferre.rdlibhead(outdir+'/ferre/'+libfile)
+        libhead0['FILE'] = libfile
+
         # get stars for which best fit was in this grid
         gd = np.where(aspcapfield['CLASS'] == grid['name'])[0]
         print('Grid: ',grid['name'],len(gd))
@@ -632,10 +636,6 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
 
         if clobber or not os.path.exists(outspec+'.obs') :
             link(os.environ['APOGEE_SPECLIB']+'/synth/',os.path.dirname(outspec)+'/../lib_'+grid['name'])
-
-            # get FERRE library information for this grid
-            libhead0,libhead = ferre.rdlibhead(outdir+'/ferre/'+libfile)
-            libhead0['FILE'] = libfile
 
             # loop over stars and accumulate input for FERRE
             inpars=[]
@@ -663,10 +663,9 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
         for ielem,elem in enumerate(config['elems']) :
         
             # set up output FERRE directory for this grid
-            if calib:
-                out=outdir+'/ferre/elem_'+elem['name']+'_PARAM/'+elem['name']+'-'+grid['name']+'-'+field
-            else :
-                out=outdir+'/ferre/elem_'+elem['name']+'/'+elem['name']+'-'+grid['name']+'-'+field
+            dirname='elem_'+elem['name']
+            if calib: dirname=dirname+'_PARAM'
+            out=outdir+'/ferre/'+dirname+'/'+elem['name']+'-'+grid['name']+'-'+field
             try: os.makedirs(os.path.dirname(out))
             except: pass
 
@@ -690,13 +689,13 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
                         if len(j) > 0 : ttie.append(j[0]+1)
                         else : ttie.append(-1)
                 else : ttie=[-1,-1,-1]
-                ferre.writenml(out+'.nml','elem_'+elem['name']+'/'+os.path.basename(out),libhead0,init=0,
+                ferre.writenml(out+'.nml',dirname+'/'+os.path.basename(out),libhead0,init=0,
                            nov=1,indv=[index],ttie=ttie,
                            algor=grid['algor'],ncpus=plan['ncpus'],
                            obscont=grid['obscont'],rejectcont=grid['rejectcont'],
                            renorm=abs(grid['renorm']),
                            filterfile='elem_'+elem['name']+'/'+filterfile)
-                fp.write('elem_'+elem['name']+'/'+os.path.basename(out)+'.nml\n')
+                fp.write(dirname+'/'+os.path.basename(out)+'.nml\n')
                 fit = True
 
         fp.close()
@@ -747,7 +746,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
 
     if html :
         # create output HTML page
-        mkhtml(field,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
+        mkhtml(field,suffix=suffix,apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
 
     return aspcapfield,aspcapspec,aspcapkey
 
@@ -760,12 +759,15 @@ def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
 
     load = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope=telescope)
     infile=load.filename('aspcapField',field=field)
+    infile=os.path.dirname(infile)+'/'+os.path.splitext(os.path.basename(infile))[0]+suffix+'.fits'
     a=fits.open(infile)
     aspcapfield=a[1].data
     aspcapspec=a[2].data
 
     outdir=os.path.dirname(infile)
-    try: os.makedirs(outdir+'/plots/')
+    plotdir=outdir+'/plots'+suffix+'/'
+    reldir='plots'+suffix+'/'
+    try: os.makedirs(plotdir)
     except: pass
     fp=open(outdir+'/'+field+suffix+'.html','w')
     fp.write('<HTML>\n')
@@ -777,17 +779,17 @@ def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
     fig,ax=plots.multi(1,1)
     plots.plotc(ax,aspcapfield['FPARAM'][:,0],aspcapfield['FPARAM'][:,1],aspcapfield['FPARAM'][:,3],
                 xr=[8000,3000],yr=[6,-1],zr=[-2,0.5],size=10,colorbar=True,xt='Teff',yt='logg',zt='[M/H]')
-    fig.savefig(outdir+'/plots/'+field+'_hr.png')
+    fig.savefig(plotdir+field+'_hr.png')
     plt.close()
-    fp.write('<TD><A HREF=plots/{:s}_hr.png><IMG SRC=plots/{:s}_hr.png></A>\n'.format(field,field))
+    fp.write('<TD><A HREF={:s}/{:s}_hr.png><IMG SRC={:s}/{:s}_hr.png></A>\n'.format(reldir,field,reldir,field))
 
     yr=[-0.3,0.75]
     fig,ax=plots.multi(1,1)
     plots.plotc(ax,aspcapfield['FPARAM'][:,3],aspcapfield['FPARAM'][:,6],aspcapfield['FPARAM'][:,0],
                 zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt='[alpha/M]',zt='Teff')
-    fig.savefig(outdir+'/plots/'+field+'_alpha.png')
+    fig.savefig(plotdir+field+'_alpha.png')
     plt.close()
-    fp.write('<TD><A HREF=plots/{:s}_alpha.png><IMG SRC=plots/{:s}_alpha.png></A>\n'.format(field,field))
+    fp.write('<TD><A HREF={:s}/{:s}_alpha.png><IMG SRC={:s}/{:s}_alpha.png></A>\n'.format(reldir,field,reldir,field))
 
     # individual element abundance plots
     fig,ax=plots.multi(1,4,hspace=0.001)
@@ -799,9 +801,9 @@ def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
                 zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt=yt,zt='Teff',label=[0.9,0.9,el])
     plots.plotc(ax[3],aspcapfield['FPARAM'][:,3],aspcapfield['FELEM'][:,0]-aspcapfield['FELEM'][:,2],aspcapfield['FPARAM'][:,0],
             zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt='[C/N]',zt='Teff',label=[0.9,0.9,'[C/N]'])
-    fig.savefig(outdir+'/plots/'+field+'_cnelem.png')
+    fig.savefig(plotdir+field+'_cnelem.png')
     plt.close()
-    fp.write('<TD><A HREF=plots/{:s}_cnelem.png><IMG SRC=plots/{:s}_cnelem.png></A>\n'.format(field,field))
+    fp.write('<TD><A HREF={:s}/{:s}_cnelem.png><IMG SRC={:s}/{:s}_cnelem.png></A>\n'.format(reldir,field,reldir,field))
 
     fig,ax=plots.multi(1,6,hspace=0.001)
     yr=[-0.3,0.75]
@@ -810,9 +812,9 @@ def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
         yt='['+el+'/M]'
         plots.plotc(ax[iel],aspcapfield['FPARAM'][:,3],aspcapfield['FELEM'][:,jel],aspcapfield['FPARAM'][:,0],
                 zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt=yt,zt='Teff',label=[0.9,0.9,el])
-    fig.savefig(outdir+'/plots/'+field+'_alphaelem.png')
+    fig.savefig(plotdir+field+'_alphaelem.png')
     plt.close()
-    fp.write('<TD><A HREF=plots/{:s}_alphaelem.png><IMG SRC=plots/{:s}_alphaelem.png></A>\n'.format(field,field))
+    fp.write('<TD><A HREF={:s}/{:s}_alphaelem.png><IMG SRC={:s}/{:s}_alphaelem.png></A>\n'.format(reldir,field,reldir,field))
 
     fig,ax=plots.multi(1,4,hspace=0.001)
     for iel,el in enumerate(['Na','Al','P','K']) :
@@ -822,9 +824,9 @@ def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
           plots.plotc(ax[iel],aspcapfield['FPARAM'][:,3],aspcapfield['FELEM'][:,jel]-aspcapfield['FPARAM'][:,3],aspcapfield['FPARAM'][:,0],
                 zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt=yt,zt='Teff',label=[0.9,0.9,el])
         except: pdb.set_trace()
-    fig.savefig(outdir+'/plots/'+field+'_oddzelem.png')
+    fig.savefig(plotdir+field+'_oddzelem.png')
     plt.close()
-    fp.write('<TD><A HREF=plots/{:s}_oddzelem.png><IMG SRC=plots/{:s}_oddzelem.png></A>\n'.format(field,field))
+    fp.write('<TD><A HREF={:s}/{:s}_oddzelem.png><IMG SRC={:s}/{:s}_oddzelem.png></A>\n'.format(reldir,field,reldir,field))
 
     fig,ax=plots.multi(1,7,hspace=0.001)
     for iel,el in enumerate(['V','Cr','Mn','Fe','Co','Ni','Cu'] ) :
@@ -832,9 +834,9 @@ def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
         yt='['+el+'/M]'
         plots.plotc(ax[iel],aspcapfield['FPARAM'][:,3],aspcapfield['FELEM'][:,jel]-aspcapfield['FPARAM'][:,3],aspcapfield['FPARAM'][:,0],
                 zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt=yt,zt='Teff',label=[0.9,0.9,el])
-    fig.savefig(outdir+'/plots/'+field+'_feelem.png')
+    fig.savefig(plotdir+field+'_feelem.png')
     plt.close()
-    fp.write('<TD><A HREF=plots/{:s}_feelem.png><IMG SRC=plots/{:s}_feelem.png></A>\n'.format(field,field))
+    fp.write('<TD><A HREF={:s}/{:s}_feelem.png><IMG SRC={:s}/{:s}_feelem.png></A>\n'.format(reldir,field,reldir,field))
 
     fp.write('<BR>Click on column headers to sort by column value<BR>\n')
     fp.write('<TABLE BORDER=2 CLASS=sortable>\n')
@@ -862,7 +864,7 @@ def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
         #    plots.plotl(ax,w[ichip],aspcapspec[istar]['err'][pix[ichip][0]:pix[ichip][1]],color='r')
         pars=r'T$_e$: {:8.1f} logg: {:5.2f} log(v$_{{micro}}$): {:5.2f}  [M/H]: {:5.2f}  [C/M]: {:5.2f}  [N/M]: {:5.2f} [$\alpha$/M]: {:5.2f}  log(vsini/v$_{{macro}}$): {:5.2f}'.format(*aspcapfield['FPARAM'][istar,0:8])
         fig.suptitle(star+' : '+pars)
-        fig.savefig(outdir+'/plots/'+star+'.png')
+        fig.savefig(plotdir+star+'.png')
         plt.close()
 
         fp.write('<TR><TD>{:s}<BR>\n'.format(star))
@@ -883,7 +885,7 @@ def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
                 if perr > 0 : perr = perr * p * np.log(10)
             pm = '&plusmn;'
             fp.write(r'<TD>{:8.2f}{:s}{:8.2f}'.format(p,pm,perr))
-        fp.write('<TD><A HREF=plots/{:s}.png><IMG SRC=plots/{:s}.png></A>\n'.format(star,star))
+        fp.write('<TD><A HREF={:s}/{:s}.png><IMG SRC={:s}/{:s}.png></A>\n'.format(reldir,star,reldir,star))
 
     fp.write('</TABLE></BODY></HTML>')
     fp.close()
@@ -910,25 +912,64 @@ def chi2(data) :
     cumchi2=np.cumsum(chi2,axis=1)
     return chi2, cumchi2
 
-def comp(a,b,terange=[4500,5000],loggrange=[2.5,3.5]) :
+def comp(a,b,terange=[4500,5000],loggrange=[2.5,3.5],mhrange=[-2.5,1.0]) :
     """ Compare two versions in region on Kiel diagram
     """
     matplotlib.use('TkAgg')
     gd=np.where( (a[1].data['FPARAM'][:,0]>=terange[0]) &
                  (a[1].data['FPARAM'][:,0]<terange[1]) &
                  (a[1].data['FPARAM'][:,1]>=loggrange[0]) &
-                 (a[1].data['FPARAM'][:,1]<loggrange[1]) )[0]
+                 (a[1].data['FPARAM'][:,1]<loggrange[1]) &
+                 (a[1].data['FPARAM'][:,3]>=mhrange[0]) &
+                 (a[1].data['FPARAM'][:,3]<mhrange[1]) )[0]
+    print('{:d} stars'.format(len(gd)))
     wave=np.hstack(gridWave())
     achi,acum=chi2(a[2].data)
     bchi,bcum=chi2(b[2].data)
+    fig,ax=plots.multi(2,1,figsize=(4,3),wspace=0.001)
+    plots.plotc(ax[0],a[1].data['FPARAM'][:,0],a[1].data['FPARAM'][:,1],a[1].data['FPARAM'][:,3],
+                xr=[8000,3000],yr=[6,-1],zr=[-2.5,0.5],size=1,colorbar=False,zt='[M/H]',yt='log g',xt='Teff')
+    plots.plotc(ax[0],a[1].data['FPARAM'][gd,0],a[1].data['FPARAM'][gd,1],a[1].data['FPARAM'][gd,3],
+                xr=[8000,3000],yr=[6,-1],zr=[-2.5,0.5],size=10,colorbar=False,zt='[M/H]',yt='log g',xt='Teff')
+    plots.plotc(ax[1],b[1].data['FPARAM'][:,0],b[1].data['FPARAM'][:,1],b[1].data['FPARAM'][:,3],
+                xr=[8000,3000],yr=[6,-1],zr=[-2.5,0.5],size=1,colorbar=False,zt='[M/H]',yt='log g',xt='Teff')
+    plots.plotc(ax[1],b[1].data['FPARAM'][gd,0],b[1].data['FPARAM'][gd,1],b[1].data['FPARAM'][gd,3],
+                xr=[8000,3000],yr=[6,-1],zr=[-2.5,0.5],size=10,colorbar=False,zt='[M/H]',yt='log g',xt='Teff')
+
+    fig,ax=plots.multi(1,7,hspace=0.001)
+    for i in range(7) :
+        if i == 0 : yr=[-100,100]
+        else : yr=[-0.25,0.25]
+        plots.plotc(ax[i],b[1].data['FPARAM'][:,1]-a[1].data['FPARAM'][:,1],b[1].data['FPARAM'][:,i]-a[1].data['FPARAM'][:,i],
+                    a[1].data['FPARAM'][:,3],zr=[-2.5,0.5],yt=a[3].data['PARAM_SYMBOL'][0][i],size=1,xr=[-0.5,0.5],yr=yr)
+        plots.plotc(ax[i],b[1].data['FPARAM'][gd,1]-a[1].data['FPARAM'][gd,1],b[1].data['FPARAM'][gd,i]-a[1].data['FPARAM'][gd,i],
+                    a[1].data['FPARAM'][gd,3],zr=[-2.5,0.5],yt=a[3].data['PARAM_SYMBOL'][0][i],xr=[-0.5,0.5],yr=yr)
+
     fig,ax=plots.multi(1,4,hspace=0.001,sharex=True) 
     plots.plotl(ax[0],wave,np.nanmedian(bcum-acum,axis=0))
-    plots.plotl(ax[1],wave,np.nanmedian(b[2].data['SPEC_BESTFIT']-a[2].data['SPEC_BESTFIT'],axis=0))
-    pdb.set_trace()
+    plots.plotl(ax[1],wave,np.nanmedian(b[2].data['SPEC_BESTFIT'][gd]-a[2].data['SPEC_BESTFIT'][gd],axis=0))
     for i in gd :
-        print(i)
         plots.plotl(ax[2],wave,(bcum[i]-acum[i])/(bcum[i]-acum[i]).sum())
-        plots.plotl(ax[3],wave,a[2].data['SPEC'][i])
-        plots.plotl(ax[3],wave,a[2].data['SPEC_BESTFIT'][i])
-        plots.plotl(ax[3],wave,b[2].data['SPEC_BESTFIT'][i])
+        #plots.plotl(ax[3],wave,a[2].data['SPEC'][i])
+        #plots.plotl(ax[3],wave,a[2].data['SPEC_BESTFIT'][i])
+        plots.plotl(ax[3],wave,b[2].data['SPEC_BESTFIT'][i]-a[2].data['SPEC_BESTFIT'][i])
+
+    fig,ax=plots.multi(3,6,hspace=0.001,wspace=0.001,figsize=(12,8))
+    yr=[-0.14,0.14]
+    for iel,el in enumerate(['O','Mg','Si','S','Ca','Ti']) :
+        jel = np.where(elems()[0] == el)[0][0]
+        yt='['+el+'/M]'
+        plots.plotc(ax[iel,0],a[1].data['FPARAM'][gd,0],b[1].data['FELEM'][gd,jel]-a[1].data['FELEM'][gd,jel],a[1].data['FPARAM'][gd,3],
+                xr=[8000,3000],yr=yr,zr=[-2.5,0.5],size=10,colorbar=False,zt='[M/H]',xt='Teff',label=[0.9,0.9,el])
+    for iel,el in enumerate(['Na','Al','P','K']) :
+        jel = np.where(elems()[0] == el)[0][0]
+        yt='['+el+'/M]'
+        plots.plotc(ax[iel,1],a[1].data['FPARAM'][gd,0],b[1].data['FELEM'][gd,jel]-a[1].data['FELEM'][gd,jel],a[1].data['FPARAM'][gd,3],
+                xr=[8000,3000],yr=yr,zr=[-2.5,0.5],size=10,colorbar=False,zt='[M/H]',xt='Teff',label=[0.9,0.9,el])
+    for iel,el in enumerate(['V','Cr','Mn','Fe','Co','Ni'] ) :
+        jel = np.where(elems()[0] == el)[0][0]
+        yt='['+el+'/M]'
+        plots.plotc(ax[iel,2],a[1].data['FPARAM'][gd,0],b[1].data['FELEM'][gd,jel]-a[1].data['FELEM'][gd,jel],a[1].data['FPARAM'][gd,3],
+                xr=[8000,3000],yr=yr,zr=[-2.5,0.5],size=10,colorbar=False,zt='[M/H]',xt='Teff',label=[0.9,0.9,el])
+    pdb.set_trace()
 

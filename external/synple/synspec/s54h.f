@@ -65,10 +65,18 @@ C     INITIALIZATION - INPUT OF BASIC PARAMETERS AND MODEL ATMOSPHERE
 C
       CALL START
       if(ifeos.gt.0) imode=-3
+      if(ibfac.gt.1) then
+         LTE0=LTE
+         LTE=.TRUE.
+      END IF
       IF(IMODE.GE.-2.AND.IFEOS.EQ.0) THEN
          IF(INMOD.GT.0) CALL INPMOD
          IF(INMOD.EQ.0) CALL INKUR
          IF(ICHANG.NE.0) CALL CHANGE
+         IF(IBFAC.GT.1) THEN
+            CALL INPBF
+            LTE=LTE0
+         END IF
          IF(IFWIN.GT.1) CALL SETWIN
        ELSE
          CALL INGRID(0,inext,0)
@@ -78,18 +86,20 @@ C
       CALL INIMOD
       CALL TINT
 c
+      IMODE0=IMODE
+      IF(IMODE0.EQ.-4) IMODE=2
       igrd=0
     1 continue
 c
-      IF(IMODE.LE.-3.and.ifeos.eq.0) CALL INIBL1(IGRD)
+      IF(IMODE0.LE.-3.and.ifeos.eq.0) CALL INIBL1(IGRD)
       IF(IFMOL.GT.0) then
          CALL MOLINI
-         call eospri
+c        call eospri
       end if
 c
 c     zero abundances for selected species (if required)
 c
-      if(imode.le.-3) call abnchn(1)
+      if(imode0.le.-3) call abnchn(1)
 c
       IBLANK=0
       NXTSET=0
@@ -106,9 +116,9 @@ c
 C
       IF(IFMOL.GT.0.AND.IMODE.LT.2) THEN
          DO ILIST=1,NMLIST
-            IF(IMODE.LE.-3.AND.TEMP(1).LT.TMLIM(ILIST))
+            IF(IMODE.EQ.-3.AND.TEMP(1).LT.TMLIM(ILIST))
      *      CALL INMOLI(ILIST)
-            IF(IMODE.GE.-2) CALL INMOLI(ILIST)
+            IF(IMODE.GE.-2.and.imode.le.1) CALL INMOLI(ILIST)
          END DO
       END IF
       end if
@@ -121,7 +131,7 @@ C
    10 IBLANK=IBLANK+1
       IF(IFWIN.LE.0) THEN
          CALL RESOLV
-         IF(IMODE.LT.0) GO TO 20
+         IF(IMODE0.LT.0) GO TO 20
          if(ifreq.le.10.and.inmod.le.1) then
             CALL RTECD
           else
@@ -153,13 +163,13 @@ C
       END IF
    30 CONTINUE
 c
-      if(imode.lt.-2) then
+      if(imode0.lt.-2) then
          call ingrid(1,inext,igrd)
          igrd=igrd+1
 c        call timing(1,igrd)
          if(inext.gt.0) go to 1
       end if
-      if(imode.eq.-3.and.ifeos.eq.0) call fingrd
+      if(imode0.le.-3.and.ifeos.eq.0) call fingrd
       call timing(2,iblank)
       END
 C
@@ -173,7 +183,6 @@ C     ================
 C
 C     General input and initialization procedure
 C
-      IMPLICIT LOGICAL (L)
       INCLUDE 'PARAMS.FOR'
       INCLUDE 'MODELP.FOR'
       INCLUDE 'LINDAT.FOR'
@@ -267,7 +276,7 @@ c     IFMOL=0
          nmlist=1
          iunitm(1)=20
       end if
-c     disabeling an old option
+c     disableing an old option
       iophli=0
       call initia
 c
@@ -295,7 +304,6 @@ C     =================
 C
 C     driver for input and initializations - "new" routine
 C
-      IMPLICIT LOGICAL (L)
       INCLUDE 'PARAMS.FOR'
       INCLUDE 'MODELP.FOR'
       INCLUDE 'SYNTHP.FOR'
@@ -311,8 +319,8 @@ C
       COMMON/IONDAT/IATI(MION),IZI(MION),NLEVS(MION),NLLIM(MION)
       COMMON/IONFIL/FIDATA,FIODF1,FIODF2,FIBFCS
       COMMON/INUNIT/IUNIT
-      common/lteset/lte
       COMMON/STRPAR/IMER,ITR,IC,IL,IP,NLASTE,NHOD
+      common/quasex/iexpl(mlevel),iltot(mlevel)
       DIMENSION IGLE(18),IGMN(25),IGFE(26),IGNI(28)
       DATA IGLE/2,1,2,1,6,9,4,9,6,1,2,1,6,9,4,9,6,1/
       DATA IGMN/2,1,2,1,6,9,4,9,6,1,2,1,6,9,4,9,6,1,
@@ -387,8 +395,10 @@ C
       CALL STATE0(1)
       ID=1
       IF(IPRIN.GE.1) WRITE(6,607) YTOT(ID),WMY(ID),WMM(ID)
-      DO I=1,NLEVEL
+      DO I=1,MLEVEL
          ILK(I)=0
+         iexpl(i)=0
+         iltot(i)=0
       END DO
 C
 C --------------------------------------------------------------
@@ -559,7 +569,7 @@ C Input parameters for additional opacities
 C -----------------------------------------
 C
       IF(IPRIN.GE.0) WRITE(6,605) IOPHMI,IOPH2P,IOPHEM,IOPCH,IOPOH,
-     *               IOPH2M,IOH2H2,IOH2HE,IOH2H,IOHHE,
+     *               IOPH2M,IOH2H2,IOH2HE,IOH2H1,IOHHE,
      *               IRSCT,IRSCH2,IRSCHE,IOPHLI
 C
 C
@@ -609,7 +619,7 @@ c    *3X,'S0',5X,'ALF',4X,'BET',4X,'GAM'/)
      * ' IOPH2M  (H2- OPACITY)              =',I3/
      * ' IOH2H2  (CIA H2-H2 OPACITY         =',I3/
      * ' IOH2HE  (CIA H2-He OPACITY         =',I3/
-     * ' IOH2H   (CIA H2-H  OPACITY         =',I3/
+     * ' IOH2H1  (CIA H2-H  OPACITY         =',I3/
      * ' IOHHE   (CIA H-He OPACITY          =',I3/
      * ' IRSCT   (RAYLEIGH SCAT. ON H I)    =',I3/
      * ' IRSCH2  (RAYLEIGH SCAT. ON H2      =',I3/
@@ -646,7 +656,6 @@ C
       SUBROUTINE RDATA(ION)
 C     =====================
 C 
-      IMPLICIT LOGICAL (L)
       INCLUDE 'PARAMS.FOR'
       INCLUDE 'MODELP.FOR'
       INCLUDE 'SYNTHP.FOR'
@@ -665,6 +674,8 @@ C
       COMMON/INUNIT/IUNIT
       COMMON/STRPAR/IMER,ITR,IC,IL,IP,NLASTE,NHOD
       common/dissol/fropc(mlevel),indexp(mlevel)
+      common/quasex/iexpl(mlevel),iltot(mlevel)
+      data iexp0/0/
 C
 c     IUNIT=IUNIT+1
       IUNIT=94
@@ -702,6 +713,22 @@ C
          IE=IEL(I)
          N0I=NFIRST(IE)
          NKI=NNEXT(IE)
+         ia=numat(iatm(n0i))
+         if(isemex(ia).le.1) then
+            iexp0=iexp0+1
+            iexpl(i)=iexp0
+            iltot(iexp0)=i
+c      write(6,671) il,i,ia,ion,isemex(ia),iexp0,iltot(iexp0)
+            if(il.eq.nlevs(ion)) then
+               if(nki.eq.nka(iatm(i))) then
+                  iexp0=iexp0+1
+                  iexpl(nki)=iexp0
+                  iltot(iexp0)=nki
+c      write(6,671) il+1,nki,ia,ion,isemex(ia),iexp0,iltot(iexp0)
+               end if
+            end if
+c 671 format('il,i,ia,ion,isem,iexp,iltot',7i4)
+         end if
          IQ=I-N0I+1
          X=IQ*IQ
          ifwop(i)=0
@@ -767,6 +794,19 @@ C     Upgraded format including limits for energies, and quantum numbers
          IE=IEL(I)
          N0I=NFIRST(IE)
          NKI=NNEXT(IE)
+         ia=numat(iatm(n0i))
+         if(isemex(ia).le.1) then
+            iexp0=iexp0+1
+            iexpl(i)=iexp0
+            iltot(iexp0)=i
+            if(il.eq.nlevs(ion)) then
+               if(nki.eq.nka(iatm(i))) then
+                  iexp0=iexp0+1
+                  iexpl(nki)=iexp0
+                  iltot(iexp0)=nki
+               end if
+            end if
+         end if
          IQ=I-N0I+1
          X=IQ*IQ
          ifwop(i)=0
@@ -1074,17 +1114,14 @@ C
 C     settiing up the default values of various input flags, and
 C     input of non-standard values of various input flags and parameters
 C
-      IMPLICIT LOGICAL (L)
       INCLUDE 'PARAMS.FOR'
       INCLUDE 'MODELP.FOR'
       INCLUDE 'SYNTHP.FOR'
       common/hhebrd/sthe,nunhhe
       common/hydmol/anhmi,ahmol,ih2,ih2p,ihm
-      common/moldat/moltab,irwtab
-      common/irwint/iirwin
       common/gompar/hglim,ihgom
 C 
-      PARAMETER(MVAR=59)
+      PARAMETER(MVAR=60)
       PARAMETER(INPFI=4)
       CHARACTER*(*) FINSTD
       CHARACTER*6 PVALUE(MVAR)
@@ -1097,10 +1134,10 @@ C
      *             'IFPREC','IELCOR','ICHC  ','IRSPLT','IATREF',
      *             'POPZER','BERGFC','IHYDPR','NUNHHE','STHE  ',
      *             'IOVER ','ITLAS ','IFSUB ','NITER ','NLAMBD',
-     *             'ND    ','NFREQS',
+     *             'ND    ','NFREQS','IBFAC ',
      *             'INTRPL','ICHANG','IFEOS',
      *             'IOPHMI','IOPH2P','IOPHEM','IOPCH ','IOPOH ',
-     *             'IOPH2M','IOH2H2','IOH2HE','IOH2H ','IOHHE ',
+     *             'IOPH2M','IOH2H2','IOH2HE','IOH2H1','IOHHE ',
      *             'IRSCT ','IRSCH2','IRSCHE',
      *             'IHM   ','IH2   ','IH2P  ',
      *             'TRAD  ','WDIL  ',
@@ -1116,7 +1153,7 @@ C
      *             '     1','   100','     0','     1','     1',
      *             '1.D-20','  1.D0','     0','     0',' 1.e19',
      *             '     1','   100','     0','    30','     1',
-     *             '    70','   120',
+     *             '    70','   120','     0',
      *             '     0','     0','     0',
      *             '     1','     1','     1','     1','     1',
      *             '     1','     1','     1','     1','     1',
@@ -1191,10 +1228,10 @@ C
      *             IFPREC,IELCOR,ICHC  ,IRSPLT,IATREF,
      *             POPZER,BERGFC,IHYDPR,NUNHHE,STHE  ,
      *             IOVER ,ITLAS ,IFSUB ,NITER ,NLAMBD,
-     *             ND    ,NFREQS,
+     *             ND    ,NFREQS,IBFAC ,
      *             INTRPL,ICHANG,IFEOS ,
      *             IOPHMI,IOPH2P,IOPHEM,IOPCH ,IOPOH ,
-     *             IOPH2M,IOH2H2,IOH2HE,IOH2H ,IOHHE ,
+     *             IOPH2M,IOH2H2,IOH2HE,IOH2H1,IOHHE ,
      *             IRSCT ,IRSCH2,IRSCHE,
      *             IHM   ,IH2   ,IH2P  ,
      *             TRAD  ,WDIL  ,
@@ -1300,7 +1337,6 @@ C
 C     Initialization of the basic parameters for the Saha equation
 C
       INCLUDE 'PARAMS.FOR'
-      common/isemix/isemex(matom)
       parameter (enhe1=24.5799,enhe2=54.3999)
       character*4 DYP
       DIMENSION D(3,MATOM),XI(8,MATOM),DYP(MATOM)
@@ -1621,7 +1657,7 @@ C
                READ(IBUFF,*) MA,ABN,MODPF(I)
                ION=0
             END IF
-          ELSE IF(MOD(IMODE,10).LE.1) THEN
+          ELSE IF(MOD(IMODE,10).LE.1.and.imode.ne.-4) THEN
             MA=1
             ABN=0.
             ION=0
@@ -1671,6 +1707,7 @@ C
             IAT=IAT+1
             IATEX(I)=IAT
             if(ma.eq.4) isemex(i)=1
+            if(ma.eq.5) isemex(i)=2
             IF(IAT.EQ.IATREF) THEN
                IREF=I
                DO ID=1,ND
@@ -2016,7 +2053,8 @@ C
       INCLUDE 'SYNTHP.FOR'
       INCLUDE 'WINCOM.FOR'
       parameter (un=1.)
-      logical lasdel,lte
+      character*2 iu
+      character*6 ilab
       DIMENSION CROSS(MCROSS,MFRQ),
      *          ABSO(MFREQ),EMIS(MFREQ),SCAT(MFREQ),
      *          ABSOC(MFREQC),EMISC(MFREQC),SCATC(MFREQC)
@@ -2026,7 +2064,6 @@ C
       common/linrej/ilne(mdepth),ilvi(mdepth)
       common/velaux/velmax,iemoff,nltoff,itrad
       common/alsave/ALAM0s,ALASTs,CUTOF0s,CUTOFSs,RELOPs,SPACEs
-      common/lteset/lte
 C
 C --------------------------------------------------------------
 C Parameters controlling an evaluation of the synthetic spectrum
@@ -2128,37 +2165,67 @@ c
          lasdel=.false.
       end if
 C
-      read(55,*,err=8,end=8) nmlist,(iunitm(ilist),ilist=1,nmlist)
-    8 continue
+      ibin(0)=mod(inlist,10)
+      do ilist=1,mmlist
+         tmlim(ilist)=tmolim
+         ibin(ilist)=mod(inlist,10)
+         ivdwli(ilist)=0
+         iun=19+ilist
+         write(iu,622) iun
+  622    format(i2)
+         amlist(ilist)='fort.' // iu
+      end do
+c
+      if(imode.ge.-3.and.imode.le.1) then
+      nmlist=0
+      numlis=0
+      read(55,*,err=5,end=5) nmlist,(iunitm(ilist),ilist=1,nmlist)
+      do ilist=1,nmlist
+         write(iu,622) iunitm(ilist)
+         amlist(ilist) ='fort.' // iu
+      end do
+    5 continue
+c
+      ilist=0
+      amlist(0)='fort.19'
+      read(3,*,err=20,end=20) amlist(0),ibin(0)
+c
+      ilist=0
+   10 continue
+      ilist=ilist+1
+      read(3,*,end=20) amlist(ilist),ibin(ilist),tmlim(ilist),
+     *                 ivdwli(ilist)
+      write(6,610) ilist,amlist(ilist),ibin(ilist),tmlim(ilist),
+     *             ivdwli(ilist)
+  610 format(i3,a40,i4,f8.1,i4)
+      numlis=numlis+1
+   20 continue
+      if(numlis.gt.0) nmlist=numlis
       if(nmlist.gt.0.and.ifmol.eq.0) then
-         write(*,*) 'NEEDS TO SET IFMOL > 0 witH NMLIST>0' 
-c     *    FOR',nmlist','REQUIRED ',
-c     *   'MOLECULAR LINE LIST(S)'
+         write(*,*) 'NEEDS TO SET IFMOL > 0 with NMLIST>0' 
          stop
       end if
 c
+      ilist=0
+      ilab='ATOMIC'
+      write(6,623) ilist,ilab,trim(amlist(ilist)),ibin(ilist)
+      ilab='MOLEC '
       do ilist=1,nmlist
-         tmlim(ilist)=tmolim
+         write(6,624) ilist,ilab,trim(amlist(ilist)),ibin(ilist),
+     *                ivdwli(ilist),tmlim(ilist)
       end do
-      if(nmlist.gt.0) then
-         read(57,*,err=9,end=9) (tmlim(ilist),ilist=1,nmlist)
-      end if
-    9 continue
+  623 format(/'************************'/
+     *        ' LINE LISTS:'/
+     *       /' ILIST',8x,'FILENAME  IBIN  IVDWLI  TMLIM'/
+     *        i4,2x,a6,2x,a,2x,i4,i6,f11.1)
+  624 format( i4,2x,a6,2x,a,2x,i4,i6,f11.1)
+      end if 
 c
-      if(nmlist.gt.0) then
-         read(57,*,err=11,end=11) (ivdwli(ilist),ilist=1,nmlist)
-      end if
-   11 continue
-c
-      do ilist=1,nmlist
-         write(6,*) 'ilist,tmlim,ivdwli',
-     *               ilist,tmlim(ilist),ivdwli(ilist)
-      end do
 C
 c     VTB    - turbulent velocity (in km/s). In non-negative, this
 C              value overwrites the value given by the standard input
 C
-      read(55,*,err=20,end=20) VTB
+      read(55,*,err=30,end=30) VTB
       if(ifwin.le.0) then
          if(vtb.ge.0.) then
             WRITE(6,608) VTB
@@ -2173,7 +2240,7 @@ C
       TSTD=TEMP(IDSTD)
       VTS=VTURB(IDSTD)
       DSTD=SQRT(1.4E7*TSTD+VTS)
-   20 continue
+   30 continue
 C
 C     angle points (in case the specific intensities are evaluated
 C
@@ -2215,18 +2282,19 @@ C
       IF(NMU0.LT.0) THEN
          NMU0=IABS(NMU0)
          READ(55,*) (ANGL(IMU),IMU=1,NMU0)
-         DO 30 IMU=2,NMU0-1
-   30       WANGL(IMU)=0.5*(ANGL(IMU-1)+ANGL(IMU+1))
+         DO IMU=2,NMU0-1
+            WANGL(IMU)=0.5*(ANGL(IMU-1)+ANGL(IMU+1))
+         END DO
          WANGL(1)=0.5*(ANGL(1)-ANGL(2))
          WANGL(NMU0)=0.5*(ANGL(NMU0-1)-ANGL(NMU0))
        ELSE
          IF(ANG0.GT.0.) THEN
             IF(NMU0.GT.1) THEN
             DMU=(1.-ANG0)/(NMU0-1)
-            DO 40 IMU=1,NMU0
+            DO IMU=1,NMU0
                ANGL(IMU)=1.-(IMU-1)*DMU
                WANGL(IMU)=DMU
-   40       CONTINUE
+            END DO
             WANGL(1)=0.5*DMU
             WANGL(NMU0-1)=0.5*DMU
             WANGL(NMU0)=2.*DMU
@@ -2234,19 +2302,19 @@ C
           ELSE
             ANGH=0.70710678
             DMU=ANGH/(NMU0-1)
-            DO 50 IMU=1,NMU0
+            DO IMU=1,NMU0
                ANGL(IMU)=(IMU-1)*DMU
                ANGL(IMU)=SQRT(1.-ANGL(IMU)**2)
                IF(IMU.GT.1.AND.IMU.LT.NMU0) 
      *            WANGL(IMU)=0.5*(ANGL(IMU-1)+ANGL(IMU+1))
-   50       CONTINUE
+            END DO
             WANGL(1)=0.5*(ANGL(1)-ANGL(2))
             WANGL(NMU0)=0.5*(ANGL(NMU0-1)-ANGL(NMU0))
             IF(ANG0.LT.0.) DMU=(ANGH+ANG0)/(NMU0-1)
-            DO 60 IMU=1,NMU0-2
+            DO IMU=1,NMU0-2
                ANGL(IMU+NMU0)=ANGH-IMU*DMU
                WANGL(IMU+NMU0)=DMU
-   60       CONTINUE
+            END DO
             WANGL(NMU0)=WANGL(NMU0)+0.5*DMU
             WANGL(2*NMU0-3)=0.5*DMU
             WANGL(2*NMU0-2)=2.*DMU
@@ -2576,10 +2644,9 @@ C
       COMMON/RTEOPA/CH(MFREQ,MDEPTH),ET(MFREQ,MDEPTH),
      *              SC(MFREQ,MDEPTH)
       COMMON/HPOPST/HPOP
-      common/imodcu/imode0
 C
       IHYL=-1
-      imode0=imode
+c     imode0=imode
 c
 c     if(imode.le.-3) call abnchn(1)
 C
@@ -2612,6 +2679,7 @@ C
 C     monochromatic opacity and emissivity including all contributing
 C     lines and continua
 C
+c       write(*,*) 'resolv',nd,nfreq,3.e18/freq(1),3.e18/freq(nfreq)
       IF(IMODE.GE.-1) THEN
          DO ID=1,ND
             CALL OPAC(ID,CROSS,ABSO,EMIS,SCAT)
@@ -2622,6 +2690,8 @@ C
                SC(IJ,ID)=SCAT(IJ)
 c              SC(IJ,ID)=SCAT(IJ)+ELEC(ID)*SIGE
             END DO
+c         write(*,*) abso(1),abso(nfreq/2),abso(nfreq)
+            if(imode0.eq.-4) call ougrid(abso,scat)
          END DO
 C
 C        output of information about selected hydrogen lines
@@ -2647,7 +2717,7 @@ C
          call opac(id,cross,abso,emis,scat)
          ch(1,id)=abso(1)
          ch(2,id)=abso(2)
-         imode=imode0
+c        imode=imode0
          call ougrid(abso,scat)
       END IF
   626 format(1p3e15.4)
@@ -4306,7 +4376,6 @@ C
      +              MOP    =  15 )! maximum number of fit points per level
       CHARACTER*10  IDLVOP(MMAXOP) ! level identifyer Opacity-Project data
       CHARACTER*10  TYPLV
-      LOGICAL*2     LOPREA   
       COMMON /TOPB/ SOP(MOP,MMAXOP) ,! sigma = alog10(sigma/10^-18) of fit point
      +              XOP(MOP,MMAXOP) ,! x = alog10(nu/nu0) of fit point 
      +              NOP(MMAXOP)     ,! number of fit points for current level
@@ -4364,7 +4433,6 @@ C
       PARAMETER    (MMAXOP = 200,! maximum number of levels in OP data
      +              MOP    =  15 )! maximum number of fit points per level
       CHARACTER*10  IDLVOP(MMAXOP) ! level identifyer Opacity-Project data
-      LOGICAL*2     LOPREA   
       COMMON /TOPB/ SOP(MOP,MMAXOP) ,! sigma = alog10(sigma/10^-18) of fit point
      +              XOP(MOP,MMAXOP) ,! x = alog10(nu/nu0) of fit point 
      +              NOP(MMAXOP)     ,! number of fit points for current level
@@ -4703,7 +4771,6 @@ C
       INCLUDE 'LINDAT.FOR'
       INCLUDE 'SYNTHP.FOR'
       INCLUDE 'WINCOM.FOR'
-      logical lasdel
       DIMENSION CROSS(MCROSS,MFRQ)
       DIMENSION ABSO(MFREQ),EMIS(MFREQ),SCAT(MFREQ),
      *          ABSOC(MFREQC),EMISC(MFREQC),SCATC(MFREQC),
@@ -5395,7 +5462,6 @@ C
       PARAMETER (C00=1.25E-9,CDOP=1.284523E12,CID=0.02654,TWO=2.)
       PARAMETER (CPJ4=CPJ/4.,AL10=2.3025851,CINV=UN/2.997925E18)
       PARAMETER (CID1=0.01497)
-      logical lquasi,lalhhe
       common/quasun/nunalp,nunbet,nungam,nunbal
       common/hhebrd/sthe,nunhhe
       common/gompar/hglim,ihgom
@@ -5774,7 +5840,6 @@ C
       PARAMETER (C00=1.25E-9,CDOP=1.284523E12,CID=0.02654,TWO=2.)
       PARAMETER (CPJ4=CPJ/4.,AL10=2.3025851,CINV=UN/2.997925E18)
       PARAMETER (CID1=0.01497)
-      logical lquasi,lasdel
       common/lasers/lasdel
       common/quasun/nunalp,nunbet,nungam,nunbal
       DIMENSION PJ(40),PRF0(54),OSCH(4,22),
@@ -6429,7 +6494,6 @@ C
       PARAMETER (C00=1.25E-9,CDOP=1.284523E12,CID=0.02654,TWO=2.)
       PARAMETER (CPJ4=CPJ/4.,AL10=2.3025851,CINV=UN/2.997925E18)
       PARAMETER (CID1=0.01497)
-      logical lasdel
       DIMENSION PJ(80),FRHE(12),OSCHE2(19),PRF0(36),
      *          ABSO(MFREQ),EMIS(MFREQ),ABSOH(MFREQ),EMISH(MFREQ)
       COMMON/HE2PRF/PRFHE2(19,MDEPTH,36),WLHE2(19,36),NWLHE2(19),
@@ -7730,7 +7794,6 @@ C
       INCLUDE 'PARAMS.FOR'
       INCLUDE 'MODELP.FOR'
       INCLUDE 'SYNTHP.FOR'
-      logical lasdel
       DIMENSION ABLIN(1),EMLIN(1),OSCHE2(19),PRF0(40),WLL(40)
       COMMON/HE2PRF/PRFHE2(19,MDEPTH,36),WLHE2(19,36),NWLHE2(19),
      *              ILHE2(19),IUHE2(19)
@@ -8656,6 +8719,11 @@ C
 
       DATA INLSET /0/
 C
+      if(ibin(0).eq.0) then
+         open(unit=19,file=amlist(0),status='old')
+       else
+         open(unit=19,file=amlist(0),form='unformatted',status='old')
+      end if
       if(imode.lt.-2) then
          call inilin_grid
          return
@@ -8713,11 +8781,12 @@ C
       DO I=1,NION
         IF (ILIMITS(I).EQ.1) MAXILIMITS=1
       ENDDO
-      IF (MAXILIMITS.EQ.0) INLIST=11
+      IF (MAXILIMITS.EQ.0.and.inlist.gt.0) INLIST=1
 C
 C     If INLIST=0 or 10, the program checks for the number of words
 C     present in the first line of the file to determine if quantum
-C     numbers are included. If  INLINST=11, they will be ignored anyway
+C     numbers are included. If  INLINST=11, it means quantum numbers 
+C     are present
 
       IF (INLIST.EQ.0.or.INLIST.EQ.10) THEN
         CADENA=' '
@@ -8732,8 +8801,8 @@ C     numbers are included. If  INLINST=11, they will be ignored anyway
            WRITE(11,*) 'INILIN: quantum numbers included in linelist'
         ENDIF
       ELSE IF (INLIST.EQ.11) THEN
-        INLIST=1
-        WRITE(11,*)'INILIN: if present, quant. num. limits are ignored'
+C        INLIST=1
+        WRITE(11,*)'INILIN: quant. num. limits are present and used'
       ELSE
         WRITE(11,*)'INILIN: if present, quant. num. limits are ignored'
       ENDIF
@@ -8749,7 +8818,7 @@ C     skip all lines with wavelength below ALAM0-CUTOFF
 C
       ALAM=0.
       IJC=2
-    7 if(inlist.eq.0.or.inlist.eq.10) then
+    7 if(ibin(0).eq.0) then
          READ(19,510) ALAM
        else
          read(19) alam
@@ -8767,19 +8836,23 @@ c 688 format(' error in line list, lambda= ',f12.4/)
       IPRF=0
       GS=0.
       GW=0.
-      IF(INLIST.EQ.0) THEN
-         READ(19,*,END=100,err=8) ALAM,ANUM,GF,EXCL,QL,EXCU,QU,AGAM,
-     *                        GS,GW,INEXT
-         IF(INEXT.NE.0) READ(19,*) WGR1,WGR2,WGR3,WGR4,ILWN,IUN,IPRF
-       ELSE IF(INLIST.EQ.1) THEN
-         read(19,end=100) ALAM,ANUM,GF,EXCL,QL,EXCU,QU,AGAM,gs,gw
-         AGAM=0.
-       ELSE IF(INLIST.EQ.10) THEN
-         READ(19,*,END=100,err=8) ALAM,ANUM,GF,EXCL,QL,EXCU,QU,AGAM,
-     *                        GS,GW,INEXT,ISQL,ILQL,IPQL,ISQU,ILQU,IPQU
-       ELSE IF(INLIST.EQ.11) THEN
-         READ(19,END=100) ALAM,ANUM,GF,EXCL,QL,EXCU,QU,AGAM,
-     *                        GS,GW,INEXT,ISQL,ILQL,IPQL,ISQU,ILQU,IPQU
+      IF(IBIN(0).EQ.0) THEN
+         IF(INLIST.EQ.0) THEN
+            READ(19,*,END=100,err=8) ALAM,ANUM,GF,EXCL,QL,EXCU,QU,AGAM,
+     *                           GS,GW,INEXT
+            IF(INEXT.NE.0) READ(19,*) WGR1,WGR2,WGR3,WGR4,ILWN,IUN,IPRF
+          ELSE IF(INLIST.GE.10) THEN
+            READ(19,*,END=100,err=8) ALAM,ANUM,GF,EXCL,QL,EXCU,QU,AGAM,
+     *                           GS,GW,INEXT,ISQL,ILQL,IPQL,ISQU,ILQU,IPQU
+         END IF
+       ELSE
+         IF(INLIST.LT.10) THEN
+            READ(19,END=100) ALAM,ANUM,GF,EXCL,QL,EXCU,QU,AGAM,GS,GW
+c    *                       GS,GW,INEXT
+          ELSE IF(INLIST.GT.10) THEN
+            READ(19,END=100) ALAM,ANUM,GF,EXCL,QL,EXCU,QU,AGAM,GS,GW,
+     *                       INEXT,ISQL,ILQL,IPQL,ISQU,ILQU,IPQU
+         END IF
       END IF
       IF(INLIST.EQ.10.OR.INLIST.EQ.11) THEN
          IF(ISPICK.EQ.0) THEN
@@ -9281,7 +9354,7 @@ C     skip all lines with wavelength below ALAM0-CUTOFF
 C
       ALAM=0.
     7 continue
-      if(inlist.eq.0) then
+      if(ibin(0).eq.0) then
          read(19,510) alam
        else
          read(19) alam
@@ -9297,7 +9370,7 @@ c
       IPRF=0
       GS=0.
       GW=0.
-      IF(INLIST.EQ.0) THEN
+      IF(IBIN(0).EQ.0) THEN
          READ(19,*,END=100,err=8) ALAM,ANUM,GF,EXCL,QL,EXCU,QU,AGAM,
      *                        GS,GW
        else
@@ -9552,6 +9625,7 @@ C
 C
       PARAMETER (DP0=3.33564E-11, DP1=1.651E8, 
      *           VW1=0.42, VW2=0.3, TENM4=1.E-4)
+c    *           VW1=0.42, VW2=0.45,TENM4=1.E-4)
       PARAMETER (UN=1.) 
 C
       IF(NLIN.EQ.0) RETURN
@@ -9868,7 +9942,6 @@ C     *              INDLV(MNION,MNLEV),
      *              NEVEN(MNION),NODD(MNION),NODD0,NLEVS(MNION),
      *              IATN(MNION),IONN(MNION),NNION
       COMMON/PRINTP/TYPLEV
-      common/isemix/isemex(matom)
       CHARACTER*10 TYPLEV(MLEVEL),typ
       character*4 typ1
       character*2 typ2
@@ -9948,7 +10021,7 @@ C
          DO 90 IONEX=1,NION
             N0I=NFIRST(IONEX)
             IA=NUMAT(IATM(N0I))
-            if(isemex(ia).eq.1) go to 90
+            if(isemex(ia).ge.1) go to 90
             IONM1=IZ(IONEX)-1
             IF(IA.EQ.1.OR.IA.EQ.2) GO TO 90
             DO 60 I=1,NNION
@@ -10002,7 +10075,7 @@ C
       DO 102 I=1,NNION
          IF(IAT.EQ.IATN(I).AND.IONM1.EQ.IONN(I)) INION=I
   102 CONTINUE
-      if(isemex(numat(iat)).eq.1) RETURN
+      if(isemex(iat).ge.1) RETURN
       IF(INION.LE.0) RETURN
       IF(NEVEN(INION).EQ.0) IEVEN=2
       IF(NEVEN(INION).LT.0) GOTO 400
@@ -10415,7 +10488,6 @@ C
       INCLUDE 'MODELP.FOR'
       INCLUDE 'SYNTHP.FOR'
       INCLUDE 'LINDAT.FOR'
-      LOGICAL LPR,lasdel
       PARAMETER (UN     = 1., 
      *           EXT0   = 3.17,
      *           TEN    = 10.,
@@ -10582,7 +10654,6 @@ C
       INCLUDE 'LINDAT.FOR'
       INCLUDE 'WINCOM.FOR'
       COMMON/BLAPAR/RELOP,SPACE0,CUTOF0,TSTD,DSTD,ALAMC
-      LOGICAL LPR,lasdel
       PARAMETER (UN     = 1., 
      *           EXT0   = 3.17,
      *           TEN    = 10.,
@@ -11085,6 +11156,8 @@ c        WRITE(6,601) ID,DM(ID),TEMP(ID),ELEC(ID),DENS(ID)
          WRITE(77,504) TEMP(ID),ELEC(ID),DENS(ID)
       END DO
 c
+      CLOSE(8)
+c
   503 FORMAT(2I5)
   504 FORMAT(1P6E13.6)
   600 FORMAT(' INPUT KURUCZ MODEL FOR TEFF=',F7.0,'   LOG G =',
@@ -11135,21 +11208,18 @@ C
       INCLUDE 'MODELP.FOR'
       PARAMETER (MINPUT=MLEVEL+4)
       DIMENSION ESEMAT(MLEVEL,MLEVEL),BESE(MLEVEL),POPLTE(MLEVEL),
-     *          TOTN(MDEPTH)
+     *          TOTN(MDEPTH),PLTE(MLEVEL,MDEPTH)
       COMMON ESEMAT,BESE,POPLTE,POPUL0(MLEVEL,MDEPTH),X(MINPUT),
      *       TEMP0(MDEPTH),ELEC0(MDEPTH),DENS0(MDEPTH),PPL0(MDEPTH),
      *       PPL(MDEPTH),DEPTH(MDEPTH),DM0(MDEPTH),DP(MDEPTH)
       COMMON/NLTPOP/PNLT(MATOM,MION,MDEPTH)
+      common/quasex/iexpl(mlevel),iltot(mlevel)
 C
       NUMLT=3
       IF(INMOD.EQ.2) NUMLT=4
-c     IF(IFMOL.GT.0) NUMLT=NUMLT+1
-c     NUMP0=3
-c     IF(INMOD.EQ.2) NUMP0=4
       READ(8,*) NDPTH,NUMPAR
       READ(8,*) (DEPTH(I),I=1,NDPTH)
       ND=NDPTH
-       write(*,*) 'nd',nd
       NUMP=ABS(NUMPAR)
       DO 30 ID=1,NDPTH
          READ(8,*) (X(I),I=1,NUMP)
@@ -11159,58 +11229,82 @@ c     IF(INMOD.EQ.2) NUMP0=4
          TOTN(ID)=DENS(ID)/WMM(ID)+ELEC(ID)
          CALL WNSTOR(ID)
          CALL SABOLF(ID)
-c        IP=3
          IP=NUMLT
          IF(NUMPAR.LT.0) THEN
             IP=IP+1
             TOTN(ID)=X(IP)
          END IF
          IF(INMOD.EQ.2) IP=IP+1
-         IF(NUMP.GT.IP) THEN     
-            NLEV0=NUMP-IP    
-            DO 10 I=1,NLEV0
-c              POPUL(I,ID)=X(NUMLT+I)*RELAB(IATM(I),ID)
-               POPUL(I,ID)=X(IP+I)*RELAB(IATM(I),ID)
-   10       CONTINUE
-            DO I=1,NLEV0
-               if(popul(i,id).le.0.) then
-                  IE=IEL(I)
-                  N0I=NFIRST(IE)
-                  NKI=NNEXT(IE)
-                  POPUL(I,ID)=ELEC(ID)*POPUL(NKI,ID)*SBF(I)
-               end if
-            END DO
-          ELSE                    
-            NLEV0=NLEVEL
-            TEMP(ID)=X(1)
-            ELEC(ID)=X(2)
-            DENS(ID)=X(3)
-            t=temp(id)
-            if(ifmol.gt.0.and.t.lt.tmolim) then
-               ipri=1
-               aein=elec(id)
-               an=totn(id)
-               call moleq(id,t,an,aein,ane,ipri)
-             else
-               if(imode.gt.-2) then
+c
+c        first compute LTE level populations for all levels,
+c        i.e. explicit, semi-explisit, and quasi-explicit
+c
+         NLEV0=NLEVEL
+         TEMP(ID)=X(1)
+         ELEC(ID)=X(2)
+         DENS(ID)=X(3)
+         t=temp(id)
+         if(ifmol.gt.0.and.t.lt.tmolim) then
+            ipri=1
+            aein=elec(id)
+            an=totn(id)
+            call moleq(id,t,an,aein,ane,ipri)
+          else
+            if(imode.gt.-2) then
                DO IAT=1,NATOM
                   ATTOT(IAT,ID)=DENS(ID)/WMM(ID)/YTOT(ID)*ABUND(IAT,ID)
                END DO
-               else
+             else
                DO IAT=1,NATOM
                   ATTOT(IAT,ID)=DENS(ID)/WMM(1)/YTOT(1)*ABUND(IAT,1)
                END DO
-               end if
             end if
-            CALL WNSTOR(ID)
-            CALL SABOLF(ID)
-            CALL RATMAT(ID,ESEMAT,BESE)
-            CALL LEVSOL(ESEMAT,BESE,POPLTE,NLEV0) 
-            DO 20 I=1,NLEV0
-   20          POPUL(I,ID)=POPLTE(I)
+         end if
+         CALL WNSTOR(ID)
+         CALL SABOLF(ID)
+         CALL RATMAT(ID,ESEMAT,BESE)
+         CALL LEVSOL(ESEMAT,BESE,POPLTE,NLEV0) 
+         DO I=1,NLEV0
+            POPUL(I,ID)=POPLTE(I)
+            PLTE(I,ID)=POPLTE(I)
+c           if(id.eq.1) write(6,651) i,ip,popul(i,id),plte(i,id)
+         END DO
+c
+c        if the input file fort.8 contains also NLTE level populations
+c        of b-factors, replace the LTE populations by those
+c
+         IF(NUMP.GT.IP) THEN
+            NLEV0=NUMP-IP    
+            DO I=1,NLEV0
+               j=iltot(i)
+               POPUL(J,ID)=X(IP+I)*RELAB(IATM(I),ID)
+c              if(id.eq.1) write(6,651) i,j,x(ip+i),popul(i,id)
+c 651          format('in',2i4,1p2e12.4)
+            END DO
+c           DO I=1,NLEV0
+c              j=iltot(i)
+c              if(popul(j,id).le.0.) then
+c                 IE=IEL(I)
+c                 N0I=NFIRST(IE)
+c                 NKI=NNEXT(IE)
+c                 POPUL(J,ID)=ELEC(ID)*POPUL(iltot(NKI),ID)*SBF(I)
+c              end if
+c           END DO
+c
+c           in the case the input "NLTE populations are in fact b-factors,
+c           compute the real populations
+c
+            if(ibfac.eq.1) then
+               do i=1,nlev0
+                  j=iltot(i)
+                  popul(j,id)=popul(j,id)*plte(j,id)
+               end do
+            end if
          END IF
    30 CONTINUE
 C
+      close(8)
+c
       write(6,600)
   600 format(/' INPUT TLUSTY MODEL'/
      *        ' ------------------'/
@@ -11237,6 +11331,48 @@ c
 c     CALL CHCKAB
       RETURN
       END
+
+C
+C ********************************************************************
+C
+C
+ 
+      SUBROUTINE INPBF
+C     ================
+C
+      INCLUDE 'PARAMS.FOR'
+      INCLUDE 'MODELP.FOR'
+      PARAMETER (MINPUT=MLEVEL+4)
+      DIMENSION DEPTH(MDEPTH),X(MINPUT,MDEPTH),XX(MDEPTH),BF(MDEPTH)
+C
+      OPEN(8,FILE='bfactors',STATUS='OLD')
+      NUMLT=3
+      IF(INMOD.EQ.2) NUMLT=4
+      READ(8,*) NDPTH,NUMPAR
+      READ(8,*) (DEPTH(I),I=1,NDPTH)
+      IF(NUMPAR.LT.0) NUMLT=NUMLT+1
+      NUMP=ABS(NUMPAR)
+      DO ID=1,NDPTH
+         READ(8,*) (X(I,ID),I=1,NUMP)
+      END DO
+      CLOSE(8)
+c
+c     interpolate the input b-factors to the original DM-scale;
+c     compute new NLTE populations
+c
+      DO I=NUMLT+1,NUMP
+         DO ID=1,NDPTH
+            XX(ID)=X(I,ID)
+         END DO
+         CALL INTERP(DEPTH,XX,DM,BF,NDPTH,ND,2,1,1)
+         DO ID=1,ND
+            POPUL(I-NUMLT,ID)=POPUL(I-NUMLT,ID)*BF(ID)
+         END DO
+      END DO
+C
+      RETURN
+      END
+
 C
 C
 C     ****************************************************************
@@ -11760,7 +11896,7 @@ C     ---------------------------
 C     CIA H2-H opacity
 C     ---------------------------
 C
-         if(ioh2h.gt.0) then
+         if(ioh2h1.gt.0) then
             call cia_h2h(t,anh2(id),anh,fr,oph2)
             ab1=ab1+oph2
          end if
@@ -12054,7 +12190,6 @@ C
       INCLUDE 'PARAMS.FOR'
       INCLUDE 'SYNTHP.FOR'
       PARAMETER (HCCM=H*2.997925D10,BAM=1.D-18)
-      LOGICAL LUV
       DIMENSION CRD(MFCRA),XIFE(8),FRD(MFCRA)
       CHARACTER*40 FIDATA(MION),FIODF1(MION),FIODF2(MION),FIBFCS(MION)
       COMMON/IONFIL/FIDATA,FIODF1,FIODF2,FIBFCS
@@ -13516,7 +13651,6 @@ C     Output:
 C      U     - partition function
 C
       INCLUDE 'PARAMS.FOR'
-      common/irwint/iirwin
       PARAMETER (NIONS=123, NSS=222)
       PARAMETER (UN=1.D0, HALF=0.5D0, TWO=2.D0, TRHA=1.5D0,
      *           THIRD=UN/3.D0, SIXTH=UN/6.D0)
@@ -17814,7 +17948,7 @@ c
 
 c     update atomic populations once molecular densities are calculated
 
-      if(imode.lt.-3) then
+      if(imode.lt.-4) then
       do i=1,nlevel
          iat=numat(iatm(i))
          ion=iz(iel(i))
@@ -17897,8 +18031,15 @@ C
 C
 c      DATA INLSET /0/
 C
-      if(imode.le.-3.and.temp(idstd).gt.tmolim) return
+      if(imode.ne.-3.and.temp(idstd).gt.tmolim) return
       IUNIT=IUNITM(ILIST)
+
+      if(ibin(ilist).eq.0) then
+         open(unit=iunit,file=amlist(ilist),status='old')
+       else
+         open(unit=iunit,file=amlist(ilist),form='unformatted',
+     *        status='old')
+      end if
 C
 c     define a conversion table between Kurucz notation and Tsuji table 
 c     through array MOLIND
@@ -17935,6 +18076,8 @@ C
       molind(822)=29
       molind(823)=30
       molind(10108)=3
+c
+c     iunit=19+ilist
 C
       ALAST=CNM/FRLAST
       ALASTM(ILIST)=ALAST
@@ -17963,11 +18106,8 @@ C
       REWIND IUNIT
       ALAM=0.
       IJC=2
-
-
-      write(*,*) 'inlist,ilist,ivdwli',inlist,ilist,ivdwli(ilist)
-
-    7 if(inlist.eq.0.or.inlist.eq.10) then
+c
+    7 if(ibin(ilist).eq.0) then
          READ(IUNIT,510) ALAM
        else
          read(iunit) alam
@@ -17979,7 +18119,7 @@ C
 c
     8 continue 
    10 continue
-      if(inlist.eq.0.or.inlist.eq.10) then
+      if(ibin(ilist).eq.0) then
          if(ivdwli(ilist).eq.0) then
            READ(IUNIT,*,END=100,err=8) ALAM,ANUM,GF,EXCL,GR,GS,GW
           else
@@ -18109,9 +18249,10 @@ C
       alend(ilist)=cnm/fr0
 C
       xln=float(il)*1.e-6
-      WRITE(6,611) IUNIT,XLN
+      WRITE(6,611) IUNIT,trim(amlist(ilist)),XLN
   611 FORMAT(/' --------------------------------------------'/
-     *' MOLECULAR LINES - FROM UNIT ',i3,':',f8.3,' M'/
+     *' MOLECULAR LINES - FROM UNIT ',i3,
+     *', FILE  ',a,':',f8.3,' M'/
      *' --------------------------------------------'/)
   601 FORMAT('0 **** MORE LINES THAN MLINM0, LINE LIST TRUNCATED '/
      *'       AT LAMBDA',F15.4,'  NM'/)
@@ -18616,7 +18757,6 @@ c       u     = partf.(linear scale) for iat,ion, or indmol, and temperature t
 c
 c
       implicit real*8 (a-h,o-z)
-      common/moldat/moltab,irwtab
       real*8 a(6,3,92),aa(6),am(6,500)
       dimension indtsu(324),irw(500)
       save iread,a,am
@@ -18761,7 +18901,6 @@ c
       common/moltst/pfmol(500,mdepth),anmol(500,mdepth),
      *              pfato(100,mdepth),anato(100,mdepth),
      *              pfion(100,mdepth),anion(100,mdepth)
-      common/moldat/moltab,irwtab
       DIMENSION NATOMM(5),NELEMM(5),
      *          emass(100),uelem(100),ull(100),anden(800),
      *          aelem(100)
@@ -18829,8 +18968,8 @@ c
            NELEM(M,J)=NELEMM(M)
            NATO(M,J)=NATOMM(M)
         END DO
-         write(6,680) j,cmol(j)
-  680    format(i5,a10)
+c        write(6,680) j,cmol(j)
+c 680    format(i5,a10)
         GO TO 10
    20   NMOLEC=J-1
 c       nmolec=297
@@ -21762,6 +21901,8 @@ c
       common/timeta/dtim
       common/relabu/relabn(matom),popul0(mlevel,1)
       dimension abgrd(mfgrid),xli(3)
+      character*(80) tabname
+      common/tabout/tabname,ibingr
 c
 c     --------------
 c     initialization
@@ -21774,6 +21915,7 @@ c
       read(2,*) idens
       read(2,*) ndens,dens1,dens2
       if(ifeos.eq.0) read(2,*) nfgrid,inttab,wlam1,wlam2
+      read(2,*) tabname,ibingr
 c
       irsct=0
       irsche=0
@@ -22070,9 +22212,10 @@ c
       common/fintab/absgrd
       common/relabu/relabn(matom),popul0(mlevel,1)
       character*(80) tabname
+      common/tabout/tabname,ibingr
 c
       if(ifeos.ne.0) return
-      read(2,*) tabname,ibingr
+c     read(2,*) tabname,ibingr
 c
       iophmp=iophmi
       if(ielhm.gt.0.and.relabn(1).gt.0.) iophmp=1 
@@ -22084,7 +22227,7 @@ c
          end do
          write(53,602) ifmol,tmolim
          write(53,603) iophmp,ioph2p,iophem,iopch,iopoh,ioph2m,
-     *                 ioh2h2,ioh2he,ioh2h,iohhe
+     *                 ioh2h2,ioh2he,ioh2h1,iohhe
          write(53,611) nfgrid,ntemp,ndens
          write(53,612) (log(tempg(i)),i=1,ntemp)
          write(53,613) (log(densg(j)),j=1,ndens)
@@ -22101,7 +22244,7 @@ c
   602    format(/'molecules - ifmol,tmolim:'/,i4,f10.1)
   603    format('additional opacities'/
      *   '  H-  H2+ He- CH  OH  H2- CIA: H2H2 H2He H2H  HHe'/
-     *          5i4,4x,4i4)
+     *          6i4,4x,4i4)
   611    format(/'number of frequencies, temperatures, densities:'
      *          /10x,3i10)
   612    format('log temperatures'/(6F11.6))
@@ -22115,7 +22258,7 @@ c
          end do
          write(63) ifmol,tmolim
          write(63) iophmp,ioph2p,iophem,iopch,iopoh,ioph2m,
-     *             ioh2h2,ioh2he,ioh2h,iohhe
+     *             ioh2h2,ioh2he,ioh2h1,iohhe
          write(63) nfgrid,ntemp,ndens
          write(63) (log(tempg(i)),i=1,ntemp)
          write(63) (log(densg(j)),j=1,ndens)
@@ -22151,7 +22294,7 @@ c
             relabn(ia)=1.
          end do
    10    continue
-         read(3,*,err=20,end=20) iatom,rela
+         read(2,*,err=20,end=20) iatom,rela
          relabn(iatom)=rela
          write(*,*) 'ABUNDANCES CHANGED (AT.NUMBER, ABUND):',iatom,rela
          go to 10
@@ -22868,6 +23011,9 @@ C
       subroutine cia_h2h2(t,ah2,ff,opac)
 c     ===================--=============
 c
+c     CIA H2-H2 opacity
+c     data from Borysow A., Jorgensen U.G., Fu Y. 2001, JQSRT 68, 235
+c
       IMPLICIT REAL*8(A-H,O-Z)
       parameter (nlines=1000)
       dimension freq(nlines),temp(7),alpha(nlines,7)
@@ -22908,10 +23054,11 @@ c     locate position in temperature array
       if (j.eq.0) then
          write(*,*)
          write(*,'(a,f6.0,a)')
-     *   'Error: requested temperature is below',temp(1),' K'
-         write(*,'(a)') 'Stop'
+     *   'Warning: requested temperature is below',temp(1),' K'
+         write(*,'(a)') 'CIA H2-H2 opacity set to 0'
          write(*,*)
-         stop
+         opac=0.
+         return
       endif
 
 c     locate position in frequency array
@@ -22994,6 +23141,9 @@ C
       subroutine cia_h2he(t,ah2,ahe,ff,opac)
 c     ======================================
 c
+c     CIA H2-He opacity
+c     data from Jorgensen U.G., Hammer D., Borysow A., Falkesgaard J., 2000,
+c     Astronomy & Astrophysics 361, 283
 c
       IMPLICIT REAL*8(A-H,O-Z)
       parameter (nlines=242)
@@ -23035,10 +23185,11 @@ c     locate position in temperature array
       if (j.eq.0) then
          write(*,*)
          write(*,'(a,f6.0,a)')
-     *   'Error: requested temperature is below',temp(1),' K'
-         write(*,'(a)') 'Stop'
+     *   'Warning: requested temperature is below',temp(1),' K'
+         write(*,'(a)') 'CIA H2-He opacity set to 0'
          write(*,*)
-         stop
+         opac=0.
+         return
       endif
 
 c     locate position in frequency array
@@ -23086,6 +23237,7 @@ C
       subroutine cia_h2h(t,ah2,ah,ff,opac)
 c     ====================================
 c
+c     CIA H2-H opacity - data taken from TURBOSPEC
 c
       IMPLICIT REAL*8(A-H,O-Z)
       parameter (nlines=67)
@@ -23126,10 +23278,11 @@ c     locate position in temperature array
       if (j.eq.0) then
          write(*,*)
          write(*,'(a,f6.0,a)')
-     *   'Error: requested temperature is below',temp(1),' K'
-         write(*,'(a)') 'Stop'
+     *   'Warning: requested temperature is below',temp(1),' K'
+         write(*,'(a)') 'CIA H2-H opacity set to 0'
          write(*,*)
-         stop
+         opac=0.
+         return
       endif
 
 c     locate position in frequency array
@@ -23177,12 +23330,14 @@ C
       subroutine cia_hhe(t,ah,ahe,ff,opac)
 c     ====================================
 c
+c     CIA H-He opacity
+c     data from Gustafsson M., Frommhold, L. 2001, ApJ 546, 1168
 c
       IMPLICIT REAL*8(A-H,O-Z)
       parameter (nlines=43)
       dimension freq(nlines),temp(11),alpha(nlines,11)
       parameter (amagat=2.6867774d+19,fac=1./amagat**2)
-      data temp / 1000., 1500.,  2250., 3000.,  4000.,  5000.,
+      data temp / 1000.,  1500.,  2250., 3000.,  4000.,  5000.,
      *            6000.,  7000., 8000.,  9000., 10000./
       data ntemp /11/
       data ifirst /0/
@@ -23218,10 +23373,11 @@ c     locate position in temperature array
       if (j.eq.0) then
          write(*,*)
          write(*,'(a,f6.0,a)')
-     *   'Error: requested temperature is below',temp(1),' K'
-         write(*,'(a)') 'Stop'
+     *   'Warning: requested temperature is below',temp(1),' K'
+         write(*,'(a)') 'CIA H-He opacity set to 0'
          write(*,*)
-         stop
+         opac=0.
+         return
       endif
 
 c     locate position in frequency array
@@ -23266,12 +23422,15 @@ C *******************************************************************
 C
 C
       subroutine h2minus(t,anh2,ane,fr,oph2m)
+C     =======================================
 C
-C     #K L Bell 1980 J. Phys. B: At. Mol. Phys. 13 1859, Table 1
-C     #The first column is theta=5040/T(K)
-C     #The first row are names for each row corresponding to lambda (angstroms)
-C     #The last row for 10.0 is linearly extrapolated
-C     #The units of everything else is 10^26 cm4/dyn-1
+C     H- free-free opacity
+C
+C     data from K L Bell 1980 J. Phys. B: At. Mol. Phys. 13 1859, Table 1
+C     The first column is theta=5040/T(K)
+C     The first row are names for each row corresponding to lambda (angstroms)
+C     The last row for 10.0 is linearly extrapolated
+C     The units of everything else is 10^26 cm4/dyn-1
 C 
       INCLUDE 'PARAMS.FOR'
       dimension FFthet(9),FFlamb(18),FFkapp(18,9)
@@ -23368,6 +23527,8 @@ c
 c
       subroutine h2opf(t,pf)
 c   
+c     partition function for H2Ofrom EXOMOILA data
+c
       INCLUDE 'PARAMS.FOR'
       dimension ttab(10000),pftab(10000)
 c   
@@ -23396,6 +23557,11 @@ C
 c     ==========================
 c
 c     evaluation of the Van der Waals broadening parameter
+c
+c     currently, two possibilities, determined by the value of the parameter
+c     ivdwli(ilist) - the mode of evaluation is the same for the whole line list
+c       = 0 - standard expression
+c       > 0 - evaluation using EXOMOL data, assuming breadening by H2 and He
 c
       INCLUDE 'PARAMS.FOR'
       INCLUDE 'MODELP.FOR'

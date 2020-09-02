@@ -65,7 +65,7 @@ modeldir = synpledir + "/models"
 modelatomdir = synpledir + "/data"
 linelistdir = synpledir + "/linelists"
 bindir = synpledir + "/bin"
-synspec = bindir + "/s54d"
+synspec = bindir + "/s54h"
 rotin = bindir + "/rotin3"
 
 #internal synspec data files
@@ -85,7 +85,7 @@ two =  " 2 "
 
 def syn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
     linelist=['gfallx3_bpo.19','kmol3_0.01_30.20'], atom='ap18', vrot=0.0, fwhm=0.0, \
-    steprot=0.0, stepfwhm=0.0,  clean=True, save=False, synfile=None, 
+    steprot=0.0, stepfwhm=0.0,  clean=True, save=False, synfile=None, lte=None, 
     compute=True, tmpdir=None):
 
   """Computes a synthetic spectrum
@@ -152,6 +152,12 @@ def syn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
   synfile: str
       when save is True, this can be used to set the name of the output file
       (default None)
+  lte: bool
+      this flag can be set to True to enforce LTE in NLTE models. MARCS, Kurucz, the 
+      class of Phoenix models used here are always LTE models. Tlusty models
+      can be LTE or NLTE, and this keyword will ignore the populations and compute
+      assuming LTE for a input NLTE Tlusty model.
+      (default None)
   compute: bool
       set to False to skip the actual synspec run, triggering clean=False
       (default True)
@@ -179,8 +185,6 @@ def syn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
   #read model atmosphere
   atmostype, teff, logg, vmicro2, abu2, nd, atmos = read_model(modelfile)
 
-  print('modelfile=',modelfile)
-
   if vmicro == None: vmicro = vmicro2
   if abu == None: abu = abu2
   if dw == None: 
@@ -191,7 +195,18 @@ def syn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
 
   #check input parameters are valid
   imode = checkinput(wrange, vmicro, linelist)
-  inlte = 0
+
+  #find out additional info for Tlusty models
+  if atmostype == 'tlusty':
+    madaffile, nonstdfile, nonstd, numpar, datadir, inlte, atommode, atominfo = read_tlusty_extras(modelfile)
+    if (inlte == -1): nonstd['IBFAC'] = 1
+    if (lte == True): inlte = 0
+  else:
+    nonstd = None
+    inlte = 0
+    atommode = None
+    atominfo = None
+
 
   print(modelfile,'is a',atmostype,' model')
   print ('teff,logg,vmicro=',teff,logg,vmicro)
@@ -220,35 +235,26 @@ def syn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
   if os.path.islink('data'): os.unlink('data')
   if os.path.isfile('tas'): os.remove('tas')
 
-  if atmostype == 'tlusty':
-    os.symlink(os.path.join(startdir,modelfile),'fort.8')
-    os.symlink(os.path.join(startdir,modelfile[:-1]+"5"),'fort.5')
-    nonstdfile, datadir, inlte = read_tlusty_extras('fort.8',startdir)
-    if nonstdfile == '':
-      nst = ''
-    else:
-      hnst, nst = os.path.split(nonstdfile)
-      os.symlink(nonstdfile,nst)
-    hdd, dd = os.path.split(datadir)
-    os.symlink(datadir,dd)  
+  assert (not os.path.isdir('data')), 'A subdirectory *data* exists in this folder, and that prevents the creation of a link to the data directory for synple'
 
+  #link data folder for used-provided model atoms
+  dd = ''
+  if atmostype == 'tlusty':
+    # data dir
+    hdd, dd = os.path.split(datadir)
+    os.symlink(datadir,dd)
     if dd == 'data':
       for entry in isdf:
-        assert (os.path.isfile(os.path.join(dd,entry))), 'Cannot find the data file:'+dd+'/'+entry
-    else:
-      os.symlink(modelatomdir,'./data')
-      
-  else:
+        assert (os.path.isfile(os.path.join(dd,entry))), 'Cannot find the data file:'+dd+'/'+entry     
+        
 
-    assert (not os.path.isdir('data')), 'A subdirectory *data* exists in this folder, and that prevents the creation of a link to the data directory for synple'
+  #link the data folder (synspec data + default tlusty model atoms)
+  if dd != 'data': os.symlink(modelatomdir,'./data')          #data directory  
 
-    os.symlink(modelatomdir,'./data')                     #data directory
-
-    writetas('tas',nd,linelist)                           #non-std param. file
-    write5(teff,logg,abu,atom)                            #abundance/opacity file
-    write8(teff,logg,nd,atmos,atmostype)                  #model atmosphere
-
+  write5(teff,logg,abu,atom,inlte=inlte,atommode=atommode,atominfo=atominfo)   #abundance/opacity file  
+  write8(teff,logg,nd,atmos,atmostype)                    #model atmosphere
   write55(wrange,space,imode,inlte,2,strength,vmicro,linelist,atmostype) #synspec control file
+  writetas('tas',nd,linelist,nonstd=nonstd)               #non-std param. file
   create_links(linelist)                                  #auxiliary data
 
   if compute == False:
@@ -270,12 +276,15 @@ def syn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
     synout.close()
     synin.close()
 
-    assert (os.path.isfile('fort.7')), 'Error: I cannot read the file *fort.7* in '+tmpdir+' -- looks like synspec has crashed, please look at syn.log'
+    assert (os.path.isfile('fort.7')), 'Error: I cannot read the file *fort.7* in '+tmpdir+' -- looks like synspec has crashed, please look at '+logfile
 
-    assert (os.path.isfile('fort.17')), 'Error: I cannot read the file *fort.17* in '+tmpdir+' -- looks like synspec has crashed, please look at syn.log'
+    assert (os.path.isfile('fort.17')), 'Error: I cannot read the file *fort.17* in '+tmpdir+' -- looks like synspec has crashed, please look at '+logfile
 
 
     wave, flux = np.loadtxt('fort.7', unpack=True)
+    if np.isclose(wave[-1],wave[-2]):
+      wave = wave[0:-2]
+      flux = flux[0:-2]
     wave2, flux2 = np.loadtxt('fort.17', unpack=True)
     if dw == None and fwhm <= 0. and vrot <= 0.: cont = np.interp(wave, wave2, flux2)
     end = time.time()
@@ -284,7 +293,8 @@ def syn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
     if fwhm > 0. or vrot > 0.:
       start = time.time()
       print( vrot, fwhm, space, steprot, stepfwhm)
-      wave, flux = call_rotin (wave, flux, vrot, fwhm, space, steprot, stepfwhm, clean=False, reuseinputfiles=True)
+      wave, flux = call_rotin (wave, flux, vrot, fwhm, space, steprot, stepfwhm, clean=False, \
+        reuseinputfiles=True, logfile=logfile)
       if dw == None: cont = np.interp(wave, wave2, flux2)
       end = time.time()
       print('convol ellapsed time ',end - start, 'seconds')
@@ -303,7 +313,6 @@ def syn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
       if os.path.isfile('tas'): os.remove('tas')
       if atmostype == 'tlusty':
         if os.path.islink(dd): os.unlink(dd)
-        if os.path.isfile(nst): os.remove(nst)
 
 
     try:
@@ -329,7 +338,7 @@ def syn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
 
 def mpsyn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
     linelist=['gfallx3_bpo.19','kmol3_0.01_30.20'],atom='ap18', vrot=0.0, fwhm=0.0, \
-    steprot=0.0, stepfwhm=0.0,  clean=True, save=False, synfile=None, 
+    steprot=0.0, stepfwhm=0.0,  clean=True, save=False, synfile=None, lte=None,
     compute=True, nthreads=1):
 
   """Computes a synthetic spectrum, splitting the spectral range in nthreads parallel calculations
@@ -388,6 +397,12 @@ def mpsyn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
   synfile: str
       when save is True, this can be used to set the name of the output file
       (default None)
+  lte: bool
+      this flag can be set to True to enforce LTE in NLTE models. MARCS, Kurucz, the 
+      class of Phoenix models used here are always LTE models. Tlusty models
+      can be LTE or NLTE, and this keyword will ignore the populations and compute
+      assuming LTE for a input NLTE Tlusty model.
+      (default None)
   compute: bool
       set to False to skip the actual synspec run, triggering clean=False
       (default True)
@@ -422,7 +437,7 @@ def mpsyn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
 
     pararr = [modelfile, wrange1, dw, strength, vmicro, abu, \
       linelist, atom, vrot, fwhm, \
-      steprot, stepfwhm,  clean, save, synfile, 
+      steprot, stepfwhm,  clean, save, synfile, lte, \
       compute, tmpdir+'-'+str(i) ]
     pars.append(pararr)
 
@@ -445,7 +460,7 @@ def mpsyn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
 
 def raysyn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
     linelist=['gfallx3_bpo.19','kmol3_0.01_30.20'], atom='ap18', vrot=0.0, fwhm=0.0, \
-    steprot=0.0, stepfwhm=0.0,  clean=True, save=False, synfile=None, 
+    steprot=0.0, stepfwhm=0.0,  clean=True, save=False, synfile=None, lte=None, 
     compute=True, nthreads=1):
 
   """Computes a synthetic spectrum, splitting the spectral range in nthreads parallel calculations 
@@ -504,6 +519,12 @@ def raysyn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
   synfile: str
       when save is True, this can be used to set the name of the output file
       (default None)
+  lte: bool
+      this flag can be set to True to enforce LTE in NLTE models. MARCS, Kurucz, the 
+      class of Phoenix models used here are always LTE models. Tlusty models
+      can be LTE or NLTE, and this keyword will ignore the populations and compute
+      assuming LTE for a input NLTE Tlusty model.
+      (default None)
   compute: bool
       set to False to skip the actual synspec run, triggering clean=False
       (default True)
@@ -535,7 +556,7 @@ def raysyn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
 
     x, y, z = syn(modelfile, wrange, dw, strength, vmicro, abu, \
               linelist, atom, vrot, fwhm, \
-              steprot, stepfwhm,  clean, save, synfile, 
+              steprot, stepfwhm,  clean, save, synfile, lte, \
               compute, tmpdir)
 
     return(x,y,z)
@@ -584,7 +605,7 @@ def raysyn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
 def multisyn(modelfiles, wrange, dw=None, strength=1e-4, abu=None, \
     vmicro=None, vrot=0.0, fwhm=0.0, nfe=0.0, \
     linelist=['gfallx3_bpo.19','kmol3_0.01_30.20'], atom='ap18', \
-    steprot=0.0, stepfwhm=0.0,  clean=True, save=None, nthreads=1):
+    steprot=0.0, stepfwhm=0.0,  clean=True, save=None, lte=None, nthreads=1):
 
   """Computes synthetic spectra for a list of files. The values of vmicro, vrot, 
   fwhm, and nfe can be iterables. Whether or not dw is specified the results will be 
@@ -646,6 +667,12 @@ def multisyn(modelfiles, wrange, dw=None, strength=1e-4, abu=None, \
       the root of the model atmosphere file, with an extension ".syn" will be used
       if multiple values of vmicro, vrot, fwhm or nfe are used, their values are
       prepended to the file names 
+      (default None)
+  lte: bool
+      this flag can be set to True to enforce LTE in NLTE models. MARCS, Kurucz, the 
+      class of Phoenix models used here are always LTE models. Tlusty models
+      can be LTE or NLTE, and this keyword will ignore the populations and compute
+      assuming LTE for a input NLTE Tlusty model.
       (default None)
   nthreads: int
       choose the number of cores to use in the calculation
@@ -711,7 +738,7 @@ def multisyn(modelfiles, wrange, dw=None, strength=1e-4, abu=None, \
 
         x, y, z = mpsyn(entry, wrange, dw=None, strength=strength, \
         vmicro=vmicro1, abu=abu1, linelist=linelist, atom=atom, \
-        clean=clean, save=save, nthreads=nthreads)
+        clean=clean, save=save, lte=lte, nthreads=nthreads)
 
         space = np.mean(np.diff(x))
             
@@ -750,7 +777,7 @@ def multisyn(modelfiles, wrange, dw=None, strength=1e-4, abu=None, \
 def polysyn(modelfiles, wrange, dw=None, strength=1e-4, abu=None, \
     vmicro=None, vrot=0.0, fwhm=0.0, nfe=0.0, \
     linelist=['gfallx3_bpo.19','kmol3_0.01_30.20'],atom='ap18', \
-    steprot=0.0, stepfwhm=0.0,  clean=True, save=None):
+    steprot=0.0, stepfwhm=0.0,  clean=True, save=None, lte=None):
 
   """Sets up a directory tree for computing synthetic spectra for a list of files in 
   parallel. The values of vmicro, vrot, fwhm, and nfe can be iterables. Whether or not 
@@ -812,7 +839,12 @@ def polysyn(modelfiles, wrange, dw=None, strength=1e-4, abu=None, \
       if multiple values of vmicro, vrot, fwhm or nfe are used, their values are
       prepended to the file names 
       (default None)
-
+  lte: bool
+      this flag can be set to True to enforce LTE in NLTE models. MARCS, Kurucz, the 
+      class of Phoenix models used here are always LTE models. Tlusty models
+      can be LTE or NLTE, and this keyword will ignore the populations and compute
+      assuming LTE for a input NLTE Tlusty model.
+      (default None)
 
   Returns
   -------
@@ -901,7 +933,7 @@ def polysyn(modelfiles, wrange, dw=None, strength=1e-4, abu=None, \
             abu1[6] = abu1[6] * 10.**nfe1
 
           x, y, z = syn(entry, wrange, dw=None, strength=strength, vmicro=vmicro1, \
-          abu=abu1, linelist=linelist, atom=atom, compute=False)
+          abu=abu1, linelist=linelist, atom=atom, lte=lte, compute=False)
 
           s.write(synspec+" < "+"fort.5"+"\n")
 
@@ -1217,7 +1249,7 @@ def polyopt(wrange=(9.e2,1.e5),dw=0.1,strength=1e-3, linelist=['gfallx3_bpo.19',
 
 def collect_marcs(modeldir=modeldir, tteff=None, tlogg=None, tfeh=(1,0.0,0.0), tafe=(1,0.0,0.0), \
   tcfe=(1,0.0,0.0), tnfe=(1,0.0,0.0), tofe=(1,0.0,0.0), trfe=(1,0.0,0.0), tsfe=(1,0.0,0.0), \
-    ignore_missing_models=False):
+    ignore_missing_models=False, ext='mod'):
 
   """Collects all the MARCS models in modeldir that are part of a regular grid defined
   by triads in various parameters. Each triad has three values (n, llimit, step)
@@ -1355,9 +1387,11 @@ def collect_marcs(modeldir=modeldir, tteff=None, tlogg=None, tfeh=(1,0.0,0.0), t
                     else: 
                       a1 = 's'
 
-                    filename = ("%s%4i_g%+.1f_%s_z%+.2f_a%+.2f_c%+.2f_n%+.2f_o%+.2f_r%+.2f_s%+.2f.mod*" % (a1,teff,logg,code,feh,afe,cfe,nfe,ofe,rfe,sfe) )
+                    sformat = "%s%4i_g%+.1f_%s_z%+.2f_a%+.2f_c%+.2f_n%+.2f_o%+.2f_r%+.2f_s%+.2f."+ext+"*"
+                    filename = (sformat % (a1,teff,logg,code,feh,afe,cfe,nfe,ofe,rfe,sfe) )
 
-                    file = glob.glob(os.path.join(modeldir,filename))
+                    file = glob.glob(os.path.join(modeldir,'**',filename),recursive=True)
+                    
 
                     if ignore_missing_models == False:
                       assert len(file) > 0, 'Cannot find model '+filename+' in modeldir '+modeldir                   
@@ -1367,7 +1401,7 @@ def collect_marcs(modeldir=modeldir, tteff=None, tlogg=None, tfeh=(1,0.0,0.0), t
                       
                     if (len(file) == 1): files.append(file[0])
 
-                    fi.write( "%s  %4i %+.1f %s %+.2f %+.2f %+.2f %+.2f %+.2f %+.2f %+.2f\n" % (files[-1],teff,logg,feh,afe,cfe,nfe,ofe,rfe,sfe) )
+                    fi.write( "%s  %4i %+.1f %+.2f %+.2f %+.2f %+.2f %+.2f %+.2f %+.2f\n" % (files[-1],teff,logg,feh,afe,cfe,nfe,ofe,rfe,sfe) )
 
 
 
@@ -1402,6 +1436,10 @@ def collect_k2odfnew(modeldir=modeldir, tteff=None, tlogg=None, tfeh=(1,0.0,0.0)
   ignore_missing_models: bool
     set to True to avoid stopping when a model is missing,
     in which case a None is entered in the returning list
+  ext: str
+    extension of the model files, usually 'mod' for MARCS but
+    could be '.7' or '.22' for Tlusty NLTE models based on MARCS
+    (default 'mod')
  
   Returns
   -------
@@ -1469,7 +1507,7 @@ def collect_k2odfnew(modeldir=modeldir, tteff=None, tlogg=None, tfeh=(1,0.0,0.0)
 
                     filename = ("t%05ig%.1f%s%02i%s" % (teff,logg,a2,int(abs(feh)*10),a1+code) )
 
-                    file = glob.glob(os.path.join(modeldir,filename))
+                    file = glob.glob(os.path.join(modeldir,'**',filename), recursive = True)
 
 
                     if ignore_missing_models == False:
@@ -1526,7 +1564,8 @@ def getallt(modelfiles):
 
 
 
-def call_rotin(wave=None, flux=None, vrot=0.0, fwhm=0.0, space=1e-2, steprot=0.0, stepfwhm=0.0, clean=True, reuseinputfiles=False):
+def call_rotin(wave=None, flux=None, vrot=0.0, fwhm=0.0, space=1e-2, steprot=0.0, 
+stepfwhm=0.0, clean=True, reuseinputfiles=False, logfile='syn.log'):
 
 
   """Convolves a synthetic spectrum with a rotation and/or Gaussian kernel
@@ -1560,6 +1599,9 @@ def call_rotin(wave=None, flux=None, vrot=0.0, fwhm=0.0, space=1e-2, steprot=0.0
   reuseinputfiles: bool
       set to take the input data from the output synspec file (fort.7) rather than 
       from the input arrays (wave, flux)
+  logfile: str
+      name of the log file
+      (default syn.log)
 
   Returns
   -------
@@ -1589,7 +1631,7 @@ def call_rotin(wave=None, flux=None, vrot=0.0, fwhm=0.0, space=1e-2, steprot=0.0
   f.close()
 
   synin = open('fort.5')
-  synout = open('syn.log','a')
+  synout = open(logfile,'a')
   p = subprocess.Popen([rotin], stdin=synin, stdout = synout, stderr = synout)
   p.wait()
   synout.flush()
@@ -1638,6 +1680,7 @@ def read_model(modelfile):
   if not os.path.isfile(modelfile):
     mf = os.path.join(modeldir,modelfile)
     if os.path.isfile(mf): modelfile = mf
+
 
   atmostype = identify_atmostype(modelfile)
 
@@ -1803,17 +1846,25 @@ def getlinelistrange(atomiclinelist):
 
 
 
-def writetas(filename,nd,linelist):
+def writetas(filename,nd,linelist,nonstd=None):
 #write non-std input parameters
 # input: filename -- str -- name of the non-std. param. file to print
 #        nd -- int -- number of layers in the model
-#        nd -- list -- names of the linelist files (atomic first, then one 
+#        linelist -- list -- names of the linelist files (atomic first, then one 
 #				or more molecular ones
+#        nonstd -- dict -- additional entries to add to the tas file 
+#
   
   f = open(filename,'w')
+
+  if nonstd is not None:
+    for entry in nonstd.keys():
+      f.write(entry + "=" + str(nonstd[entry])+"\n")
+
   f.write("ND= "+str(nd)+" \n")
   if len(linelist) > 1:  f.write("IFMOL= "+one+" \n")
   f.write("TMOLIM= 8000. \n")
+
 
   f.close()
 
@@ -1868,12 +1919,13 @@ def write55(wrange,dw=1e-2,imode=0,inlte=0,hydprf=2,strength=1e-4,vmicro=0.0, \
   for file in linelist:
     binaryfile = file[:-2]+'11'
     if not os.path.isfile(binaryfile): inlist = 10
+    if os.path.isfile(binaryfile): assert (inlist == 11), 'The line list files must be all either in ascii or binary!'    
 
   f = open('fort.55','w')
   f.write(" "+str(imode)+" "+2*zero+"\n")
   f.write(" "+str(inmod)+3*zero+"\n")
   f.write(5*zero+"\n")
-  f.write(one+str(inlte)+zero+str(inlist)+zero+"\n")
+  f.write(one+str(abs(inlte))+zero+str(inlist)+zero+"\n")
   f.write(str(hydprf)+2*zero+"\n")
   if imode == -3:
     f.write( ' %f %f %f %i %e %f \n ' % (wrange[0],  -wrange[1], 100., 2000, strength, dw) )
@@ -1886,37 +1938,39 @@ def write55(wrange,dw=1e-2,imode=0,inlte=0,hydprf=2,strength=1e-4,vmicro=0.0, \
   f.write( ' %f  \n' % (vmicro) )
   f.close()
 
-def write5(teff,logg,abu, atom='ap18', ofile='fort.5', nlte=False, tl=False):
+def write5(teff,logg,abu, atom='ap18', ofile='fort.5', inlte=0, atommode=None, atominfo=None):
 
   symbol, mass, sol = elements()
 
   f = open(ofile,'w')
   f.write(' '+str(teff)+" "+str(logg).format('%7.4f')+"       ! TEFF, GRAV \n")
-  if nlte:
-    f.write(" F  F               ! LTE, GRAY \n")
-  else:
+  if inlte == 0:
     f.write(" T  F               ! LTE, GRAY \n")
+  else:
+    f.write(" F  F               ! LTE, GRAY \n")
+
   f.write(" 'tas'              ! name of non-standard flags \n")
   f.write(" 50                 ! frequencies \n")
 
-  if tl:  
-    natom = 30
-  else:
-    natom = len(abu)
-
+  natom = len(abu)
   f.write(" "+str(natom)+"        ! NATOMS \n")  
 
-  assert (atom == 'hhm' or atom == 'ap18' or atom == 'yo19'), 'atom must be one of: hhm/ap18/yo19!'
+  assert (atom == 'hhm' or atom == 'ap18' or atom == 'yo19' or atom == 'test'), 'atom must be one of: hhm/ap18/yo19/test!'
   ex = np.ones(natom)
   if atom == 'hhm' : 
     zex = [1]  #atomic numbers of elements included explicitly (contributing cont. opacity)
   elif atom == 'yo19':
     zex = [1,11,12,19,20]
+  elif atom == 'test': 
+    zex = [1,26]
   elif atom == 'ap18': 
     zex = [1,2,6,7,8,11,12,13,14,20,26]
 
   for i in zex: ex[i-1] = 2
-  if nlte: ex[0] = -3
+
+  #tlusty models provide atommode and atominfo that override the defaults for atom and ex
+  if atommode is not None: ex = np.array(atommode)
+  if atominfo is not None: atom = 'own'
 
   for i in range(natom):
     f.write(' %2d %e %i %s\n' %  (ex[i], abu[i], 0, '  ! ' +symbol[i]) )
@@ -1924,11 +1978,14 @@ def write5(teff,logg,abu, atom='ap18', ofile='fort.5', nlte=False, tl=False):
   for i in range(3): f.write("* \n")
   
   if atom == 'hhm':  # highly simplified continuum opacities -- just H and H-
+    f.write("* ../data_atom for ions  \n")
     f.write("   1   -1     1      0     0     1    ' H 1' 'data/hm.dat' \n" )
     f.write("   0    0     3      0 \n")
     f.write("   1    0     9      0     0     0    ' H 1' 'data/h1s.dat'  \n")
     f.write("   1    1     1      1     0     0    ' H 2' ' '  \n")
     f.write("   0    0     0     -1     0     0    '    ' ' '  \n")
+    f.write("* \n")
+    f.write("* end \n")
   elif atom == "yo19": # set for NLTE calculations for APOGEE (see Osorio+ 2019 A&A paper)
     f.write("* ../data_atom for ions  \n")
     f.write("  1    -1     1      0     0     1    ' H 0' 'data/hm.dat'  \n")
@@ -1946,6 +2003,20 @@ def write5(teff,logg,abu, atom='ap18', ofile='fort.5', nlte=False, tl=False):
     f.write("  20    1     24     0     0     0    'Ca 2' 'data/Ca2kas_F_zat.sy'  \n")
     f.write("  20    2     1      1     0     0    'Ca 3' ' '  \n")
     f.write("   0    0     0     -1     0     0    '    ' ' '  \n")
+    f.write("* \n")
+    f.write("* end \n")
+  elif atom == 'test': # generic set used in Allende Prieto+ (2018) A&A paper
+    f.write("* ../data for ions  \n")
+    f.write("   1   -1     1      0     0     1    ' H 1' 'data/hm.dat'  \n")
+    f.write("   0    0     3      0 \n")
+    f.write("   1    0     9      0     0     0    ' H 1' 'data/h1s.dat'  \n")
+    f.write("   1    1     1      1     0     0    ' H 2' ' '  \n")
+    f.write("  26    0     49     0     0     0    'Fe 1' 'data/tlusty_fe1_topmod.dat'  \n")
+    f.write("  26    1     41     0     0     0    'Fe 2' 'data/tlusty_fe2_topmod.dat'  \n")
+    f.write("  26    2     1      1     0     0    'Fe 3' ' '  \n")
+    f.write("  0     0     0     -1     0     0    '    ' ' '  \n")
+    f.write("* \n")
+    f.write("* end \n")
   elif atom == 'ap18': # generic set used in Allende Prieto+ (2018) A&A paper
     f.write("* ../data for ions  \n")
     f.write("   1   -1     1      0     0     1    ' H 1' 'data/hm.dat'  \n")
@@ -1983,9 +2054,12 @@ def write5(teff,logg,abu, atom='ap18', ofile='fort.5', nlte=False, tl=False):
     f.write("  26    1     41     0     0     0    'Fe 2' 'data/tlusty_fe2_topmod.dat'  \n")
     f.write("  26    2     1      1     0     0    'Fe 3' ' '  \n")
     f.write("  0     0     0     -1     0     0    '    ' ' '  \n")
-  f.write("* \n")
-  f.write("* end \n")
+    f.write("* \n")
+    f.write("* end \n")
+  else:
+    for line in atominfo: f.write(line)
   f.close()
+
 
 def write8(teff, logg, nd, atmos, atmostype, ofile='fort.8'):
 
@@ -1997,14 +2071,61 @@ def write8(teff, logg, nd, atmos, atmostype, ofile='fort.8'):
 
   """
 
+  f = open(ofile,'w')
+
   if atmostype == 'tlusty':
 
-    print('write8 should not be called for Tlusty models -- they are ready for synspec!')
-    return ()
+    if ('n' in atmos.dtype.names):  # 4th column is number density n
+      if ('pop' in atmos.dtype.names):   # explicit (usually NLTE) populations
+        numpop = len(atmos['pop'][0]) 
+        sformat = '  %f %e %e %e'
+        i = 5
+        for entry in atmos['pop'][0]: 
+           sformat = sformat + ' %e'
+           if i % 6 == 0: sformat = sformat + '  \n'
+           i = i + 1
+        sformat = sformat + ' \n' 
+        f.write(" "+str(nd)+" "+str(-(4+numpop))+"\n")
+        for i in range(nd):
+          f.write(' %e ' % atmos['dm'][i])
+          if (i+1) % 5 == 0: f.write('\n')
+        if (i+1) % 5 != 0: f.write('\n')
+        for i in range(nd):
+          sdata = [atmos['t'][i], atmos['ne'][i], atmos['rho'][i], atmos['n'][i]]
+          for j in range(numpop):
+            sdata.append(atmos['pop'][i][j])
+          f.write( sformat % tuple(sdata) )                 
+      elif ('dep' in atmos.dtype.names): # NLTE departure coefficients
+        numpop = len(atmos['dep'][0]) 
+        sformat = '  %f %e %e %e'
+        i = 5
+        for entry in atmos['dep'][0]: 
+           sformat = sformat + ' %e'
+           if i % 6 == 0: sformat = sformat + '  \n'
+           i = i + 1
+        sformat = sformat + ' \n' 
+        f.write(" "+str(nd)+" "+str(-(4+numpop))+"\n")
+        for i in range(nd):
+          f.write(' %e ' % atmos['dm'][i])
+          if (i+1) % 5 == 0: f.write('\n')
+        if (i+1) % 5 != 0: f.write('\n')
+        for i in range(nd):
+          sdata = [atmos['t'][i], atmos['ne'][i], atmos['rho'][i], atmos['n'][i]]
+          for j in range(numpop):
+            sdata.append(atmos['dep'][i][j])
+          f.write( sformat % tuple(sdata) )         
+      else:                              # LTE
+        f.write(" "+str(nd)+" "+str(-4)+"\n")
+        for i in range(nd):
+          f.write(' %e ' % atmos['dm'][i])
+          if (i+1) % 5 == 0: f.write('\n')
+        if (i+1) % 5 != 0: f.write('\n')
+        for i in range(nd):
+          f.write( '%f %e %e %e \n' % (atmos['t'][i], atmos['ne'][i], atmos['rho'][i], atmos['n'][i] ) )  
+    else:
+      pass
 
   else:
-
-    f = open(ofile,'w')
 
     if atmostype == 'marcs':
       f.write(" "+str(nd)+" "+str(-4)+"\n")
@@ -2013,7 +2134,6 @@ def write8(teff, logg, nd, atmos, atmostype, ofile='fort.8'):
       f.write("\n")
       for i in range(nd):
         f.write( '%f %e %e %e \n' % (atmos['t'][i], atmos['ne'][i], atmos['rho'][i], atmos['rho'][i]/atmos['mmw'][i]/1.67333e-24 + atmos['ne'][i] ) )
-      f.close()
 
     else:
       f.write( 'TEFF %7.0f  GRAVITY %7.5f  LTE \n' % (teff, logg) )
@@ -2021,7 +2141,8 @@ def write8(teff, logg, nd, atmos, atmostype, ofile='fort.8'):
       f.write( 'READ DECK6%3i RHOX,T,P,XNE \n' % nd )
       for i in range(nd): 
         f.write( '%e %f %e %e \n' % (atmos['dm'][i], atmos['t'][i], atmos['p'][i], atmos['ne'][i]) )
-      f.close()
+      
+  f.close()
 
   return()
   
@@ -2379,7 +2500,7 @@ def read_tlusty_model(modelfile,startdir=None):
   Parameters
   ----------
   modelfile: str
-      file name (.7 or .7). It will look for the complementary .5 file to read
+      file name (.7, .8, or .22). It will look for the complementary .5 file to read
       the abundances and the micro (when specified in the non-std. parameter file)
 
   startdir: str
@@ -2410,13 +2531,17 @@ def read_tlusty_model(modelfile,startdir=None):
 
   """  
 
-  assert ((modelfile[-2:] == ".8") | (modelfile[-2:] == ".7")), 'Tlusty models should end in .7 or .8'
-  assert (os.path.isfile(modelfile[:-1]+"5")),'Tlusty model atmosphere file '+modelfile+' should come with an associated .5 file'
+  assert ((modelfile[-2:] == ".8") | (modelfile[-2:] == ".7") | (modelfile[-3:] == ".22")), 'Tlusty models should end in .7, .8, or .22'
+  if modelfile[-2] == ".":
+    madaffile = modelfile[:-1]+"5"
+  else:
+    madaffile = modelfile[:-2]+"5"    
+  assert (os.path.isfile(madaffile)),'Tlusty model atmosphere file '+modelfile+' should come with an associated .5 file'
 
   if startdir is None: startdir = os.getcwd()
 
   #we start reading the .5
-  f = open(modelfile[:-1]+"5",'r')
+  f = open(madaffile,'r')
   line = f.readline()
   entries = line.split()
   teff = float(entries[0])
@@ -2445,6 +2570,7 @@ def read_tlusty_model(modelfile,startdir=None):
 
     ns = open(nonstdfile,'r')
     nonstdarr = ns.readlines()
+    ns.close()
     for entry in nonstdarr:
       entries = entry.replace('\n','').split(',')
       for piece in entries:
@@ -2469,8 +2595,8 @@ def read_tlusty_model(modelfile,startdir=None):
     entries = line.split()
     abu.append( float(entries[1]) )
 
-  if i < 99: 
-    for j in range(99-i):
+  if i < 98: 
+    for j in range(98-i):
       abu.append(1e-111)
       i = i + 1
 
@@ -2481,35 +2607,64 @@ def read_tlusty_model(modelfile,startdir=None):
   line = f.readline()
   entries = line.split()
   nd = int(entries[0])
-  numpar = abs(int(entries[1]))
+  numpar = int(entries[1])
+  if (numpar < 0): 
+    numpop = abs(numpar) - 4 
+  else:
+    numpop = numpar - 3
 
   assert (len(entries) == 2), 'There are more than two numbers in the first line of the model atmosphere'
 
   dm = read_multiline_fltarray(f,nd)
-  atm = read_multiline_fltarray(f,nd*numpar)
+  atm = read_multiline_fltarray(f,nd*abs(numpar))
   f.close()
 
-  atm = np.reshape(atm, (nd,numpar) )
+  atm = np.reshape(atm, (nd,abs(numpar)) )
 
-  atmos = np.zeros(nd, dtype={'names':('dm', 't', 'ne','rho'),
-                          'formats':('f', 'f', 'f','f')}) 
+  if (numpar < 0):  # 4th column is number density n
+    if (numpop > 0): # explicit (usually NLTE) populations
+      if modelfile[-2] == ".":  # NLTE populations or departure coefficients
+        tp = np.dtype([('dm', 'f'), ('t','f'), ('ne','f'), ('rho','f'), ('n','f'), ('pop', 'f', (numpop))])
+      else: 
+        tp = np.dtype([('dm', 'f'), ('t','f'), ('ne','f'), ('rho','f'), ('n','f'), ('dep', 'f', (numpop))])
+    else:
+      tp = np.dtype([('dm', 'f'), ('t','f'), ('ne','f'), ('rho','f'), ('n','f')])  
+  else:
+    if (numpop > 0):
+      if modelfile[-2] == ".": # NLTE populations or departure coefficients
+        tp = np.dtype([('dm', 'f'), ('t','f'), ('ne','f'), ('rho','f'), ('pop', 'f', (numpop))])
+      else:
+        tp = np.dtype([('dm', 'f'), ('t','f'), ('ne','f'), ('rho','f'), ('dep', 'f', (numpop))])
+    else:
+      tp = np.dtype([('dm', 'f'), ('t','f'), ('ne','f'), ('rho','f') ])
+
+  atmos = np.zeros(nd, dtype=tp)
+
   atmos['dm'] = dm
   atmos['t'] = atm [:,0]
   atmos['ne'] = atm [:,1]
   atmos['rho'] = atm [:,2]
+  if (numpar < 0): atmos['n'] = atm [:,3]
+  if (numpop > 0): 
+    if modelfile[-2] == ".":
+      atmos['pop'] = atm [:,4:]
+    else:
+      atmos['dep'] = atm [:,4:]
 
   return (teff,logg,vmicro,abu,nd,atmos)
 
 
 def read_tlusty_extras(modelfile,startdir=None):
   
-  """Identifies and reads the non-std parameter file and finds out the name 
-     of the data directory for Tlusty model atmospheres. 
+  """Identifies and reads the non-std parameter file and its content, finds out the 
+     number of parameters in the model, whether the file contains populations or departure
+     coefficients, and the name of the data directory for Tlusty 
+     model atmospheres. 
 
   Parameters
   ----------
   modelfile: str
-      file name (.8 or .7). It will look for the complementary .5 file to read
+      file name (.8, .7 or .22). It will look for the complementary .5 file to read
       the abundances and other information
 
   startdir: str
@@ -2522,25 +2677,50 @@ def read_tlusty_extras(modelfile,startdir=None):
   Returns
   -------
 
+  madaffile: str
+       model atom data and abundance file (.5 Tlusty file)
+
   nonstdfile: str
        non-std parameter file 
+
+  nonstd: dict
+       content of the non-std parameter file
+
+  numpar: int
+       number of parameters (can be negative when the model includes number density)
 
   datadir: str
        name of the model atom directory
 
   inlte: int
        0 when the populations are to be computed internally by synspec (LTE)
-       1 to read the populations from a tlusty model
+       1 the Tlusty model contains populations
+      -1 the Tlusty model contains departure coefficients
+
+  atommode: list
+       mode for each of the atoms included. The code indicates
+       0= not considered
+       1= implicit (no cont. opacity)
+       2= explicit  (see synspec man.)
+       4= semi-explicit (see synspec man.)
+       5= quasi-explicit  (see synspec. man)
+
+  atominfo: list
+       all the lines in the file that provide info on the model atoms used
   
   """  
 
-  assert ( (modelfile[-2:] == ".8") | (modelfile[-2:] == ".7") ), 'Tlusty models should end in .8 or .7'
-  assert (os.path.isfile(modelfile[:-1]+"5")),'Tlusty model atmosphere file '+modelfile+' should come with an associated .5 file'
+  assert ((modelfile[-2:] == ".8") | (modelfile[-2:] == ".7") | (modelfile[-3:] == ".22")), 'Tlusty models should end in .7, .8, or .22'
+  if modelfile[-2] == ".":
+    madaffile = modelfile[:-1]+"5"
+  else:
+    madaffile = modelfile[:-2]+"5"    
+  assert (os.path.isfile(madaffile)),'Tlusty model atmosphere file '+modelfile+' should come with an associated .5 file'
 
   if startdir is None: startdir = os.getcwd()
 
   #we start reading the .5
-  f = open(modelfile[:-1]+"5",'r')
+  f = open(madaffile,'r')
   line = f.readline()
   line = f.readline()
   line = f.readline()
@@ -2557,20 +2737,40 @@ def read_tlusty_extras(modelfile,startdir=None):
         mf = os.path.join(modeldir,nonstdfile)
         nonstdfile = mf
 
-
     assert (os.path.exists(nonstdfile)), 'The non-std parameter file indicated in the tlusty model, '+nonstdfile0+', is not present' 
+
+
+  nonstd={}
+  if nonstdfile != '':
+    assert (os.path.isfile(nonstdfile)),'Tlusty model atmosphere file '+modelfile+' invokes non-std parameter file, '+nonstdfile+' which is not present'
+
+
+    ns = open(nonstdfile,'r')
+    nonstdarr = ns.readlines()
+    ns.close()
+    for entry in nonstdarr:
+      entries = entry.replace('\n','').split(',')
+      for piece in entries:
+        sides = piece.split('=')
+        nonstd[sides[0].replace(' ','')]= sides[1].replace(' ','')
+
 
   line = f.readline()
   line = f.readline()
   entries = line.split()
   natoms = int(entries[0])
   
+  atommode = []
   for i in range(natoms):
     line = f.readline()
+    entries = line.split()
+    atommode.append(int(entries[0]))
 
+  atominfo = []
   #keep reading until you find 'dat' to identify data directory 
   line = f.readline()
   while True: 
+    atominfo.append(line)
     if '.dat' in line: break
     line = f.readline()
 
@@ -2589,6 +2789,13 @@ def read_tlusty_extras(modelfile,startdir=None):
         mf = os.path.join(synpledir,datadir)
         datadir = mf
 
+  #continue reading the rest of the file into atominfo
+  line = f.readline()
+  while True:
+    if line == '': break
+    atominfo.append(line)
+    line = f.readline()
+
     assert (os.path.exists(datadir)), 'The datadir indicated in the tlusty model, '+datadir0+', is not present' 
 
 
@@ -2599,15 +2806,17 @@ def read_tlusty_extras(modelfile,startdir=None):
   line = f.readline()
   entries = line.split()
   nd = int(entries[0])
-  numpar = abs(int(entries[1]))
-  if numpar > 4: 
+  numpar = int(entries[1])
+  if abs(numpar) > 4: 
     inlte = 1 
   else: 
     inlte = 0
 
+  if (modelfile[-3:] == ".22"): inlte = -1
+
   f.close()
 
-  return (nonstdfile,datadir,inlte)
+  return (madaffile, nonstdfile, nonstd, numpar, datadir, inlte, atommode, atominfo)
 
 
 def read_phoenix_model(modelfile):

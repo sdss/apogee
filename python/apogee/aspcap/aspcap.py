@@ -282,7 +282,7 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars') :
     nwave = nw_chip.sum()
     aspcapspec.add_column(Column(name='SPEC',dtype=float,shape=(nwave),length=len(aspcapfield)))
     aspcapspec.add_column(Column(name='SPEC_ERR',dtype=float,shape=(nwave),length=len(aspcapfield)))
-    aspcapspec.add_column(Column(name='MASK',dtype=uint64,shape=(nwave),length=len(aspcapfield)))
+    aspcapspec.add_column(Column(name='MASK',dtype=np.uint64,shape=(nwave),length=len(aspcapfield)))
     aspcapspec.add_column(Column(name='SPEC_BESTFIT',dtype=float,shape=(nwave),length=len(aspcapfield)))
     aspcapspec.add_column(Column(name='OBS',dtype=float,shape=(nwave),length=len(aspcapfield)))
     aspcapspec.add_column(Column(name='ERR',dtype=float,shape=(nwave),length=len(aspcapfield)))
@@ -634,26 +634,25 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
         print('Grid: ',grid['name'],len(gd))
         if len(gd) == 0 : continue
 
+        # loop over stars and accumulate input for FERRE
+        inpars=[]
+        flux=[]
+        err=[]
+        stars=[]
+        for star,spec in zip(aspcapfield[gd],aspcapspec[gd]) :
+            stars.append(star['APOGEE_ID'])
+            inpars.append(star[useparam])
+            print(star['APOGEE_ID'])
+            if renorm :
+                flux.append(spec['OBS']/spec['NORM'])
+                err.append(spec['ERR']/spec['NORM'])
+            else :
+                flux.append(spec['OBS'])
+                err.append(spec['ERR'])
+
         if clobber or not os.path.exists(outspec+'.obs') :
             link(os.environ['APOGEE_SPECLIB']+'/synth/',os.path.dirname(outspec)+'/../lib_'+grid['name'])
 
-            # loop over stars and accumulate input for FERRE
-            inpars=[]
-            flux=[]
-            err=[]
-            stars=[]
-            for star,spec in zip(aspcapfield[gd],aspcapspec[gd]) :
-                stars.append(star['APOGEE_ID'])
-                inpars.append(star[useparam])
-                print(star['APOGEE_ID'])
-                if renorm :
-                    flux.append(spec['OBS']/spec['NORM'])
-                    err.append(spec['ERR']/spec['NORM'])
-                else :
-                    flux.append(spec['OBS'])
-                    err.append(spec['ERR'])
-
-            ferre.writeipf(outspec,outdir+'/ferre/'+libfile,stars,param=np.array(inpars))
             ferre.writespec(outspec+'.obs',flux)
             ferre.writespec(outspec+'.err',err)
 
@@ -676,11 +675,12 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
                 shutil.copyfile(os.environ['APOGEE_DIR']+'/data/windows/'+grid['windows']+'/'+filterfile,
                                      os.path.dirname(out)+'/'+elem['name']+'.mask')
 
-                # links for ipf, obs, and err files
-                for ext in ['.ipf','.obs','.err'] :
+                # links for obs, and err files
+                for ext in ['.obs','.err'] :
                     try: os.remove(out+ext)
                     except: pass
                     link('../spectra/'+os.path.basename(outspec)+ext,out+ext)
+                ferre.writeipf(out,outdir+'/ferre/'+libfile,stars,param=np.array(inpars))
                 index = np.where(libhead0['LABEL'] == elem['griddim'].encode())[0][0]+1
                 if elem['griddim'] == 'METALS' : 
                     ttie=[]

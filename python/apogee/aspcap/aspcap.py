@@ -709,7 +709,9 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
             ferr.close()
 
         for ielem,elem in enumerate(config['elems']) :
-            out=outdir+'/ferre/elem_'+elem['name']+'/'+elem['name']+'-'+grid['name']+'-'+field
+            dirname='elem_'+elem['name']
+            if calib: dirname=dirname+'_PARAM'
+            out=outdir+'/ferre/'+dirname+'/'+elem['name']+'-'+grid['name']+'-'+field
             # read FERRE output
             param,spec,wave=ferre.read(out,outdir+'/ferre/'+libfile)
             # fill in locked parameters
@@ -956,20 +958,33 @@ def comp(a,b,terange=[4500,5000],loggrange=[2.5,3.5],mhrange=[-2.5,1.0]) :
 
     fig,ax=plots.multi(3,6,hspace=0.001,wspace=0.001,figsize=(12,8))
     yr=[-0.14,0.14]
+    x=a[1].data['FPARAM'][gd,3]
+    xr=[8000,3000]
+    x=b[1].data['FPARAM'][gd,1]-a[1].data['FPARAM'][gd,1]
+    xr=[-0.5,0.5]
     for iel,el in enumerate(['O','Mg','Si','S','Ca','Ti']) :
         jel = np.where(elems()[0] == el)[0][0]
+        print(jel)
         yt='['+el+'/M]'
-        plots.plotc(ax[iel,0],a[1].data['FPARAM'][gd,0],b[1].data['FELEM'][gd,jel]-a[1].data['FELEM'][gd,jel],a[1].data['FPARAM'][gd,3],
-                xr=[8000,3000],yr=yr,zr=[-2.5,0.5],size=10,colorbar=False,zt='[M/H]',xt='Teff',label=[0.9,0.9,el])
+        x_m_a=a[1].data['FELEM'][gd,jel]
+        x_m_b=b[1].data['FELEM'][gd,jel]
+        plots.plotc(ax[iel,0],x,x_m_b-x_m_a,a[1].data['FPARAM'][gd,1],
+                xr=xr,yr=yr,zr=[0,5],size=10,colorbar=False,zt='[M/H]',xt='Teff',label=[0.9,0.9,el])
     for iel,el in enumerate(['Na','Al','P','K']) :
         jel = np.where(elems()[0] == el)[0][0]
+        print(jel)
         yt='['+el+'/M]'
-        plots.plotc(ax[iel,1],a[1].data['FPARAM'][gd,0],b[1].data['FELEM'][gd,jel]-a[1].data['FELEM'][gd,jel],a[1].data['FPARAM'][gd,3],
-                xr=[8000,3000],yr=yr,zr=[-2.5,0.5],size=10,colorbar=False,zt='[M/H]',xt='Teff',label=[0.9,0.9,el])
+        x_m_a=a[1].data['FELEM'][gd,jel]-a[1].data['FPARAM'][gd,3]
+        x_m_b=b[1].data['FELEM'][gd,jel]-b[1].data['FPARAM'][gd,3]
+        plots.plotc(ax[iel,1],x,x_m_b-x_m_a,a[1].data['FPARAM'][gd,1],
+                xr=xr,yr=yr,zr=[0,5],size=10,colorbar=False,zt='[M/H]',xt='Teff',label=[0.9,0.9,el])
     for iel,el in enumerate(['V','Cr','Mn','Fe','Co','Ni'] ) :
         jel = np.where(elems()[0] == el)[0][0]
+        print(jel)
         yt='['+el+'/M]'
-        plots.plotc(ax[iel,2],a[1].data['FPARAM'][gd,0],b[1].data['FELEM'][gd,jel]-a[1].data['FELEM'][gd,jel],a[1].data['FPARAM'][gd,3],
-                xr=[8000,3000],yr=yr,zr=[-2.5,0.5],size=10,colorbar=False,zt='[M/H]',xt='Teff',label=[0.9,0.9,el])
+        x_m_a=a[1].data['FELEM'][gd,jel]-a[1].data['FPARAM'][gd,3]
+        x_m_b=b[1].data['FELEM'][gd,jel]-b[1].data['FPARAM'][gd,3]
+        plots.plotc(ax[iel,2],x,x_m_b-x_m_a,a[1].data['FPARAM'][gd,1],
+                xr=xr,yr=yr,zr=[0,5],size=10,colorbar=False,zt='[M/H]',xt='Teff',label=[0.9,0.9,el])
     pdb.set_trace()
 

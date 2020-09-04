@@ -570,6 +570,8 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',obj=None,
                  (allvisits['SNR'] > snmin) )[0]
     print(len(allvisits),len(gd))
     allvisits=Table(allvisits)
+    # change datatype of STARFLAG to 64-bit
+    allvisits['STARFLAG'] = allvisits['STARFLAG'].astype(np.uint64)
 
     # output directory
     load=apload.ApLoad(apred=apred,telescope=telescope)
@@ -599,7 +601,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',obj=None,
                           ('APOGEE2_TARGET1',int),('APOGEE2_TARGET2',int),('APOGEE2_TARGET3',int),('APOGEE2_TARGET4',int),
                           ('TARGFLAGS','S132'),('SURVEY','S16'),('PROGRAMNAME','S32'),
                           ('NINST',int),('NVISITS',int),('COMBTYPE',int),('COMMISS',int),
-                          ('SNR',float),('STARFLAG',int),('STARFLAGS','S132'),('ANDFLAG',int),('ANDFLAGS','S132'),
+                          ('SNR',float),('STARFLAG',np.uint64),('STARFLAGS','S132'),('ANDFLAG',np.uint64),('ANDFLAGS','S132'),
                           ('VHELIO_AVG',float),('VSCATTER',float),('VERR',float),
                           ('RV_TEFF',float),('RV_LOGG',float),('RV_FEH',float),('RV_ALPHA',float),('RV_CARB',float),
                           ('RV_CCPFWHM',float),('RV_AUTOFWHM',float),
@@ -1394,7 +1396,7 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
 
     apogee_target1, apogee_target2, apogee_target3 = 0, 0, 0
     apogee2_target1, apogee2_target2, apogee2_target3, apogee2_target4 = 0, 0, 0, 0
-    starflag,andflag = 0,0
+    starflag,andflag = np.uint64(0),np.uint64(0)
     starmask=bitmask.StarBitMask()
 
     # loop over each visit and interpolate to final wavelength grid

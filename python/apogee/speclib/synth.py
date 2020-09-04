@@ -143,6 +143,11 @@ def get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type='marcs',atmosroot=None,nskip
         model = 'MARCS'
         if atmosdir is None : atmosdir = '/marcs/MARCS_v3_2016/'
         if logg <= 3.001 : geo = 's'
+    elif atmos_type == 'synspec' :
+        atmoscode = 's'
+        model = 'SYNSPEC'
+        if atmosdir is None : atmosdir = '/marcs/MARCS_v3_2016/'
+        if logg <= 3.001 : geo = 's'
     else :
         print('unknown atmos_type: ', atmos_type)
         pdb.set_trace()
@@ -158,12 +163,14 @@ def get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type='marcs',atmosroot=None,nskip
         if nskip == 2 : trim=15
         if nskip > 2 : return 0.,0.
         kurucz2turbo(atmod,outmod,trim=trim )
-    else :
+    elif atmos_type == 'marcs' :
         try :        
             ret = marcs2turbo(atmod,outmod,trim=nskip,fill=fill )
             if not fill and ret<0 : return ret
         except:
             return -2
+    elif atmos_type == 'synspec' :
+        shutil.copy(atmod,outmod)
     return outmod
 
 def get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=False,save=False,elemgrid=None,vmicro=1.) :
@@ -173,6 +180,8 @@ def get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=False,sav
         atmoscode= 'k'
     elif atmos_type == 'marcs' : 
         atmoscode = 'm'
+    elif atmos_type == 'synspec' : 
+        atmoscode = 's'
     else :
         print('unknown atmosphere type: ', atmos_type)
         pdb.set_trace()
@@ -192,7 +201,7 @@ def get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=False,sav
     return workdir
 
 def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
-    els=None,atmod=None,atmos_type='marcs',atmosroot=None,atmosdir=None,nskip=0,fill=True,
+    nlte=False,els=None,atmod=None,atmos_type='marcs',atmosroot=None,atmosdir=None,nskip=0,fill=True,
     linelist='20180901',h2o=0,linelistdir=None,atoms=True,molec=True, msuffix='', save=False,run=True) :
     """ Do synthesis
 

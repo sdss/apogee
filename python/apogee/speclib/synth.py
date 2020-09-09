@@ -146,7 +146,7 @@ def get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type='marcs',atmosroot=None,nskip
     elif atmos_type == 'synspec' :
         atmoscode = 's'
         model = 'SYNSPEC'
-        if atmosdir is None : atmosdir = '/marcs/MARCS_v3_2016/'
+        if atmosdir is None : atmosdir = '/marcs/MARCS_v3_2016/nltepop/'
         if logg <= 3.001 : geo = 's'
     else :
         print('unknown atmos_type: ', atmos_type)
@@ -171,6 +171,7 @@ def get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type='marcs',atmosroot=None,nskip
             return -2
     elif atmos_type == 'synspec' :
         shutil.copy(atmod,outmod)
+        shutil.copy(atmod.replace('.22','.5'),outmod.replace('.22','.5'))
     return outmod
 
 def get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=False,save=False,elemgrid=None,vmicro=1.) :
@@ -244,6 +245,7 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
 
     # atmosphere: make local copy in Turbospectrum input format, allowing for trimmed layers
     # note that [N/M] is solar for atmospheres (since it doesn't have a big effect)
+    if nlte : atmos_type='synspec'
     atmod = get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type=atmos_type,nskip=nskip, atmosroot=atmosroot,atmosdir=atmosdir,workdir=workdir)
     if type(atmod) is int :
         if atmod == -1 :        

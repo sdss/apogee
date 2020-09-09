@@ -95,8 +95,6 @@ class ApSpec() :
         hdulist.append(fits.ImageHDU(self.err,header=header))
         header['BUNIT'] = 'Pixel bitmask'
         hdulist.append(fits.ImageHDU(self.bitmask,header=header))
-        header['BUNIT'] = 'Wavelength'
-        hdulist.append(fits.ImageHDU(self.wave,header=header))
         header['BUNIT'] = 'Sky (10^-17 erg/s/cm^2/Ang)'
         hdulist.append(fits.ImageHDU(self.sky,header=header))
         header['BUNIT'] = 'Sky error (10^-17 erg/s/cm^2/Ang)'

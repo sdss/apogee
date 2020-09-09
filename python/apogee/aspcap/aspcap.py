@@ -925,27 +925,107 @@ def comp(a,b,terange=[4500,5000],loggrange=[2.5,3.5],mhrange=[-2.5,1.0]) :
                  (a[1].data['FPARAM'][:,3]>=mhrange[0]) &
                  (a[1].data['FPARAM'][:,3]<mhrange[1]) )[0]
     print('{:d} stars'.format(len(gd)))
-    wave=np.hstack(gridWave())
-    achi,acum=chi2(a[2].data)
-    bchi,bcum=chi2(b[2].data)
-    fig,ax=plots.multi(2,1,figsize=(4,3),wspace=0.001)
-    plots.plotc(ax[0],a[1].data['FPARAM'][:,0],a[1].data['FPARAM'][:,1],a[1].data['FPARAM'][:,3],
-                xr=[8000,3000],yr=[6,-1],zr=[-2.5,0.5],size=1,colorbar=False,zt='[M/H]',yt='log g',xt='Teff')
-    plots.plotc(ax[0],a[1].data['FPARAM'][gd,0],a[1].data['FPARAM'][gd,1],a[1].data['FPARAM'][gd,3],
-                xr=[8000,3000],yr=[6,-1],zr=[-2.5,0.5],size=10,colorbar=False,zt='[M/H]',yt='log g',xt='Teff')
-    plots.plotc(ax[1],b[1].data['FPARAM'][:,0],b[1].data['FPARAM'][:,1],b[1].data['FPARAM'][:,3],
-                xr=[8000,3000],yr=[6,-1],zr=[-2.5,0.5],size=1,colorbar=False,zt='[M/H]',yt='log g',xt='Teff')
-    plots.plotc(ax[1],b[1].data['FPARAM'][gd,0],b[1].data['FPARAM'][gd,1],b[1].data['FPARAM'][gd,3],
-                xr=[8000,3000],yr=[6,-1],zr=[-2.5,0.5],size=10,colorbar=False,zt='[M/H]',yt='log g',xt='Teff')
+
+    fp=html.head('comp.html')
+
+    grid=[]
+    for iplot in range(3) :
+        if iplot == 0 :
+            a_z = a[1].data['FPARAM'][:,3]
+            b_z = b[1].data['FPARAM'][:,3]
+            zr=[-2.5,0.5]
+            zt='[M/H]'
+        elif iplot == 1 :
+            a_z = a[1].data['FPARAM'][:,6]
+            b_z = b[1].data['FPARAM'][:,6]
+            zr=[-0.25,0.5]
+            zt='[alpha/M]'
+        elif iplot == 2 :
+            a_z = a[1].data['FPARAM'][:,4]-a[1].data['FPARAM'][:,5]
+            b_z = b[1].data['FPARAM'][:,6]-b[1].data['FPARAM'][:,5]
+            zr=[-0.5,1.0]
+            zt='[C/N]'
+        fig,ax=plots.multi(2,1,figsize=(4,3),wspace=0.001)
+        plots.plotc(ax[0],a[1].data['FPARAM'][:,0],a[1].data['FPARAM'][:,1],a_z,
+                    xr=[8000,3000],yr=[6,-1],zr=zr,size=1,colorbar=False,zt=zt,yt='log g',xt='Teff')
+        plots.plotc(ax[0],a[1].data['FPARAM'][gd,0],a[1].data['FPARAM'][gd,1],a_z[gd],
+                    xr=[8000,3000],yr=[6,-1],zr=zr,size=10,colorbar=False,zt=zt,yt='log g',xt='Teff')
+        plots.plotc(ax[1],b[1].data['FPARAM'][:,0],b[1].data['FPARAM'][:,1],b_z,
+                    xr=[8000,3000],yr=[6,-1],zr=zr,size=1,colorbar=False,zt=zt,yt='log g',xt='Teff')
+        plots.plotc(ax[1],b[1].data['FPARAM'][gd,0],b[1].data['FPARAM'][gd,1],b_z[gd],
+                    xr=[8000,3000],yr=[6,-1],zr=zr,size=10,colorbar=True,zt=zt,yt='log g',xt='Teff')
+        fig.savefig('kiel_{:d}.png'.format(iplot))
+        plt.close()
+    fp.write(html.table([['kiel_0.png','kiel_1.png','kiel_2.png']]))
 
     fig,ax=plots.multi(1,7,hspace=0.001)
     for i in range(7) :
         if i == 0 : yr=[-100,100]
         else : yr=[-0.25,0.25]
         plots.plotc(ax[i],b[1].data['FPARAM'][:,1]-a[1].data['FPARAM'][:,1],b[1].data['FPARAM'][:,i]-a[1].data['FPARAM'][:,i],
-                    a[1].data['FPARAM'][:,3],zr=[-2.5,0.5],yt=a[3].data['PARAM_SYMBOL'][0][i],size=1,xr=[-0.5,0.5],yr=yr)
+                    a[1].data['FPARAM'][:,3],zr=[-2.5,0.5],yt=a[3].data['PARAM_SYMBOL'][i],size=1,xr=[-0.5,0.5],yr=yr)
         plots.plotc(ax[i],b[1].data['FPARAM'][gd,1]-a[1].data['FPARAM'][gd,1],b[1].data['FPARAM'][gd,i]-a[1].data['FPARAM'][gd,i],
-                    a[1].data['FPARAM'][gd,3],zr=[-2.5,0.5],yt=a[3].data['PARAM_SYMBOL'][0][i],xr=[-0.5,0.5],yr=yr)
+                    a[1].data['FPARAM'][gd,3],zr=[-2.5,0.5],yt=a[3].data['PARAM_SYMBOL'][i],xr=[-0.5,0.5],yr=yr)
+    fig.savefig('dparam_dlogg.png')
+    plt.close()
+
+    fig,ax=plots.multi(1,7,hspace=0.001)
+    for i in range(7) :
+        if i == 0 : yr=[-100,100]
+        else : yr=[-0.25,0.25]
+        plots.plotc(ax[i],b[1].data['FPARAM'][:,0]-a[1].data['FPARAM'][:,0],b[1].data['FPARAM'][:,i]-a[1].data['FPARAM'][:,i],
+                    a[1].data['FPARAM'][:,3],zr=[-2.5,0.5],yt=a[3].data['PARAM_SYMBOL'][i],size=1,xr=[-200,200],yr=yr)
+        plots.plotc(ax[i],b[1].data['FPARAM'][gd,0]-a[1].data['FPARAM'][gd,0],b[1].data['FPARAM'][gd,i]-a[1].data['FPARAM'][gd,i],
+                    a[1].data['FPARAM'][gd,3],zr=[-2.5,0.5],yt=a[3].data['PARAM_SYMBOL'][i],xr=[-200,200],yr=yr)
+    fig.savefig('dparam_dteff.png')
+    plt.close()
+    fp.write(html.table([['dparam_dlogg.png','dparam_dteff.png']]))
+
+    for iplot in range(2) :
+        fig,ax=plots.multi(3,6,hspace=0.001,wspace=0.001,figsize=(12,8))
+        yr=[-0.14,0.14]
+        x=a[1].data['FPARAM'][gd,3]
+        xr=[8000,3000]
+        if iplot == 0 :
+            x=b[1].data['FPARAM'][gd,1]-a[1].data['FPARAM'][gd,1]
+            xr=[-0.5,0.5]
+            xt = 'Delta log g'
+        else :
+            x=b[1].data['FPARAM'][gd,0]-a[1].data['FPARAM'][gd,0]
+            xr=[-200,200]
+            xt = 'Delta Teff'
+        for iel,el in enumerate(['O','Mg','Si','S','Ca','Ti']) :
+            jel = np.where(elems()[0] == el)[0][0]
+            print(jel)
+            yt='['+el+'/M]'
+            x_m_a=a[1].data['FELEM'][gd,jel]
+            x_m_b=b[1].data['FELEM'][gd,jel]
+            plots.plotc(ax[iel,0],x,x_m_b-x_m_a,a[1].data['FPARAM'][gd,1],
+                    xr=xr,yr=yr,zr=[0,5],size=10,colorbar=False,zt='[M/H]',xt=xt,label=[0.9,0.9,el])
+        for iel,el in enumerate(['Na','Al','P','K']) :
+            jel = np.where(elems()[0] == el)[0][0]
+            print(jel)
+            yt='['+el+'/M]'
+            x_m_a=a[1].data['FELEM'][gd,jel]-a[1].data['FPARAM'][gd,3]
+            x_m_b=b[1].data['FELEM'][gd,jel]-b[1].data['FPARAM'][gd,3]
+            plots.plotc(ax[iel,1],x,x_m_b-x_m_a,a[1].data['FPARAM'][gd,1],
+                    xr=xr,yr=yr,zr=[0,5],size=10,colorbar=False,zt='[M/H]',xt=xt,label=[0.9,0.9,el])
+        for iel,el in enumerate(['V','Cr','Mn','Fe','Co','Ni'] ) :
+            jel = np.where(elems()[0] == el)[0][0]
+            print(jel)
+            yt='['+el+'/M]'
+            x_m_a=a[1].data['FELEM'][gd,jel]-a[1].data['FPARAM'][gd,3]
+            x_m_b=b[1].data['FELEM'][gd,jel]-b[1].data['FPARAM'][gd,3]
+            plots.plotc(ax[iel,2],x,x_m_b-x_m_a,a[1].data['FPARAM'][gd,1],
+                    xr=xr,yr=yr,zr=[0,5],size=10,colorbar=False,zt='[M/H]',xt=xt,label=[0.9,0.9,el])
+        fig.savefig('elem_{:d}.png'.format(iplot))
+        plt.close()
+    fp.write(html.table([['elem_0.png','elem_1.png']]))
+
+    pdb.set_trace()
+    wave=np.hstack(gridWave())
+    achi,acum=chi2(a[2].data)
+    bchi,bcum=chi2(b[2].data)
 
     fig,ax=plots.multi(1,4,hspace=0.001,sharex=True) 
     plots.plotl(ax[0],wave,np.nanmedian(bcum-acum,axis=0))
@@ -955,36 +1035,8 @@ def comp(a,b,terange=[4500,5000],loggrange=[2.5,3.5],mhrange=[-2.5,1.0]) :
         #plots.plotl(ax[3],wave,a[2].data['SPEC'][i])
         #plots.plotl(ax[3],wave,a[2].data['SPEC_BESTFIT'][i])
         plots.plotl(ax[3],wave,b[2].data['SPEC_BESTFIT'][i]-a[2].data['SPEC_BESTFIT'][i])
+    fig.savefig('spec.png')
+    plt.close()
+    fp.write(html.table([['spec.png']]))
 
-    fig,ax=plots.multi(3,6,hspace=0.001,wspace=0.001,figsize=(12,8))
-    yr=[-0.14,0.14]
-    x=a[1].data['FPARAM'][gd,3]
-    xr=[8000,3000]
-    x=b[1].data['FPARAM'][gd,1]-a[1].data['FPARAM'][gd,1]
-    xr=[-0.5,0.5]
-    for iel,el in enumerate(['O','Mg','Si','S','Ca','Ti']) :
-        jel = np.where(elems()[0] == el)[0][0]
-        print(jel)
-        yt='['+el+'/M]'
-        x_m_a=a[1].data['FELEM'][gd,jel]
-        x_m_b=b[1].data['FELEM'][gd,jel]
-        plots.plotc(ax[iel,0],x,x_m_b-x_m_a,a[1].data['FPARAM'][gd,1],
-                xr=xr,yr=yr,zr=[0,5],size=10,colorbar=False,zt='[M/H]',xt='Teff',label=[0.9,0.9,el])
-    for iel,el in enumerate(['Na','Al','P','K']) :
-        jel = np.where(elems()[0] == el)[0][0]
-        print(jel)
-        yt='['+el+'/M]'
-        x_m_a=a[1].data['FELEM'][gd,jel]-a[1].data['FPARAM'][gd,3]
-        x_m_b=b[1].data['FELEM'][gd,jel]-b[1].data['FPARAM'][gd,3]
-        plots.plotc(ax[iel,1],x,x_m_b-x_m_a,a[1].data['FPARAM'][gd,1],
-                xr=xr,yr=yr,zr=[0,5],size=10,colorbar=False,zt='[M/H]',xt='Teff',label=[0.9,0.9,el])
-    for iel,el in enumerate(['V','Cr','Mn','Fe','Co','Ni'] ) :
-        jel = np.where(elems()[0] == el)[0][0]
-        print(jel)
-        yt='['+el+'/M]'
-        x_m_a=a[1].data['FELEM'][gd,jel]-a[1].data['FPARAM'][gd,3]
-        x_m_b=b[1].data['FELEM'][gd,jel]-b[1].data['FPARAM'][gd,3]
-        plots.plotc(ax[iel,2],x,x_m_b-x_m_a,a[1].data['FPARAM'][gd,1],
-                xr=xr,yr=yr,zr=[0,5],size=10,colorbar=False,zt='[M/H]',xt='Teff',label=[0.9,0.9,el])
-    pdb.set_trace()
-
+    html.tail(fp)

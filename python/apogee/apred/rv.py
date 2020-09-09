@@ -546,7 +546,7 @@ import multiprocessing as mp
 from astropy.table import Table, Column
 from apogee.apred import bc
 
-def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',obj=None,
+def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_vers=None,obj=None,
                nobj=0,threads=8,maxvisit=500,snmin=3,
                clobber=False,verbose=False,tweak=False,plot=False,windows=None) :
     """ Run DOPPLER RVs for a field
@@ -554,6 +554,8 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',obj=None,
    
     plan=yaml.safe_load(open(planfile,'r'))
     apred=plan['apred_vers']
+    if apstar_vers is None : apstar_vers=plan['apstar_vers'] if plan.get('apstar_vers') else 'stars'
+
     telescope=plan['telescope']
     field=plan['field']
  
@@ -576,11 +578,13 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',obj=None,
     # output directory
     load=apload.ApLoad(apred=apred,telescope=telescope)
     outfield=load.filename('Field',field=field)
-    #outfield=outfield.replace('/stars/','/rv/')
+    if apstar_vers != 'stars' :
+        outfield=outfield.replace('/stars/','/'+apstar_vers+'/')
     try : os.makedirs(os.path.dirname(outfield))
     except FileExistsError: pass
     outfieldvisits=load.filename('FieldVisits',field=field)
-    #outfieldvisits=outfieldvisits.replace('/stars/','/rv/')
+    if apstar_vers != 'stars' :
+        outfieldvisits=outfieldvisits.replace('/stars/','/'+apstar_vers+'/')
 
     # get all unique (or requested) objects
     if obj is None :
@@ -629,7 +633,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',obj=None,
         nvisit+=len(visits)
 
         if len(visits) > 0 :
-            allfiles.append([allvisits[gd[visits]],load,(field,star,clobber,verbose,tweak,plot,windows)])
+            allfiles.append([allvisits[gd[visits]],load,(field,star,clobber,verbose,tweak,plot,windows,apstar_vers)])
     print('total objects: ', nobj, ' total visits: ', nvisit) 
 
     # now do the RVs, in parallel if requested
@@ -715,7 +719,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',obj=None,
                 apogee_id=files[-1][1].decode() 
                 gdrv = np.where((allvisits[visits]['STARFLAG'] & starmask.getval('RV_REJECT')) == 0)[0]
                 if len(gdrv) > 0 : 
-                    allv.append([allvisits[visits[gdrv]],load,(field,apogee_id,clobber)])
+                    allv.append([allvisits[visits[gdrv]],load,(field,apogee_id,clobber,apstar_vers)])
 
     # do the visit combination, in parallel if requested
     if threads == 0 :
@@ -794,7 +798,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',obj=None,
     else : suffix=''
     if tweak: suffix=suffix+'_tweak'
     print('making HTML page ....')
-    mkhtml(field,suffix=suffix,apred=apred,telescope=telescope)
+    mkhtml(field,suffix=suffix,apred=apred,telescope=telescope,apstar_vers=apstar_vers)
 
     return allfield,allvisits
 
@@ -811,11 +815,13 @@ def dorv(visitfiles) :
     tweak=visitfiles[-1][4]
     plot=visitfiles[-1][5]
     windows=visitfiles[-1][6]
+    apstar_vers=visitfiles[-1][7]
     #rvrange=visitfiles[-1][7]
     if tweak: suffix='_tweak'
     else : suffix='_out'
     outdir = os.path.dirname(load.filename('Star',field=field,obj=obj))
-    #outdir = outdir.replace('/stars/','/rv/')
+    if apstar_vers != 'stars' :
+        outdir=outdir.replace('/stars/','/'+apstar_vers+'/')
 
     if os.path.exists(outdir+'/'+obj+suffix+'.pkl') and not clobber:
         print(obj,' already done')
@@ -839,7 +845,7 @@ def dorv(visitfiles) :
     lowsnr_visits=np.where(allvisit['SNR']<10)[0]
     if (len(lowsnr_visits) > 1) & (len(lowsnr_visits)/len(allvisit) > 0.1) :
         try :
-            apstar_bc=visitcomb(allvisit,bconly=True,load=load,write=False,dorvfit=False) 
+            apstar_bc=visitcomb(allvisit,bconly=True,load=load,write=False,dorvfit=False,apstar_vers=apstar_vers) 
             apstar_bc.setmask(badval)
             spec=doppler.Spec1D(apstar_bc.flux[0,:],err=apstar_bc.err[0,:],bitmask=apstar_bc.bitmask[0,:],
                  mask=apstar_bc.mask[0,:],wave=apstar_bc.wave,lsfpars=np.array([0]),
@@ -926,11 +932,13 @@ def dovisitcomb(allv) :
     field = allv[2][0]
     apogee_id = allv[2][1]
     clobber = allv[2][2]
+    apstar_vers = allv[2][3]
     pixelmask=bitmask.PixelBitMask()
 
     # already done?
     outdir=os.path.dirname(load.filename('Field',field=field))
-    #outdir=outdir.replace('/stars/','/rv/')
+    if apstar_vers != 'stars' :
+        outdir=outdir.replace('/stars/','/'+apstar_vers+'/')
     if os.path.exists(outdir+'/'+apogee_id+'.pkl') and not clobber:
         print(apogee_id,' already done visitcomb')
         fp=open(outdir+'/'+apogee_id+'.pkl','rb')
@@ -943,7 +951,7 @@ def dovisitcomb(allv) :
             pass
 
     # do the combination
-    apstar=visitcomb(allvisits,load=load,plot=False)
+    apstar=visitcomb(allvisits,load=load,plot=False,apstar_vers=apstar_vers)
 
     # dump
     pickle.dump(apstar,open(outdir+'/'+apogee_id+'.pkl','wb'))
@@ -1137,7 +1145,7 @@ def dop_comp(field) :
             plt.draw()
             input('hit a key: ')
 
-def mkhtml(field,suffix='',apred='r13',telescope='apo25m') :
+def mkhtml(field,suffix='',apred='r13',telescope='apo25m',apstar_vers='stars') :
     """ Make web pages with tables/plots of RV output
         c.f., Doppler vs IDL
     """
@@ -1147,11 +1155,13 @@ def mkhtml(field,suffix='',apred='r13',telescope='apo25m') :
     load=apload.ApLoad(apred=apred,telescope=telescope)
     #apf=load.apField(field)[1].data
     infile=load.filename('Field',field=field)
-    #infile=infile.replace('/stars/','/rv/')
+    if apstar_vers != 'stars' :
+        infile=infile.replace('/stars/','/'+apstar_vers+'/')
     apf=fits.open(infile)[1].data
 
     infile=load.filename('FieldVisits',field=field)
-    #infile=infile.replace('/stars/','/rv/')
+    if apstar_vers != 'stars' :
+        infile=infile.replace('/stars/','/'+apstar_vers+'/')
     #apfv=load.apFieldVisits(field)[1].data
     apfv=fits.open(infile)[1].data
 
@@ -1375,7 +1385,7 @@ from apogee.apred import wave
 from apogee.apred import sincint
 
 def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.5],bconly=False,
-              plot=False,write=True,dorvfit=True) :
+              plot=False,write=True,dorvfit=True,apstar_vers='stars') :
     """ Combine multiple visits with individual RVs to rest frame sum
     """
 
@@ -1538,7 +1548,7 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
     apstar.header['RA'] = (allvisit['RA'].max(), 'right ascension, deg, J2000')
     apstar.header['DEC'] = (allvisit['DEC'].max(), 'declination, deg, J2000')
     apstar.header['GLON'] = (allvisit['GLON'].max(), 'Galactic longitude')
-    apstar.header['GLOAT'] = (allvisit['GLAT'].max(), 'Galactic latitude')
+    apstar.header['GLAT'] = (allvisit['GLAT'].max(), 'Galactic latitude')
     apstar.header['J'] = (allvisit['J'].max(), '2MASS J magnitude')
     apstar.header['J_ERR'] = (allvisit['J_ERR'].max(), '2MASS J magnitude uncertainty')
     apstar.header['H'] = (allvisit['H'].max(), '2MASS H magnitude')
@@ -1577,6 +1587,33 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
     apstar.header['MEANFIB'] = (meanfib,'S/N weighted mean fiber number')
     apstar.header['SIGFIB'] = (sigfib,'standard deviation (unweighted) of fiber number')
 
+    # individual visit information in header
+    for i0,visit in enumerate(allvisit) :
+        i=i0+1
+        apstar.header['SFILE{:d}'.format(i)] = (visit['FILE'],' Visit #{:d} spectrum file'.format(i))
+        apstar.header['DATE{:d}'.format(i)] = (visit['DATEOBS'], 'DATE-OBS of visit {:d}'.format(i))
+        apstar.header['JD{:d}'.format(i)] = (visit['JD'], 'Julian date of visit {:d}'.format(i))
+        # hjd = helio_jd(visitstr[i].jd-2400000.0,visitstr[i].ra,visitstr[i].dec)
+        #apstar.header['HJD{:d}'.format(i)] = 
+        apstar.header['FIBER{:d}'.format(i)] = (visit['FIBERID'],' Fiber, visit {:d}'.format(i))
+        apstar.header['BC{:d}'.format(i)] = (visit['BC'],' Barycentric correction (km/s), visit {:d}'.format(i))
+        apstar.header['VRAD{:d}'.format(i)] = (visit['VREL'],' Doppler shift (km/s) of visit {:d}'.format(i))
+        #apstar.header['VERR%d'.format(i)] = 
+        apstar.header['VHELIO{:d}'.format(i)] = (visit['VHELIO'],' Barycentric velocity (km/s), visit {:d}'.format(i))
+        apstar.header['SNRVIS{:d}'.format(i)] = (visit['SNR'],' Signal/Noise ratio, visit {:d}'.format(i))
+        apstar.header['FLAG{:d}'.format(i)] = (visit['STARFLAG'],' STARFLAG for visit {:d}'.format(i))
+        apstar.header.insert('SFILE{:d}'.format(i),('COMMENT','VISIT {:d} INFORMATION'.format(i)))
+  #sxaddpar,header,'HJD'+num,hjd,' Reduced Heliocentric JD of visit '+num
+  #sxaddpar,header,'VTYPE'+num,visitstr[i].vtype,' RV type (1=chisq, 2=xcorr) from visit '+num
+  #sxaddpar,header,'VERR'+num,visitstr[i].vrelerr,' error in VRAD (km/s)'
+  #sxaddpar,header,'CHISQ'+num,visitstr[i].chisq, ' chi square from visit mini-grid xcorr'
+  #sxaddpar,header,'RVTEFF'+num,visitstr[i].rv_teff,' effective temperature (K) from visit mini-grid xcorr'
+  #sxaddpar,header,'RVLOGG'+num,visitstr[i].rv_logg,' surface gravity (dex) from visit mini-grid xcorr'
+  #sxaddpar,header,'RVFEH'+num,visitstr[i].rv_feh,' metallicity [Fe/H] from visit mini-grid xcorr'
+  #sxaddpar,header,'RVALPH'+num,visitstr[i].rv_alpha,' alpha abundance from visit mini-grid xcorr'
+  #sxaddpar,header,'RVCARB'+num,visitstr[i].rv_carb,' carbon abundance from visit mini-grid xcorr'
+
+
     # Do a RV fit just to get a template and normalized spectrum, for plotting
     if dorvfit :
         try :
@@ -1599,7 +1636,8 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
 
     if write :
         outfile=load.filename('Star',field=apstar.header['FIELD'],obj=apstar.header['OBJID'])
-        #outfile=outfile.replace('/stars/','/rv/') 
+        if apstar_vers != 'stars' :
+            outfile=outfile.replace('/stars/','/'+apstar_vers+'/')
         outdir = os.path.dirname(outfile)
         try: os.makedirs(os.path.dirname(outfile))
         except : pass

@@ -262,10 +262,10 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
     if plot : 
         plot_apWave([name],apred=vers,inst=inst,hard=hard)
         # individual lines from last row
-        if hard :
-            try : os.mkdir(os.path.dirname(root))
-            except : pass
-            fig.savefig(root+'.png')
+        #if hard :
+        #    try : os.mkdir(os.path.dirname(root))
+        #    except : pass
+        #    fig.savefig(root+'.png')
 
     return pars
 

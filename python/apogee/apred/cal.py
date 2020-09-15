@@ -19,7 +19,7 @@ import pdb
 import numpy as np
 from astropy.io import fits
 
-def mkpar(mjdstart,mjdend,out='wave',lco=False,yearout='multiwave', append=False) :
+def mkpar(mjdstart,mjdend,out='wave',lco=False,yearout='multiwave', append=False,maxsky=41) :
     """ Make calibration file list for wavecals between input dates
     """
     # open output file
@@ -77,7 +77,7 @@ def mkpar(mjdstart,mjdend,out='wave',lco=False,yearout='multiwave', append=False
                         psf.append(files[qrtz].split('-')[2].replace('.apz','') )
                     # look for sky frames and preceding domeflat, for LSF product (should be following domeflat for APO!)
                     if hdr3['IMAGETYP'] == 'DomeFlat' : dome = ifile
-                    if hdr1['IMAGETYP'].strip() == 'Object' and hdr1['NFRAMES']>10 and hdr1['NFRAMES']<41 :
+                    if hdr1['IMAGETYP'].strip() == 'Object' and hdr1['NFRAMES']>10 and hdr1['NFRAMES']<maxsky :
                        sky.append(files[ifile-2].split('-')[2].replace('.apz','') )
                        f.write('lsf 99999 99999 {:8s} {:8s} {:8s}\n'.format(
                              files[ifile-2].split('-')[2].replace('.apz',''),
@@ -117,12 +117,12 @@ def mkallpars(apo=True,lco=True) :
         mjds= [57829, 57966, 58360, 58700, 58950]
         mjds= [58360, 58700, 58950]
         for i in range(len(mjds)-1) :
-            mkpar(mjds[i],mjds[i+1],out='apogee-s-wave.par',lco=True,yearout='apogee-s-multiwave.par', append=True)
+            mkpar(mjds[i],mjds[i+1],out='apogee-s-year{:d}.par'.format(i),lco=True,yearout='apogee-s-multiwave.par', append=True,maxsky=41)
     if apo :
         try : os.remove('apogee-n-wave.par')
         except : pass
         mjds= [55800, 56130, 56512, 56876, 57230, 57600, 57966, 58360, 58700, 58950]
         mjds= [58360, 58700, 58950]
         for i in range(len(mjds)-1) :
-            mkpar(mjds[i],mjds[i+1],out='apogee-n-wave.par',yearout='apogee-n-multiwave.par', append=True)
+            mkpar(mjds[i],mjds[i+1],out='apogee-n-year{:d}.par'.format(i),yearout='apogee-n-multiwave.par', append=True,maxsky=20)
         

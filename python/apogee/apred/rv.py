@@ -547,12 +547,16 @@ from astropy.table import Table, Column
 from apogee.apred import bc
 
 def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_vers=None,obj=None,
-               nobj=0,threads=8,maxvisit=500,snmin=3,
+               nobj=0,threads=8,maxvisit=500,snmin=3,nres=None,
                clobber=False,verbose=False,tweak=False,plot=False,windows=None) :
     """ Run DOPPLER RVs for a field
     """ 
    
     plan=yaml.safe_load(open(planfile,'r'))
+    if plan['apogee_ver'] != os.environ['APOGEE_VER'] :
+        print('apogee_ver {:s} does not match running version {:s}'.format(plan['apogee_ver'],os.environ['APOGEE_VER']))
+        pdb.set_trace()
+
     apred=plan['apred_vers']
     if apstar_vers is None : apstar_vers=plan['apstar_vers'] if plan.get('apstar_vers') else 'stars'
 
@@ -719,7 +723,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                 apogee_id=files[-1][1].decode() 
                 gdrv = np.where((allvisits[visits]['STARFLAG'] & starmask.getval('RV_REJECT')) == 0)[0]
                 if len(gdrv) > 0 : 
-                    allv.append([allvisits[visits[gdrv]],load,(field,apogee_id,clobber,apstar_vers)])
+                    allv.append([allvisits[visits[gdrv]],load,(field,apogee_id,clobber,apstar_vers,nres)])
 
     # do the visit combination, in parallel if requested
     if threads == 0 :
@@ -933,6 +937,7 @@ def dovisitcomb(allv) :
     apogee_id = allv[2][1]
     clobber = allv[2][2]
     apstar_vers = allv[2][3]
+    nres = allv[2][4]
     pixelmask=bitmask.PixelBitMask()
 
     # already done?
@@ -951,7 +956,7 @@ def dovisitcomb(allv) :
             pass
 
     # do the combination
-    apstar=visitcomb(allvisits,load=load,plot=False,apstar_vers=apstar_vers)
+    apstar=visitcomb(allvisits,load=load,plot=False,apstar_vers=apstar_vers,nres=nres)
 
     # dump
     pickle.dump(apstar,open(outdir+'/'+apogee_id+'.pkl','wb'))
@@ -1486,7 +1491,7 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
         if len(bd) > 0 : stack.err[i,bd] *= np.sqrt(4)
         bd = np.where(((stack.bitmask[i,:]&pixelmask.getval('PERSIST_HIGH')) == 0) &
                       ((stack.bitmask[i,:]&pixelmask.getval('PERSIST_MED')) == 0) &
-                      ((stack.bitmask[i,:]&pixelmask.getval('PERSIST_LOW')) == 0) )[0]
+                      ((stack.bitmask[i,:]&pixelmask.getval('PERSIST_LOW')) > 0) )[0]
         if len(bd) > 0 : stack.err[i,bd] *= np.sqrt(3)
         bd = np.where((stack.bitmask[i,:]&pixelmask.getval('SIG_SKYLINE')) > 0)[0]
         if len(bd) > 0 : stack.err[i,bd] *= np.sqrt(100)
@@ -1586,6 +1591,7 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
     else : sigfib = 0.
     apstar.header['MEANFIB'] = (meanfib,'S/N weighted mean fiber number')
     apstar.header['SIGFIB'] = (sigfib,'standard deviation (unweighted) of fiber number')
+    apstar.header['NRES'] = ('{:5.1f}{:5.1f}{:5.1f]'.format(*nres),'number of pixels/resolution used for sinc')
 
     # individual visit information in header
     for i0,visit in enumerate(allvisit) :

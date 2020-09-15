@@ -145,7 +145,7 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
     # loop over requested rows
     for irow,row in enumerate(rows) :
         # set up independent variable array with pixel, chip, groupid, and dependent variable (wavelength)
-        thisrow = np.where((linestr['row'] == row) & (linestr['peak'] > 100))[0]
+        thisrow = np.where((linestr['row'] == row) & (linestr['peak'] > 100) & (linestr['pixel']>0) )[0]
         x = np.zeros([3,len(thisrow)])
         x[0,:] = linestr['pixel'][thisrow]
         x[1,:] = linestr['chip'][thisrow]

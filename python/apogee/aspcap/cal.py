@@ -746,7 +746,8 @@ def logg(a,caldir='cal/') :
     # select RC
     rc=np.where((a['FPARAM'][gd,1]<rclim[1])&(a['FPARAM'][gd,1]>rclim[0])&
                 (cn>cnsep[0]+cnsep[1]*a['FPARAM'][gd,3] + cnsep[2]*dt)&
-                (a['FPARAM'][gd,0]<6000)&(a['FPARAM'][gd,0]>3000))[0]
+                (a['FPARAM'][gd,1]<calloggmax)&(a['FPARAM'][gd,1]>calloggmin) &
+                (a['FPARAM'][gd,0]<calteffmax)&(a['FPARAM'][gd,0]>calteffmin))[0]
     rccorr=rcfit2[0] + rcfit2[1]*a['FPARAM'][gd,1] + rcfit2[2]*a['FPARAM'][gd,1]**2
     new[gd[rc]]=a['FPARAM'][gd[rc],1]-rccorr[rc]
     #rcidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RC')) >0)[0]
@@ -755,7 +756,7 @@ def logg(a,caldir='cal/') :
     rgb=np.where(((a['FPARAM'][gd,1]>rclim[1])|(a['FPARAM'][gd,1]<rclim[0])|
                 (cn<cnsep[0]+cnsep[1]*a['FPARAM'][gd,3] + cnsep[2]*dt)) &
                 (a['FPARAM'][gd,1]<calloggmax)&(a['FPARAM'][gd,1]>calloggmin) &
-                (a['FPARAM'][gd,0]<6000)&(a['FPARAM'][gd,0]>3000))[0]
+                (a['FPARAM'][gd,0]<calteffmax)&(a['FPARAM'][gd,0]>calteffmin))[0]
     #clip logg at loggmin and loggmax
     logg=clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
     mh=clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])

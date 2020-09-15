@@ -340,6 +340,10 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
     """
     # read configuration file
     plan=yaml.safe_load(open(planfile,'r'))
+    if plan['apogee_ver'] != os.environ['APOGEE_VER'] :
+        print('apogee_ver {:s} does not match running version {:s}'.format(plan['apogee_ver'],os.environ['APOGEE_VER']))
+        pdb.set_trace()
+
     apred=plan['apred_vers']
     if apstar_vers is None : apstar_vers=plan['apstar_vers'] if plan.get('apstar_vers') else 'stars'
     aspcap_vers=plan['aspcap_vers']
@@ -588,6 +592,10 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
 
     # read configuration file
     plan=yaml.safe_load(open(planfile,'r'))
+    if plan['apogee_ver'] != os.environ['APOGEE_VER'] :
+        print('apogee_ver {:s} does not match running version {:s}'.format(plan['apogee_ver'],os.environ['APOGEE_VER']))
+        pdb.set_trace()
+
     apred=plan['apred_vers']
     aspcap_vers=plan['aspcap_vers']
     aspcap_config=plan['aspcap_config']
@@ -914,14 +922,16 @@ def chi2(data) :
     cumchi2=np.cumsum(chi2,axis=1)
     return chi2, cumchi2
 
-def comp(a,b,terange=[4500,5000],loggrange=[2.5,3.5],mhrange=[-2.5,1.0]) :
+def comp(a,b,terange=[4500,5000],loggrange=[2.5,3.5],mhrange=[-2.5,1.0],amrange=[-1,1],spec=True) :
     """ Compare two versions in region on Kiel diagram
     """
-    matplotlib.use('TkAgg')
+    matplotlib.use('Agg')
     gd=np.where( (a[1].data['FPARAM'][:,0]>=terange[0]) &
                  (a[1].data['FPARAM'][:,0]<terange[1]) &
                  (a[1].data['FPARAM'][:,1]>=loggrange[0]) &
                  (a[1].data['FPARAM'][:,1]<loggrange[1]) &
+                 (a[1].data['FPARAM'][:,6]>=amrange[0]) &
+                 (a[1].data['FPARAM'][:,6]<amrange[1]) &
                  (a[1].data['FPARAM'][:,3]>=mhrange[0]) &
                  (a[1].data['FPARAM'][:,3]<mhrange[1]) )[0]
     print('{:d} stars'.format(len(gd)))
@@ -951,21 +961,56 @@ def comp(a,b,terange=[4500,5000],loggrange=[2.5,3.5],mhrange=[-2.5,1.0]) :
         plots.plotc(ax[0],a[1].data['FPARAM'][gd,0],a[1].data['FPARAM'][gd,1],a_z[gd],
                     xr=[8000,3000],yr=[6,-1],zr=zr,size=10,colorbar=False,zt=zt,yt='log g',xt='Teff')
         plots.plotc(ax[1],b[1].data['FPARAM'][:,0],b[1].data['FPARAM'][:,1],b_z,
-                    xr=[8000,3000],yr=[6,-1],zr=zr,size=1,colorbar=False,zt=zt,yt='log g',xt='Teff')
-        plots.plotc(ax[1],b[1].data['FPARAM'][gd,0],b[1].data['FPARAM'][gd,1],b_z[gd],
-                    xr=[8000,3000],yr=[6,-1],zr=zr,size=10,colorbar=True,zt=zt,yt='log g',xt='Teff')
+                    xr=[8000,3000],yr=[6,-1],zr=zr,size=1,colorbar=False,zt=zt,xt='Teff')
+        im=plots.plotc(ax[1],b[1].data['FPARAM'][gd,0],b[1].data['FPARAM'][gd,1],b_z[gd],
+                    xr=[8000,3000],yr=[6,-1],zr=zr,size=10,colorbar=False,zt=zt,xt='Teff')
+        cbar = fig.colorbar(im, ax=ax.ravel().tolist(), shrink=0.95)
+        cbar.set_label(zt)
         fig.savefig('kiel_{:d}.png'.format(iplot))
         plt.close()
     fp.write(html.table([['kiel_0.png','kiel_1.png','kiel_2.png']]))
+
+    fig,ax=plots.multi(1,2,figsize=(4,3),hspace=0.001)
+    zr=[3000,8000]
+    zt='Teff'
+    plots.plotc(ax[0],a[1].data['FPARAM'][:,3],a[1].data['FPARAM'][:,6],a[1].data['FPARAM'][:,0],
+                xr=[-2.5,1],yr=[-0.5,0.75],zr=zr,size=1,colorbar=False,zt=zt,yt='[alpha/M]',xt='[M/H]')
+    plots.plotc(ax[0],a[1].data['FPARAM'][gd,3],a[1].data['FPARAM'][gd,6],a[1].data['FPARAM'][gd,0],
+                xr=[-2.5,1],yr=[-0.5,0.75],zr=zr,size=10,colorbar=False,zt=zt,yt='[alpha/M]',xt='[M/H]')
+    plots.plotc(ax[1],b[1].data['FPARAM'][:,3],b[1].data['FPARAM'][:,6],b[1].data['FPARAM'][:,0],
+                xr=[-2.5,1],yr=[-0.5,0.75],zr=zr,size=1,colorbar=False,zt=zt,yt='[alpha/M]',xt='[M/H]')
+    im=plots.plotc(ax[1],b[1].data['FPARAM'][gd,3],b[1].data['FPARAM'][gd,6],b[1].data['FPARAM'][gd,0],
+                xr=[-2.5,1],yr=[-0.5,0.75],zr=zr,size=10,colorbar=False,zt=zt,yt='[alpha/M]',xt='[M/H]')
+    cbar = fig.colorbar(im, ax=ax.ravel().tolist(), shrink=0.95)
+    cbar.set_label(zt)
+    fig.savefig('alpha.png')
+    plt.close()
+    fig,ax=plots.multi(1,2,figsize=(4,3),hspace=0.001)
+    zr=[-2.5,0.5]
+    zt='[M/H]'
+    plots.plotc(ax[0],a[1].data['FPARAM'][:,1],a[1].data['FPARAM'][:,4]-a[1].data['FPARAM'][:,5],a[1].data['FPARAM'][:,3],
+                xr=[5,0],yr=[-0.5,1.],zr=zr,size=1,colorbar=False,zt=zt,yt='[C/N]',xt='log g')
+    plots.plotc(ax[0],a[1].data['FPARAM'][gd,1],a[1].data['FPARAM'][gd,4]-a[1].data['FPARAM'][gd,5],a[1].data['FPARAM'][gd,3],
+                xr=[5,0],yr=[-0.5,1.],zr=zr,size=10,colorbar=False,zt=zt,yt='[C/N]',xt='log g')
+    plots.plotc(ax[1],b[1].data['FPARAM'][:,1],b[1].data['FPARAM'][:,4]-b[1].data['FPARAM'][:,5],b[1].data['FPARAM'][:,3],
+                xr=[5,0],yr=[-0.5,1.],zr=zr,size=1,colorbar=False,zt=zt,yt='[C/N]',xt='log g')
+    im=plots.plotc(ax[1],b[1].data['FPARAM'][gd,1],b[1].data['FPARAM'][gd,4]-b[1].data['FPARAM'][gd,5],b[1].data['FPARAM'][gd,3],
+                xr=[5,0],yr=[-0.5,1.],zr=zr,size=10,colorbar=False,zt=zt,yt='[C/N]',xt='log g')
+    cbar = fig.colorbar(im, ax=ax.ravel().tolist(), shrink=0.95)
+    cbar.set_label(zt)
+    fig.savefig('cn.png')
+    plt.close()
+    fp.write(html.table([['alpha.png','cn.png']]))
 
     fig,ax=plots.multi(1,7,hspace=0.001)
     for i in range(7) :
         if i == 0 : yr=[-100,100]
         else : yr=[-0.25,0.25]
+        xt = 'Delta log g'
         plots.plotc(ax[i],b[1].data['FPARAM'][:,1]-a[1].data['FPARAM'][:,1],b[1].data['FPARAM'][:,i]-a[1].data['FPARAM'][:,i],
-                    a[1].data['FPARAM'][:,3],zr=[-2.5,0.5],yt=a[3].data['PARAM_SYMBOL'][i],size=1,xr=[-0.5,0.5],yr=yr)
+                    a[1].data['FPARAM'][:,3],zr=[-2.5,0.5],yt=a[3].data['PARAM_SYMBOL'][0][i],size=1,xr=[-0.5,0.5],yr=yr,xt=xt)
         plots.plotc(ax[i],b[1].data['FPARAM'][gd,1]-a[1].data['FPARAM'][gd,1],b[1].data['FPARAM'][gd,i]-a[1].data['FPARAM'][gd,i],
-                    a[1].data['FPARAM'][gd,3],zr=[-2.5,0.5],yt=a[3].data['PARAM_SYMBOL'][i],xr=[-0.5,0.5],yr=yr)
+                    a[1].data['FPARAM'][gd,3],zr=[-2.5,0.5],yt=a[3].data['PARAM_SYMBOL'][0][i],xr=[-0.5,0.5],yr=yr)
     fig.savefig('dparam_dlogg.png')
     plt.close()
 
@@ -973,10 +1018,11 @@ def comp(a,b,terange=[4500,5000],loggrange=[2.5,3.5],mhrange=[-2.5,1.0]) :
     for i in range(7) :
         if i == 0 : yr=[-100,100]
         else : yr=[-0.25,0.25]
+        xt = 'Delta Teff'
         plots.plotc(ax[i],b[1].data['FPARAM'][:,0]-a[1].data['FPARAM'][:,0],b[1].data['FPARAM'][:,i]-a[1].data['FPARAM'][:,i],
-                    a[1].data['FPARAM'][:,3],zr=[-2.5,0.5],yt=a[3].data['PARAM_SYMBOL'][i],size=1,xr=[-200,200],yr=yr)
+                    a[1].data['FPARAM'][:,3],zr=[-2.5,0.5],yt=a[3].data['PARAM_SYMBOL'][0][i],size=1,xr=[-200,200],yr=yr,xt=xt)
         plots.plotc(ax[i],b[1].data['FPARAM'][gd,0]-a[1].data['FPARAM'][gd,0],b[1].data['FPARAM'][gd,i]-a[1].data['FPARAM'][gd,i],
-                    a[1].data['FPARAM'][gd,3],zr=[-2.5,0.5],yt=a[3].data['PARAM_SYMBOL'][i],xr=[-200,200],yr=yr)
+                    a[1].data['FPARAM'][gd,3],zr=[-2.5,0.5],yt=a[3].data['PARAM_SYMBOL'][0][i],xr=[-200,200],yr=yr)
     fig.savefig('dparam_dteff.png')
     plt.close()
     fp.write(html.table([['dparam_dlogg.png','dparam_dteff.png']]))
@@ -987,56 +1033,62 @@ def comp(a,b,terange=[4500,5000],loggrange=[2.5,3.5],mhrange=[-2.5,1.0]) :
         x=a[1].data['FPARAM'][gd,3]
         xr=[8000,3000]
         if iplot == 0 :
-            x=b[1].data['FPARAM'][gd,1]-a[1].data['FPARAM'][gd,1]
+            x=b[1].data['FPARAM'][:,1]-a[1].data['FPARAM'][:,1]
             xr=[-0.5,0.5]
             xt = 'Delta log g'
         else :
-            x=b[1].data['FPARAM'][gd,0]-a[1].data['FPARAM'][gd,0]
+            x=b[1].data['FPARAM'][:,0]-a[1].data['FPARAM'][:,0]
             xr=[-200,200]
             xt = 'Delta Teff'
         for iel,el in enumerate(['O','Mg','Si','S','Ca','Ti']) :
             jel = np.where(elems()[0] == el)[0][0]
             print(jel)
             yt='['+el+'/M]'
-            x_m_a=a[1].data['FELEM'][gd,jel]
-            x_m_b=b[1].data['FELEM'][gd,jel]
-            plots.plotc(ax[iel,0],x,x_m_b-x_m_a,a[1].data['FPARAM'][gd,1],
+            x_m_a=a[1].data['FELEM'][:,jel]
+            x_m_b=b[1].data['FELEM'][:,jel]
+            plots.plotc(ax[iel,0],x,x_m_b-x_m_a,a[1].data['FPARAM'][:,1],
+                    xr=xr,yr=yr,zr=[0,5],size=1,colorbar=False,zt='[M/H]',xt=xt,label=[0.9,0.9,el])
+            plots.plotc(ax[iel,0],x[gd],x_m_b[gd]-x_m_a[gd],a[1].data['FPARAM'][gd,1],
                     xr=xr,yr=yr,zr=[0,5],size=10,colorbar=False,zt='[M/H]',xt=xt,label=[0.9,0.9,el])
         for iel,el in enumerate(['Na','Al','P','K']) :
             jel = np.where(elems()[0] == el)[0][0]
             print(jel)
             yt='['+el+'/M]'
-            x_m_a=a[1].data['FELEM'][gd,jel]-a[1].data['FPARAM'][gd,3]
-            x_m_b=b[1].data['FELEM'][gd,jel]-b[1].data['FPARAM'][gd,3]
-            plots.plotc(ax[iel,1],x,x_m_b-x_m_a,a[1].data['FPARAM'][gd,1],
+            x_m_a=a[1].data['FELEM'][:,jel]-a[1].data['FPARAM'][:,3]
+            x_m_b=b[1].data['FELEM'][:,jel]-b[1].data['FPARAM'][:,3]
+            plots.plotc(ax[iel,1],x,x_m_b-x_m_a,a[1].data['FPARAM'][:,1],
+                    xr=xr,yr=yr,zr=[0,5],size=1,colorbar=False,zt='[M/H]',xt=xt,label=[0.9,0.9,el])
+            plots.plotc(ax[iel,1],x[gd],x_m_b[gd]-x_m_a[gd],a[1].data['FPARAM'][gd,1],
                     xr=xr,yr=yr,zr=[0,5],size=10,colorbar=False,zt='[M/H]',xt=xt,label=[0.9,0.9,el])
         for iel,el in enumerate(['V','Cr','Mn','Fe','Co','Ni'] ) :
             jel = np.where(elems()[0] == el)[0][0]
             print(jel)
             yt='['+el+'/M]'
-            x_m_a=a[1].data['FELEM'][gd,jel]-a[1].data['FPARAM'][gd,3]
-            x_m_b=b[1].data['FELEM'][gd,jel]-b[1].data['FPARAM'][gd,3]
-            plots.plotc(ax[iel,2],x,x_m_b-x_m_a,a[1].data['FPARAM'][gd,1],
+            x_m_a=a[1].data['FELEM'][:,jel]-a[1].data['FPARAM'][:,3]
+            x_m_b=b[1].data['FELEM'][:,jel]-b[1].data['FPARAM'][:,3]
+            plots.plotc(ax[iel,2],x,x_m_b-x_m_a,a[1].data['FPARAM'][:,1],
+                    xr=xr,yr=yr,zr=[0,5],size=1,colorbar=False,zt='[M/H]',xt=xt,label=[0.9,0.9,el])
+            plots.plotc(ax[iel,2],x[gd],x_m_b[gd]-x_m_a[gd],a[1].data['FPARAM'][gd,1],
                     xr=xr,yr=yr,zr=[0,5],size=10,colorbar=False,zt='[M/H]',xt=xt,label=[0.9,0.9,el])
         fig.savefig('elem_{:d}.png'.format(iplot))
         plt.close()
     fp.write(html.table([['elem_0.png','elem_1.png']]))
 
-    pdb.set_trace()
-    wave=np.hstack(gridWave())
-    achi,acum=chi2(a[2].data)
-    bchi,bcum=chi2(b[2].data)
+    if spec :
+        wave=np.hstack(gridWave())
+        achi,acum=chi2(a[2].data)
+        bchi,bcum=chi2(b[2].data)
 
-    fig,ax=plots.multi(1,4,hspace=0.001,sharex=True) 
-    plots.plotl(ax[0],wave,np.nanmedian(bcum-acum,axis=0))
-    plots.plotl(ax[1],wave,np.nanmedian(b[2].data['SPEC_BESTFIT'][gd]-a[2].data['SPEC_BESTFIT'][gd],axis=0))
-    for i in gd :
-        plots.plotl(ax[2],wave,(bcum[i]-acum[i])/(bcum[i]-acum[i]).sum())
-        #plots.plotl(ax[3],wave,a[2].data['SPEC'][i])
-        #plots.plotl(ax[3],wave,a[2].data['SPEC_BESTFIT'][i])
-        plots.plotl(ax[3],wave,b[2].data['SPEC_BESTFIT'][i]-a[2].data['SPEC_BESTFIT'][i])
-    fig.savefig('spec.png')
-    plt.close()
-    fp.write(html.table([['spec.png']]))
+        fig,ax=plots.multi(1,4,hspace=0.001,sharex=True) 
+        plots.plotl(ax[0],wave,np.nanmedian(bcum-acum,axis=0))
+        plots.plotl(ax[1],wave,np.nanmedian(b[2].data['SPEC_BESTFIT'][gd]-a[2].data['SPEC_BESTFIT'][gd],axis=0))
+        for i in gd :
+            plots.plotl(ax[2],wave,(bcum[i]-acum[i])/(bcum[i]-acum[i]).sum())
+            #plots.plotl(ax[3],wave,a[2].data['SPEC'][i])
+            #plots.plotl(ax[3],wave,a[2].data['SPEC_BESTFIT'][i])
+            plots.plotl(ax[3],wave,b[2].data['SPEC_BESTFIT'][i]-a[2].data['SPEC_BESTFIT'][i])
+        fig.savefig('spec.png')
+        plt.close()
+        fp.write(html.table([['spec.png']]))
 
     html.tail(fp)

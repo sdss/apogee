@@ -986,7 +986,7 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec
                       spec,specnorm=mk_synthesis(code,int(teff),logg,mh,am,cm,nm,els=oa,
                         wrange=wrange,dw=dw,atmosdir=marcsdir,
                         elemgrid=elem,linelistdir=linelistdir+'/'+elem+'/',linelist=linelist,vmicro=vout,
-                        solarisotopes=solarisotopes,
+                        solarisotopes=solarisotopes,nlte=nlte,
                         nskip=nskip,atmos_type=p['atmos'],run=run,save=save,atoms=atoms,molec=molec,h2o=h2o) 
                   nskip = nskip+dskip if isinstance(spec,float) else -1
                 if nskip > 0 : 

@@ -170,8 +170,11 @@ def get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type='marcs',atmosroot=None,nskip
         except:
             return -2
     elif atmos_type == 'synspec' :
-        shutil.copy(atmod,outmod)
-        shutil.copy(atmod.replace('.22','.5'),outmod.replace('.22','.5'))
+        try :
+            shutil.copy(atmod,outmod)
+            shutil.copy(atmod.replace('.22','.5'),outmod.replace('.22','.5'))
+        except: 
+            return -1
     return outmod
 
 def get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=False,save=False,elemgrid=None,vmicro=1.) :
@@ -889,6 +892,7 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec
     marcsdir = p['marcsdir'] if p.get('marcsdir') else None
     solarisotopes = int(p['solarisotopes']) if p.get('solarisotopes') else 0
     solarisotopes = True if abs(solarisotopes) == 1 else False
+    nlte = p['nlte'] if p.get('nlte') else False
     enhanced_o = p['enhanced_o'] if p.get('enhanced_o') else 0
     elem = p['elem'] if p.get('elem') else ''
     maskdir = p['maskdir'] if p.get('maskdir') else None
@@ -986,8 +990,8 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec
                         nskip=nskip,atmos_type=p['atmos'],run=run,save=save,atoms=atoms,molec=molec,h2o=h2o) 
                   nskip = nskip+dskip if isinstance(spec,float) else -1
                 if nskip > 0 : 
-                    print('FAILED Turbospec',nskip)
-                    fail('failed Turbospec convergence: {:8d} {:8.2f} {:8.2f} {:8.2f}  {:8.2f} {:8.2f} {:8.2f} {:d}'.format(
+                    print('FAILED synthesis',nskip)
+                    fail('failed synthesis: {:8d} {:8.2f} {:8.2f} {:8.2f}  {:8.2f} {:8.2f} {:8.2f} {:d}'.format(
                                int(teff),logg,mh,am,cm,nm,vout,nskip))
                 try:
                     if elem == '' :

@@ -20,6 +20,7 @@ ifeq ($(UNAME_S),Linux)
     OPT += -mcmodel=large 
 endif
 
+BINDIR=../../bin
 
 all:  compile install 
 
@@ -34,7 +35,11 @@ rotin3: rotin3.f
 list2bin: list2bin.f
 	${F90} ${OPT} list2bin.f -o list2bin
 
-install: ../bin ../bin/s54h ../bin/rotin3 ../bin/list2bin
+install: 
+	-mkdir ${BINDIR}
+	cp s54h   ${BINDIR}
+	cp rotin3  ${BINDIR}
+	cp list2bin  ${BINDIR}
 
 ../bin/s54h ../bin/rotin3 ../bin/list2bin: s54h rotin3 list2bin
 	cp s54h   ../bin/

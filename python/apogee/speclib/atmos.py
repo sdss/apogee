@@ -57,7 +57,7 @@ def filename(teff,logg,z,c,a,model='Unknown',vers='x3') :
         model (str) : atmosphere type (default='Unknown' --> kurucz)
         vers (str) : for MARCS, "version number" for filename (default='x3')
     """
-    if model.upper() == 'MARCS' :
+    if model.upper() == 'MARCS' or model.upper() == 'SYNSPEC' :
         # MARCS file names
         if logg <= 3.001 :
             prefix = 's'
@@ -67,8 +67,14 @@ def filename(teff,logg,z,c,a,model='Unknown',vers='x3') :
             prefix = 'p'
             mass = 0.
             t = 1
-        dir = 'mod_z{:+.2f}'.format(z)
-        file = (dir+'/'+prefix+'{:04d}_g{:+.1f}_m{:.1f}_t{:02d}_'+vers+'_z{:+.2f}_a{:+.2f}_c{:+.2f}_n+0.00_o{:+.2f}_r+0.00_s+0.00').format(int(teff),logg,mass,t,z,a,c,a) + '.mod'
+        if model.upper() == 'MARCS' : 
+            dir = 'mod_z{:+.2f}'.format(z)
+            file = (dir+'/'+prefix+'{:04d}_g{:+.1f}_m{:.1f}_t{:02d}_'+vers+
+                    '_z{:+.2f}_a{:+.2f}_c{:+.2f}_n+0.00_o{:+.2f}_r+0.00_s+0.00').format(int(teff),logg,mass,t,z,a,c,a) + '.mod'
+        else : 
+            dir = 'syn_z{:+.2f}'.format(z)
+            file = (dir+'/'+prefix+'{:04d}_g{:+.1f}_m{:.1f}_t{:02d}_'+vers+
+                    '_z{:+.2f}_a{:+.2f}_c{:+.2f}_n+0.00_o{:+.2f}_r+0.00_s+0.00').format(int(teff),logg,mass,t,z,a,c,a) + '.22'
     else :
         # KURUCZ file names
         dir = 'm'+cval(z)+'c'+cval(c)+'o'+cval(a)

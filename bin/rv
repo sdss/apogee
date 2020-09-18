@@ -31,6 +31,7 @@ if __name__ == '__main__' :
 
     parser.add_argument('field', type=str, help='Plan file')
     parser.add_argument("--threads",type=int,default=4)
+    parser.add_argument("--nres",type=float,nargs=3,help='list of sinc widths')
     parser.add_argument('--tweak', help='do normalization tweak?',action="store_true")
     parser.add_argument("--done")
     parser.add_argument("--host")
@@ -43,7 +44,7 @@ if __name__ == '__main__' :
     print("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
 
     try:
-        rv.doppler_rv(args.field,threads=args.threads,clobber=args.clobber,tweak=args.tweak)
+        rv.doppler_rv(args.field,threads=args.threads,clobber=args.clobber,tweak=args.tweak,nres=args.nres)
         print('rv completed successfully for {:s}'.format(args.field))
     except:
         print('rv failed for {:s}'.format(args.field))

@@ -293,7 +293,7 @@ class Apogee2Target1(BitMask) :
 
     name = ([ 'APOGEE2_ONEBIN_GT_0_5','APOGEE2_TWOBIN_0_5_TO_0_8','APOGEE2_TWOBIN_GT_0_8','APOGEE2_IRAC_DERED',
               'APOGEE2_WISE_DERED','APOGEE2_SFD_DERED','APOGEE2_NO_DERED','APOGEE2_WASH_GIANT',
-              'APOGEE2_WASH_DWARF','APOGEE2_SCI_CLUSTER','APOGEE2_','APOGEE2_SHORT',
+              'APOGEE2_WASH_DWARF','APOGEE2_SCI_CLUSTER','APOGEE2_CLUSTER_CANDIDATE','APOGEE2_SHORT',
               'APOGEE2_MEDIUM','APOGEE2_LONG','APOGEE2_NORMAL_SAMPLE','APOGEE2_MANGA_LED',
               'APOGEE2_ONEBIN_GT_0_3','APOGEE2_WASH_NOCLASS','APOGEE2_STREAM_MEMBER','APOGEE2_STREAM_CANDIDATE',
               'APOGEE2_DSPH_MEMBER','APOGEE2_DSPH_CANDIDATE','APOGEE2_MAGCLOUD_MEMBER','APOGEE2_MAGCLOUD_CANDIDATE',
@@ -304,7 +304,7 @@ class Apogee2Target2(BitMask) :
     '''
     BitMask class for APOGEE2_TARGET2
     '''
-    name = ([ 'LIGHT_TRAP','APOGEE2_CCLOUD_AS4','APOGEE2_STANDARD_STAR','APOGEE2_RV_STANDARD',
+    name = ([ 'APOGEE2_K2_GAP','APOGEE2_CCLOUD_AS4','APOGEE2_STANDARD_STAR','APOGEE2_RV_STANDARD',
               'APOGEE2_SKY','APOGEE2_EXTERNAL_CALIB','APOGEE2_INTERNAL_CALIB','APOGEE2_DISK_SUBSTRUCTURE_MEMBER',
               'APOGEE2_DISK_SUBSTRUCTURE_CANDIDATE','APOGEE2_TELLURIC','APOGEE2_CALIB_CLUSTER','APOGEE2_K2_PLANETHOST',
               'APOGEE2_TIDAL_BINARY','APOGEE2_LITERATURE_CALIB','APOGEE2_GES_OVERLAP','APOGEE2_ARGOS_OVERLAP',
@@ -325,6 +325,19 @@ class Apogee2Target3(BitMask) :
               'APOGEE2_REDDENING_TARGETS','APOGEE2_KEPLER_MDWARF_KOI','APOGEE2_AGB','APOGEE2_M33',
               'APOGEE2_ULTRACOOL','APOGEE2_DISTANT_SEGUE_GIANTS','APOGEE2_CEPHEID_MAPPING','APOGEE2_SA57',
               'APOGEE2_K2_MDWARF','APOGEE2_RVVAR','APOGEE2_M31','APOGEE2_'])
+
+class Apogee2Target4(BitMask) :
+    '''
+    BitMask class for APOGEE2_TARGET4
+    '''
+    name = ([ '','','','',
+              '','','','',
+              '','','','',
+              '','','','',
+              '','','','',
+              '','','','',
+              '','','','',
+              '','','',''])
 
 class ApogeeTarget1(BitMask) :
     '''
@@ -361,13 +374,23 @@ class ApogeeTarget3(BitMask) :
               '','','','','','','','',
               '','','','','','','',''])
 
-def targflags(targ1,targ2,targ3,survey='apogee2') :
+class ApogeeTarget4(BitMask) :
+    '''
+    BitMask class for APOGEE_TARGET4
+    '''
+    name = ([ '','','','','','','','',
+              '','','','','','','','',
+              '','','','','','','','',
+              '','','','','','','',''])
+
+def targflags(targ1,targ2,targ3,targ4,survey='apogee2') :
 
     if 'apogee2' in survey :
         mask1=Apogee2Target1()
         mask2=Apogee2Target2()
         mask3=Apogee2Target3()
-        return ','.join([mask1.getname(targ1),mask2.getname(targ2),mask3.getname(targ3)]).strip(',')
+        mask4=Apogee2Target4()
+        return ','.join([mask1.getname(targ1),mask2.getname(targ2),mask3.getname(targ3),mask4.getname(targ4)]).strip(',')
     else :
         mask1=ApogeeTarget1()
         mask2=ApogeeTarget2()

@@ -594,6 +594,7 @@ FOR i=0L,nplanfiles-1 do begin
   targ1 = plugmap.fiberdata[objind].target1
   targ2 = plugmap.fiberdata[objind].target2
   targ3 = plugmap.fiberdata[objind].target3
+  targ4 = plugmap.fiberdata[objind].target4
 
   if keyword_set(single) then begin
     if tag_exist(planstr,'mjdfrac') then if planstr.mjdfrac eq 1 then $
@@ -612,7 +613,6 @@ FOR i=0L,nplanfiles-1 do begin
   if keyword_set(stp) then stop
 
   apgundef,allvisitstr
-  ; Plots directory
   for istar=0,n_elements(objind)-1 do begin
     visitfile=apogee_filename('Visit',plate=planstr.plateid,mjd=planstr.mjd,fiber=objdata[istar].fiberid,reduction=obj)
     if tag_exist(planstr,'mjdfrac') then if planstr.mjdfrac eq 1 then begin
@@ -622,12 +622,18 @@ FOR i=0L,nplanfiles-1 do begin
     endif
 
     visitstr = {apogee_id:'',target_id:'',file:'',fiberid:0,plate:'0',mjd:0L,telescope:'',$
-           survey:'',field:'',programname:'',$
+           survey:'',field:'',programname:'',alt_id:'',$
            location_id:0,ra:0.0d0,dec:0.0d0,glon:0.0d0,glat:0.0d0,$
            j:0.0,j_err:0.0,h:0.0,h_err:0.0,k:0.0,k_err:0.0,$
+           src_h : '',$
+           wash_m:0.0,wash_m_err:0.0,wash_t2:0.0,wash_t2_err:0.0,ddo51:0.0,ddo51_err:0.0,$
+           irac_3_6:0.0,irac_3_6_err:0.0,irac_4_5:0.0,irac_4_5_err:0.0,$
+           irac_5_8:0.0,irac_5_8_err:0.0,irac_8_0:0.0,irac_8_0_err:0.0,$
+           wise_4_5:0.0,wise_4_5_err:0.0,targ_4_5:0.0,targ_4_5_err:0.0,$
+           wash_ddo51_giant_flag:0,wash_ddo51_star_flag:0,$
+           pmra:0.0,pmdec:0.0,pm_src:'',$
            ak_targ:-99., ak_targ_method: 'NONE', ak_wise: -99., sfd_ebv: -99.,$
-           ra_targ: 0.0d0, dec_targ: 0.0d0, $
-           apogee_target1:0L,apogee_target2:0L,apogee_target3:0L,$
+           apogee_target1:0L,apogee_target2:0L,apogee_target3:0L,apogee_target4:0L,$
            targflags:'',snr: 0.0, starflag:0L,starflags: '',$
            dateobs:'',jd:0.0d0,BC:0.0,vtype:0,$
            VREL:999999.0,vrelerr:999999.0,VHELIO:999999.0,Vlsr:999999.0,Vgsr:999999.0,$
@@ -643,7 +649,8 @@ FOR i=0L,nplanfiles-1 do begin
     visitstr.apogee_target1=targ1[istar]
     visitstr.apogee_target2=targ2[istar]
     visitstr.apogee_target3=targ3[istar]
-    visitstr.targflags=targflag(targ1[istar],targ2[istar],targ3[istar],survey=survey)
+    visitstr.apogee_target4=targ4[istar]
+    visitstr.targflags=targflag(targ1[istar],targ2[istar],targ3[istar],targ4[istar],survey=survey)
     visitstr.survey=survey
     visitstr.field=plugmap.field
     visitstr.programname=plugmap.programname
@@ -651,7 +658,56 @@ FOR i=0L,nplanfiles-1 do begin
     visitstr.ak_targ_method=plugmap.fiberdata[objind[istar]].ak_targ_method
     visitstr.ak_wise=plugmap.fiberdata[objind[istar]].ak_wise
     visitstr.sfd_ebv=plugmap.fiberdata[objind[istar]].sfd_ebv
-    aprv,visitfile,visitstr,/save,dir_plots=plots_dir,/trimgrid
+
+    objects = plugmap.fiberdata[objind[istar]]
+    visitstr.ra=objects.ra
+    visitstr.dec=objects.dec
+    visitstr.ak_targ_method=objects.ak_targ_method
+    visitstr.j=objects.j
+    visitstr.j_err=objects.j_err
+    visitstr.h=objects.h
+    visitstr.h_err=objects.h_err
+    visitstr.k=objects.k
+    visitstr.k_err=objects.k_err
+    visitstr.alt_id=objects.alt_id
+    visitstr.src_h=objects.src_h
+    visitstr.wash_m=objects.wash_m
+    visitstr.wash_m_err=objects.wash_m_err
+    visitstr.wash_t2=objects.wash_t2
+    visitstr.wash_t2_err=objects.wash_t2_err
+    visitstr.ddo51=objects.ddo51
+    visitstr.ddo51_err=objects.ddo51_err
+    visitstr.irac_3_6=objects.irac_3_6
+    visitstr.irac_3_6_err=objects.irac_3_6_err
+    visitstr.irac_4_5=objects.irac_4_5
+    visitstr.irac_4_5_err=objects.irac_4_5_err
+    visitstr.irac_5_8=objects.irac_5_8
+    visitstr.irac_5_8_err=objects.irac_5_8_err
+    visitstr.irac_8_0=objects.irac_8_0
+    visitstr.irac_8_0_err=objects.irac_8_0_err
+    visitstr.wise_4_5=objects.wise_4_5
+    visitstr.wise_4_5_err=objects.wise_4_5_err
+    visitstr.targ_4_5=objects.targ_4_5
+    visitstr.targ_4_5_err=objects.targ_4_5_err
+    visitstr.wash_ddo51_giant_flag=objects.wash_ddo51_giant_flag
+    visitstr.wash_ddo51_star_flag=objects.wash_ddo51_star_flag
+    visitstr.pmra=objects.pmra
+    visitstr.pmdec=objects.pmdec
+    visitstr.pm_src=objects.pm_src
+
+    ; get a few things from apVisit file (done in aprv also, but not
+    ;   if that is skipped....)
+    apgundef,str
+    APLOADVISIT,visitfile,str
+    visitstr.dateobs = str.dateobs
+    if tag_exist(str,'JDMID') then visitstr.jd=str.jdmid else visitstr.jd=str.jd
+    if tag_exist(str,'JDMID') then aprvjd=str.jdmid else aprvjd=str.jd
+    visitstr.snr = str.snr
+    visitstr.starflag = str.starflag
+    visitstr.starflags = starflag(str.starflag)
+
+    if niter eq 2 then $
+      aprv,visitfile,visitstr,/save,dir_plots=plots_dir,/trimgrid
     MWRFITS,visitstr,visitfile,/silent
     PUSH,allvisitstr,visitstr
   endfor

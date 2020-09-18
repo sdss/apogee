@@ -83,6 +83,15 @@ class ApSpec() :
         hdulist=fits.HDUList()
         hdu=fits.PrimaryHDU()
         hdu.header=self.header
+        hdu.header['HISTORY'] = 'APOGEE Reduction Pipeline Version: {:s}'.format(os.environ['APOGEE_VER'])
+        hdu.header['HISTORY'] = 'HDU0 : header'
+        hdu.header['HISTORY'] = 'HDU1 : flux'
+        hdu.header['HISTORY'] = 'HDU2 : flux uncertainty'
+        hdu.header['HISTORY'] = 'HDU3 : pixel bitmask'
+        hdu.header['HISTORY'] = 'HDU4 : sky'
+        hdu.header['HISTORY'] = 'HDU5 : sky uncertainty'
+        hdu.header['HISTORY'] = 'HDU6 : telluric'
+        hdu.header['HISTORY'] = 'HDU7 : telluric uncertainty'
         hdulist.append(hdu)
         header=fits.Header()
         header['CRVAL1'] = hdu.header['CRVAL1']
@@ -95,8 +104,6 @@ class ApSpec() :
         hdulist.append(fits.ImageHDU(self.err,header=header))
         header['BUNIT'] = 'Pixel bitmask'
         hdulist.append(fits.ImageHDU(self.bitmask,header=header))
-        header['BUNIT'] = 'Wavelength'
-        hdulist.append(fits.ImageHDU(self.wave,header=header))
         header['BUNIT'] = 'Sky (10^-17 erg/s/cm^2/Ang)'
         hdulist.append(fits.ImageHDU(self.sky,header=header))
         header['BUNIT'] = 'Sky error (10^-17 erg/s/cm^2/Ang)'

@@ -143,6 +143,11 @@ def get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type='marcs',atmosroot=None,nskip
         model = 'MARCS'
         if atmosdir is None : atmosdir = '/marcs/MARCS_v3_2016/'
         if logg <= 3.001 : geo = 's'
+    elif atmos_type == 'synspec' :
+        atmoscode = 's'
+        model = 'SYNSPEC'
+        if atmosdir is None : atmosdir = '/marcs/MARCS_v3_2016/nltepop/'
+        if logg <= 3.001 : geo = 's'
     else :
         print('unknown atmos_type: ', atmos_type)
         pdb.set_trace()
@@ -158,12 +163,18 @@ def get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type='marcs',atmosroot=None,nskip
         if nskip == 2 : trim=15
         if nskip > 2 : return 0.,0.
         kurucz2turbo(atmod,outmod,trim=trim )
-    else :
+    elif atmos_type == 'marcs' :
         try :        
             ret = marcs2turbo(atmod,outmod,trim=nskip,fill=fill )
             if not fill and ret<0 : return ret
         except:
             return -2
+    elif atmos_type == 'synspec' :
+        try :
+            shutil.copy(atmod,outmod)
+            shutil.copy(atmod.replace('.22','.5'),outmod.replace('.22','.5'))
+        except: 
+            return -1
     return outmod
 
 def get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=False,save=False,elemgrid=None,vmicro=1.) :
@@ -173,6 +184,8 @@ def get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=False,sav
         atmoscode= 'k'
     elif atmos_type == 'marcs' : 
         atmoscode = 'm'
+    elif atmos_type == 'synspec' : 
+        atmoscode = 's'
     else :
         print('unknown atmosphere type: ', atmos_type)
         pdb.set_trace()
@@ -192,7 +205,7 @@ def get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=False,sav
     return workdir
 
 def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
-    els=None,atmod=None,atmos_type='marcs',atmosroot=None,atmosdir=None,nskip=0,fill=True,
+    nlte=False,els=None,atmod=None,atmos_type='marcs',atmosroot=None,atmosdir=None,nskip=0,fill=True,
     linelist='20180901',h2o=0,linelistdir=None,atoms=True,molec=True, msuffix='', save=False,run=True) :
     """ Do synthesis
 
@@ -235,6 +248,7 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
 
     # atmosphere: make local copy in Turbospectrum input format, allowing for trimmed layers
     # note that [N/M] is solar for atmospheres (since it doesn't have a big effect)
+    if nlte : atmos_type='synspec'
     atmod = get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type=atmos_type,nskip=nskip, atmosroot=atmosroot,atmosdir=atmosdir,workdir=workdir)
     if type(atmod) is int :
         if atmod == -1 :        
@@ -878,6 +892,7 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec
     marcsdir = p['marcsdir'] if p.get('marcsdir') else None
     solarisotopes = int(p['solarisotopes']) if p.get('solarisotopes') else 0
     solarisotopes = True if abs(solarisotopes) == 1 else False
+    nlte = p['nlte'] if p.get('nlte') else False
     enhanced_o = p['enhanced_o'] if p.get('enhanced_o') else 0
     elem = p['elem'] if p.get('elem') else ''
     maskdir = p['maskdir'] if p.get('maskdir') else None
@@ -971,12 +986,12 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec
                       spec,specnorm=mk_synthesis(code,int(teff),logg,mh,am,cm,nm,els=oa,
                         wrange=wrange,dw=dw,atmosdir=marcsdir,
                         elemgrid=elem,linelistdir=linelistdir+'/'+elem+'/',linelist=linelist,vmicro=vout,
-                        solarisotopes=solarisotopes,
+                        solarisotopes=solarisotopes,nlte=nlte,
                         nskip=nskip,atmos_type=p['atmos'],run=run,save=save,atoms=atoms,molec=molec,h2o=h2o) 
                   nskip = nskip+dskip if isinstance(spec,float) else -1
                 if nskip > 0 : 
-                    print('FAILED Turbospec',nskip)
-                    fail('failed Turbospec convergence: {:8d} {:8.2f} {:8.2f} {:8.2f}  {:8.2f} {:8.2f} {:8.2f} {:d}'.format(
+                    print('FAILED synthesis',nskip)
+                    fail('failed synthesis: {:8d} {:8.2f} {:8.2f} {:8.2f}  {:8.2f} {:8.2f} {:8.2f} {:d}'.format(
                                int(teff),logg,mh,am,cm,nm,vout,nskip))
                 try:
                     if elem == '' :

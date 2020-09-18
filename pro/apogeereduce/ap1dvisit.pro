@@ -702,7 +702,6 @@ FOR i=0L,nplanfiles-1 do begin
     visitstr.dateobs = str.dateobs
     if tag_exist(str,'JDMID') then visitstr.jd=str.jdmid else visitstr.jd=str.jd
     if tag_exist(str,'JDMID') then aprvjd=str.jdmid else aprvjd=str.jd
-    ;visitstr.jd = str.jd
     visitstr.snr = str.snr
     visitstr.starflag = str.starflag
     visitstr.starflags = starflag(str.starflag)

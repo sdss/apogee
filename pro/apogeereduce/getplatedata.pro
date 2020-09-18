@@ -1,4 +1,95 @@
-function getplatedata,plate,cmjd,plugid=plugid,asdaf=asdaf,mapa=mapa,obj1m=obj1m,fixfiberid=fixfiberid,noobject=noobject,stop=stop,skip=skip,twilight=twilight,badfiberid=badfiberid,apogees=apogees,mapper_data=mapper_data,starfiber=starfiber
+; routine to get object information for a give plate given plugmap
+; gets info from plateHoles files and apogeeObject files
+
+
+function catalog_info_blank
+  ;info from apogeeObject
+  cat0=create_struct('alt_id',' ',$
+                     'j', -9999.99, $
+                     'j_err', -9999.99, $
+                     'h', -9999.99, $
+                     'h_err', -9999.99, $
+                     'k', -9999.99, $
+                     'k_err', -9999.99, $
+                     'src_h', ' ', $
+                     'wash_m', 0.,$
+                     'wash_m_err', 0.,$
+                     'wash_t2', 0., $
+                     'wash_t2_err', 0., $
+                     'ddo51', 0., $
+                     'ddo51_err', 0., $
+                     'irac_3_6', 0., $
+                     'irac_3_6_err', 0., $
+                     'irac_4_5', 0., $
+                     'irac_4_5_err', 0., $
+                     'irac_5_8', 0., $
+                     'irac_5_8_err', 0., $
+                     'irac_8_0', 0., $
+                     'irac_8_0_err', 0., $
+                     'wise_4_5', 0., $
+                     'wise_4_5_err', 0., $
+                     'targ_4_5', 0., $
+                     'targ_4_5_err', 0., $
+                     'ak_targ', -9999.99, $
+                     'ak_targ_method', '', $
+                     'ak_wise', -9999.99, $
+                     'sfd_ebv', -9999.99, $
+                     'wash_ddo51_giant_flag', 0, $
+                     'wash_ddo51_star_flag', 0, $
+                     'pmra', 0., $
+                     'pmdec', 0., $
+                     'pm_src', ' ')
+  return, cat0
+end
+; information in common between apogeeObject and apogee2Object
+function catalog_info_common
+
+  cat0=create_struct('apogee_id',' ',$
+                     'ra', 0.d0,$
+                     'dec', 0.d0,$
+                     'j', 0.,$
+                     'j_err', 0.,$
+                     'h', 0.,$
+                     'h_err', 0.,$
+                     'k', 0.,$
+                     'k_err', 0.,$
+                     'alt_id',' ',$
+                     'src_h', ' ', $
+                     'wash_m', 0.,$
+                     'wash_m_err', 0.,$
+                     'wash_t2', 0., $
+                     'wash_t2_err', 0., $
+                     'ddo51', 0., $
+                     'ddo51_err', 0., $
+                     'irac_3_6', 0., $
+                     'irac_3_6_err', 0., $
+                     'irac_4_5', 0., $
+                     'irac_4_5_err', 0., $
+                     'irac_5_8', 0., $
+                     'irac_5_8_err', 0., $
+                     'irac_8_0', 0., $
+                     'irac_8_0_err', 0., $
+                     'wise_4_5', 0., $
+                     'wise_4_5_err', 0., $
+                     'targ_4_5', 0., $
+                     'targ_4_5_err', 0., $
+                     'ak_targ', -9999.99, $
+                     'ak_targ_method', '', $
+                     'ak_wise', -9999.99, $
+                     'sfd_ebv', -9999.99, $
+                     'wash_ddo51_giant_flag', 0, $
+                     'wash_ddo51_star_flag', 0, $
+                     'pmra', 0., $
+                     'pmdec', 0., $
+                     'pm_src', ' ')
+  return, cat0
+end
+
+
+; main routine to get the data
+function getplatedata,plate,cmjd,plugid=plugid,asdaf=asdaf,mapa=mapa,obj1m=obj1m,fixfiberid=fixfiberid,$
+                      noobject=noobject,stop=stop,skip=skip,twilight=twilight,badfiberid=badfiberid,$
+                      apogees=apogees,mapper_data=mapper_data,starfiber=starfiber
 
 ; getplatedata loads up a structure with plate information and information about the 300 APOGEE fibers
 ;  This is obtained from a plPlugMapA file or from a 
@@ -20,7 +111,10 @@ mjd=0L
 reads,cmjd,mjd
 
 ; create the output fiber structure
-tmp={fiberid: 0, ra: 0.d0, dec: 0.d0, eta: 0.d0, zeta: 0.d0, hmag: 0., objtype: 'none', holetype: 'OBJECT', object: '', tmass_style: '', target1: 0L, target2: 0L, target3: 0L, spectrographid: 2, mag: fltarr(5), ak_targ: -99., ak_targ_method : 'none', ak_wise: -99., sfd_ebv: -99.}
+;tmp={fiberid: 0, ra: 0.d0, dec: 0.d0, eta: 0.d0, zeta: 0.d0, hmag: 0., objtype: 'none', holetype: 'OBJECT', object: '', tmass_style: '', target1: 0L, target2: 0L, target3: 0L, target4: 0L, spectrographid: 2, mag: fltarr(5), ak_targ: -99., ak_targ_method : 'none', ak_wise: -99., sfd_ebv: -99.}
+tmp=create_struct('fiberid', 0, 'ra', 0.d0, 'dec', 0.d0, 'eta', 0.d0, 'zeta', 0.d0, 'hmag', 0., 'objtype', 'none', $
+                  'holetype', 'OBJECT', 'object', '', 'tmass_style', '', 'target1', 0L, 'target2', 0L, 'target3', 0L, 'target4', 0L, $
+                  'spectrographid', 2, 'mag', fltarr(5),catalog_info_blank())
 guide=replicate(tmp,16)
 loc=0L
 if keyword_set(obj1m) then begin
@@ -139,6 +233,17 @@ if not keyword_set(mapa) then begin
   loc=0L
   reads,tmp[1],loc
   platedata.locationid = loc
+
+  ; read flag correction dat
+  have_flag_changes=0
+  platedir=getenv('HOME')+'/platelist/trunk/'+'/plates/'+strmid(platestr,0,4)+'XX/'+platestr
+  print,platedir+'/flagModifications-'+platestr+'.txt'
+  if file_test(platedir+'/flagModifications-'+platestr+'.txt') then begin
+    print,'Reading flagModifications file: ','flagModifications-'+platestr+'.txt'
+    flag_changes=IMPORTASCII(platedir+'/flagModifications-'+platestr+'.txt',/header)
+    if size(flag_changes,/type) ne 8 then stop,'Error reading flagModifications file'
+    have_flag_changes=1
+  endif
 endif
 
 ; load guide stars
@@ -214,6 +319,16 @@ for i=0,299 do begin
             fiber[i].target2 = p[match].apogee2_target2
             fiber[i].target3 = p[match].apogee2_target3
             apogee2=1
+            if have_flag_changes then begin
+              jj=where(flag_changes.PlateID eq platenum and flag_changes.TARGETID eq p[match].targetids, njj)
+              if njj gt 0 then begin
+                print,'modifying flags for',p[match].targetids
+                fiber[i].target1 = flag_changes[jj].at1
+                fiber[i].target2 = flag_changes[jj].at2
+                fiber[i].target3 = flag_changes[jj].at3
+                fiber[i].target4 = flag_changes[jj].at4
+              endif
+            endif
           endif else begin
             fiber[i].target1 = p[match].apogee_target1
             fiber[i].target2 = p[match].apogee_target2
@@ -254,12 +369,36 @@ endfor
 if apogee2 then apogeeobject='apogee2Object' else apogeeobject='apogeeObject'
 if ~keyword_set(noobject) then begin
  targetdir=getenv('APOGEE_TARGET')
- objectfile=targetdir+'/'+apogeeobject+'/'+apogeeobject+'_'+strtrim(apogee_field(platedata.locationid,platenum),2)+'.fits'
- if not file_test(objectfile) then begin
-  print,'cant find apogeeObject file: ', objectfile
+
+ ; get apogeeObject catalog info for this field
+ ; find all matching apogeeObject files and loop through them looking for matches
+ field=strtrim(apogee_field(platedata.locationid,platenum),2)
+ files=file_search(targetdir+'/apogee*Object/*'+field+'*')
+ if files[0] eq '' then begin
+   stop,'cant find apogeeObject file: '+field
+   return,field
  endif else begin
-  print,'reading apogeeObject file: ',objectfile
-  objects=mrdfits(objectfile,1)
+   if n_elements(files) gt 1 then print,'using multiple apogeeObject files: '+ files
+
+ ; we will only save tags we will use, to avoid conflict between apogeeObject and apogee2Object
+ objects=[]
+ for ifile=0,n_elements(files)-1 do begin
+   print,files[ifile]
+   tmpobject=mrdfits(files[ifile],1)
+   tmp_cat= replicate(catalog_info_common(),n_elements(tmpobject))
+   struct_assign, tmpobject, tmp_cat
+   print,n_elements(tmpobject)
+   objects=[objects,tmp_cat]
+ endfor
+ ; fix NaNs, etc.
+ aspcap_fixobject,objects
+
+; objectfile=targetdir+'/'+apogeeobject+'/'+apogeeobject+'_'+strtrim(apogee_field(platedata.locationid,platenum),2)+'.fits'
+; if not file_test(objectfile) then begin
+;  stop,'cant find apogeeObject file: ', objectfile
+; endif else begin
+;  print,'reading apogeeObject file: ',objectfile
+;  objects=mrdfits(objectfile,1)
   spherematch,objects.ra,objects.dec,fiber.ra,fiber.dec,10./3600.,match1,match2,dist,maxmatch=1
   for i=0,299 do begin
    if fiber[i].objtype eq 'STAR' or fiber[i].objtype eq 'HOT_STD' then begin
@@ -278,7 +417,38 @@ if ~keyword_set(noobject) then begin
       fiber[i].ak_targ_method=objects[match1[j]].ak_targ_method
       if finite(objects[match1[j]].ak_wise) then fiber[i].ak_wise=objects[match1[j]].ak_wise
       if finite(objects[match1[j]].sfd_ebv) then fiber[i].sfd_ebv=objects[match1[j]].sfd_ebv
-     endif else print,'not halted, but no match in object file for ',fiber[i].object
+      fiber[i].j=objects[match1[j]].j
+      fiber[i].j_err=objects[match1[j]].j_err
+      fiber[i].h=objects[match1[j]].h
+      fiber[i].h_err=objects[match1[j]].h_err
+      fiber[i].k=objects[match1[j]].k
+      fiber[i].k_err=objects[match1[j]].k_err
+      fiber[i].alt_id=objects[match1[j]].alt_id
+      fiber[i].src_h=objects[match1[j]].src_h
+      fiber[i].wash_m=objects[match1[j]].wash_m
+      fiber[i].wash_m_err=objects[match1[j]].wash_m_err
+      fiber[i].wash_t2=objects[match1[j]].wash_t2
+      fiber[i].wash_t2_err=objects[match1[j]].wash_t2_err
+      fiber[i].ddo51=objects[match1[j]].ddo51
+      fiber[i].ddo51_err=objects[match1[j]].ddo51_err
+      fiber[i].irac_3_6=objects[match1[j]].irac_3_6
+      fiber[i].irac_3_6_err=objects[match1[j]].irac_3_6_err
+      fiber[i].irac_4_5=objects[match1[j]].irac_4_5
+      fiber[i].irac_4_5_err=objects[match1[j]].irac_4_5_err
+      fiber[i].irac_5_8=objects[match1[j]].irac_5_8
+      fiber[i].irac_5_8_err=objects[match1[j]].irac_5_8_err
+      fiber[i].irac_8_0=objects[match1[j]].irac_8_0
+      fiber[i].irac_8_0_err=objects[match1[j]].irac_8_0_err
+      fiber[i].wise_4_5=objects[match1[j]].wise_4_5
+      fiber[i].wise_4_5_err=objects[match1[j]].wise_4_5_err
+      fiber[i].targ_4_5=objects[match1[j]].targ_4_5
+      fiber[i].targ_4_5_err=objects[match1[j]].targ_4_5_err
+      fiber[i].wash_ddo51_giant_flag=objects[match1[j]].wash_ddo51_giant_flag
+      fiber[i].wash_ddo51_star_flag=objects[match1[j]].wash_ddo51_star_flag
+      fiber[i].pmra=objects[match1[j]].pmra
+      fiber[i].pmdec=objects[match1[j]].pmdec
+      fiber[i].pm_src=objects[match1[j]].pm_src
+     endif else print,'not halted: no match in object file for ',fiber[i].object
    endif 
   endfor
  endelse

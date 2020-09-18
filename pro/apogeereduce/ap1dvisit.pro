@@ -594,6 +594,7 @@ FOR i=0L,nplanfiles-1 do begin
   targ1 = plugmap.fiberdata[objind].target1
   targ2 = plugmap.fiberdata[objind].target2
   targ3 = plugmap.fiberdata[objind].target3
+  targ4 = plugmap.fiberdata[objind].target4
 
   if keyword_set(single) then begin
     if tag_exist(planstr,'mjdfrac') then if planstr.mjdfrac eq 1 then $
@@ -627,7 +628,7 @@ FOR i=0L,nplanfiles-1 do begin
            j:0.0,j_err:0.0,h:0.0,h_err:0.0,k:0.0,k_err:0.0,$
            ak_targ:-99., ak_targ_method: 'NONE', ak_wise: -99., sfd_ebv: -99.,$
            ra_targ: 0.0d0, dec_targ: 0.0d0, $
-           apogee_target1:0L,apogee_target2:0L,apogee_target3:0L,$
+           apogee_target1:0L,apogee_target2:0L,apogee_target3:0L,apogee_target4:0L,$
            targflags:'',snr: 0.0, starflag:0L,starflags: '',$
            dateobs:'',jd:0.0d0,BC:0.0,vtype:0,$
            VREL:999999.0,vrelerr:999999.0,VHELIO:999999.0,Vlsr:999999.0,Vgsr:999999.0,$
@@ -643,7 +644,8 @@ FOR i=0L,nplanfiles-1 do begin
     visitstr.apogee_target1=targ1[istar]
     visitstr.apogee_target2=targ2[istar]
     visitstr.apogee_target3=targ3[istar]
-    visitstr.targflags=targflag(targ1[istar],targ2[istar],targ3[istar],survey=survey)
+    visitstr.apogee_target4=targ4[istar]
+    visitstr.targflags=targflag(targ1[istar],targ2[istar],targ3[istar],targ4[istar],survey=survey)
     visitstr.survey=survey
     visitstr.field=plugmap.field
     visitstr.programname=plugmap.programname

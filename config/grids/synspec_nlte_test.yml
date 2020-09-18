@@ -1,7 +1,7 @@
 ---
 defaults : &defaults
     config :   'l33'
-    linelist : '20200915nlte'
+    linelist : '20200918nlte'
     wrange :   [15100.,17000.]
     continuum :    [4.00,1.00,0.00,0.00]
     npart :     12

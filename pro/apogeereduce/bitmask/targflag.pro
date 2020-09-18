@@ -1,4 +1,4 @@
-function targflag,targ1,targ2,targ3,survey=survey
+function targflag,targ1,targ2,targ3,targ4,survey=survey
 
 flag=''
 if ~keyword_set(survey) then survey = 'apogee'
@@ -13,7 +13,7 @@ if strpos(survey,'apogee2') ge 0 then begin
  if is_bit_set(targ1,7) eq 1 then flag=flag+'APOGEE2_WASH_GIANT,'
  if is_bit_set(targ1,8) eq 1 then flag=flag+'APOGEE2_WASH_DWARF,'
  if is_bit_set(targ1,9) eq 1 then flag=flag+'APOGEE2_SCI_CLUSTER,'
- ;if is_bit_set(targ1,10) eq 1 then flag=flag+'APOGEE2_,'
+ if is_bit_set(targ1,10) eq 1 then flag=flag+'APOGEE2_CLUSTER_CANDIDATE,'
  if is_bit_set(targ1,11) eq 1 then flag=flag+'APOGEE2_SHORT,'
  if is_bit_set(targ1,12) eq 1 then flag=flag+'APOGEE2_MEDIUM,'
  if is_bit_set(targ1,13) eq 1 then flag=flag+'APOGEE2_LONG,'
@@ -36,7 +36,7 @@ if strpos(survey,'apogee2') ge 0 then begin
  if is_bit_set(targ1,30) eq 1 then flag=flag+'APOGEE2_APOKASC,'
  ;if is_bit_set(targ1,31) eq 1 then flag=flag+'APOGEE_CHECKED '
  
- if is_bit_set(targ2,0) eq 1 then flag=flag+'LIGHT_TRAP,'
+ if is_bit_set(targ2,0) eq 1 then flag=flag+'APOGEE2_K2_GAP,'
  if is_bit_set(targ2,1) eq 1 then flag=flag+'APOGEE2_CCLOUD_AS4,'
  if is_bit_set(targ2,2) eq 1 then flag=flag+'APOGEE2_STANDARD_STAR,'
  if is_bit_set(targ2,3) eq 1 then flag=flag+'APOGEE2_RV_STANDARD,'
@@ -58,7 +58,7 @@ if strpos(survey,'apogee2') ge 0 then begin
  if is_bit_set(targ2,19) eq 1 then flag=flag+'APOGEE2_COMMIS_SOUTH_SPEC,'
  if is_bit_set(targ2,20) eq 1 then flag=flag+'APOGEE2_HALO_MEMBER,'
  if is_bit_set(targ2,21) eq 1 then flag=flag+'APOGEE2_HALO_CANDIDATE,'
- if is_bit_set(targ2,22) eq 1 then flag=flag+'APOGEE2_1MTARGET,'
+ if is_bit_set(targ2,22) eq 1 then flag=flag+'APOGEE2_1M_TARGET,'
  if is_bit_set(targ2,23) eq 1 then flag=flag+'APOGEE2_MOD_BRIGHT_LIMIT,'
  if is_bit_set(targ2,24) eq 1 then flag=flag+'APOGEE2_CIS,'
  if is_bit_set(targ2,25) eq 1 then flag=flag+'APOGEE2_CNTAC,'

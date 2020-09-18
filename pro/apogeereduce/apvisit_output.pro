@@ -491,7 +491,7 @@ For i=0,nfibers-1 do begin
     ;  sxaddpar,header,'K',cat.ks>0.?cat.ks:99.999,' 2MASS Ks magnitude'
     ;  sxaddpar,header,'K_ERR',cat.ks_err,' 2MASS Ks magnitude uncertainty'
     ;endif else begin
-      print,'Object not found in catalog file. You can continue, but no extinction in header'
+    ;  print,'Object not found in catalog file. You can continue, but no extinction in header'
       sxaddpar,header,'AKMETHOD','NONE',' Extinction method'
       sxaddpar,header,'RA',fiber_ra,' targeting right ascension, deg, J2000'
       sxaddpar,header,'DEC',fiber_dec,' targeting declination, deg, J2000'

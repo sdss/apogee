@@ -1,7 +1,7 @@
 ---
 defaults : &defaults
     config :   'l33'
-    linelist : '20200918nlte'
+    linelist : '20200921nlte'
     wrange :   [15100.,17000.]
     continuum :    [4.00,1.00,0.00,0.00]
     npart :     12
@@ -71,7 +71,7 @@ dwarf: &dwarf
 
 GKg : &GKg
     <<: *giant
-    specdir : sgGK_200918nlte_test
+    specdir : sgGK_200921nlte_test
     teff0 : 3500
     dteff : 1000
     nteff : 3
@@ -80,7 +80,7 @@ GKg : &GKg
     nlogg : 3
 Mg : &Mg
     <<: *giant
-    specdir : sgM_200918nlte_test
+    specdir : sgM_200921nlte_test
     teff0 : 3000
     dteff : 500
     nteff : 3
@@ -89,7 +89,7 @@ Mg : &Mg
     nlogg : 3
 Fd: &Fd
     <<: *dwarf
-    specdir : sdF_200918nlte_test
+    specdir : sdF_200921nlte_test
     npca : 25
     r0 : 0.5
     solarisotopes : 1
@@ -101,7 +101,7 @@ Fd: &Fd
     nlogg : 3
 GKd: &GKd
     <<: *dwarf
-    specdir : sdGK_200918nlte_test
+    specdir : sdGK_200921nlte_test
     solarisotopes : 1
     teff0 : 3500
     dteff : 1000
@@ -111,7 +111,7 @@ GKd: &GKd
     nlogg : 3
 Md: &Md
     <<: *dwarf
-    specdir : sdM_200918nlte_test
+    specdir : sdM_200921nlte_test
     teff0 : 3000
     dteff : 500
     nteff : 3
@@ -120,7 +120,7 @@ Md: &Md
     nlogg : 3
 AB: &AB
     <<: *dwarf
-    specdir : sdAB_200918nlte_test
+    specdir : sdAB_200921nlte_test
     teff0 : 7000
     dteff : 500
     nteff : 27

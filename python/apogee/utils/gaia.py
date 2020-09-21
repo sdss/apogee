@@ -16,8 +16,12 @@ def getdata(data) :
     """
 
     tab=Table()
-    j=np.where(np.core.defchararray.find(data['APOGEE_ID'],'2M') == 0)[0]
-    out=np.unique(np.core.defchararray.replace(data['APOGEE_ID'][j],'2M',''))
+    try: 
+        j=np.where(np.core.defchararray.find(data['APOGEE_ID'],'2M') == 0)[0]
+        out=np.unique(np.core.defchararray.replace(data['APOGEE_ID'][j],'2M',''))
+    except: 
+        j=np.where(np.core.defchararray.find(data['APOGEE_ID'],b'2M') == 0)[0]
+        out=np.unique(np.core.defchararray.replace(data['APOGEE_ID'][j],b'2M',b''))
     tab.add_column(Column(out,name='twomass'))
     tab.add_column(Column(data['RA'],name='apogee_ra'))
     tab.add_column(Column(data['DEC'],name='apogee_dec'))
@@ -104,7 +108,7 @@ def add_gaia(data) :
         # loop for matches since we have repeats and want them all matched
         j=np.where(tab['GAIA_SOURCE_ID'] == 0)[0]
         print('Number missing gaia_source_id: ', len(j))
-        m1,m2=match.match(np.core.defchararray.replace(tab['APOGEE_ID'][j],'2M',''),gaia_twomass['original_ext_source_id'])
+        m1,m2=match.match(np.core.defchararray.replace(tab['APOGEE_ID'][j],b'2M',b''),gaia_twomass['original_ext_source_id'])
         print('Number matched by 2MASS: ', len(m1))
         if len(m1) == 0 : break
         for inname,outname in zip(in_names,out_names) :

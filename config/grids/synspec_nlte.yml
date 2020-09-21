@@ -71,7 +71,7 @@ dwarf: &dwarf
 
 GKg : &GKg
     <<: *giant
-    specdir : sgGK_200915nlte
+    specdir : sgGK_200918nlte
     teff0 : 3500
     dteff : 250
     nteff : 11
@@ -80,7 +80,7 @@ GKg : &GKg
     nlogg : 10
 Mg : &Mg
     <<: *giant
-    specdir : sgM_200915nlte
+    specdir : sgM_200918nlte
     teff0 : 3000
     dteff : 100
     nteff : 11
@@ -89,7 +89,7 @@ Mg : &Mg
     nlogg : 8
 Fd: &Fd
     <<: *dwarf
-    specdir : sdF_200915nlte
+    specdir : sdF_200918nlte
     npca : 25
     r0 : 0.5
     solarisotopes : 1
@@ -101,7 +101,7 @@ Fd: &Fd
     nlogg : 7
 GKd: &GKd
     <<: *dwarf
-    specdir : sdGK_200915nlte
+    specdir : sdGK_200918nlte
     solarisotopes : 1
     teff0 : 3500
     dteff : 250
@@ -111,7 +111,7 @@ GKd: &GKd
     nlogg : 7
 Md: &Md
     <<: *dwarf
-    specdir : sdM_200915nlte
+    specdir : sdM_200918nlte
     teff0 : 3000
     dteff : 100
     nteff : 11
@@ -120,7 +120,7 @@ Md: &Md
     nlogg : 7
 AB: &AB
     <<: *dwarf
-    specdir : sdAB_200915nlte
+    specdir : sdAB_200918nlte
     teff0 : 7000
     dteff : 500
     nteff : 27

@@ -1591,7 +1591,7 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
     else : sigfib = 0.
     apstar.header['MEANFIB'] = (meanfib,'S/N weighted mean fiber number')
     apstar.header['SIGFIB'] = (sigfib,'standard deviation (unweighted) of fiber number')
-    apstar.header['NRES'] = ('{:5.1f}{:5.1f}{:5.1f]'.format(*nres),'number of pixels/resolution used for sinc')
+    apstar.header['NRES'] = ('{:5.2f}{:5.2f}{:5.2f}'.format(*nres),'number of pixels/resolution used for sinc')
 
     # individual visit information in header
     for i0,visit in enumerate(allvisit) :

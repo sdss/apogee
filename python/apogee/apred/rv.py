@@ -14,6 +14,7 @@ from astropy.io import fits
 from apogee.utils import apload
 from apogee.utils import applot
 from apogee.utils import bitmask
+from apogee.utils import gaia
 from apogee.utils import spectra
 from apogee.aspcap import norm
 from tools import plots
@@ -601,8 +602,14 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
 
     # output apField structure
     fieldtype = np.dtype([('FILE','S64'),('APOGEE_ID','S20'),('TELESCOPE','S6'),('LOCATION_ID',int),('FIELD','S20'),
-                          ('J',float),('J_ERR',float),('H',float),('H_ERR',float),('K',float),('K_ERR',float),
                           ('RA',float),('DEC',float),('GLON',float),('GLAT',float),
+                          ('J',float),('J_ERR',float),('H',float),('H_ERR',float),('K',float),('K_ERR',float),
+                          ('SRC_H','S16'),('WASH_M',float),('WASH_M_ERR',float),('WASH_T2',float),('WASH_T2_ERR',float),
+                          ('DDO51',float),('DDO51_ERR',float),('IRAC_3_6',float),('IRAC_3_6_ERR',float),
+                          ('IRAC_4_5',float),('IRAC_4_5_ERR',float),('IRAC_5_8',float),('IRAC_5_8_ERR',float),
+                          ('WISE_4_5',float),('WISE_4_5_ERR',float),('TARG_4_5',float),('TARG_4_5_ERR',float),
+                          ('WASH_DDO51_GIANT_FLAG',int),('WASH_DDO51_STAR_FLAG',int),
+                          ('TARG_PMRA',float),('TARG_PMDEC',float),('TARG_PM_SRC','S16'),
                           ('AK_TARG',float),('AK_TARG_METHOD','S32'),
                           ('AK_WISE',float),('SFD_EBV',float),
                           ('APOGEE_TARGET1',int),('APOGEE_TARGET2',int),('APOGEE_TARGET3',int),
@@ -748,8 +755,20 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         # basic target information
         try: allfield['APOGEE_ID'][j] = apstar.header['OBJID']
         except: allfield['APOGEE_ID'][j] = v[-1][1]
-        for key in ['RA','DEC','J','J_ERR','H','H_ERR','K','K_ERR'] :
-            allfield[key][j] = apstar.header[key]
+        keys=['RA','DEC','J','J_ERR','H','H_ERR','K','K_ERR',
+              'SRC_H','WASH_M','WASH_M_ERR','WASH_T2','WASH_T2_ERR',
+              'DDO51','DDO51_ERR','IRAC_3_6','IRAC_3_6_ERR',
+              'IRAC_4_5','IRAC_4_5_ERR','IRAC_5_8','IRAC_5_8_ERR',
+              'WISE_4_5','WISE_4_5_ERR','TARG_4_5','TARG_4_5_ERR',
+              'WASH_DDO51_GIANT_FLAG','WASH_DDO51_STAR_FLAG',
+              'AK_TARG','AK_TARG_METHOD','AK_WISE','SFD_EBV']
+        for key in keys :
+            allfield[key][j] = v[0][0][key]
+
+        # rename targeting proper motions
+        keys = ['PMRA','PMDEC','PM_SRC']
+        for key in keys :
+            allfield['TARG_'+key][j] = v[0][0][key]
 
         # targeting flags have different names
         apogee_target1 = apstar.header['APTARG1']
@@ -767,13 +786,9 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         allfield['APOGEE2_TARGET3'][j] = apogee2_target3
         allfield['APOGEE2_TARGET4'][j] = apogee2_target4
         # add character string for target flags
-        allfield['TARGFLAGS'][j] = (bitmask.targflags(apogee_target1,apogee_target2,apogee_target3,survey='apogee')+
-                                    bitmask.targflags(apogee2_target1,apogee2_target2,apogee2_target3,survey='apogee2'))
+        allfield['TARGFLAGS'][j] = (bitmask.targflags(apogee_target1,apogee_target2,apogee_target3,0,survey='apogee')+
+                                    bitmask.targflags(apogee2_target1,apogee2_target2,apogee2_target3,apogee2_target4,survey='apogee2'))
         # some modified names
-        allfield['AK_TARG'][j] = apstar.header['AKTARG']
-        allfield['AK_TARG_METHOD'][j] = apstar.header['AKMETHOD']
-        allfield['AK_WISE'][j] = apstar.header['AKWISE']
-        allfield['SFD_EBV'][j] = apstar.header['SFD_EBV']
         allfield['N_COMPONENTS'][j] = apstar.header['N_COMP']
         allfield['VHELIO_AVG'][j] = apstar.header['VHELIO']
 
@@ -787,6 +802,9 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         # tags that are not from apStar
         allfield['SURVEY'][j] =  ','.join(set(v[0]['SURVEY']))
         allfield['PROGRAMNAME'][j] = ','.join(set(v[0]['PROGRAMNAME']))
+
+    # add GAIA information
+    allfield=gaia.add_gaia(allfield)
 
     #output apField and apFieldVisits
     hdulist=fits.HDUList()
@@ -1560,6 +1578,12 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
     apstar.header['H_ERR'] = (allvisit['H_ERR'].max(), '2MASS H magnitude uncertainty')
     apstar.header['K'] = (allvisit['K'].max(), '2MASS K magnitude')
     apstar.header['K_ERR'] = (allvisit['K_ERR'].max(), '2MASS K magnitude uncertainty')
+    apstar.header['SRC_H'] = (allvisit[0]['SRC_H'], 'source of H magnitude')
+    keys=[ 'WASH_M','WASH_T2', 'DDO51','IRAC_3_6',
+           'IRAC_4_5','IRAC_5_8', 'WISE_4_5','TARG_4_5']
+    for key in keys :
+        apstar.header[key] = allvisit[key].max()
+
     apstar.header['AKTARG'] = (allvisit['AK_TARG'].max(), 'Extinction used for targeting')
     apstar.header['AKMETHOD'] = (allvisit[0]['AK_TARG_METHOD'],'Extinction method using for targeting')
     apstar.header['AKWISE'] = (allvisit['AK_WISE'].max(),'WISE all-sky extinction')

@@ -277,7 +277,10 @@ CASE suboption of
         ;pskyplugind=skyplugind
         ; only take fibers that are "nearby" on chip, for LSF matching
         sgood=where(abs(plugmap.fiberdata[skyplugind].fiberid - (300-i)) lt 75,nsgood)
-        if nsgood le 0 then stop,'HALT: no sky fibers found within 75 fibers'
+        if nsgood le 0 then begin
+          print,'not halted: no sky fibers found within 75 fibers, fiber: ', 300-i
+          goto,BOMB0
+        endif
 
         ;oldpskyplugind=skyplugind[sgood]
         ; only include sky fibers for which adjacent fiber has H>9.5, but require 2, so adjust limit as needed
@@ -296,7 +299,10 @@ CASE suboption of
          endfor
          skymax-=0.25
         endwhile
-        if skymax le 5 then stop,'halt: problem with enough sky fibers!'
+        if skymax le 5 then begin
+          print,'not halted: problem with enough sky fibers, fiber: ', 300-i
+          goto,BOMB0
+        endif
 
         ;if blue chip, consider persisnce
         if j eq 2 then begin

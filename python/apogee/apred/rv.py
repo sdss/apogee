@@ -547,11 +547,11 @@ from astropy.table import Table, Column
 from apogee.apred import bc
 
 def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_vers=None,obj=None,
-               nobj=0,threads=8,maxvisit=500,snmin=3,nres=None,
+               nobj=0,threads=8,maxvisit=500,snmin=3,nres=[5,4.25,3.5],
                clobber=False,verbose=False,tweak=False,plot=False,windows=None) :
     """ Run DOPPLER RVs for a field
     """ 
-   
+  
     plan=yaml.safe_load(open(planfile,'r'))
     if plan['apogee_ver'] != os.environ['APOGEE_VER'] :
         print('apogee_ver {:s} does not match running version {:s}'.format(plan['apogee_ver'],os.environ['APOGEE_VER']))

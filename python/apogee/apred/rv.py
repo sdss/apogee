@@ -763,12 +763,14 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
               'WASH_DDO51_GIANT_FLAG','WASH_DDO51_STAR_FLAG',
               'AK_TARG','AK_TARG_METHOD','AK_WISE','SFD_EBV']
         for key in keys :
-            allfield[key][j] = v[0][0][key]
+            try: allfield[key][j] = v[0][0][key]
+            except KeyError: pass
 
         # rename targeting proper motions
         keys = ['PMRA','PMDEC','PM_SRC']
         for key in keys :
-            allfield['TARG_'+key][j] = v[0][0][key]
+            try: allfield['TARG_'+key][j] = v[0][0][key]
+            except KeyError: pass
 
         # targeting flags have different names
         apogee_target1 = apstar.header['APTARG1']
@@ -1578,11 +1580,13 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
     apstar.header['H_ERR'] = (allvisit['H_ERR'].max(), '2MASS H magnitude uncertainty')
     apstar.header['K'] = (allvisit['K'].max(), '2MASS K magnitude')
     apstar.header['K_ERR'] = (allvisit['K_ERR'].max(), '2MASS K magnitude uncertainty')
-    apstar.header['SRC_H'] = (allvisit[0]['SRC_H'], 'source of H magnitude')
+    try: apstar.header['SRC_H'] = (allvisit[0]['SRC_H'], 'source of H magnitude')
+    except KeyError: pass
     keys=[ 'WASH_M','WASH_T2', 'DDO51','IRAC_3_6',
            'IRAC_4_5','IRAC_5_8', 'WISE_4_5','TARG_4_5']
     for key in keys :
-        apstar.header[key] = allvisit[key].max()
+        try: apstar.header[key] = allvisit[key].max()
+        except KeyError: pass
 
     apstar.header['AKTARG'] = (allvisit['AK_TARG'].max(), 'Extinction used for targeting')
     apstar.header['AKMETHOD'] = (allvisit[0]['AK_TARG_METHOD'],'Extinction method using for targeting')

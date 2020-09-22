@@ -68,10 +68,13 @@ def getdata(data) :
 
 
 def add_gaia(data) :
-    """ Add GAIA data to allStar file, with coordinate match to (cross-matched) GAIA reference file
+    """ Add GAIA data to input structure, with 2MASS match and coordinate match to (cross-matched) GAIA reference file
     """
+
+    # get the GAIA data from both matches
     gaia_twomass, gaia_posn = getdata(data)
 
+    # add new columns
     tab=Table(data)
     in_names=('source_id','parallax','parallax_error','pmra','pmra_error','pmdec','pmdec_error',
               'phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag','a_g_val', 'e_bp_min_rp_val',
@@ -79,9 +82,11 @@ def add_gaia(data) :
     dtypes=('i8','f8','f8','f8','f8','f8','f8','f4','f4','f4','f4','f4','f8','f8','f8','f8','f8')
     out_names=[]
     for name in in_names: out_names.append(('gaia_'+name).upper())
+    # initialize
     newcols=Table(np.zeros([len(tab),len(out_names)])-9999.,names=out_names,dtype=dtypes)
     # for source_id, default to 0, not -9999.
     newcols['GAIA_SOURCE_ID'] = 0
+
     # rename targetting proper motions to avoid confusion!
     try: tab.rename_column('PMRA','TARG_PMRA')
     except: pass
@@ -105,9 +110,10 @@ def add_gaia(data) :
 
     # read gaia 2MASS matched file, match by 2MASS ID, and populate
     while True :
-        # loop for matches since we have repeats and want them all matched
+        # loop for matches since we may have repeats and want them all matched
         j=np.where(tab['GAIA_SOURCE_ID'] == 0)[0]
         print('Number missing gaia_source_id: ', len(j))
+        if len(j) == 0 : break
         m1,m2=match.match(np.core.defchararray.replace(tab['APOGEE_ID'][j],b'2M',b''),gaia_twomass['original_ext_source_id'])
         print('Number matched by 2MASS: ', len(m1))
         if len(m1) == 0 : break

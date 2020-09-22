@@ -18,13 +18,13 @@ def getdata(data) :
     tab=Table()
     try: 
         j=np.where(np.core.defchararray.find(data['APOGEE_ID'],'2M') == 0)[0]
-        out=np.unique(np.core.defchararray.replace(data['APOGEE_ID'][j],'2M',''))
+        out,ind=np.unique(np.core.defchararray.replace(data['APOGEE_ID'][j],'2M',''),return_index=True)
     except: 
         j=np.where(np.core.defchararray.find(data['APOGEE_ID'],b'2M') == 0)[0]
-        out=np.unique(np.core.defchararray.replace(data['APOGEE_ID'][j],b'2M',b''))
+        out,ind=np.unique(np.core.defchararray.replace(data['APOGEE_ID'][j],b'2M',b''),return_index=True)
     tab.add_column(Column(out,name='twomass'))
-    tab.add_column(Column(data['RA'],name='apogee_ra'))
-    tab.add_column(Column(data['DEC'],name='apogee_dec'))
+    tab.add_column(Column(data['RA'][ind],name='apogee_ra'))
+    tab.add_column(Column(data['DEC'][ind],name='apogee_dec'))
     xmlfilename= tempfile.mktemp('.xml',dir=os.getcwd())
     tab.write(xmlfilename,format='votable',overwrite=True)
     try :

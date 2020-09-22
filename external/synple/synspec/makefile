@@ -20,7 +20,7 @@ ifeq ($(UNAME_S),Linux)
     OPT += -mcmodel=large 
 endif
 
-BINDIR=../../bin
+BINDIR=../bin
 
 all:  compile install 
 

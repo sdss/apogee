@@ -1,0 +1,259 @@
+---
+lsfa : &lsfa
+    fibermin : 150
+    fibermax : 300
+lsfb : &lsfb
+    fibermin :  88
+    fibermax : 150
+lsfc : &lsfc
+    fibermin : 32
+    fibermax : 88
+lsfd : &lsfd
+    fibermin : 1
+    fibermax : 32
+
+defaults : &defaults
+    mask :  dr16/global_mask_v02.txt
+    inter :           3
+    renorm :          -4
+    obscont :    1
+    rejectcont :    0.10
+    algor : 3
+
+dwarf : &dwarf
+    <<: *defaults
+    nov  :      8
+    indv :  [1,2,3,4,5,6,7,8]
+    indini : [ -1,-1,-1,-1,-1,-1,-1,-1]
+    initpar : [0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.000]
+
+giant : &giant
+    <<: *defaults
+    nov  :      7
+    indv :  [1,2,3,4,5,6,7]
+    indini : [ -1,-1,-1,-1,-1,-1,-1]
+    initpar : [0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000]
+
+GK : &GK
+    holefile : marcs/MARCS_v3_2016/MARCS_GK_holefile.fits
+    init : 1 
+    teff_range :    [3500.,6000.]
+
+GKg: &GKg
+    <<: *GK
+    <<: *giant
+    logg_range :    [-10.,4.0]
+    PLOCK :
+      - name : LGVSINI 
+        const : 0.4708
+        te_coef : 0.000
+        logg_coef : [0.,0.,0.] 
+        mh_coef : -0.2541
+      - name : O
+        const : 0.000
+        te_coef : 0.000
+        logg_coef : [0.,0.,0.] 
+        mh_coef : 0.000
+   
+GKd: &GKd
+    <<: *GK
+    <<: *dwarf
+    logg_range :    [3.5,10]
+    PLOCK :
+      - name : O
+        const : 0.000
+        te_coef : 0.000
+        logg_coef : [0.,0.,0.] 
+        mh_coef : 0.000
+   
+M : &M
+    holefile : marcs/MARCS_v3_2016/MARCS_M_holefile.fits
+    init : 1 
+    teff_range :    [2500.,4500.]
+
+Mg : &Mg
+    << :  *M
+    << : *giant
+    logg_range :    [-10.,4.0]
+    PLOCK :
+      - name : LGVSINI 
+        const : 0.4708
+        te_coef : 0.000
+        logg_coef : [0.,0.,0.] 
+        mh_coef : -0.2541
+      - name : O
+        const : 0.000
+        te_coef : 0.000
+        logg_coef : [0.,0.,0.] 
+        mh_coef : 0.000
+
+Md : &Md
+    << : *M
+    << : *dwarf
+    logg_range :    [3.5,10]
+    PLOCK :
+      - name : O
+        const : 0.000
+        te_coef : 0.000
+        logg_coef : [0.,0.,0.] 
+        mh_coef : 0.000
+
+F : &F
+    holefile : marcs/MARCS_v3_2016/MARCS_F_holefile.fits
+    init : 1 
+    teff_range :    [5000.,8500.]
+
+Fd : &Fd
+    << : *F
+    << : *dwarf
+    logg_range :    [-10.,10.]
+    PLOCK :
+      - name : O
+        const : 0.000
+        te_coef : 0.000
+        logg_coef : [0.,0.,0.] 
+        mh_coef : 0.000
+
+grids :
+  - name : GKg_a 
+    lib : turbospec/marcs/giantisotopes/tgGK_180901_lsfas_l33/p_apstgGK_180901_lsfas_l33_012_075
+    <<: *GKg
+    <<: *lsfa
+  - name : GKg_b 
+    lib : turbospec/marcs/giantisotopes/tgGK_180901_lsfbs_l33/p_apstgGK_180901_lsfbs_l33_012_075
+    <<: *GKg
+    <<: *lsfb
+  - name : GKg_c  
+    lib : turbospec/marcs/giantisotopes/tgGK_180901_lsfcs_l33/p_apstgGK_180901_lsfcs_l33_012_075
+    <<: *GKg
+    <<: *lsfc
+  - name : GKg_d  
+    lib : turbospec/marcs/giantisotopes/tgGK_180901_lsfds_l33/p_apstgGK_180901_lsfds_l33_012_075
+    <<: *GKg
+    <<: *lsfd
+  - name : GKd_a  
+    lib : turbospec/marcs/solarisotopes/tdGK_180901_lsfas_l33/p_apstdGK_180901_lsfas_l33_012_075
+    <<: *GKd
+    <<: *lsfa
+  - name : GKd_b  
+    lib : turbospec/marcs/solarisotopes/tdGK_180901_lsfbs_l33/p_apstdGK_180901_lsfbs_l33_012_075
+    <<: *GKd
+    <<: *lsfb
+  - name : GKd_c  
+    lib : turbospec/marcs/solarisotopes/tdGK_180901_lsfcs_l33/p_apstdGK_180901_lsfcs_l33_012_075
+    <<: *GKd
+    <<: *lsfc
+  - name : GKd_d  
+    lib : turbospec/marcs/solarisotopes/tdGK_180901_lsfds_l33/p_apstdGK_180901_lsfds_l33_012_075
+    <<: *GKd
+    <<: *lsfd
+  - name : Mg_a 
+    lib : turbospec/marcs/giantisotopes/tgM_180901_lsfas_l33/p_apstgM_180901_lsfas_l33_012_075
+    <<: *Mg
+    <<: *lsfa
+  - name : Mg_b 
+    lib : turbospec/marcs/giantisotopes/tgM_180901_lsfbs_l33/p_apstgM_180901_lsfbs_l33_012_075
+    <<: *Mg
+    <<: *lsfb
+  - name : Mg_c  
+    lib : turbospec/marcs/giantisotopes/tgM_180901_lsfcs_l33/p_apstgM_180901_lsfcs_l33_012_075
+    <<: *Mg
+    <<: *lsfc
+  - name : Mg_d  
+    lib : turbospec/marcs/giantisotopes/tgM_180901_lsfds_l33/p_apstgM_180901_lsfds_l33_012_075
+    <<: *Mg
+    <<: *lsfd
+  - name : Md_a  
+    lib : turbospec/marcs/solarisotopes/tdM_180901_lsfas_l33/p_apstdM_180901_lsfas_l33_012_075
+    <<: *Md
+    <<: *lsfa
+  - name : Md_b  
+    lib : turbospec/marcs/solarisotopes/tdM_180901_lsfbs_l33/p_apstdM_180901_lsfbs_l33_012_075
+    <<: *Md
+    <<: *lsfb
+  - name : Md_c  
+    lib : turbospec/marcs/solarisotopes/tdM_180901_lsfcs_l33/p_apstdM_180901_lsfcs_l33_012_075
+    <<: *Md
+    <<: *lsfc
+  - name : Md_d  
+    lib : turbospec/marcs/solarisotopes/tdM_180901_lsfds_l33/p_apstdM_180901_lsfds_l33_012_075
+    <<: *Md
+    <<: *lsfd
+  - name : Fd_a  
+    lib : turbospec/marcs/solarisotopes/tdF_180901_lsfas_l33/p_apstdF_180901_lsfas_l33_012_025
+    <<: *Fd
+    <<: *lsfa
+  - name : Fd_b  
+    lib : turbospec/marcs/solarisotopes/tdF_180901_lsfbs_l33/p_apstdF_180901_lsfbs_l33_012_025
+    <<: *Fd
+    <<: *lsfb
+  - name : Fd_c  
+    lib : turbospec/marcs/solarisotopes/tdF_180901_lsfcs_l33/p_apstdF_180901_lsfcs_l33_012_025
+    <<: *Fd
+    <<: *lsfc
+  - name : Fd_d  
+    lib : turbospec/marcs/solarisotopes/tdF_180901_lsfds_l33/p_apstdF_180901_lsfds_l33_012_025
+    <<: *Fd
+    <<: *lsfd
+
+elems :
+    - name : C
+      griddim : 'C'
+    - name : CI
+      griddim : 'C'
+    - name : N
+      griddim : 'N'
+    - name : O
+      griddim : 'O Mg Si S Ca Ti'
+    - name : Na
+      griddim : 'METALS'
+    - name : Al
+      griddim : 'METALS'
+  
+
+
+#CLASS coarse       0 100000 -10  10 -10  10 -1 301  turbospec/marcs/giantisotopes/tFGKM_180901_lsfcombo5_l33/p_apstFGKM_180901_lsfcombo5_l33_012_0
+#75 None 1 { 0.470794 0. 0. -0.254120 } { 1 1 1 1 1 1 1 1 } -4 3 0.  0.
+#CLASS BA        7500 100000 -10  10 -10  10 -1 301  synspec/kurucz/solarisotopes/sBA_lsfcombo5_l33/p_apssBA_lsfcombo5_l33_012_075 None 1 { 0.47079
+#4 0. 0. -0.254120 } { 1 1 1 1 1 1 1 1 } -4 3 0. 0.
+#CLASS GKg_a     3500   6000 -10   4 -10  10 245 300 turbospec/marcs/giantisotopes/tgGK_180901_lsfa_l33/p_apstgGK_180901_lsfa_l33_012_075  marcs/MA
+#RCS_v3_2016/MARCS_GK_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 -999 -999
+#CLASS GKg_b     3500   6000 -10   4 -10  10 145 245 turbospec/marcs/giantisotopes/tgGK_180901_lsfb_l33/p_apstgGK_180901_lsfb_l33_012_075  marcs/MA
+#RCS_v3_2016/MARCS_GK_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 -999 -999
+#CLASS GKg_c     3500   6000 -10   4 -10  10  50 145 turbospec/marcs/giantisotopes/tgGK_180901_lsfc_l33/p_apstgGK_180901_lsfc_l33_012_075  marcs/MA
+#RCS_v3_2016/MARCS_GK_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 -999 -999
+#CLASS GKg_d     3500   6000 -10   4 -10  10  1  50  turbospec/marcs/giantisotopes/tgGK_180901_lsfd_l33/p_apstgGK_180901_lsfd_l33_012_075  marcs/MA
+#RCS_v3_2016/MARCS_GK_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 -999 -999
+#CLASS GKd_a     3500   6000 3.5  10 -10  10 245 300 turbospec/marcs/solarisotopes/tdGK_180901_lsfa_l33/p_apstdGK_180901_lsfa_l33_012_075  marcs/MA
+#RCS_v3_2016/MARCS_GK_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 0. 0.
+#CLASS GKd_b     3500   6000 3.5  10 -10  10 145 245 turbospec/marcs/solarisotopes/tdGK_180901_lsfb_l33/p_apstdGK_180901_lsfb_l33_012_075  marcs/MA
+#RCS_v3_2016/MARCS_GK_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 0. 0.
+#CLASS GKd_c     3500   6000 3.5  10 -10  10  50 145 turbospec/marcs/solarisotopes/tdGK_180901_lsfc_l33/p_apstdGK_180901_lsfc_l33_012_075  marcs/MA
+#RCS_v3_2016/MARCS_GK_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 0. 0.
+#CLASS GKd_d     3500   6000 3.5  10 -10  10   1  50 turbospec/marcs/solarisotopes/tdGK_180901_lsfd_l33/p_apstdGK_180901_lsfd_l33_012_075  marcs/MA
+#RCS_v3_2016/MARCS_GK_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 0. 0.
+#CLASS Fd_a      5000   8500 -10  10 -10  10 245 300 turbospec/marcs/solarisotopes/tdF_180901_lsfa_l33/p_apstdF_180901_lsfa_l33_012_025  marcs/MARC
+#S_v3_2016/MARCS_F_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 0. 0.
+#CLASS Fd_b      5000   8500 -10  10 -10  10 145 245 turbospec/marcs/solarisotopes/tdF_180901_lsfb_l33/p_apstdF_180901_lsfb_l33_012_025  marcs/MARC
+#S_v3_2016/MARCS_F_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 0. 0.
+#CLASS Fd_c      5000   8500 -10  10 -10  10  50 145 turbospec/marcs/solarisotopes/tdF_180901_lsfc_l33/p_apstdF_180901_lsfc_l33_012_025  marcs/MARC
+#S_v3_2016/MARCS_F_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 0. 0.
+#CLASS Fd_d      5000   8500 -10  10 -10  10    1 50 turbospec/marcs/solarisotopes/tdF_180901_lsfd_l33/p_apstdF_180901_lsfd_l33_012_025  marcs/MARC
+#S_v3_2016/MARCS_F_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 0. 0.
+#CLASS Mg_a      2500   4500 -10   4 -10  10 245 300 turbospec/marcs/giantisotopes/tgM_180901_lsfa_l33/p_apstgM_180901_lsfa_l33_012_075  marcs/MARC
+#S_v3_2016/MARCS_M_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 -999 -999
+#CLASS Mg_b      2500   4500 -10   4 -10  10 145 245 turbospec/marcs/giantisotopes/tgM_180901_lsfb_l33/p_apstgM_180901_lsfb_l33_012_075  marcs/MARC
+#S_v3_2016/MARCS_M_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 -999 -999
+#CLASS Mg_c      2500   4500 -10   4 -10  10  50 145 turbospec/marcs/giantisotopes/tgM_180901_lsfc_l33/p_apstgM_180901_lsfc_l33_012_075  marcs/MARC
+#S_v3_2016/MARCS_M_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 -999 -999
+#CLASS Mg_d      2500   4500 -10   4 -10  10    1 50 turbospec/marcs/giantisotopes/tgM_180901_lsfd_l33/p_apstgM_180901_lsfd_l33_012_075  marcs/MARC
+#S_v3_2016/MARCS_M_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 -999 -999
+#CLASS Md_a      2500   4500 3.5  10 -10  10 245 300 turbospec/marcs/solarisotopes/tdM_180901_lsfa_l33/p_apstdM_180901_lsfa_l33_012_075  marcs/MARC
+#S_v3_2016/MARCS_M_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 0. 0.
+#CLASS Md_b      2500   4500 3.5  10 -10  10 145 245 turbospec/marcs/solarisotopes/tdM_180901_lsfb_l33/p_apstdM_180901_lsfb_l33_012_075  marcs/MARC
+#S_v3_2016/MARCS_M_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 0. 0.
+#CLASS Md_c      2500   4500 3.5  10 -10  10  50 145 turbospec/marcs/solarisotopes/tdM_180901_lsfc_l33/p_apstdM_180901_lsfc_l33_012_075  marcs/MARC
+#S_v3_2016/MARCS_M_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 0. 0.
+#CLASS Md_d      2500   4500 3.5  10 -10  10    1 50 turbospec/marcs/solarisotopes/tdM_180901_lsfd_l33/p_apstdM_180901_lsfd_l33_012_075  marcs/MARC
+#S_v3_2016/MARCS_M_holefile.fits 1 { 0.470794 0. 0. -0.254120 } { -1 -1 -1 -1 -1 -1 -1 -1 } -4 3 0. 0.
+###

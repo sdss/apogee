@@ -954,6 +954,7 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec
                   specdata=old[0].data
                   specnormdata=old[1].data
                   if len(old[0].shape) < 5 : specdata=np.expand_dims(specdata,axis=0)
+                  if len(old[1].shape) < 5 : specnormdata=np.expand_dims(specnormdata,axis=0)
                   # is it a partially completed file with nmh card, or a completed file?
                   try:
                       nmh =old[0].header['nmh']

@@ -82,7 +82,7 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
     aspcapflag=bitmask.AspcapBitMask()
     if type(badval) is str :
         badval = [badval]
-    badbits = 0
+    badbits = np.uint64(0)
     if badval is not None : 
         for name in badval :
             badbits = badbits | aspcapflag.getval(name)
@@ -95,7 +95,7 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
     starflag=bitmask.StarBitMask()
     if type(badstar) is str :
         badstar = [badstar]
-    badbits = 0
+    badbits = np.uint64(0)
     if badstar is not None : 
         for name in badstar :
             badbits = badbits | starflag.getval(name)

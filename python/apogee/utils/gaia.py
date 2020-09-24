@@ -1,6 +1,7 @@
 import numpy as np
 import tempfile
-from esutil import htm
+try: from esutil import htm
+except: print('esutil not available!')
 from astropy.table import Table, Column
 from astropy.io import fits
 from apogee.utils import bitmask

@@ -32,7 +32,9 @@ if __name__ == '__main__' :
     parser.add_argument("--host")
     parser.add_argument("--cal", type=str, help='calibration dir (and calibrate only')
     parser.add_argument('--noparam', help='Skip parameter determination?',action="store_true")
+    parser.add_argument('--nocalparam', help='Skip redo parameter determination with calibrated logg?',action="store_true")
     parser.add_argument('--noelem', help='Skip elemental abundances?',action="store_true")
+    parser.add_argument('--nocalelem', help='Skip elemental abundances?',action="store_true")
     parser.add_argument('--noplot', help='Skip plots?',action="store_true")
     parser.add_argument('--elemplot', help='Add elemental plots (lots!)?',action="store_true")
     parser.add_argument('--minmjdlast', type=str, help='require last MJD>minmjdlast')
@@ -49,6 +51,7 @@ if __name__ == '__main__' :
             print('Refit with renomalization, initial fit parameters, all parameters fit')
             out_renorm=aspcap.fit_params(args.planfile,aspcapdata=out,clobber=args.clobber,
                                          init='FPARAM',renorm=True,html=False)
+        if not args.nocalparam :
             #calibrate log g
             out_renorm[0]['PARAM'] = out_renorm[0]['FPARAM'] 
             out_renorm[0]['PARAM'][:,1] = cal.logg(out_renorm[0])
@@ -56,9 +59,12 @@ if __name__ == '__main__' :
             out_calib=aspcap.fit_params(args.planfile,aspcapdata=out_renorm,clobber=args.clobber,
                                         init='PARAM',fix=['LOGG'],renorm=True,suffix='_cal',html=False)
             out_calib[0]['PARAM'] = out_calib[0]['FPARAM'] 
+
         if not args.noelem :
             print('Abundances with uncalibrated fit parameters')
             out_elem=aspcap.fit_elems(args.planfile,clobber=args.clobber,renorm=True)
+
+        if not args.nocalelem :
             print('Abundances with refit parameters using calibrated log g')
             out_elem_calib=aspcap.fit_elems(args.planfile,aspcapdata=out_calib,clobber=args.clobber,renorm=True,suffix='_cal',calib=True)
 

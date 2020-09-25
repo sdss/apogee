@@ -17,10 +17,10 @@ def getdata(data) :
     """
 
     tab=Table()
-    try: 
+    if type(data['APOGEE_ID'][0]) is str : 
         j=np.where(np.core.defchararray.find(data['APOGEE_ID'],'2M') == 0)[0]
         out,ind=np.unique(np.core.defchararray.replace(data['APOGEE_ID'][j],'2M',''),return_index=True)
-    except: 
+    else :
         j=np.where(np.core.defchararray.find(data['APOGEE_ID'],b'2M') == 0)[0]
         out,ind=np.unique(np.core.defchararray.replace(data['APOGEE_ID'][j],b'2M',b''),return_index=True)
     tab.add_column(Column(out,name='twomass'))
@@ -96,7 +96,10 @@ def add_gaia(data) :
     try: tab.rename_column('PM_SRC','TARG_PM_SRC')
     except: pass
     # add unpopulated columns
-    tab.add_columns(newcols.columns.values())
+    for col in newcols.columns.values() :
+        try: tab.add_column(col)
+        except ValueError: pass
+    #tab.add_columns(newcols.columns.values())
 
     # remove dups in GAIA twomass in favor of brightest
     print('number in GAIA-2MASS xmatch catalog: ',len(gaia_twomass),len(set(gaia_twomass['original_ext_source_id'])))
@@ -115,7 +118,10 @@ def add_gaia(data) :
         j=np.where(tab['GAIA_SOURCE_ID'] == 0)[0]
         print('Number missing gaia_source_id: ', len(j))
         if len(j) == 0 : break
-        m1,m2=match.match(np.core.defchararray.replace(tab['APOGEE_ID'][j],b'2M',b''),gaia_twomass['original_ext_source_id'])
+        if type(tab['APOGEE_ID'][0]) is np.str_ : 
+            m1,m2=match.match(np.core.defchararray.replace(tab['APOGEE_ID'][j],'2M',''),gaia_twomass['original_ext_source_id'])
+        else :
+            m1,m2=match.match(np.core.defchararray.replace(tab['APOGEE_ID'][j],b'2M',b''),gaia_twomass['original_ext_source_id'])
         print('Number matched by 2MASS: ', len(m1))
         if len(m1) == 0 : break
         for inname,outname in zip(in_names,out_names) :

@@ -412,8 +412,12 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         jc=list(jn[i1])
         jc.extend(js[i2])
         stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/apogee_overlap.txt',names=['id'],format='fixed_width_no_header')
-        jn=np.where(data['TELESCOPE'] == 'apo25m')[0]
-        js=np.where(data['TELESCOPE'] == 'lco25m')[0]
+        try:
+            jn=np.where(data['TELESCOPE'] == b'apo25m')[0]
+            js=np.where(data['TELESCOPE'] == b'lco25m')[0]
+        except:
+            jn=np.where(data['TELESCOPE'] == 'apo25m')[0]
+            js=np.where(data['TELESCOPE'] == 'lco25m')[0]
         i1,i2=match.match(data['APOGEE_ID'][jn],stars['id'])
         jc.extend(jn[i1])
         i1,i2=match.match(data['APOGEE_ID'][js],stars['id'])

@@ -450,7 +450,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
     print('Total number of stars: ',len(list(set(all))))
     if mkall: mklinks(data,list(set(all)),dir+'_all')
 
-    return indata
+    return indata,all
 
 def mklinks(data,j,out,n=48) :
     """ Create links in n different output directories for requested indices

@@ -454,7 +454,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                 for i,par in enumerate(libhead0['LABEL']) :
                     if par.decode() not in fix : indv.append(i+1)
             else : indv=None
-            ferre.writeipf(out,libfile,stars,param=np.array(inpars))
+            ferre.writeipf(out,os.path.dirname(out)+'/'+libfile,stars,param=np.array(inpars))
             ferre.writespec(out+'.obs',flux)
             ferre.writespec(out+'.err',err)
             ferre.writenml(out+'.nml',os.path.basename(out),libhead0,init=0,indv=indv,
@@ -473,7 +473,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
             ferr.close()
 
         # read FERRE output
-        param,spec,wave=ferre.read(out,libfile)
+        param,spec,wave=ferre.read(out,os.path.dirname(out)+'/'+libfile)
         # fill in locked parameters
         fill_plock(param,grid['PLOCK'])
         param_class.append(param) 

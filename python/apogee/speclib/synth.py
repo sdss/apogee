@@ -170,10 +170,14 @@ def get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type='marcs',atmosroot=None,nskip
         except:
             return -2
     elif atmos_type == 'synspec' :
-        try :
+        if os.path.exists(atmod) :
             shutil.copy(atmod,outmod)
             shutil.copy(atmod.replace('.22','.5'),outmod.replace('.22','.5'))
-        except: 
+        elif cm<-1 :
+            atmod=atmosdir+atmos.filename(teff,logg,mh,-1,am,model=model)
+            shutil.copy(atmod,outmod)
+            shutil.copy(atmod.replace('.22','.5'),outmod.replace('.22','.5'))
+        else :
             return -1
     return outmod
 

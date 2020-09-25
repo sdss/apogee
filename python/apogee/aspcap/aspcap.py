@@ -633,6 +633,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
         except: pass
 
         # get FERRE library information for this grid
+        link(os.environ['APOGEE_SPECLIB']+'/synth/',os.path.dirname(outspec)+'/../lib_'+grid['name'])
         libfile = 'lib_'+grid['name']+'/'+grid['lib']+'.hdr'
         libhead0,libhead = ferre.rdlibhead(outdir+'/ferre/'+libfile)
         libhead0['FILE'] = libfile
@@ -659,7 +660,6 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
                 err.append(spec['ERR'])
 
         if clobber or not os.path.exists(outspec+'.obs') :
-            link(os.environ['APOGEE_SPECLIB']+'/synth/',os.path.dirname(outspec)+'/../lib_'+grid['name'])
 
             ferre.writespec(outspec+'.obs',flux)
             ferre.writespec(outspec+'.err',err)

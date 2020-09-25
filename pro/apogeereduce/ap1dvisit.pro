@@ -596,20 +596,24 @@ FOR i=0L,nplanfiles-1 do begin
   targ3 = plugmap.fiberdata[objind].target3
   targ4 = plugmap.fiberdata[objind].target4
 
+  plate = plugmap.plateid
+  mjd = plugmap.mjd
+  platemjd5 = strtrim(plate,2)+'-'+strtrim(mjd,2)
+
   if keyword_set(single) then begin
-    if tag_exist(planstr,'mjdfrac') then if planstr.mjdfrac eq 1 then $
-      mjd=sxpar(finalframe.(0).header,'JD-MID')-2400000.5  else $
-      mjd=planstr.mjd
-    visitfile=apread('Visit',plate=planstr.plateid,mjd=mjd,fiber=objdata[0].fiberid,reduction=obj)
-    header0=visitfile[0].hdr
+    visitfile=apogee_filename('Visit',plate=planstr.plateid,mjd=planstr.mjd,fiber=objdata[0].fiberid,reduction=obj)
+    if tag_exist(planstr,'mjdfrac') then if planstr.mjdfrac eq 1 then begin
+      cmjd=strtrim(mjd,2)
+      s=strsplit(visitfile,cmjd,/extract,/regex)
+      visitfile=s[0]+cmjd+s[1]+string(format='(f8.2)',mjdfrac)+s[2]
+    endif
+    tmp=mrdfits(visitfile,0,head,/silent)
+    header0=head
   endif else begin
     finalframe=apread('Plate',mjd=planstr.mjd,plate=planstr.plateid)
     header0=finalframe[0].hdr
   endelse
 
-  plate = plugmap.plateid
-  mjd = plugmap.mjd
-  platemjd5 = strtrim(plate,2)+'-'+strtrim(mjd,2)
   if keyword_set(stp) then stop
 
   apgundef,allvisitstr

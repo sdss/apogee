@@ -52,8 +52,8 @@ APLOADVISIT,visitfile,str
 visitstr.file = file_basename(visitfile)
 visitstr.ra = str.ra
 visitstr.dec = str.dec
-visitstr.ra_targ = str.ra_targ
-visitstr.dec_targ = str.dec_targ
+;visitstr.ra_targ = str.ra_targ
+;visitstr.dec_targ = str.dec_targ
 visitstr.glon = str.glon
 visitstr.glat = str.glat
 visitstr.j = str.j

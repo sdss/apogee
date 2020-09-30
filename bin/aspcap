@@ -18,6 +18,8 @@ import os
 import sys
 import subprocess
 import pdb
+import datetime
+import time
 from apogee.aspcap import aspcap
 from apogee.aspcap import cal
 
@@ -42,7 +44,12 @@ if __name__ == '__main__' :
     parser.add_argument("--flag",default='11111')
     args=parser.parse_args()
 
-    if '.yml' in args.planfile :
+    now = datetime.datetime.now()
+    start = time.time()
+    print("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
+
+    try:
+      if '.yml' in args.planfile :
         if not args.noparam :
             # initial fit with vmicro relation
             print('Initial parameters from initial RV parameters, fixed vmicro')
@@ -68,7 +75,8 @@ if __name__ == '__main__' :
             print('Abundances with refit parameters using calibrated log g')
             out_elem_calib=aspcap.fit_elems(args.planfile,aspcapdata=out_calib,clobber=args.clobber,renorm=True,suffix='_cal',calib=True)
 
-    else :
+ 
+      else :
         if args.clobber: clobber='1'
         else : clobber='0'
         if args.noelem: noelem=',/noelem'
@@ -82,6 +90,17 @@ if __name__ == '__main__' :
         if args.cal is not None : cal=',cal="'+args.cal+'"'
         else :  cal=''
         subprocess.call(["idl","-e","aspcaprun,'"+args.planfile+"','"+args.flag+"','"+clobber+"'"+noelem+noplot+elemplot+minmjdlast+cal])
+
+      print('aspcap completed successfully for {:s}'.format(args.planfile))
+
+    except :
+      print('aspcap failed sfor {:s}'.format(args.planfile))
+      raise
+
+
+    now = datetime.datetime.now()
+    print("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
+    print("elapsed: ",time.time()-start)
 
     if args.done is not None :
         subprocess.call(['setdone',args.done])

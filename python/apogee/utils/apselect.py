@@ -500,17 +500,6 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
       med_par=np.median(par[i2[gd]])
       med_par_error=np.median(par_error[i2[gd]])
       j=np.where(np.isfinite(par[i2]) & (np.abs(par[i2]-med_par) < 3*med_par_error))[0]
-      if len(j) > 0 :
-        if dist: 
-            #jc=jc[i1[j]]
-            # allow for the possibility of multiple instances of a given star in input list
-            jnew=[]
-            for jjj in j :
-              iii= np.where(data['APOGEE_ID'][jc]  == data['APOGEE_ID'][jc[i1[jjj]]])[0]
-              jnew.extend(iii)
-            jc=jc[jnew]
-      else :
-        jc=[]
       if plot :
         ax.cla() 
         ax.hist(par,color='k',bins=np.arange(par.min(),par.max(),0.01),histtype='step',range=(0,2))
@@ -588,8 +577,10 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
             plt.draw()
             pdb.set_trace()
         ax.cla()
-        plots.plotp(ax,data[param][jf,0],data[param][jf,1],size=30,draw=False,xt='Teff',yt='logg',xr=[7000,3000],yr=[6,-1])
-        plots.plotp(ax,data[param][jc,0],data[param][jc,1],color='b',size=30,draw=False)
+        try:
+            plots.plotp(ax,data[param][jf,0],data[param][jf,1],size=30,draw=False,xt='Teff',yt='logg',xr=[7000,3000],yr=[6,-1])
+            plots.plotp(ax,data[param][jc,0],data[param][jc,1],color='b',size=30,draw=False)
+        except: pass
         if hard is not None :
             fig.savefig(hard+'/'+clust[ic].name+'_kiel.png')
             plt.close()

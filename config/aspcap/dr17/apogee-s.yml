@@ -14,6 +14,7 @@ lsfd : &lsfd
 
 defaults : &defaults
     mask :  dr16/global_mask_v02.txt
+    windows : dr16/
     inter :           3
     renorm :          -4
     obscont :    1

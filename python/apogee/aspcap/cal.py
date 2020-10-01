@@ -288,8 +288,8 @@ def hrsample(indata,hrdata,maxbin=50,raw=True) :
                 gd.extend(x)
     return i1[gd],i2[gd]
 
-def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v4.4.2',
-              cal1m=True,coolstars=True,dir='cal',hrdata=None,optical='cal_stars_20190329.txt',ns=True,special=None,Ce=True,ebvmax=None,snmin=75,mkall=True) :
+def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v4.4.2',apred=None,
+              cal1m=True,coolstars=True,dir='cal',hrdata=None,optical='cal_stars_20190329.txt',ns=True,special=None,Ce=True,ebvmax=None,snmin=75,mkindiv=False,mkall=True) :
     '''
     selects a calibration subsample from an input apField structure, including several calibration sub-classes: 
         cluster, APOKASC stars, 1m calibration stars. Creates cluster web pages/plots if requested
@@ -331,7 +331,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         html.tail(f)
         fstars.close()
         print('Number of cluster stars: ',len(jc))
-        mklinks(data,jc,dir+'_clust')
+        if mkindiv: mklinks(data,jc,dir+'_clust',apred=apred)
         all.extend(jc)
     
     if apokasc is not None :
@@ -363,7 +363,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         lowz=np.where((apokasc['FE_H_ADOP_COR'][i2] < -1.) & (apokasc['FE_H_ADOP_COR'][i2] > -90.))[0]
         print('Number of APOKASC low [Fe/H] stars: ',len(lowz))
         jc.extend(i1[lowz])
-        mklinks(data,jc,dir+'_apokasc')
+        if mkindiv: mklinks(data,jc,dir+'_apokasc',apred=apred)
         all.extend(jc)
     
     if coolstars :
@@ -375,7 +375,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         i1,i2=match.match(data['APOGEE_ID'],stars['id'])
         print('Number of cool stars: ',len(i1))
         jc.extend(i1)
-        mklinks(data,jc,dir+'_galcen')
+        if mkindiv: mklinks(data,jc,dir+'_galcen',apred=apred)
         all.extend(jc)
 
     if cal1m :
@@ -385,21 +385,21 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         j=np.where(data['FIELD'] == 'RCB')[0]
         print('Number of 1m RCB stars: ',len(j))
         all.extend(j)
-        mklinks(data,j,dir+'_cal1m')
+        if mkindiv: mklinks(data,j,dir+'_cal1m',apred=apred)
 
     if optical is not None:
         #stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/validation_stars_DR16.txt',names=['id'],format='fixed_width_no_header')
         stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/'+optical,names=['id'],format='fixed_width_no_header')
         i1,i2=match.match(data['APOGEE_ID'],stars['id'])
         print('Number of optical validation stars: ',len(i1))
-        mklinks(data,i1,dir+'_optical')
+        if mkindiv: mklinks(data,i1,dir+'_optical',apred=apred)
         all.extend(i1)
 
     if Ce :
         stars = np.loadtxt(os.environ['APOGEE_DIR']+'/data/calib/Ce_test_stars.txt',dtype=str)[:,0]
         i1,i2=match.match(data['APOGEE_ID'],stars)
         print('Number of Ce test stars: ',len(i1))
-        mklinks(data,i1,dir+'_Ce')
+        if mkindiv: mklinks(data,i1,dir+'_Ce',apred=apred)
         all.extend(i1)
 
     if ns :
@@ -412,17 +412,17 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         jc=list(jn[i1])
         jc.extend(js[i2])
         stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/apogee_overlap.txt',names=['id'],format='fixed_width_no_header')
-        try:
-            jn=np.where(data['TELESCOPE'] == b'apo25m')[0]
-            js=np.where(data['TELESCOPE'] == b'lco25m')[0]
-        except:
+        if type(data['TELESCOPE'][0]) is str :
             jn=np.where(data['TELESCOPE'] == 'apo25m')[0]
             js=np.where(data['TELESCOPE'] == 'lco25m')[0]
+        else :
+            jn=np.where(data['TELESCOPE'] == b'apo25m')[0]
+            js=np.where(data['TELESCOPE'] == b'lco25m')[0]
         i1,i2=match.match(data['APOGEE_ID'][jn],stars['id'])
         jc.extend(jn[i1])
         i1,i2=match.match(data['APOGEE_ID'][js],stars['id'])
         jc.extend(js[i2])
-        mklinks(data,jc,dir+'_ns')
+        if mkindiv: mklinks(data,jc,dir+'_ns',apred=apred)
         print('Number of N/S overlap stars: ',len(jc))
         all.extend(jc)
 
@@ -435,40 +435,59 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         i1,i2=match.match(data['APOGEE_ID'][js],stars['id'])
         jc.extend(js[i2])
         print('Number of '+special+' stars: ',len(i1))
-        mklinks(data,jc,dir+'_special')
+        if mkindiv: mklinks(data,jc,dir+'_special',apred=apred)
         all.extend(jc)
 
     if ebvmax is not None:
         jc=np.where( (data['SFD_EBV']>0) & (data['SFD_EBV'] < ebvmax) )[0]
         print('Number of low E(B-V) stars: ',len(jc))
-        mklinks(data,jc,dir+'_ebv')
+        if mkindiv: mklinks(data,jc,dir+'_ebv',apred=apred)
         all.extend(jc)
 
     if hrdata is not None:
         i1, i2 = hrsample(data,hrdata)
         print('Number of HR sample stars: ',len(i1))
-        mklinks(data,i1,dir+'_hr')
+        if mkindiv: mklinks(data,i1,dir+'_hr',apred=apred)
         all.extend(i1)
 
     # create "all" directories with all stars, removing duplicates
     print('Total number of stars: ',len(list(set(all))))
-    if mkall: mklinks(data,list(set(all)),dir+'_all')
+    if mkall: mklinks(data,list(set(all)),dir+'_all',apred=apred)
 
     return indata,all
 
-def mklinks(data,j,out,n=48) :
+def mklinks(data,j,out,n=48,apred=None) :
     """ Create links in n different output directories for requested indices
     """
 
     for tel in ['apo1m','apo25m','lco25m'] :
         # create symbolic links in output directories, separate for each instrument
-        outdir=tel+'/'+out+'_'+tel
+        outdir=tel+'/'+out+'_'
         # remove existing output directories, create new ones
         cleandir(outdir,n)
-        gd=np.where(data['TELESCOPE'][j] == tel )[0]
+        if type(data['TELESCOPE'][0]) is str :
+            gd=np.where(data['TELESCOPE'][j] == tel )[0]
+        else: 
+            gd=np.where(data['TELESCOPE'][j] == tel.encode() )[0]
         nsplit=len(gd)//n+1
-        for i in range(len(gd)) :
-            symlink(data[j[gd[i]]],outdir,i//nsplit)
+        load=apload.ApLoad(apred=apred,telescope=tel)
+        if len(gd) > 0 :
+            # create apField files
+            ii=0
+            for i in range(n) :
+                field=os.path.basename(outdir)+'{:03d}'.format(i)
+                apfield=load.filename('Field',field=field)
+                tmp=Table(data[np.array(j)[gd[ii:ii+nsplit]]])
+                # we will add original FIELD to APOGEE_ID, so increase column width
+                tmp['APOGEE_ID']=tmp['APOGEE_ID'].astype('U40')
+                for star in tmp :
+                    star['APOGEE_ID']=star['APOGEE_ID']+'.'+star['FIELD']
+                    star['FIELD'] = field
+                tmp.write(apfield)
+                ii+=nsplit
+            # create apStar links
+            for i in range(len(gd)) :
+                symlink(data[j[gd[i]]],outdir,i//nsplit,load=load)
 
 
 def cleandir(out,n) :
@@ -483,10 +502,13 @@ def cleandir(out,n) :
             os.makedirs('{:s}{:03d}'.format(out,i))
         except : pass
 
-def symlink(data,out,idir) :
+def symlink(data,out,idir,load=None) :
     '''
     auxiliary routine to create symlinks to appropriate files from calibration directories
     '''
+    if data['FILE'] == '' :
+        data['FILE'] = os.path.basename(load.filename('Star',field=data['FIELD'],obj=data['APOGEE_ID']))
+
     outfile='{:s}{:03d}/{:s}.{:s}.fits'.format(
             out,idir,os.path.splitext(os.path.basename(data['FILE']))[0],data['FIELD'])
     if data['TELESCOPE'] == 'apo25m' or data['TELESCOPE'] == 'lco25m' :

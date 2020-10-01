@@ -59,7 +59,6 @@ from itertools import product
 #synpledir = /home/callende/synple
 synpledir = os.path.dirname(os.path.realpath(__file__))
 
-
 #relative paths
 modeldir = synpledir + "/models"
 modelatomdir = synpledir + "/data"
@@ -108,8 +107,7 @@ def syn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
       initial and ending wavelengths (angstroms)
   dw: float, optional
       wavelength step for the output fluxes
-      this will be the maximum interval for the radiative 
-      transfer, and will trigger interpolation at the end
+      this will trigger interpolation at the end
       (default is None for automatic frequency selection)
   strength: float, optional
       threshold in the line-to-continuum opacity ratio for 
@@ -187,11 +185,7 @@ def syn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
 
   if vmicro == None: vmicro = vmicro2
   if abu == None: abu = abu2
-  if dw == None: 
-    #space = 1e-2  
-    space = np.mean(wrange) * np.sqrt(9.12e-15 * np.min(atmos['t']) + vmicro** 2) / clight / 3.
-  else: 
-    space = dw
+  space = np.mean(wrange) * np.sqrt(9.12e-15 * np.min(atmos['t']) + vmicro** 2) / clight / 3.
 
   #check input parameters are valid
   imode = checkinput(wrange, vmicro, linelist)
@@ -353,8 +347,7 @@ def mpsyn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
       initial and ending wavelengths (angstroms)
   dw: float, optional
       wavelength step for the output fluxes
-      this will be the maximum interval for the radiative 
-      transfer, and will trigger interpolation at the end
+      this will trigger interpolation at the end
       (default is None for automatic selection)
   strength: float, optional
       threshold in the line-to-continuum opacity ratio for 
@@ -475,8 +468,7 @@ def raysyn(modelfile, wrange, dw=None, strength=1e-4, vmicro=None, abu=None, \
       initial and ending wavelengths (angstroms)
   dw: float, optional
       wavelength step for the output fluxes
-      this will be the maximum interval for the radiative 
-      transfer, and will trigger interpolation at the end
+      this will trigger interpolation at the end
       (default is None for automatic selection)
   strength: float, optional
       threshold in the line-to-continuum opacity ratio for 
@@ -621,8 +613,6 @@ def multisyn(modelfiles, wrange, dw=None, strength=1e-4, abu=None, \
       initial and ending wavelengths (angstroms)
   dw: float
       wavelength step for the output fluxes.
-      Unlike in 'syn' this will not be used to set the maximum wavelength step for 
-      synthesizing any of the spectra; the appropriate step will be chosen dynamically.
       Unlike in 'syn', interpolation to a constant step will always be done
       (default is None for automatic selection based on the first model of the list)
   strength: float, optional
@@ -792,8 +782,6 @@ def polysyn(modelfiles, wrange, dw=None, strength=1e-4, abu=None, \
   wrange: tuple or list of two floats
       initial and ending wavelengths (angstroms)
   dw: float
-      Unlike in 'syn' this will not be used to set the maximum wavelength step for 
-      synthesizing any of the spectra; the appropriate step will be chosen dynamically.
       Unlike in 'syn', interpolation to a constant step will always be done
       (default is None for automatic selection based on the first model of the list)
   strength: float, optional
@@ -995,8 +983,6 @@ def polyopt(wrange=(9.e2,1.e5),dw=0.1,strength=1e-3, linelist=['gfallx3_bpo.19',
   wrange: tuple or list of two floats
       initial and ending wavelengths (angstroms)
   dw: float
-      Unlike in 'syn' this will not be used to set the maximum wavelength step for 
-      synthesizing any of the spectra; the appropriate step will be chosen dynamically.
       Unlike in 'syn', interpolation to a constant step will always be done
       (default is None for automatic selection based on the first model of the list)
   strength: float, optional
@@ -1753,7 +1739,11 @@ def checksynspec(linelist,modelfile):
 
   i = 0 
   for entry in linelist: 
-    if not os.path.isfile(entry):
+    if os.path.isfile(entry):
+      if not os.path.isabs(entry): 
+        ll = os.path.join (os.getcwd(), entry)
+        if os.path.isfile(ll): linelist[i] = ll
+    else:
       ll = os.path.join(linelistdir,entry)
       if os.path.isfile(ll): linelist[i] = ll
     i = i + 1
@@ -3023,6 +3013,7 @@ def read_multiline_fltarray(fhandle,arrlen):
   return (arr)
 
 
+
 def interp_spl(xout, x, y):
 
   """Interpolates in 1D using cubic splines
@@ -3047,6 +3038,92 @@ def interp_spl(xout, x, y):
   yout = interpolate.splev(xout, tck, der=0)
 
   return(yout)
+
+
+
+def interp_spl2(x0, x, y):
+    """
+    Interpolate a 1-D function using cubic splines.
+      x0 : a float or an 1d-array
+      x : (N,) array_like
+          A 1-D array of real/complex values.
+      y : (N,) array_like
+          A 1-D array of real values. The length of y along the
+          interpolation axis must be equal to the length of x.
+
+    Implement a trick to generate at first step the cholesky matrice L of
+    the tridiagonal matrice A (thus L is a bidiagonal matrice that
+    can be solved in two distinct loops).
+
+    additional ref: www.math.uh.edu/~jingqiu/math4364/spline.pdf 
+    
+    code from
+    https://stackoverflow.com/questions/31543775/how-to-perform-cubic-spline-interpolation-in-python
+    """
+    x = np.asfarray(x)
+    y = np.asfarray(y)
+
+    # remove non finite values
+    # indexes = np.isfinite(x)
+    # x = x[indexes]
+    # y = y[indexes]
+
+    # check if sorted
+    if np.any(np.diff(x) < 0):
+        indexes = np.argsort(x)
+        x = x[indexes]
+        y = y[indexes]
+
+    size = len(x)
+
+    xdiff = np.diff(x)
+    ydiff = np.diff(y)
+
+    # allocate buffer matrices
+    Li = np.empty(size)
+    Li_1 = np.empty(size-1)
+    z = np.empty(size)
+
+    # fill diagonals Li and Li-1 and solve [L][y] = [B]
+    Li[0] = np.sqrt(2*xdiff[0])
+    Li_1[0] = 0.0
+    B0 = 0.0 # natural boundary
+    z[0] = B0 / Li[0]
+
+    for i in range(1, size-1, 1):
+        Li_1[i] = xdiff[i-1] / Li[i-1]
+        Li[i] = np.sqrt(2*(xdiff[i-1]+xdiff[i]) - Li_1[i-1] * Li_1[i-1])
+        Bi = 6*(ydiff[i]/xdiff[i] - ydiff[i-1]/xdiff[i-1])
+        z[i] = (Bi - Li_1[i-1]*z[i-1])/Li[i]
+
+    i = size - 1
+    Li_1[i-1] = xdiff[-1] / Li[i-1]
+    Li[i] = np.sqrt(2*xdiff[-1] - Li_1[i-1] * Li_1[i-1])
+    Bi = 0.0 # natural boundary
+    z[i] = (Bi - Li_1[i-1]*z[i-1])/Li[i]
+
+    # solve [L.T][x] = [y]
+    i = size-1
+    z[i] = z[i] / Li[i]
+    for i in range(size-2, -1, -1):
+        z[i] = (z[i] - Li_1[i-1]*z[i+1])/Li[i]
+
+    # find index
+    index = x.searchsorted(x0)
+    np.clip(index, 1, size-1, index)
+
+    xi1, xi0 = x[index], x[index-1]
+    yi1, yi0 = y[index], y[index-1]
+    zi1, zi0 = z[index], z[index-1]
+    hi1 = xi1 - xi0
+
+    # calculate cubic
+    f0 = zi0/(6*hi1)*(xi1-x0)**3 + \
+         zi1/(6*hi1)*(x0-xi0)**3 + \
+         (yi1/hi1 - zi1*hi1/6)*(x0-xi0) + \
+         (yi0/hi1 - zi0*hi1/6)*(xi1-x0)
+    return f0
+
 
 
 def elements(husser=False):

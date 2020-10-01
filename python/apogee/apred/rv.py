@@ -601,7 +601,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         allobj = obj
 
     # output apField structure
-    fieldtype = np.dtype([('FILE','S64'),('APOGEE_ID','S20'),('TELESCOPE','S6'),('LOCATION_ID',int),('FIELD','S20'),
+    fieldtype = np.dtype([('FILE','S64'),('APOGEE_ID','S30'),('TELESCOPE','S6'),('LOCATION_ID',int),('FIELD','S20'),
                           ('RA',float),('DEC',float),('GLON',float),('GLAT',float),
                           ('J',float),('J_ERR',float),('H',float),('H_ERR',float),('K',float),('K_ERR',float),
                           ('SRC_H','S16'),('WASH_M',float),('WASH_M_ERR',float),('WASH_T2',float),('WASH_T2_ERR',float),
@@ -745,7 +745,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     print('done visitcomb pool pool')
 
     # now load the combined star information into allfield structure
-    # note that dovisitcomb() returns and apstar structure, with header
+    # note that dovisitcomb() returns an apstar structure, with header
     # information in FITS header, which limits card names to 8 characters
     # Some of these are renamed in allField structure to use different
     # (longer, more clear) names
@@ -804,6 +804,10 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         # tags that are not from apStar
         allfield['SURVEY'][j] =  ','.join(set(v[0]['SURVEY']))
         allfield['PROGRAMNAME'][j] = ','.join(set(v[0]['PROGRAMNAME']))
+
+        # apStar file name
+        outfile=load.filename('Star',field=apstar.header['FIELD'],obj=apstar.header['OBJID'])
+        allfield['FILE'][j] =  os.path.basename(outfile)
 
     # add GAIA information
     allfield=gaia.add_gaia(allfield)

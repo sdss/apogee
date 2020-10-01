@@ -17,15 +17,19 @@ def getdata(data) :
     """
 
     tab=Table()
+    tab.add_column(Column(data['APOGEE_ID'],name='twomass'))
+    tab.add_column(Column(data['RA'],name='apogee_ra'))
+    tab.add_column(Column(data['DEC'],name='apogee_dec'))
     if type(data['APOGEE_ID'][0]) is str : 
         j=np.where(np.core.defchararray.find(data['APOGEE_ID'],'2M') == 0)[0]
         out,ind=np.unique(np.core.defchararray.replace(data['APOGEE_ID'][j],'2M',''),return_index=True)
     else :
         j=np.where(np.core.defchararray.find(data['APOGEE_ID'],b'2M') == 0)[0]
         out,ind=np.unique(np.core.defchararray.replace(data['APOGEE_ID'][j],b'2M',b''),return_index=True)
-    tab.add_column(Column(out,name='twomass'))
-    tab.add_column(Column(data['RA'][ind],name='apogee_ra'))
-    tab.add_column(Column(data['DEC'][ind],name='apogee_dec'))
+    tab['twomass'][ind] = out
+    #tab.add_column(Column(out,name='twomass'))
+    #tab.add_column(Column(data['RA'][ind],name='apogee_ra'))
+    #tab.add_column(Column(data['DEC'][ind],name='apogee_dec'))
     xmlfilename= tempfile.mktemp('.xml',dir=os.getcwd())
     tab.write(xmlfilename,format='votable',overwrite=True)
     try :
@@ -41,7 +45,9 @@ def getdata(data) :
                    LEFT OUTER JOIN external.gaiadr2_geometric_distance as dist ON  g.source_id = dist.source_id""",
                    upload_resource=xmlfilename,upload_table_name='my_table')
         twomass_gaia = job.get_results()
-    except: raise
+    except:
+        print("error with gaia 2mass search")
+        twomass_gaia = None
 
     try: 
         job= Gaia.launch_job_async(
@@ -62,7 +68,9 @@ def getdata(data) :
                    LEFT OUTER JOIN external.gaiadr2_geometric_distance as dist ON  g.source_id = dist.source_id""",
                    upload_resource=xmlfilename,upload_table_name='my_table')
         posn_gaia = job.get_results()
-    except: raise
+    except: 
+        print("error with gaia position search")
+        posn_gaia = None
     finally: os.remove(xmlfilename)
 
     return twomass_gaia, posn_gaia
@@ -113,7 +121,7 @@ def add_gaia(data) :
         else : ind.append(j)
 
     # read gaia 2MASS matched file, match by 2MASS ID, and populate
-    while True :
+    while len(gaia_twomass)>0 :
         # loop for matches since we may have repeats and want them all matched
         j=np.where(tab['GAIA_SOURCE_ID'] == 0)[0]
         print('Number missing gaia_source_id: ', len(j))

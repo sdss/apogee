@@ -132,20 +132,6 @@ if keyword_set(obj1m) then begin
   platedata={plate: platenum, mjd: mjd, plateid: cplate, locationid: 1L, field: ' ', programname: '', $
              cmjd: cmjd, ha: [-99.,-99.,-99.], fiberdata: fiber, guidedata: guide}
   platedata.field = cplate
-  ;fiber.fiberid=[218,219,220,221,223,226,228,230,231]
-  ;fiber.objtype=['SKY','SKY','SKY','SKY','STAR','SKY','SKY','SKY','SKY']
-  ;if n_elements(fixfiberid) gt 0 then begin
-  ;  if fixfiberid eq 1 then begin
-  ;    fiber.fiberid=[218,220,222,223,226,227,228,229,230,231]
-  ;    fiber.objtype=['SKY','SKY','SKY','SKY','SKY','SKY','SKY','SKY','SKY','SKY']
-  ;    if ~keyword_set(starfiber) then starfiber=229
-  ;  endif
-  ;endif else begin
-  ;  fiber.fiberid=[218,219,221,223,226,228,230]
-  ;  fiber.objtype=['SKY','SKY','SKY','STAR','SKY','SKY','SKY']
-  ;  fiber.objtype=['SKY','SKY','SKY','SKY','SKY','SKY','SKY']
-  ;  if ~keyword_set(starfiber) then starfiber=223
-  ;endelse
   fiber.fiberid=fiberid
   fiber.objtype=replicate('SKY',n_elements(fiberid))
   j=where(fiber.fiberid eq starfiber)
@@ -153,7 +139,6 @@ if keyword_set(obj1m) then begin
   j=where(fiber.objtype eq 'SKY')
   fiber[j].target2 = 2L^4
   obj=mrdfits(getenv('APOGEEREDUCEPLAN_DIR')+'/data/1m/'+cplate+'.fits',1,status=status)
-
   if status eq 0 then begin
    j=where(strtrim(obj.name,2) eq strtrim(obj1m,2),nj)
    if nj gt 0 then begin
@@ -167,6 +152,23 @@ if keyword_set(obj1m) then begin
     fiber[ifiber].target2 = 2L^22
    endif
   endif else stop,'halt: no file found with object information!'
+
+  ; try to add in information from apogee1mObject if it exists
+  objects=mrdfits(getenv('APOGEE_TARGET')+'/apogee1mObject/apogee1mObject_'+cplate+'.fits',1,status=status)
+  if status eq 0 then begin
+    spherematch,objects.ra,objects.dec,fiber.ra,fiber.dec,10./3600.,match1,match2,dist,maxmatch=1
+    j=where(match2 eq ifiber,nj)
+    if nj gt 0 then begin
+      fiber[ifiber].alt_id = fiber[ifiber].object
+      fiber[ifiber].tmass_style = objects[match1[j]].apogee_id
+      fiber[ifiber].j=objects[match1[j]].j
+      fiber[ifiber].j_err=objects[match1[j]].j_err
+      fiber[ifiber].h=objects[match1[j]].h
+      fiber[ifiber].h_err=objects[match1[j]].h_err
+      fiber[ifiber].k=objects[match1[j]].k
+      fiber[ifiber].k_err=objects[match1[j]].k_err
+    endif
+  endif else print,'not halted, but no apogee1mObject file found'
   platedata.fiberdata = fiber  
   return,platedata
 endif

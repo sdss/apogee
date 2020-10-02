@@ -75,11 +75,11 @@ class StarBitMask(BitMask):
 
     name=(['BAD_PIXELS','COMMISSIONING','BRIGHT_NEIGHBOR','VERY_BRIGHT_NEIGHBOR','LOW_SNR','','','',
           '','PERSIST_HIGH','PERSIST_MED','PERSIST_LOW','PERSIST_JUMP_POS','PERSIST_JUMP_NEG','','',
-          'SUSPECT_RV_COMBINATION','SUSPECT_BROAD_LINES','BAD_RV_COMBINATION','RV_REJECT','RV_SUSPECT','MULTIPLE_SUSPECT','','',
+          'SUSPECT_RV_COMBINATION','SUSPECT_BROAD_LINES','BAD_RV_COMBINATION','RV_REJECT','RV_SUSPECT','MULTIPLE_SUSPECT','RV_FAIL','',
           '','','','','','','',''])
     level=([1,0,0,1,0,0,0,0,
              0,0,0,0,0,0,0,0,
-             0,0,1,0,0,0,0,0,
+             0,0,1,0,0,0,1,0,
              0,0,0,0,0,0,0,0])
 
     descrip=([
@@ -105,7 +105,7 @@ class StarBitMask(BitMask):
      'Rejected visit because cross-correlation RV differs significantly from least squares RV',
      'Suspect visit (but used!) because cross-correlation RV differs slightly from least squares RV',
      'Suspect multiple components from Gaussian decomposition of cross-correlation',
-     '',
+     'RV failure',
      '',
      '',
      '',

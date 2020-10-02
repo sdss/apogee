@@ -6,9 +6,11 @@ from tools import plots
 from tools import html
 from tools import match
 from tools import fit
+import matplotlib
 import matplotlib.pyplot as plt
 from apogee.aspcap import aspcap
 from apogee.aspcap import err
+from apogee.speclib import isochrones
 from apogee.utils import apload
 from apogee.utils import apselect
 from apogee.utils import bitmask

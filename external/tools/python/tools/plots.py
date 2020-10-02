@@ -114,8 +114,8 @@ def plotc(ax,x,y,z,yerr=None,xr=None,yr=None,zr=None,size=5,cmap='rainbow',color
         cb=plt.colorbar(scat,ax=ax,orientation=orientation)
         cb.ax.set_ylabel(zt)
     if draw : plt.draw()
-    _data_x = x[np.isfinite(x)]
-    _data_y = y[np.isfinite(y)]
+    _data_x = np.array(x)[np.isfinite(x)]
+    _data_y = np.array(y)[np.isfinite(y)]
     _new_data = True
     return scat
 

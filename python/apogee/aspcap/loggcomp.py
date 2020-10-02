@@ -30,7 +30,9 @@ def rcrgb(allstar,apokasc='APOKASC_cat_v3.6.0.fits',logg='LOGG_SYD_SCALING',rcli
 
     # match ASPCAP with APOKASC, and get RC/RGB stars
     apokasc=fits.open(os.environ['APOGEE_DIR']+'/data/apokasc/'+apokasc)[1].data
-    i1,i2=match.match(allstar['APOGEE_ID'],apokasc['2MASS_ID'])
+    # strip off .XXXX if we have it, e.g. from calibration fields where we have added .FIELD
+    apogee_id = np.array(np.core.defchararray.split(allstar['APOGEE_ID'],'.').tolist())[:,0]
+    i1,i2=match.match(apogee_id,apokasc['2MASS_ID'])
     rgb=np.where(apokasc['CONS_EVSTATES'][i2] == 'RGB')[0]
     rc=np.where(apokasc['CONS_EVSTATES'][i2] == 'RC')[0]
     notrc=np.where(apokasc['CONS_EVSTATES'][i2] != 'RC')[0]
@@ -189,11 +191,14 @@ def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3000,7500],a
  
     # match ASPCAP with APOKASC, and get RC/RGB stars
     apokasc=fits.open(os.environ['APOGEE_DIR']+'/data/apokasc/'+apokasc_cat)[1].data
-    i1,i2=match.match(allstar['APOGEE_ID'],apokasc['2MASS_ID'])
+    # strip off .XXXX if we have it, e.g. from calibration fields where we have added .FIELD
+    apogee_id = np.array(np.core.defchararray.split(allstar['APOGEE_ID'],'.').tolist())[:,0]
+    i1,i2=match.match(apogee_id,apokasc['2MASS_ID'])
 
     # now get isochrone logg from lower main sequence
     isologg=isochrone(allstar,snrbd=50)
-    j1,j2=match.match(allstar['APOGEE_ID'],isologg['APOGEE_ID'])
+    isochrone_id = np.array(np.core.defchararray.split(isologg['APOGEE_ID'],'.').tolist())[:,0]
+    j1,j2=match.match(apogee_id,isochrone_id)
 
     # plots of gravity differences
     fig,ax=plots.multi(2,2)
@@ -283,7 +288,9 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
 
     # match ASPCAP with APOKASC, and get RC/RGB stars
     apokasc=fits.open(os.environ['APOGEE_DIR']+'/data/apokasc/'+apokasc_cat)[1].data
-    i1,i2=match.match(allstar['APOGEE_ID'],apokasc['2MASS_ID'])
+    # strip off .XXXX if we have it, e.g. from calibration fields where we have added .FIELD
+    apogee_id = np.array(np.core.defchararray.split(allstar['APOGEE_ID'],'.').tolist())[:,0]
+    i1,i2=match.match(apogee_id,apokasc['2MASS_ID'])
     try:
         print('trying APOKASC2 catalog tags...')
         logg='APOKASC2_LOGG'
@@ -512,7 +519,9 @@ def clusters(allstar,xr=[-2.75,0.5],yr=[-1.,1.],zr=[3500,5500],apokasc='APOKASC_
 
     # put APOKASC underneath
     apokasc=fits.open(os.environ['APOGEE_DIR']+'/data/apokasc/'+apokasc)[1].data
-    i1,i2=match.match(allstar['APOGEE_ID'],apokasc['2MASS_ID'])
+    # strip off .XXXX if we have it, e.g. from calibration fields where we have added .FIELD
+    apogee_id = np.array(np.core.defchararray.split(allstar['APOGEE_ID'],'.').tolist())[:,0]
+    i1,i2=match.match(apogee_id,apokasc['2MASS_ID'])
     plots.plotc(ax[0],allstar['FPARAM'][i1,3],allstar['FPARAM'][i1,1]-apokasc['LOGG_SYD_SCALING'][i2],allstar['FPARAM'][i1,0],zr=zr)
     plots.plotc(ax[1],allstar['PARAM'][i1,3],allstar['PARAM'][i1,1]-apokasc['LOGG_SYD_SCALING'][i2],allstar['PARAM'][i1,0],zr=zr)
 

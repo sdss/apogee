@@ -37,7 +37,6 @@ from apogee.utils import apload
 from apogee.utils import bitmask
 from apogee.utils import gaia
 from apogee.utils import spectra
-from apogee.speclib import isochrones
 try: from apogee.aspcap import ferre
 except: pass
 
@@ -216,7 +215,7 @@ def elemmask(el,maskdir='filters_26112015',plot=None,yr=[0,1]) :
         plots.plotl(plot,wave,mask,yr=yr)
     return wave,mask
 
-def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars') :
+def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visits=0) :
     """ create initial aspcapField file from apField file
     """
 
@@ -242,16 +241,31 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars') :
     # add GAIA data
     apfield=gaia.add_gaia(apfield)
 
+    # create out output table
     aspcapfield=Table(apfield)
     if nobj is not None : aspcapfield=aspcapfield[0:nobj]
     try : test = aspcapfield['MEANFIB']
     except : aspcapfield['MEANFIB'] = 150
-    # add new columns
-    nparam = len(params()[0])
+
+    #if we want individual visits, need to add rows to table
+    if visits > 0 :
+        aspcapfield.add_column(Column(name='VISIT',dtype=int,length=len(aspcapfield)))
+        newfield = aspcapfield[:0].copy() 
+        for row in aspcapfield :
+            newfield.add_row(row)
+            #if visits=1 take ALL visits, else take min(visits,row['NVISITS'])
+            if visits == 1 : nvisits = row['NVISITS']
+            else : nvisits = np.min([visits,row['NVISITS']])
+            for ivisit in range(nvisits) :
+                row['VISIT'] = ivisit+1
+                newfield.add_row(row)
+        aspcapfield = newfield
 
     # read ASPCAP configuration
     config = yaml.safe_load(open(os.environ['APOGEE_DIR']+'/config/aspcap/'+aspcap_config+'/'+instrument+'.yml','r'))
  
+    # add new columns
+    nparam = len(params()[0])
     # add tags to structure
     ngrids=len(config['grids'])
     aspcapfield.add_column(Column(name='CLASS',dtype='S8',length=len(aspcapfield)))
@@ -274,7 +288,7 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars') :
     aspcapfield.add_column(Column(name='X_M',dtype=float,shape=(nelem),length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='X_M_ERR',dtype=float,shape=(nelem),length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='ELEM_CHI2',dtype=float,shape=(nelem),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='ELEMFLAG',dtype=float,shape=(nelem),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='ELEMFLAG',dtype=np.uint64,shape=(nelem),length=len(aspcapfield)))
 
     # load spectra
     # create table for output spectral data
@@ -313,14 +327,23 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars') :
         print('apstarfile: ',apstarfile)
         if apstar is None: continue
 
-        norm=np.nanmedian(apStar2aspcap(apstar.flux[0,:]))
-        aspcapspec['OBS'][istar] = apStar2aspcap(apstar.flux[0,:])/norm
-        mask= np.where((apStar2aspcap(apstar.bitmask[0,:]) & badval) > 0)[0]
-        tmp = apStar2aspcap(apstar.err[0,:])
+        # if we have an individual visit, use it, and load appropriate SNR
+        row = 0
+        if visits > 0 :
+            if star['VISIT'] == 0 : 
+                row=0
+            else : 
+                row=star['VISIT']+1
+                star['SNR'] = apstar.header['SNRVIS{:d}'.format(star['VISIT'])]
+
+        norm=np.nanmedian(apStar2aspcap(apstar.flux[row,:]))
+        aspcapspec['OBS'][istar] = apStar2aspcap(apstar.flux[row,:])/norm
+        mask= np.where((apStar2aspcap(apstar.bitmask[row,:]) & badval) > 0)[0]
+        tmp = apStar2aspcap(apstar.err[row,:])
         tmp[mask] *= 100.
         # set uncertainty floor to minerr (fractional)
-        ind = np.where(tmp/apStar2aspcap(apstar.flux[0,:]) < minerr)[0]
-        tmp[ind] = minerr*apStar2aspcap(apstar.flux[0,:])[ind]
+        ind = np.where(tmp/apStar2aspcap(apstar.flux[row,:]) < minerr)[0]
+        tmp[ind] = minerr*apStar2aspcap(apstar.flux[row,:])[ind]
         aspcapspec['ERR'][istar] = tmp/norm
         bd=np.where(~np.isfinite(aspcapspec['ERR'][istar]))[0]
         if len(bd) > 0 : 
@@ -737,6 +760,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
                     if param['FPARAM_COV'][i,index,index] > 0 :
                         aspcapfield['FELEM_ERR'][gd[istar],jelem] = np.sqrt(param['FPARAM_COV'][i,index,index])
                     aspcapfield['ELEM_CHI2'][gd[istar],jelem] = param['PARAM_CHI2'][i]
+                    aspcapfield['ELEMFLAG'][gd[istar],jelem] = param['PARAMFLAG'][i,index]
                 except: pdb.set_trace()
 
     # Results into an HDUList 

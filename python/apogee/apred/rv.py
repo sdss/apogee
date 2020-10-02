@@ -602,7 +602,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
 
     # output apField structure
     fieldtype = np.dtype([('FILE','S64'),('APOGEE_ID','S30'),('TELESCOPE','S6'),('LOCATION_ID',int),('FIELD','S20'),
-                          ('RA',float),('DEC',float),('GLON',float),('GLAT',float),
+                          ('ALT_ID','S30'),('RA',float),('DEC',float),('GLON',float),('GLAT',float),
                           ('J',float),('J_ERR',float),('H',float),('H_ERR',float),('K',float),('K_ERR',float),
                           ('SRC_H','S16'),('WASH_M',float),('WASH_M_ERR',float),('WASH_T2',float),('WASH_T2_ERR',float),
                           ('DDO51',float),('DDO51_ERR',float),('IRAC_3_6',float),('IRAC_3_6_ERR',float),
@@ -678,6 +678,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     # now load the new ones with the dorv() output
     allv=[]
     for out,files in zip(output,allfiles) :
+        apogee_id=files[-1][1].decode() 
         if out is not None :
             visits=[]
             ncomponents=0
@@ -727,10 +728,17 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
             if len(visits) > 0 :
                 visits=np.array(visits)
                 # set up visit combination, removing visits with suspect RVs
-                apogee_id=files[-1][1].decode() 
                 gdrv = np.where((allvisits[visits]['STARFLAG'] & starmask.getval('RV_REJECT')) == 0)[0]
                 if len(gdrv) > 0 : 
                     allv.append([allvisits[visits[gdrv]],load,(field,apogee_id,clobber,apstar_vers,nres)])
+                else :
+                    bd = np.where(allfield['APOGEE_ID'] == apogee_id)[0]
+                    if len(bd) > 0 : allfield['STARFLAG'][bd] |= starmask.getval('RV_FAIL') 
+        else :
+            for v in files[0] : 
+                v['STARFLAG'] |= starmask.getval('RV_FAIL')
+            bd = np.where(allfield['APOGEE_ID'] == apogee_id)[0]
+            if len(bd) > 0 : allfield['STARFLAG'][bd] |= starmask.getval('RV_FAIL') 
 
     # do the visit combination, in parallel if requested
     if threads == 0 :
@@ -755,7 +763,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         # basic target information
         try: allfield['APOGEE_ID'][j] = apstar.header['OBJID']
         except: allfield['APOGEE_ID'][j] = v[-1][1]
-        keys=['RA','DEC','J','J_ERR','H','H_ERR','K','K_ERR',
+        keys=['RA','DEC','GLON','GLAT','LOCATION_ID','ALT_ID','J','J_ERR','H','H_ERR','K','K_ERR',
               'SRC_H','WASH_M','WASH_M_ERR','WASH_T2','WASH_T2_ERR',
               'DDO51','DDO51_ERR','IRAC_3_6','IRAC_3_6_ERR',
               'IRAC_4_5','IRAC_4_5_ERR','IRAC_5_8','IRAC_5_8_ERR',

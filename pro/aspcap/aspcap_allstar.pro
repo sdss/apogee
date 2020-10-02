@@ -911,7 +911,7 @@ stop
      endfor
 
      ; fix NaNs, etc.
-     aspcap_fixobject,objects
+     fixobject,objects
 
      ; fix any negative RAs
      ra=allvisitloc.ra

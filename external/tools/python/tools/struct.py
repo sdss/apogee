@@ -4,6 +4,7 @@ Utilities for numpy structured arrays
 
 import numpy as np
 import glob
+import os
 import sys
 import pdb
 import copy

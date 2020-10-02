@@ -119,7 +119,7 @@ guide=replicate(tmp,16)
 loc=0L
 if keyword_set(obj1m) then begin
   if keyword_set(fixfiberid) then begin
-    if fixfiberid eq 1 then begin
+    if fixfiberid eq 1 or fixfiberid eq 2 then begin
       fiberid=[218,220,222,223,226,227,228,229,230,231]
       if ~keyword_set(starfiber) then starfiber=229
     endif
@@ -155,7 +155,8 @@ if keyword_set(obj1m) then begin
 
   ; try to add in information from apogee1mObject if it exists
   objects=mrdfits(getenv('APOGEE_TARGET')+'/apogee1mObject/apogee1mObject_'+cplate+'.fits',1,status=status)
-  if status eq 0 then begin
+  if status eq 0 and fiber[ifiber].ra gt 0 then begin
+    fixobject,objects
     spherematch,objects.ra,objects.dec,fiber.ra,fiber.dec,10./3600.,match1,match2,dist,maxmatch=1
     j=where(match2 eq ifiber,nj)
     if nj gt 0 then begin
@@ -392,7 +393,7 @@ if ~keyword_set(noobject) then begin
    objects=[objects,tmp_cat]
  endfor
  ; fix NaNs, etc.
- aspcap_fixobject,objects
+ fixobject,objects
 
 ; objectfile=targetdir+'/'+apogeeobject+'/'+apogeeobject+'_'+strtrim(apogee_field(platedata.locationid,platenum),2)+'.fits'
 ; if not file_test(objectfile) then begin

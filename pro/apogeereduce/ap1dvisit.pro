@@ -666,6 +666,9 @@ FOR i=0L,nplanfiles-1 do begin
     objects = plugmap.fiberdata[objind[istar]]
     visitstr.ra=objects.ra
     visitstr.dec=objects.dec
+    GLACTC,visitstr.ra,visitstr.dec,2000.0,glon,glat,1,/deg
+    visitstr.glon=glon
+    visitstr.glat=glat
     visitstr.ak_targ_method=objects.ak_targ_method
     visitstr.j=objects.j
     visitstr.j_err=objects.j_err

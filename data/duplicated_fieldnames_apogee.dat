@@ -1,0 +1,376 @@
+
+
+#Apogee2N fields that have a -S southern counterpart (e.g. 300+75-S) but they don’t have the corresponding -N suffix (and they also overlap with Apogee1)
+
+#    Fieldname     LocID       Design_type    ndesigns      RA         Dec     reason_of_duplication                      Suggested_New_Name  Survey 
+         000+08     5128               bulge      2    258.900400  -24.561300  Ap1/2N_overlap_same_coords&Missing-N               000+08-N   Apogee2N
+         300+75     5122                halo      4    192.083600   12.146000  Ap1/2N_overlap_same_coords&Missing-N               300+75-N   Apogee2N
+
+#Fields that belong to the same (external) program and have the same field name which can make worth adding a letter before the -O suffix to distinguish them
+
+#    Fieldname     LocID       Design_type    ndesigns      RA         Dec     reason_of_duplication                      Suggested_New_Name  Survey 
+       003-02-O     5408       kollmeier_17a      1    269.652870  -27.520780  overlap_in_same_program                           003-02a-O   Apogee2S
+       003-02-O     5409       kollmeier_17a      1    270.333590  -27.330010  overlap_in_same_program                           003-02b-O   Apogee2S
+       003-02-O     5725       kollmeier_17a      1    270.332430  -27.329170  overlap_in_same_program                           003-02c-O   Apogee2S#These are actually the same field but I used different location ids
+       349+22-O     5785        weinberg_17a      2    239.866600  -24.111060  overlap_in_same_program                           349+22a-O   Apogee2S
+       349+22-O     5998        weinberg_17a      2    240.088000  -23.731690  overlap_in_same_program                           349+22b-O   Apogee2S
+       355+23-O     5334        weinberg_17a      6    242.739410  -18.772260  overlap_in_same_program                           355+23a-O   Apogee2S
+       355+23-O     5659        weinberg_17a      1    243.024980  -19.062330  overlap_in_same_program                           355+23b-O   Apogee2S
+
+#The southern version of M67 is not actually repeated but there are 2 Apogee2N versions so we might want to use something like M67-N-RV M67-N-btx and M67-S
+#to indicate hemispheres (and to distinguish the southern version with the Apogee1 version)
+
+#    Fieldname     LocID       Design_type    ndesigns      RA         Dec     reason_of_duplication                      Suggested_New_Name  Survey 
+            M67     5653          cluster_oc      2    132.811520   11.502370  Ap1/2S_overlap_diff_coords&2N_with_diff_name          M67-S   Apogee2S
+         M67-RV     5552                 anc      2    132.829800   11.798500  Ap2N/2S_overlap_but_with_diff_name                 M67-N-RV   Apogee2N
+        M67_btx     6210             cal_btx     24    133.043000   11.825200  Ap2N/2S_overlap_but_with_diff_name                M67-N-btx   Apogee2N
+
+#Fields that are not actually duplicated but that have -N and -S not indicating telescope which can be confusing and might be worth using the full cardinal point name
+#for these 
+
+#    Fieldname     LocID       Design_type    ndesigns      RA         Dec     reason_of_duplication                      Suggested_New_Name  Survey 
+         SA57-N     5726                 anc      1    197.155400   30.485300  -N_not_indicating_hemisphere*                     SA57-dir_N   Apogee2N
+         SA57-S     5727                 anc      1    197.159500   28.285300  -S_not_indicating_hemisphere*                     SA57-dir_S   Apogee2N
+         SA57-E     5728                 anc      1    198.420800   29.387100  -E_indicating_East*                               SA57-dir_E   Apogee2N
+         SA57-W     5729                 anc      1    195.894200   29.383600  -W_indicating_West*                               SA57-dir_W   Apogee2N
+
+
+#Inconsistencies in NGC vs N prefix. All these used the "N"n prefix in the Apogee1 observations
+
+#     Fieldname      LocID          Design_type   ndesigns     RA         Dec           reason_of_duplication                Suggested_New_Name   Survey 
+        NGC188_btx     5923                 cal      6       8.38785   84.85665  prefix_NGC_inconsistent_with_Apogee1          N188_btx     Apogee2N
+       NGC2420_btx     6043                 cal      6     114.59580   21.00000  prefix_NGC_inconsistent_with_Apogee1          N2420_btx    Apogee2N
+       NGC2632_btx     6042                 cal      4     130.02700   19.65960  prefix_NGC_inconsistent_with_other_Apogee2N*  N2420_btx    Apogee2N
+       NGC6791_btx     5920                 cal      3     290.42446   37.41002  prefix_NGC_inconsistent_with_Apogee1          N6791_btx    Apogee2N
+       NGC6791_MGA     -999               manga      0     291.00000   37.90000  prefix_NGC_inconsistent_with_Apogee1          N6791_MGA    Apogee2N
+       NGC7789_btx     5922                 cal      3     359.35000   56.70830  prefix_NGC_inconsistent_with_Apogee1          N7789_btx    Apogee2N
+       NGC7789_MGA     -999               manga      0     359.35000   56.20000  prefix_NGC_inconsistent_with_Apogee1          N7789_MGA    Apogee2N
+
+
+#Apogee-North (1 or 2) Apogee-2South overlaps
+
+#    Fieldname     LocID       Design_type    ndesigns      RA         Dec     reason_of_duplication                      Suggested_New_Name  Survey 
+         000+02     4352               bulge      1    264.473600  -27.880300  Ap1/2S_overlap_diff_coords                           000+02   Apogee1
+         000+02     5669               bulge      6    264.596490  -27.937110  Ap1/2S_overlap_diff_coords                           000+02   Apogee2S
+         000+04     4334               bulge      1    262.580100  -26.798100  Ap1/2S_overlap_diff_coords                           000+04   Apogee1
+         000+04     5531               bulge      6    262.966450  -27.323520  Ap1/2S_overlap_diff_coords                           000+04   Apogee2S
+         000-02     4351               bulge      1    268.375200  -29.963900  Ap1/2S_overlap_diff_coords                           000-02   Apogee1
+         000-02     5668               bulge      6    268.370570  -30.021830  Ap1/2S_overlap_diff_coords                           000-02   Apogee2S
+         002-04     4388               bulge      1    271.011300  -28.976700  Ap1/2S_overlap_diff_coords                           002-04   Apogee1
+         002-04     5472               bulge      6    270.939590  -29.408520  Ap1/2S_overlap_diff_coords                           002-04   Apogee2S
+#        010+00     4338               bulge      2    271.940250  -20.290030  Ap1/2S_overlap_diff_coords                           010+00   Apogee1 ##Probably commissioning
+#        010+00     5470               bulge      3    271.825780  -20.261890  Ap1/2S_overlap_diff_coords                           010+00   Apogee2S ##so remove form list
+         020+00     4358               bulge      1    276.882100  -11.488600  Ap1/2S_overlap_diff_coords                           020+00   Apogee1
+         020+00     5536               bulge      6    277.049350  -11.656310  Ap1/2S_overlap_diff_coords                           020+00   Apogee2S
+         280+45     4214                halo      1    176.294330  -14.901080  Ap1/2S_overlap_diff_coords                           280+45   Apogee1
+         280+45     5731                halo      4    176.203400  -14.855300  Ap1/2S_overlap_diff_coords&Repl_demoted              280+45   Apogee2S
+         320+45     4215                halo      1    205.341420  -16.210670  Ap1/2S_overlap_diff_coords                           320+45   Apogee1
+         320+45     5732                halo      4    205.387700  -16.161600  Ap1/2S_overlap_diff_coords&Repl_demoted              320+45   Apogee2S
+         GALCEN     4330               bulge      3    266.207420  -28.912420  Ap1/2S_overlap_diff_coords                           GALCEN   Apogee1
+         GALCEN     5534               bulge      6    266.503840  -29.080850  Ap1/2S_overlap_diff_coords                           GALCEN   Apogee2S
+
+#Fieldnames with lll+bb format but in which the numbers don't correspond to the longitude and latitude values (in most cases equatorial coordinates were used)
+
+#    Fieldname     LocID         Design_type    ndesigns      RA          Dec          reason_of_duplication                      Suggested_New_Name    Survey 
+   160-60-C         5995           stutz_19a       1      160.86041   -59.623630   fieldname_baased_on_equatorial_coordinates           287-01-C        Apogee2S
+   161-60-C         5996           stutz_19a       1      161.15234   -59.829860   fieldname_baased_on_equatorial_coordinates           288-01-C        Apogee2S 
+   162-60-C         5997           stutz_19a       1      161.63592   -59.830550   fieldname_baased_on_equatorial_coordinates           288-01-C        Apogee2S
+   029-12-O         5445  TeskeVanSaders_17b       1      288.96375   -16.299740  fieldname_doesnt_match_galactic_coordinates           021-13-O        Apogee2S
+ 129-21_btx         6207               odisk       1      128.79990   -20.900100   fieldname_baased_on_equatorial_coordinates         244+12_btx        Apogee2N
+ 114-25_btx         6208               odisk       1      114.19990   -25.400000   fieldname_baased_on_equatorial_coordinates         241-02_btx        Apogee2N
+ 108-31_btx         6209               odisk       1      108.30000   -31.300100   fieldname_baased_on_equatorial_coordinates         243-09_btx        Apogee2N
+
+
+
+                                                                    Probably Less Critical
+
+#This is a long list of Manga led fields repeated in Apogee2N I don’t know how relevant is this and how these data is released but I put it in here just in case
+#So that we can track what to do with them
+
+#       Fieldname     LocID          Design_type ndesigns     RA         Dec     reason_of_duplication                       Suggested_New_Name  Survey 
+        040+88_MGA     2306               manga      1    195.222900   27.352694  unknown                                          040+88_MGA   Apogee2N
+        040+88_MGA     2511               manga      1    194.651890   27.325357  unknown                                          040+88_MGA   Apogee2N
+        047-25_MGA     2254               manga      1    310.734980    0.045570  unknown                                          047-25_MGA   Apogee2N
+        047-25_MGA     3689               manga      1    311.363070    0.000000  unknown                                          047-25_MGA   Apogee2N
+        048-27_MGA     2006               manga      1    313.693060   -0.000000  unknown                                          048-27_MGA   Apogee2N
+        048-27_MGA     2277               manga      1    313.693070   -0.000000  unknown                                          048-27_MGA   Apogee2N
+        049+90_MGA     2509               manga      1    192.910030   27.141487  unknown**                                        049+90_MGA   Apogee2N
+        049+90_MGA     2646               manga      1    192.910030   27.141487  unknown**                                        049+90_MGA   Apogee2N
+        049+90_MGA     2701               manga      1    192.910034   27.141487  unknown                                          049+90_MGA   Apogee2N
+        050+31_MGA     2005               manga      1    259.822390   27.415457  unknown                                          050+31_MGA   Apogee2N
+        050+31_MGA     2382               manga      1    259.732450   27.820097  unknown                                          050+31_MGA   Apogee2N
+        052-33_MGA     2009               manga      1    320.593070    0.000000  unknown                                          052-33_MGA   Apogee2N
+        052-33_MGA     2245               manga      1    320.593070    0.000000  unknown                                          052-33_MGA   Apogee2N
+        054-35_MGA     2011               manga      1    322.963140    0.010652  unknown                                          054-35_MGA   Apogee2N
+        054-35_MGA     2247               manga      1    322.963140    0.010652  unknown                                          054-35_MGA   Apogee2N
+        056+88_MGA     2446               manga      1    194.897320   27.896555  unknown                                          056+88_MGA   Apogee2N
+        056+88_MGA     2448               manga      1    195.146990   27.960817  unknown                                          056+88_MGA   Apogee2N
+        057+35_MGA     2001               manga      1    257.362640   33.635315  unknown                                          057+35_MGA   Apogee2N
+        057+35_MGA     2386               manga      1    257.254850   33.695354  unknown                                          057+35_MGA   Apogee2N
+        059+36_MGA     2000               manga      1    256.802730   35.579071  unknown                                          059+36_MGA   Apogee2N
+        059+36_MGA     2244               manga      1    256.533450   35.622395  unknown                                          059+36_MGA   Apogee2N
+        059-41_MGA     2012               manga      1    330.163070   -0.000000  unknown                                          059-41_MGA   Apogee2N
+        059-41_MGA     2278               manga      1    330.163070   -0.000000  unknown                                          059-41_MGA   Apogee2N
+        061-25_MGA     2016               manga      1    318.464490   10.538037  unknown                                          061-25_MGA   Apogee2N
+        061-25_MGA     2249               manga      1    318.464500   10.538037  unknown                                          061-25_MGA   Apogee2N
+        062+44_MGA     2232               manga      1    247.109270   38.703705  unknown                                          062+44_MGA   Apogee2N
+        062+44_MGA     2234               manga      1    246.449970   39.040272  unknown                                          062+44_MGA   Apogee2N
+        064+44_MGA     2122               manga      1    246.216674   40.560646  unknown                                          064+44_MGA   Apogee2N
+        064+44_MGA     2705               manga      1    247.141052   40.161938  unknown                                          064+44_MGA   Apogee2N
+        065-29_MGA     2018               manga      1    323.734500   11.440488  unknown                                          065-29_MGA   Apogee2N
+        065-29_MGA     2250               manga      1    323.734500   11.440488  unknown                                          065-29_MGA   Apogee2N
+        073-34_MGA     2021               manga      1    331.974490   12.617103  unknown                                          073-34_MGA   Apogee2N
+        073-34_MGA     2022               manga      1    332.809080   12.766006  unknown                                          073-34_MGA   Apogee2N
+        073-34_MGA     3766               manga      1    332.274500   12.671614  unknown                                          073-34_MGA   Apogee2N
+        075-35_MGA     2023               manga      1    334.212350   13.034418  unknown                                          075-35_MGA   Apogee2N
+        075-35_MGA     3767               manga      1    333.830540   12.941144  unknown                                          075-35_MGA   Apogee2N
+        085+35_MGA     2035               manga      1    260.140440   56.847645  unknown                                          085+35_MGA   Apogee2N
+        085+35_MGA     2256               manga      1    260.109280   56.731812  unknown                                          085+35_MGA   Apogee2N
+        085+35_MGA     3809               manga      1    259.685360   56.745140  unknown                                          085+35_MGA   Apogee2N
+        087+35_MGA     2032               manga      1    258.518370   58.528118  unknown                                          087+35_MGA   Apogee2N
+        087+35_MGA     2529               manga      1    258.818730   58.423828  unknown                                          087+35_MGA   Apogee2N
+        088+34_MGA     2033               manga      1    261.325800   59.683441  unknown                                          088+34_MGA   Apogee2N
+        088+34_MGA     2255               manga      1    261.796940   59.190521  unknown                                          088+34_MGA   Apogee2N
+        093-43_MGA     2252               manga      1    350.828490   14.563378  unknown                                          093-43_MGA   Apogee2N
+        093-43_MGA     2253               manga      4    350.484500   14.538063  unknown                                          093-43_MGA   Apogee2N
+        094-43_MGA     2772               manga      1    351.182678   14.592437  unknown                                          094-43_MGA   Apogee2N
+        094-43_MGA     2773               manga      4    351.574497   14.608641  unknown                                          094-43_MGA   Apogee2N
+        125-48_MGA     2026               manga      4     14.584497   14.828529  unknown                                          125-48_MGA   Apogee2N
+        125-48_MGA     2776               manga      4     14.584497   14.828529  unknown                                          125-48_MGA   Apogee2N
+        130-48_MGA     2029               manga      4     17.464497   14.663705  unknown                                          130-48_MGA   Apogee2N
+        130-48_MGA     2778               manga      4     17.464497   14.663705  unknown                                          130-48_MGA   Apogee2N    
+        131-48_MGA     2028               manga      4     18.387092   14.612152  unknown                                          131-48_MGA   Apogee2N
+        131-48_MGA     2777               manga      4     18.387092   14.612152  unknown                                          131-48_MGA   Apogee2N     
+        141+72_MGA     2116               manga      1    184.919540   44.233536  unknown                                          141+72_MGA   Apogee2N
+        141+72_MGA     2152               manga      1    184.919540   44.233536  unknown                                          141+72_MGA   Apogee2N
+        147-46_MGA     2030               manga      1     29.944497   13.565373  unknown                                          147-46_MGA   Apogee2N
+        147-46_MGA     2427               manga      1     29.944497   13.565373  unknown                                          147-46_MGA   Apogee2N
+        149-46_MGA     2031               manga      1     31.484497   13.400603  unknown                                          149-46_MGA   Apogee2N
+        149-46_MGA     2096               manga      1     31.484497   13.400603  unknown                                          149-46_MGA   Apogee2N
+        151-45_MGA     2038               manga      1     32.561790   13.293448  unknown                                          151-45_MGA   Apogee2N
+        151-45_MGA     2428               manga      1     32.561790   13.293448  unknown                                          151-45_MGA   Apogee2N
+        151+70_MGA     2120               manga      1    179.431640   44.396317  unknown                                          151+70_MGA   Apogee2N
+        151+70_MGA     2153               manga      2    179.431640   44.396317  unknown                                          151+70_MGA   Apogee2N
+        165+62_MGA     2122               manga      1    166.561160   45.546619  unknown                                          165+62_MGA   Apogee2N
+        165+62_MGA     2154               manga      1    166.561160   45.546619  unknown                                          165+62_MGA   Apogee2N
+        168+62_MGA     2115               manga      2    165.256990   44.305809  unknown                                          168+62_MGA   Apogee2N
+        168+62_MGA     2150               manga      2    165.256990   44.305809  unknown                                          168+62_MGA   Apogee2N
+        172+63_MGA     2111               manga      1    165.280320   42.092697  unknown                                          172+63_MGA   Apogee2N
+        172+63_MGA     2168               manga      2    165.280320   42.092697  unknown                                          172+63_MGA   Apogee2N
+        175+58_MGA     2113               manga      2    158.300020   42.736076  unknown                                          175+58_MGA   Apogee2N
+        175+58_MGA     2149               manga      1    158.300020   42.736076  unknown                                          175+58_MGA   Apogee2N
+        178-48_MGA     2394               manga      1     45.763070   -0.000000  unknown                                          178-48_MGA   Apogee2N
+        178-48_MGA     2395               manga      1     46.323070    0.000000  unknown                                          178-48_MGA   Apogee2N
+        181-46_MGA     2048               manga      1     48.543100    0.000000  unknown                                          181-46_MGA   Apogee2N
+        181-46_MGA     2049               manga      1     49.023100    0.000000  unknown                                          181-46_MGA   Apogee2N
+        181-46_MGA     2050               manga      1     49.473100    0.000000  unknown                                          181-46_MGA   Apogee2N
+        185-42_MGA     2013               manga      2     53.513070    0.000854  unknown                                          185-42_MGA   Apogee2N
+        185-42_MGA     2094               manga      1     53.513070    0.000854  unknown                                          185-42_MGA   Apogee2N
+        187-41_MGA     2014               manga      1     55.443070   -0.007008  unknown                                          187-41_MGA   Apogee2N
+        187-41_MGA     2095               manga      1     55.443070   -0.007008  unknown                                          187-41_MGA   Apogee2N
+        319+88_MGA     2512               manga      2    193.346570   25.570040  unknown                                          319+88_MGA   Apogee2N
+        319+88_MGA     2647               manga      1    193.346570   25.570040  unknown                                          319+88_MGA   Apogee2N
+
+
+
+#Apogee1N Apogee2N overlaps
+
+#    Fieldname     LocID          Design_type ndesigns    RA          Dec       reason_of_duplication                      Suggested_New_Name Survey 
+         000+12     4459               bulge      1    255.351600  -22.238200  Ap1/2N_overlap_same_coords                           000+12   Apogee1
+         000+12     5129               bulge      4    255.351800  -22.238200  Ap1/2N_overlap_same_coords                           000+12   Apogee2N
+         000+60     4436                halo      1    217.988250    8.799440  Ap1/2N_overlap_same_coords                           000+60   Apogee1
+         000+60     5663                halo      2    217.988500    8.799500  Ap1/2N_overlap_same_coords                           000+60   Apogee2N
+         027+00     4106                disk      1    280.146790   -5.277390  Ap1/2N_overlap_same_coords                           027+00   Apogee1
+         027+00     5203                disk      1    280.147040   -5.277400  Ap1/2N_overlap_same_coords                           027+00   Apogee2N
+         030+30     4522                halo      1    254.585200   10.869300  Ap1/2N_overlap_same_coords                           030+30   Apogee1
+         030+30     5292                halo      4    254.585400   10.869300  Ap1/2N_overlap_same_coords                           030+30   Apogee2N
+         030+60     4437                halo      1    225.405790   21.847220  Ap1/2N_overlap_same_coords                           030+60   Apogee1
+         030+60     5182                halo      5    225.406000   21.847200  Ap1/2N_overlap_same_coords                           030+60   Apogee2N
+         040+45     4208                halo      1    242.820170   23.569810  Ap1/2N_overlap_same_coords                           040+45   Apogee1
+         040+45     5125                halo      4    242.820400   23.569800  Ap1/2N_overlap_same_coords                           040+45   Apogee2N
+         060+60     4438                halo      1    226.582880   36.683060  Ap1/2N_overlap_same_coords                           060+60   Apogee1
+         060+60     5276                halo      6    226.583100   36.683100  Ap1/2N_overlap_same_coords                           060+60   Apogee2N
+         060+75     4483                halo      1    208.817600   33.042800  Ap1/2N_overlap_same_coords                           060+75   Apogee1
+         060+75     5180                halo      5    208.817800   33.042800  Ap1/2N_overlap_same_coords                           060+75   Apogee2N
+         060-04     4248               disk2      2    299.711290   21.850970  Ap1/2N_overlap_same_coords                           060-04   Apogee1
+         060-04     5120               disk2      1    299.711540   21.850970  Ap1/2N_overlap_same_coords                           060-04   Apogee2N
+         080+45     4209                halo      1    243.628130   51.553780  Ap1/2N_overlap_same_coords                           080+45   Apogee1
+         080+45     5184                halo      4    243.628400   51.553800  Ap1/2N_overlap_same_coords                           080+45   Apogee2N
+         090+60     4439                halo      1    217.992790   50.209080  Ap1/2N_overlap_same_coords                           090+60   Apogee1
+         090+60     5186                halo      4    217.993000   50.209100  Ap1/2N_overlap_same_coords                           090+60   Apogee2N
+         100-60     4590                halo      2      1.623900    0.855500  Ap1/2N_overlap_same_coords                           100-60   Apogee1
+         100-60     5218                halo      1      1.624100    0.855600  Ap1/2N_overlap_same_coords                           100-60   Apogee2N
+         120+12     4287                disk      1      1.983290   74.623530  Ap1/2N_overlap_same_coords                           120+12   Apogee1
+         120+12     5046                disk      2      1.983500   74.623500  Ap1/2N_overlap_same_coords                           120+12   Apogee2N
+         120+30     4528                halo      1    234.049700   86.143200  Ap1/2N_overlap_same_coords                           120+30   Apogee1
+         120+30     5664                halo      2    234.050400   86.143300  Ap1/2N_overlap_same_coords                           120+30   Apogee2N
+         120+45     4210                halo      1    199.571750   71.975110  Ap1/2N_overlap_same_coords                           120+45   Apogee1
+         120+45     5181                halo      5    199.571900   71.975200  Ap1/2N_overlap_same_coords                           120+45   Apogee2N
+         120+60     4440                halo      1    195.555620   57.066830  Ap1/2N_overlap_same_coords                           120+60   Apogee1
+         120+60     5665                halo      2    195.555800   57.066900  Ap1/2N_overlap_same_coords                           120+60   Apogee2N
+         120+75     4485                halo      1    193.881700   42.105000  Ap1/2N_overlap_same_coords                           120+75   Apogee1
+         120+75     5098                halo      4    193.881900   42.105000  Ap1/2N_overlap_same_coords                           120+75   Apogee2N
+         120-12     4286                disk      1      8.322080   50.768360  Ap1/2N_overlap_same_coords                           120-12   Apogee1
+         120-12     5053                disk      2      8.322300   50.768300  Ap1/2N_overlap_same_coords                           120-12   Apogee2N
+         150+30     4530                halo      2    116.186420   66.109500  Ap1/2N_overlap_same_coords                           150+30   Apogee1
+         150+30     5246                halo      4    116.186400   66.109500  Ap1/2N_overlap_same_coords                           150+30   Apogee2N
+         160+45     4211                halo      1    143.976880   55.545310  Ap1/2N_overlap_same_coords                           160+45   Apogee1
+         160+45     5179                halo      4    143.976900   55.545300  Ap1/2N_overlap_same_coords                           160+45   Apogee2N
+         169+00     4592               disk2      2     79.500000   38.500000  Ap1/2N_overlap_diff_coords                           169+00   Apogee1
+         169+00     5066               disk2      2     79.143800   38.132100  Ap1/2N_overlap_diff_coords                           169+00   Apogee2N
+         176+00     4593               disk2      1     84.098900   32.117200  Ap1/2N_overlap_diff_coords                           176+00   Apogee1
+         176+00     5105               disk2      2     83.939700   32.327800  Ap1/2N_overlap_diff_coords                           176+00   Apogee2N
+         180+12     4278                disk      1     98.857380   34.615500  Ap1/2N_overlap_same_coords                           180+12   Apogee1
+         180+12     5083                disk      2     98.857400   34.615500  Ap1/2N_overlap_same_coords                           180+12   Apogee2N
+         180+60     4442                halo      1    159.883130   39.554470  Ap1/2N_overlap_same_coords                           180+60   Apogee1
+         180+60     5247                halo      4    159.883200   39.554500  Ap1/2N_overlap_same_coords                           180+60   Apogee2N
+         180+75     4487                halo      5    177.585700   34.449000  Ap1/2N_overlap_same_coords                           180+75   Apogee1
+         180+75     5124                halo      5    177.585800   34.449000  Ap1/2N_overlap_same_coords                           180+75   Apogee2N
+         180-12     4277                disk      1     75.351580   22.238170  Ap1/2N_overlap_same_coords                           180-12   Apogee1
+         180-12     5106                disk      2     75.351700   22.238200  Ap1/2N_overlap_same_coords                           180-12   Apogee2N
+         184+00     4594               disk2      1     88.572500   25.718100  Ap1/2N_overlap_diff_coords                           184+00   Apogee1
+         184+00     5084               disk2      2     88.712700   25.502400  Ap1/2N_overlap_diff_coords                           184+00   Apogee2N
+         191+00     4595               disk2      1     92.583700   19.196500  Ap1/2N_overlap_diff_coords                           191+00   Apogee1
+         191+00     5087               disk2      2     92.455800   19.415400  Ap1/2N_overlap_diff_coords                           191+00   Apogee2N
+         200+45     4450                halo      1    141.813000   27.598080  Ap1/2N_overlap_same_coords                           200+45   Apogee1
+         200+45     5094                halo      4    141.813100   27.598100  Ap1/2N_overlap_same_coords                           200+45   Apogee2N
+         210+60     4443                halo      1    159.521580   24.686640  Ap1/2N_overlap_same_coords                           210+60   Apogee1
+         210+60     5123                halo      4    159.521700   24.686600  Ap1/2N_overlap_same_coords                           210+60   Apogee2N
+         240+60     4444                halo      1    165.877380   11.092890  Ap1/2N_overlap_same_coords                           240+60   Apogee1
+         240+60     5178                halo      4    165.877500   11.092900  Ap1/2N_overlap_same_coords                           240+60   Apogee2N
+         240+75     4489                halo      1    178.697500   19.610800  Ap1/2N_overlap_same_coords                           240+75   Apogee1
+         240+75     5165                halo      4    178.697600   19.610800  Ap1/2N_overlap_same_coords                           240+75   Apogee2N
+         270+60     4445                halo      1    177.082960    1.226390  Ap1/2N_overlap_same_coords                           270+60   Apogee1
+         270+60     5109                halo      4    177.083100    1.226400  Ap1/2N_overlap_same_coords                           270+60   Apogee2N
+         300+60     4446                halo      1    191.392040   -2.838310  Ap1/2N_overlap_same_coords                           300+60   Apogee1
+         300+60     5183                halo      4    191.392200   -2.838300  Ap1/2N_overlap_same_coords                           300+60   Apogee2N
+         330+60     4447                halo      1    206.010710    0.077830  Ap1/2N_overlap_diff_coords                           330+60   Apogee1
+         330+60     5121                halo      4    206.010900   -0.077800  Ap1/2N_overlap_diff_coords                           330+60   Apogee2N
+     K01_082+17     4460         kep_apokasc      2    289.533300   50.833700  Ap1/2N_overlap_same_coords                       K01_082+17   Apogee1
+     K01_082+17     5001         kep_apokasc      2    289.533200   50.833800  Ap1/2N_overlap_same_coords                       K01_082+17   Apogee2N
+     K02_080+18     4406         kep_apokasc      2    285.904210   49.196110  Ap1/2N_overlap_same_coords                       K02_080+18   Apogee1
+     K02_080+18     5002         kep_apokasc      1    285.904100   49.196200  Ap1/2N_overlap_same_coords                       K02_080+18   Apogee2N
+     K03_077+20     4408         kep_apokasc      3    282.545790   47.420390  Ap1/2N_overlap_same_coords                       K03_077+20   Apogee1
+     K03_077+20     5003         kep_apokasc      3    282.545600   47.420400  Ap1/2N_overlap_same_coords                       K03_077+20   Apogee2N
+     K04_083+13     4399             kep_koi      2    295.695800   49.901700  Ap1/2N_overlap_same_coords                       K04_083+13   Apogee1
+     K04_083+13     5004             kep_koi      6    295.695700   49.901700  Ap1/2N_overlap_same_coords                       K04_083+13   Apogee2N
+     K05_080+14     4400         kep_apokasc      2    291.904200   48.436500  Ap1/2N_overlap_same_coords                       K05_080+14   Apogee1
+     K05_080+14     5005         kep_apokasc      2    291.904100   48.436500  Ap1/2N_overlap_same_coords                       K05_080+14   Apogee2N
+     K06_078+16     4405             kep_koi      3    288.412500   46.875200  Ap1/2N_overlap_same_coords                       K06_078+16   Apogee1
+     K06_078+16     5006             kep_koi      6    288.412500   46.875200  Ap1/2N_overlap_same_coords                       K06_078+16   Apogee2N
+     K07_075+17     4401             kep_koi      3    285.070800   45.213000  Ap1/2N_overlap_same_coords                       K07_075+17   Apogee1
+     K07_075+17     5007             kep_koi      3    285.070600   45.213000  Ap1/2N_overlap_same_coords                       K07_075+17   Apogee2N
+     K08_073+19     4409         kep_apokasc      2    281.916710   43.452890  Ap1/2N_overlap_same_coords                       K08_073+19   Apogee1
+     K08_073+19     5008         kep_apokasc      3    281.916600   43.452900  Ap1/2N_overlap_same_coords                       K08_073+19   Apogee2N
+     K09_081+11     4402         kep_apokasc      3    297.500000   47.398400  Ap1/2N_overlap_same_coords                       K09_081+11   Apogee1
+     K09_081+11     5009         kep_apokasc      3    297.499900   47.398500  Ap1/2N_overlap_same_coords                       K09_081+11   Apogee2N
+     K10_079+12     4403             kep_koi      2    294.125000   46.004600  Ap1/2N_overlap_same_coords                       K10_079+12   Apogee1
+     K10_079+12     5010             kep_koi      5    294.124900   46.004700  Ap1/2N_overlap_same_coords                       K10_079+12   Apogee2N
+     K11_076+13     4461         kep_apokasc      2    290.675000   44.466200  Ap1/2N_overlap_same_coords                       K11_076+13   Apogee1
+     K11_076+13     5011         kep_apokasc      2    290.674900   44.466200  Ap1/2N_overlap_same_coords                       K11_076+13   Apogee2N
+     K12_074+15     4404         kep_apokasc      3    287.400000   42.884000  Ap1/2N_overlap_same_coords                       K12_074+15   Apogee1
+     K12_074+15     5012         kep_apokasc      2    287.399900   42.884000  Ap1/2N_overlap_same_coords                       K12_074+15   Apogee2N
+     K13_071+16     4410         kep_apokasc      1    284.279210   41.186890  Ap1/2N_overlap_same_coords                       K13_071+16   Apogee1
+     K13_071+16     5013         kep_apokasc      2    284.279200   41.186900  Ap1/2N_overlap_same_coords                       K13_071+16   Apogee2N
+     K14_080+08     4462         kep_apokasc      2    299.650000   44.871400  Ap1/2N_overlap_same_coords                       K14_080+08   Apogee1
+     K14_080+08     5014         kep_apokasc      3    299.649900   44.871400  Ap1/2N_overlap_same_coords                       K14_080+08   Apogee2N
+     K15_077+10     4463         kep_apokasc      2    296.129200   43.516700  Ap1/2N_overlap_same_coords                       K15_077+10   Apogee1
+     K15_077+10     5015         kep_apokasc      4    296.129200   43.516700  Ap1/2N_overlap_same_coords                       K15_077+10   Apogee2N
+     K16_075+11     4464         kep_apokasc      6    292.770800   42.090100  Ap1/2N_overlap_same_coords                       K16_075+11   Apogee1
+     K16_075+11     5016         kep_apokasc      4    292.770700   42.090200  Ap1/2N_overlap_same_coords                       K16_075+11   Apogee2N
+     K17_072+13     4465         kep_apokasc      2    289.562500   40.538900  Ap1/2N_overlap_same_coords                       K17_072+13   Apogee1
+     K17_072+13     5017         kep_apokasc      3    289.562400   40.538900  Ap1/2N_overlap_same_coords                       K17_072+13   Apogee2N
+     K18_070+14     4407         kep_apokasc      3    286.487500   38.908110  Ap1/2N_overlap_same_coords                       K18_070+14   Apogee1
+     K18_070+14     5018         kep_apokasc      3    286.487400   38.908100  Ap1/2N_overlap_same_coords                       K18_070+14   Apogee2N
+     K19_076+07     4466         kep_apokasc      3    297.937500   40.996500  Ap1/2N_overlap_same_coords                       K19_076+07   Apogee1
+     K19_076+07     5019         kep_apokasc      3    297.937500   40.996500  Ap1/2N_overlap_same_coords                       K19_076+07   Apogee2N
+     K20_073+09     4588         kep_apokasc      2    294.683300   39.614100  Ap1/2N_overlap_same_coords                       K20_073+09   Apogee1
+     K20_073+09     5020         kep_apokasc      4    294.683300   39.614100  Ap1/2N_overlap_same_coords                       K20_073+09   Apogee2N
+     K21_071+10     4589             kep_koi      2    291.554200   38.160500  Ap1/2N_overlap_same_coords                       K21_071+10   Apogee1
+     K21_071+10     5021             kep_koi      6    291.554100   38.160500  Ap1/2N_overlap_same_coords                       K21_071+10   Apogee2N
+            M15     4230          cluster_gc      6    322.333330   12.172780  Ap1/2N_overlap_diff_coords                              M15   Apogee1
+            M15     5110          cluster_gc      5    322.493000   12.167100  Ap1/2N_overlap_diff_coords                              M15   Apogee2N
+         M5PAL5     4201          cluster_gc      4    229.225000    1.065000  Ap1/2N_overlap_same_coords                           M5PAL5   Apogee1
+         M5PAL5     5092          cluster_gc      8    229.225000    1.065000  Ap1/2N_overlap_same_coords                           M5PAL5   Apogee2N
+            M71     4261          cluster_gc      3    298.360370   18.772690  Ap1/2N_overlap_diff_coords                              M71   Apogee1
+            M71     5438          cluster_gc      4    298.443900   18.779000  Ap1/2N_overlap_diff_coords                              M71   Apogee2N
+           N188     4217          cluster_oc      2     11.832540   85.251000  Ap1/2N_overlap_diff_coords                             N188   Apogee1
+           N188     5067          cluster_oc      4     11.866670   85.305000  Ap1/2N_overlap_diff_coords                             N188   Apogee2N
+
+
+#These are fields from a given external program that are repeated in a different external program so the programname might help to distinguish them in which
+#case in might not be necessary to change the field name but it might stil be worth documenting the duplicates
+
+#    Fieldname     LocID       Design_type    ndesigns      RA         Dec     reason_of_duplication                      Suggested_New_Name  Survey 
+       000-02-O     5377      schlaufman_17a      1    268.531630  -30.226380  different_programs                                 000-02a-O   Apogee2S
+       000-02-O     5394       kollmeier_17a      1    267.852670  -29.963020  different_programs                                 000-02b-O   Apogee2S
+       000+02-O     5378      schlaufman_17a      1    264.395450  -27.765210  different_programs                                 000+02a-O   Apogee2S
+       000+02-O     5397       kollmeier_17a      1    264.756660  -27.720740  different_programs                                 000+02b-O   Apogee2S
+       000-04-O     5376      schlaufman_17a      1    269.736820  -30.764520  different_programs                                 000-04a-O   Apogee2S
+       000-04-O     5396       kollmeier_17a      1    270.075460  -31.443790  different_programs                                 000-04b-O   Apogee2S
+       000+04-O     5379      schlaufman_17a      1    263.016710  -27.236740  different_programs                                 000+04a-O   Apogee2S
+       000+04-O     5398       kollmeier_17a      1    263.427610  -26.754060  different_programs                                 000+04b-O   Apogee2S
+       001-04-O     5380      schlaufman_17a      1    270.681110  -29.536370  different_programs                                 001-04a-O   Apogee2S
+       001-04-O     5402       kollmeier_17a      1    270.681230  -30.047880  different_programs                                 001-04b-O   Apogee2S
+       002+02-O     5383      schlaufman_17a      1    265.415050  -25.972160  different_programs                                 002+02a-O   Apogee2S
+       002+02-O     5407       kollmeier_17a      2    265.749650  -26.799050  different_programs                                 002+02b-O   Apogee2S
+       003-02-O     5442  TeskeVanSaders_17b      1    270.349060  -26.978170  different_programs                                 003-02d-O   Apogee2S
+       003+02-O     5412       kollmeier_17a      2    266.219260  -25.726960  different_programs                                 003+02a-O   Apogee2S
+       003+02-O     5440  TeskeVanSaders_17b      1    266.368920  -24.898720  different_programs                                 003+02b-O   Apogee2S
+       277-35-O     5556          beaton_18a      1     75.363520  -67.105290  different_programs                                 277-35a-O   Apogee2S
+       277-35-O     5862           Drout_18b      1     77.748160  -66.875260  different_programs                                 277-35b-O   Apogee2S
+       279-32-O     5867           Drout_18b      1     84.122760  -69.026250  different_programs                                 279-32a-O   Apogee2S
+       279-32-O     6165       kollmeier_19b      1     83.933180  -69.044330  different_programs                                 279-32b-O   Apogee2S
+       280-33-O     5554          beaton_18a      4     80.828270  -69.427340  different_programs                                 280-33a-O   Apogee2S
+       280-33-O     5868           Drout_18b      4     81.870410  -69.368780  different_programs                                 280-33b-O   Apogee2S
+       281-34-O     5871           Drout_18b      1     77.698080  -69.751110  different_programs                                 281-34a-O   Apogee2S
+       281-34-O     6166       kollmeier_19b      1     78.399180  -69.709510  different_programs                                 281-34b-O   Apogee2S
+       281-36-O     5870           Drout_18b      1     72.442640  -69.224540  different_programs                                 281-36a-O   Apogee2S
+       281-36-O     6167       kollmeier_19b      1     72.860360  -69.195260  different_programs                                 281-36b-O   Apogee2S
+       288-01-C     5302       borissova_17a      1     161.00154  -59.874310  different_programs                                 288-01a-O   Apogee2S
+       288-01-C     7072          medina_20a    2.5     161.33551  -60.436740  different_programs                                 288-01b-O   Apogee2S
+       353+17-O     5316           teske_17a      2    246.585840  -24.939590  different_programs                                 353+17a-O   Apogee2S
+       353+17-O     5657        weinberg_17a      1    246.615700  -25.040210  different_programs                                 353+17b-O   Apogee2S
+       354+19-O     5317           teske_17a      3    245.540790  -22.169750  different_programs                                 354+19a-O   Apogee2S
+       354+19-O     5658        weinberg_17a      3    245.921040  -22.581850  different_programs                                 354+19b-O   Apogee2S
+       358+02-O     5391      schlaufman_17a      1    263.129450  -29.575310  different_programs                                 358+02a-O   Apogee2S
+       358+02-O     5433       kollmeier_17a      1    263.282650  -29.771400  different_programs                                 358+02b-O   Apogee2S
+
+#Apogee2N recent overlap, both plates observed don't know the reason of the repetition
+
+#    Fieldname       LocID           Design_type  ndesigns     RA         Dec     reason_of_duplication                      Suggested_New_Name  Survey 
+ K2_C13_185-16_btx     6198              k2_btx      1      74.815300   15.494500  unknown                                   K2_C13_185-16_btx   Apogee2N
+ K2_C13_185-16_btx     6282              k2_btx      1      74.768700   15.494499  unknown                                   K2_C13_185-16_btx   Apogee2N
+
+#These are commissioning fields that have a regular counterpart in Apogee2S so we might want to use a suffix to distinguish them with their more useful counterparts
+
+#    Fieldname     LocID       Design_type    ndesigns      RA         Dec     reason_of_duplication                      Suggested_New_Name  Survey 
+         340+12     5206                disk      3    240.324400  -36.856800  Commissioning                                340+12_Commiss   Apogee2S
+         350-12     5158                disk      1    273.444200  -43.452600  Commissioning                                350-12_Commiss   Apogee2S
+            M67     5210          cluster_oc      1    132.551300   11.856800  Commissioning                                   M67_Commiss   Apogee2S
+
+ 
+#These are demoted fields repeated so I don’t think is worth doing anything with them
+
+#    Fieldname     LocID         Design_type  ndesigns     RA         Dec     reason_of_duplication                      Suggested_New_Name  Survey 
+         280+45     5699                halo      1    176.203390  -14.855320  Demoted                                              280+45   Apogee2S
+         320+45     5701                None      2    205.387670  -16.161590  Demoted                                              320+45   Apogee2S
+         326-06     5352                disk      4    243.107360  -59.696860  Demoted                                              326-06   Apogee2S
+         340-12     5358                disk      3    266.792560  -52.141240  Demoted                                              340-12   Apogee2S
+            M22     5327         cluster_gc2      1    278.959850  -24.261130  Demoted                                                 M22   Apogee2S
+          N6441     5326         cluster_gc1      9    267.351840  -36.773830  Demoted                                               N6441   Apogee2S
+
+#These are fields that have a duplicate that is eather demoted or commissioning so I don’t think is worth changing the field name of these but it might be worth documenting
+
+#    Fieldname     LocID       Design_type    ndesigns      RA         Dec     reason_of_duplication                      Suggested_New_Name  Survey 
+         280+45     5731                halo      4    176.203390  -14.855320  Replacing_Demoted                                    326-06   Apogee2S
+         320+45     5732                halo      4    205.387670  -16.161590  Replacing_Demoted                                    326-06   Apogee2S
+         326-06     5730               disk2      4    242.972350  -59.771670  Replacing_Demoted                                    326-06   Apogee2S
+         340-12     6045                disk      2    266.650510  -52.221460  Replacing_Demoted                                    340-12   Apogee2S
+            M22     5644          cluster_gc      1    279.072050  -23.696390  Replacing_Demoted                                       M22   Apogee2S
+          N6441     5643          cluster_gc      1    267.558250  -36.736650  Replacing_Demoted                                     N6441   Apogee2S
+         340+12     5369                disk      2    240.290930  -36.883030  Same_as_Commissioning                                340+12   Apogee2S
+         350-12     5370               bulge      1    273.485280  -43.442870  Same_as_Commissioning                                350-12   Apogee2S
+
+
+#*Means that this is actually not a duplicated fieldname but for other reasons it might be worth checking if we should change the name

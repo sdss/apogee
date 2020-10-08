@@ -637,7 +637,26 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     for iobj,star in enumerate(sorted(allobj)) :
         if type(star) is str : star=star.encode()
         allfield['APOGEE_ID'][iobj] = star
-        # we will only consider good visits
+
+        # copy basic information from first visit in case star fails
+        visit0=np.where(allvisits['APOGEE_ID'] == star)[0][0]
+        keys=['RA','DEC','GLON','GLAT','LOCATION_ID','ALT_ID','J','J_ERR','H','H_ERR','K','K_ERR',
+              'SRC_H','WASH_M','WASH_M_ERR','WASH_T2','WASH_T2_ERR',
+              'DDO51','DDO51_ERR','IRAC_3_6','IRAC_3_6_ERR',
+              'IRAC_4_5','IRAC_4_5_ERR','IRAC_5_8','IRAC_5_8_ERR',
+              'WISE_4_5','WISE_4_5_ERR','TARG_4_5','TARG_4_5_ERR',
+              'WASH_DDO51_GIANT_FLAG','WASH_DDO51_STAR_FLAG',
+              'AK_TARG','AK_TARG_METHOD','AK_WISE','SFD_EBV']
+        for key in keys :
+            try: allfield[key][iobj] = allvisits[key][visit0]
+            except KeyError: pass
+        # rename targeting proper motions
+        keys = ['PMRA','PMDEC','PM_SRC']
+        for key in keys :
+            try: allfield['TARG_'+key][iobj] = allvisits[key][visit0]
+            except KeyError: pass
+
+        # we will only consider good visits for RVs and combination
         visits=np.where(allvisits['APOGEE_ID'][gd] == star)[0]
         print('object: {:}  nvisits: {:d}'.format(star,len(visits)))
         nobj+=1
@@ -732,13 +751,16 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                 if len(gdrv) > 0 : 
                     allv.append([allvisits[visits[gdrv]],load,(field,apogee_id,clobber,apstar_vers,nres)])
                 else :
-                    bd = np.where(allfield['APOGEE_ID'] == apogee_id)[0]
-                    if len(bd) > 0 : allfield['STARFLAG'][bd] |= starmask.getval('RV_FAIL') 
+                    bd = np.where(allfield['APOGEE_ID'] == apogee_id.encode())[0]
+                    if len(bd) > 0 : 
+                        allfield['STARFLAG'][bd] |= starmask.getval('RV_FAIL') 
+                        allfield['ANDFLAG'][bd] |= starmask.getval('RV_FAIL') 
         else :
             for v in files[0] : 
                 v['STARFLAG'] |= starmask.getval('RV_FAIL')
-            bd = np.where(allfield['APOGEE_ID'] == apogee_id)[0]
-            if len(bd) > 0 : allfield['STARFLAG'][bd] |= starmask.getval('RV_FAIL') 
+            bd = np.where(allfield['APOGEE_ID'] == apogee_id.encode())[0]
+            if len(bd) > 0 : 
+                allfield['ANDFLAG'][bd] |= starmask.getval('RV_FAIL') 
 
     # do the visit combination, in parallel if requested
     if threads == 0 :
@@ -759,28 +781,15 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     # (longer, more clear) names
     for apstar,v in zip(output,allv) :
         j = np.where(allfield['APOGEE_ID'] == v[-1][1].encode())[0]
+        # basic target information loaded above for all targets
+        if allfield['APOGEE_ID'][j[0]].decode() != apstar.header['OBJID'] or \
+           allfield['APOGEE_ID'][j[0]].decode() != v[-1][1] :
+            print("IDs don't match: ",allfield['APOGEE_ID'][j],apstar.header['OBJID'],v[-1][1])
+            pdb.set_trace()
+        #try: allfield['APOGEE_ID'][j] = apstar.header['OBJID']
+        #except: allfield['APOGEE_ID'][j] = v[-1][1]
 
-        # basic target information
-        try: allfield['APOGEE_ID'][j] = apstar.header['OBJID']
-        except: allfield['APOGEE_ID'][j] = v[-1][1]
-        keys=['RA','DEC','GLON','GLAT','LOCATION_ID','ALT_ID','J','J_ERR','H','H_ERR','K','K_ERR',
-              'SRC_H','WASH_M','WASH_M_ERR','WASH_T2','WASH_T2_ERR',
-              'DDO51','DDO51_ERR','IRAC_3_6','IRAC_3_6_ERR',
-              'IRAC_4_5','IRAC_4_5_ERR','IRAC_5_8','IRAC_5_8_ERR',
-              'WISE_4_5','WISE_4_5_ERR','TARG_4_5','TARG_4_5_ERR',
-              'WASH_DDO51_GIANT_FLAG','WASH_DDO51_STAR_FLAG',
-              'AK_TARG','AK_TARG_METHOD','AK_WISE','SFD_EBV']
-        for key in keys :
-            try: allfield[key][j] = v[0][0][key]
-            except KeyError: pass
-
-        # rename targeting proper motions
-        keys = ['PMRA','PMDEC','PM_SRC']
-        for key in keys :
-            try: allfield['TARG_'+key][j] = v[0][0][key]
-            except KeyError: pass
-
-        # targeting flags have different names
+        # targeting flags have different names and are combined from visits
         apogee_target1 = apstar.header['APTARG1']
         apogee_target2 = apstar.header['APTARG2']
         apogee_target3 = apstar.header['APTARG3']
@@ -817,16 +826,25 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         outfile=load.filename('Star',field=apstar.header['FIELD'],obj=apstar.header['OBJID'])
         allfield['FILE'][j] =  os.path.basename(outfile)
 
+    #populate character string flags for ALL targets, including failed ones
+    for star in allfield :
+        star['STARFLAGS'] = starmask.getname(star['STARFLAG'])
+        star['ANDFLAGS'] = starmask.getname(star['ANDFLAG'])
+        star['TARGFLAGS'] = (bitmask.targflags(star['APOGEE_TARGET1'],star['APOGEE_TARGET2'],star['APOGEE_TARGET3'],0,survey='apogee')+
+                             bitmask.targflags(star['APOGEE2_TARGET1'],star['APOGEE2_TARGET2'],star['APOGEE2_TARGET3'],star['APOGEE2_TARGET4'],survey='apogee2'))
+    pdb.set_trace()
     # add GAIA information
     allfield=gaia.add_gaia(allfield)
 
     #output apField and apFieldVisits
     hdulist=fits.HDUList()
     hdulist.append(fits.table_to_hdu(Table(allfield)))
+    hdulist[0].header['V_APRED'] = os.environ['APOGEE_VER']
     hdulist.writeto(outfield,overwrite=True)
 
     hdulist=fits.HDUList()
     hdulist.append(fits.table_to_hdu(allvisits))
+    hdulist[0].header['V_APRED'] = os.environ['APOGEE_VER']
     hdulist.writeto(outfieldvisits,overwrite=True)
 
     # make web page

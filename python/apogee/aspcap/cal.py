@@ -28,16 +28,39 @@ from astropy.io import fits
 from astropy.io import ascii
 from astropy.table import Table
 from astropy.table import Column
-
+from astropy.coordinates import SkyCoord
+import astropy.units as units
 
 os.environ['ISOCHRONE_DIR']='/uufs/chpc.utah.edu/common/home/apogee/isochrones/'
 
-def allField(files=['apo*/*/a?Field-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?Field-*.fits'],out='allField.fits',verbose=False) :
+def allField(search=['apo*/*/a?Field-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?Field-*.fits'],out='allField.fits',verbose=False) :
     '''
     Concatenate set of apField files
     '''
+
+    if type(search) == str:
+        search=[search]
+    allfiles=[]
+    for path in search :
+        allfiles.extend(glob.glob(path))
+
+    a=[]
+    for file in allfiles :
+        if 'Field-cal_' not in file :
+            dat=fits.open(file)[1].data
+            if type(dat['STARFLAG'][0]) is not np.uint64 :
+                print(file, type(dat['STARFLAG'][0]))
+            a.append(dat)
+    all = np.hstack(a)
+
+    bd=np.where((all['RA'] < 0.0001) & (all['DEC'] < 0.0001) )[0]
+    starmask=bitmask.StarBitMask()
+    rvfail=starmask.getval('RV_FAIL')
+    for i in bd:
+        all['STARFLAG'][i] |= np.int64(rvfail)
+
     # concatenate the structures
-    all=struct.concat(files,verbose=verbose)
+    #all=struct.concat(search,verbose=verbose)
 
     # write out the file
     if out is not None:
@@ -46,11 +69,41 @@ def allField(files=['apo*/*/a?Field-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?F
 
     return all
 
-def allCal(files=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nelem=15,out='allCal.fits',allfield=None) :
+def m67(all) :
+
+    m67=[]
+    for a in all :
+        m67.append(np.array(apselect.clustmember(a,'M67',raw=True)))
+
+    els = aspcap.elems()[0]
+    fig,ax=plots.multi(1,len(all),hspace=0.001)
+    for iel,el in enumerate(els) :
+        for i,(a,j) in enumerate(zip(all,m67)) :
+            ax[i].cla()
+            plots.plotc(ax[i],a['FPARAM'][j,1],a['FELEM'][j,iel],a['FPARAM'][j,0],yt=el,
+                    xr=[0,5],yr=[-0.3,0.3])
+        pdb.set_trace()    
+    return m67
+    
+def allCal(search=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nelem=15,out='allCal.fits',allfield=None) :
     '''
     Concatenate aspcapField files, adding ELEM tags if not there
     '''
     # concatenate the structures
+    if type(search) == str:
+        search=[search]
+    allfiles=[]
+    for path in search :
+        allfiles.extend(glob.glob(path))
+
+    a=[]
+    for file in allfiles :
+        print(file)
+        a.append(fits.open(file)[1].data)
+    all = np.hstack(a)
+
+    return all
+
     all=struct.concat(files,verbose=True,fixfield=True)
 
     # add elements tags if we don't have them
@@ -119,6 +172,7 @@ def summary(out='allCal.fits',prefix='allcal/',cal='dr16',hr=True,repeat=True,dr
     """
     hdulist=fits.open(out)
     all=hdulist[1].data
+
     try: os.mkdir(prefix)
     except: pass
     try: os.mkdir(prefix+'hr/')
@@ -295,8 +349,12 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         cluster, APOKASC stars, 1m calibration stars. Creates cluster web pages/plots if requested
     '''
 
+    if apred is None : 
+        print('need to provide apred')
+        pdb.set_trace()
+
     if indata is None :
-        indata=allField(files=['apo25m/*/a?Field-*.fits','lco25m/*/a?Field-*.fits','apo1m/calibration/a?Field-*.fits'],out=None,verbose=True)
+        indata=allField(['apo25m/*/a?Field-*.fits','lco25m/*/a?Field-*.fits','apo1m/calibration/a?Field-*.fits'],out=None,verbose=True)
 
     j=np.where((indata['COMMISS'] == 0) & (indata['SNR'] > 75) )[0]
     data=indata[j]
@@ -306,16 +364,15 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
     all=[]
     if clusters :
         jc=[]
-        clusts=apselect.clustdata()
         fstars=open(dir+'/allclust.txt','w')
         f=html.head(file=dir+'/'+file)
         f.write('<A HREF=allclust.txt> cluster stars list </a>')
         f.write('<TABLE BORDER=2>\n')
         f.write('<TR><TD>NAME<TD>RA<TD>DEC<TD>Radius<TD>RV<TD>Delta RV<TD>Position criterion<TD>RV criterion<TD>PM criterion<TD>Parallax criterion<TD> CMD')
-        clust=apselect.clustdata()
+        clust=apselect.clustdata(gals=False)
         for ic in range(len(clust.name)) :
             print(clust[ic].name)
-            j=apselect.clustmember(data,clust[ic].name,plot=plot,hard=dir)
+            j=apselect.clustmember(data,clust[ic].name,plot=False,hard=None,gals=False)
             print(clust[ic].name,len(j))
             # clusters to exclude here
             if (clust[ic].name not in ['OmegaCen','Pal1','Pal6','Pal5','Terzan12'])  and (len(j) >= 5): jc.extend(j)
@@ -368,7 +425,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
     
     if coolstars :
         jc=[]
-        j=np.where(data['FIELD'] == 'GALCEN')[0]
+        j=np.where((data['FIELD'] == 'GALCEN') or (data['FIELD'] == b'GALCEN'))[0]
         print('Number of GALCEN stars: ',len(j))
         jc.extend(j)
         stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/coolstars.txt',names=['id'],format='fixed_width_no_header')
@@ -379,7 +436,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         all.extend(jc)
 
     if cal1m :
-        j=np.where(data['FIELD'] == 'calibration')[0]
+        j=np.where((data['FIELD'] == 'calibration') or (data['FIELD'] == b'calibration'))[0]
         print('Number of 1m calibration stars: ',len(j))
         all.extend(j)
         j=np.where(data['FIELD'] == 'RCB')[0]
@@ -404,10 +461,10 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
 
     if ns :
         #north-south overlap
-        jn=np.where((data['FIELD'] == 'N2243') | (data['FIELD'] == '000+08') |
-                    (data['FIELD'] == '300+75') | (data['FIELD'] == 'M12-N') )[0]
-        js=np.where((data['FIELD'] == 'N2243-S') | (data['FIELD'] == '000+08-S') |
-                    (data['FIELD'] == '300+75-S') | (data['FIELD'] == 'M12-S') )[0]
+        jn=np.where((data['FIELD'] == 'N2243') | (data['FIELD'] == b'N2243') | (data['FIELD'] == '000+08')  | (data['FIELD'] == b'000+08') |
+                    (data['FIELD'] == '300+75') | (data['FIELD'] == b'300+75') | (data['FIELD'] == 'M12-N') | (data['FIELD'] == b'300+75') )[0]
+        js=np.where((data['FIELD'] == 'N2243-S') | (data['FIELD'] == b'N2243-S') | (data['FIELD'] == '000+08-S') | (data['FIELD'] == b'N2243-S') | 
+                    (data['FIELD'] == '300+75-S') | (data['FIELD'] == b'300+75-S') |  (data['FIELD'] == 'M12-S') | (data['FIELD'] == b'M12-S') )[0]
         i1,i2=match.match(data['APOGEE_ID'][jn], data['APOGEE_ID'][js])
         jc=list(jn[i1])
         jc.extend(js[i2])
@@ -428,8 +485,12 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
 
     if special is not None:
         stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/'+special,names=['id'],format='fixed_width_no_header')
-        jn=np.where(data['TELESCOPE'] == 'apo25m')[0]
-        js=np.where(data['TELESCOPE'] == 'lco25m')[0]
+        if type(data['TELESCOPE'][0]) is str :
+            jn=np.where(data['TELESCOPE'] == 'apo25m')[0]
+            js=np.where(data['TELESCOPE'] == 'lco25m')[0]
+        else :
+            jn=np.where(data['TELESCOPE'] == b'apo25m')[0]
+            js=np.where(data['TELESCOPE'] == b'lco25m')[0]
         i1,i2=match.match(data['APOGEE_ID'][jn],stars['id'])
         jc=list(jn[i1])
         i1,i2=match.match(data['APOGEE_ID'][js],stars['id'])
@@ -456,7 +517,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
 
     return indata,all
 
-def mklinks(data,j,out,n=48,apred=None) :
+def mklinks(data,j,out,n=24,apred=None) :
     """ Create links in n different output directories for requested indices
     """
 
@@ -502,24 +563,31 @@ def cleandir(out,n) :
             os.makedirs('{:s}{:03d}'.format(out,i))
         except : pass
 
+def tostr(dat) :
+    if type(dat) is str : return dat
+    else : return dat.decode()
+
 def symlink(data,out,idir,load=None) :
     '''
     auxiliary routine to create symlinks to appropriate files from calibration directories
     '''
     if data['FILE'] == '' :
         data['FILE'] = os.path.basename(load.filename('Star',field=data['FIELD'],obj=data['APOGEE_ID']))
-
-    outfile='{:s}{:03d}/{:s}.{:s}.fits'.format(
-            out,idir,os.path.splitext(os.path.basename(data['FILE']))[0],data['FIELD'])
-    if data['TELESCOPE'] == 'apo25m' or data['TELESCOPE'] == 'lco25m' :
-        infile='{:s}/{:s}/{:s}'.format(data['TELESCOPE'],data['FIELD'],data['FILE'])
+    try:
+        outfile='{:s}{:03d}/{:s}.{:s}.fits'.format(
+                out,idir,os.path.splitext(os.path.basename(tostr(data['FILE'])))[0],tostr(data['FIELD']))
+    except :
+        outfile='{:s}{:03d}/{:s}.{:s}.fits'.format(
+                out,idir,os.path.splitext(os.path.basename(tostr(data['FILE'])))[0],tostr(data['FIELD']))
+    if tostr(data['TELESCOPE']) == 'apo25m' or tostr(data['TELESCOPE']) == 'lco25m' :
+        infile='{:s}/{:s}/{:s}'.format(tostr(data['TELESCOPE']),tostr(data['FIELD']),tostr(data['FILE']))
         if not os.path.exists(infile) :
-            infile='{:s}/{:d}/{:s}'.format(data['TELESCOPE'],data['LOCATION_ID'],data['FILE'])
+            infile='{:s}/{:d}/{:s}'.format(tostr(data['TELESCOPE']),data['LOCATION_ID'],tostr(data['FILE']))
     else :
-        infile='{:s}/calibration/{:s}'.format(data['TELESCOPE'],data['FILE'])
+        infile='{:s}/calibration/{:s}'.format(tostr(data['TELESCOPE']),tostr(data['FILE']))
     os.symlink('../../'+infile,outfile)
 
-def docal(infile,clobber=False,hr=True,teff=True,logg=True,vmicro=True,vmacro=True,elemcal=True,out=None,stp=False,cal='dr14',calib=False) :
+def docal(infile,clobber=False,hr=True,teff=True,logg=True,vmicro=True,vmacro=True,elemcal=True,out=None,stp=False,cal='dr14',calib=False,ebvmax=0.02) :
     '''
     Derives all calibration relations and creates plots of them, as requested
     '''
@@ -531,10 +599,19 @@ def docal(infile,clobber=False,hr=True,teff=True,logg=True,vmicro=True,vmacro=Tr
 
     c=fits.open(infile)
 
+    # if we don't have GLON/GLAT, add it
+    ebvmax=0.05
+    if (c[1].data['GLON'].max()<1) :
+        coords=SkyCoord(ra=c[1].data['RA']*units.degree,dec=c[1].data['DEC']*units.degree) 
+        c[1].data['GLON'] = coords.galactic.l
+        c[1].data['GLAT'] = coords.galactic.b
+
+
     figs=[]
     ytitle=[]
     # HR diagram
     if hr :
+        print('HR diagram...')
         reload(apselect)
         fig,ax=plots.multi(1,1)
         if calib : param='PARAM'
@@ -547,9 +624,10 @@ def docal(infile,clobber=False,hr=True,teff=True,logg=True,vmicro=True,vmacro=Tr
     allcal={}
     # Teff vs photometric
     if teff :
-        allcal['teffcal'] = teffcomp.ghb(c[1].data,ebvmax=0.02,glatmin=10,out=out+'tecal',yr=[-750,750],trange=[4500,7000],loggrange=[-1,6],calib=calib)
-        allcal['giant_teffcal'] = teffcomp.ghb(c[1].data,ebvmax=0.02,glatmin=10,out=out+'giant_tecal',yr=[-750,750],loggrange=[-1,3.8],calib=calib)
-        allcal['dwarf_teffcal'] = teffcomp.ghb(c[1].data,ebvmax=0.02,glatmin=10,trange=[4500,7000],out=out+'dwarf_tecal',yr=[-750,750],loggrange=[3.8,6],calib=calib)
+        print('Teff calibration...')
+        allcal['teffcal'] = teffcomp.ghb(c[1].data,ebvmax=ebvmax,glatmin=10,out=out+'tecal',yr=[-750,750],trange=[4500,7000],loggrange=[-1,6],calib=calib)
+        allcal['giant_teffcal'] = teffcomp.ghb(c[1].data,ebvmax=ebvmax,glatmin=10,out=out+'giant_tecal',yr=[-750,750],loggrange=[-1,3.8],calib=calib)
+        allcal['dwarf_teffcal'] = teffcomp.ghb(c[1].data,ebvmax=ebvmax,glatmin=10,trange=[4500,7000],out=out+'dwarf_tecal',yr=[-750,750],loggrange=[3.8,6],calib=calib)
         if out is not None :
             struct.wrfits(struct.dict2struct(allcal['teffcal']),out+'all_tecal.fits')
             struct.wrfits(struct.dict2struct(allcal['giant_teffcal']),out+'giant_tecal.fits')
@@ -564,11 +642,14 @@ def docal(infile,clobber=False,hr=True,teff=True,logg=True,vmicro=True,vmacro=Tr
 
     # log g vs asteroseismic
     if logg :
+        print('log g calibration...')
         allcal['rgbrcsep' ] = loggcomp.rcrgb(c[1].data,out=out+'rcrgbsep')
         allcal['giant_loggcal'] = loggcomp.apokasc(c[1].data,plotcal=False,out=out+'rcrgb_loggcal',calib=calib)
         allcal['dwarf_loggcal'] = loggcomp.dwarf(c[1].data,out=out+'logg',calib=calib)
         if out is not None :
-            struct.wrfits(struct.dict2struct(dict(allcal['rgbrcsep'].items()+allcal['giant_loggcal'].items())),
+            # following is Python 2
+            #struct.wrfits(struct.dict2struct(dict(allcal['rgbrcsep'].items()+allcal['giant_loggcal'].items())),
+            struct.wrfits(struct.dict2struct({**allcal['rgbrcsep'],**allcal['giant_loggcal']}),
                             out+'giant_loggcal.fits')
             struct.wrfits(struct.dict2struct(allcal['dwarf_loggcal']),out+'dwarf_loggcal.fits')
         if stp : pdb.set_trace()
@@ -601,10 +682,12 @@ def docal(infile,clobber=False,hr=True,teff=True,logg=True,vmicro=True,vmacro=Tr
 
     # vmacro
     if vmacro :
+        print('vmacro relation...')
         vfit.fit_vmacro(c[1].data,mhrange=[-2.5,1],reject=0.3,maxerr=0.1,out=out+'vmacro_2d')
 
     # elemental abundances
     if elemcal :
+        print('abundances ...')
         elems=np.append(c[3].data['ELEM_SYMBOL'][0],['M','alpha'])
         allcal['giant_abuncal']=elem.cal(c,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'giants_',cal=cal,errpar=True,calib=calib)
         allcal['dwarf_abuncal']=elem.cal(c,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'dwarfs_',dwarfs=True,cal=cal,calib=calib)

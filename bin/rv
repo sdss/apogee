@@ -22,6 +22,7 @@ import time
 import datetime
 
 from apogee.apred import rv
+from apogee.utils import finish
 
 if __name__ == '__main__' :
 
@@ -46,20 +47,8 @@ if __name__ == '__main__' :
     try:
         rv.doppler_rv(args.field,threads=args.threads,clobber=args.clobber,tweak=args.tweak,nres=args.nres)
         print('rv completed successfully for {:s}'.format(args.field))
+        finish.done(args.done,args.host,start)
     except:
         print('rv failed for {:s}'.format(args.field))
+        finish.done(args.done,args.host,start)
         raise
-
-    now = datetime.datetime.now()
-    print("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
-    print("elapsed: ",time.time()-start)
-
-    if args.done is not None :
-        subprocess.call(['setdone',args.done])
-        try: 
-            subprocess.call(['setdone',done])
-        except: pass
-        print('host', args.host)
-        if args.host is not None :
-            try: os.remove(args.done+'.'+args.host)
-            except: pass

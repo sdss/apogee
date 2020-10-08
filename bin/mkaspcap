@@ -23,6 +23,7 @@ if __name__ == '__main__' :
 
     parser.add_argument("config",type=str, help='configfile')
     parser.add_argument("--fields",type=str,nargs='+',help='list of fields',default=[])
+    parser.add_argument("--visits",type=int,help='number of visits to process')
     parser.add_argument("--ncpus",type=int,help='number of threads',default=16)
     parser.add_argument("--cal",type=str,help='caldir',default='cal')
     args=parser.parse_args()
@@ -51,6 +52,7 @@ if __name__ == '__main__' :
         fp.write('aspcap_config : {:s}\n'.format(cfg['aspcap_config']))
         fp.write('telescope: {:s}\n'.format(telescope))
         fp.write('instrument: {:s}\n'.format(instrument))
+        if args.visits is not None : fp.write('visits : {:d}\n'.format(args.visits))
         fp.write('apvisit: 0\n')
         fp.write('ncpus: {:d}\n'.format(args.ncpus))
         fp.write('queue: 0\n')

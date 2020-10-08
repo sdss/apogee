@@ -519,11 +519,16 @@ def getabun(data,elems,elemtoh,el,xh=False,terange=[-1,10000],calib=False,line=0
           #  else : abun[dw]-=data['FPARAM'][dw,3]
         if calib : badflag = 255
         else : badflag = 0
-        ok=np.where(( (data['ELEMFLAG'][:,iel] & badflag) == 0) &
+       
+        elemflag =  data['ELEMFLAG'][:,iel].astype(np.uint64)
+
+        #try: ok=np.where(( (data['ELEMFLAG'][:,iel] & badflag) == 0) &
+        try: ok=np.where(( (elemflag & badflag) == 0) &
                       (abunerr < 0.2) &
                       (data['FPARAM'][:,0] >= terange[0]) & 
                       (data['FPARAM'][:,0] <= terange[1]) & 
                       (abun > -9990.) )[0]
+        except: pdb.set_trace()
     return abun, ok
 
 def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, maxvisit=100,cal='default',dwarfs=False,inter=False,
@@ -545,11 +550,14 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
     clusters=apselect.clustdata()
     calclusters=['M92','M15','M13','M3','M5','M12','M35','N2420','N188','M67','N7789','Pleiades','N6819','N6791',
                  'N6397','M55','N3201','N6752','N362','M4','N2808','47TUC']
+
     #calclusters=['N2420','N188','M67','N7789','Pleiades','N6819','N6791']
+    errpar = False
+
     clusts = clusters.name
     types = np.arange(len(clusts))
-    markers = np.chararray(len(clusts))
-    colors = np.chararray(len(clusts))
+    markers = np.zeros(len(clusts),dtype=str)
+    colors = np.zeros(len(clusts),dtype=str)
     markers[np.where(clusters.mh > -999)[0]] = 's'
     markers[np.where(clusters.mh < -1)[0]] = 'o'
     markers[np.where(clusters.mh > 0)[0]] = '^'
@@ -694,11 +702,15 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
               pars = dr13cal(el,dwarfs=dwarfs)
           elif cal == 'dr14' :
               pars = dr14cal(el,dwarfs=dwarfs)
+          elif cal == 'dr16' :
+              pars = dr16cal(el,dwarfs=dwarfs)
           else :
               pars = defaultcal(el,dwarfs=dwarfs)
           if pars['elemfit'] >=0 : nels+=1
-        allfig,allax=plots.multi(2,(nels-1)/2+1,hspace=0.001,wspace=0.3,figsize=(12,18))
-        if len(solar) > 0 : allsolarfig,allsolarax=plots.multi(2,(nels-1)/2+1,hspace=0.001,wspace=0.3,figsize=(12,18))
+        # to get all elements in plots 
+        nels = len(doels)
+        allfig,allax=plots.multi(2,(nels-1)//2+1,hspace=0.001,wspace=0.3,figsize=(12,18))
+        if len(solar) > 0 : allsolarfig,allsolarax=plots.multi(2,(nels-1)//2+1,hspace=0.001,wspace=0.3,figsize=(12,18))
     if errpar :
         errfig,errax=plots.multi(len(snbins),len(doels),hspace=0.001,wspace=0.001,figsize=(3*len(snbins),2*len(doels)))
 
@@ -752,6 +764,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                       ind=np.append(ind,j)
                       clust=np.append(clust,[clusts[iclust]]*len(j))
 
+          # loop if we have individual lines analysis
           for iline in range(1+nlines) :
 
             abundata, ok = getabun(data,elems,elemtoh,el,xh=xh,calib=calib,line=iline)
@@ -852,8 +865,9 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                                         fc.write('{:8.1f}{:8.2f}{:8.2f}{:8.2f}{:5d}{:8.3f} {:s}\n'.format(
                                               teffbin+dteffbin/2.,snbin+dsnbin/2.,mhbin+dmhbin/2.,clusters[i].mh[0],len(ibin),abundata[np.array(j)[ibin]].std(),clusts[iclust]))
                                       iplt = np.where(snbins == snbin)[0][0]
-                                      plots.plotc(errax[iel,iplt],clusters[i].mh,teffbin+dteffbin/2.,abundata[np.array(j)[ibin]].std(),
+                                      try: plots.plotc(errax[iel,iplt],clusters[i].mh.tolist(),[teffbin+dteffbin/2.],[abundata[np.array(j)[ibin]].std()],
                                                     size=30,zr=[0,0.1],xr=[-2.5,0.5],yr=[3500,5500],linewidth=1)
+                                      except: pdb.set_trace()
                    
                 if errpar and iline==0 :
                     if hard is not None: 
@@ -880,11 +894,13 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                             print('errfit failed: ',el)
  
                 # get calibrated values before external calibration 
+                print('getting calibrated values....')
                 func_cal=calfunc(pars,teff,abun,mh,clust,order=pars['elemfit'],extcal=False)
                 func_uncal=calfunc(pars,teff,abun,mh,clust,order=0,extcal=False)
 
                 # get the abundances of the "solar circle" stars
                 if len(solar) > 0 and len(doels) > 2 :
+                    print('getting abundances of solar neighborhood stars....')
                     solar_teff=allstar[1].data['FPARAM'][solar,0]
                     solar_mh=allstar[1].data['FPARAM'][solar,3]
                     solar_abun,solar_ok= getabun(allstar[1].data[solar],elems,elemtoh,el,xh=xh,calib=calib)
@@ -911,6 +927,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                     pars['extpar'][1] = np.median(rec['mean'][iel][j]-clusters[j].mh)
  
                 # make plots!
+                print('making plots ...')
                 if plot :
                     if sepplot :
                         fig,ax = plots.multi(nx,ny,hspace=0.001,wspace=0.5,figsize=[12,6])
@@ -922,6 +939,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                                 ax[iy,ix].cla()
                     if iline == 0 :
                         #after calibration
+                        print('plots 1 ....')
                         plots.plotp(ax[0,0],teff[gd],abun[gd]-func_cal[gd], typeref=clust[gd],yr=[-0.29,0.29],xr=xr,
                                     types=clusts,color=colors,marker=markers,size=16,yt=el)
                         plots.plotp(ax[0,0],teff[bd],abun[bd]-func_cal[bd],typeref=clust[bd],yr=[-0.29,0.29],xr=xr,
@@ -940,6 +958,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                         ax[1,0].text(0.98,0.98,'{:5.3f}'.format((abun[gd]-func_uncal[gd]).std()),transform=ax[1,0].transAxes,va='top',ha='right')
                     # figure with all elements on same plot
                     if len(doels) > 2 :
+                        print('plots 2 ....')
                         if iline == 0 :
                             plots.plotp(allax[iplot//2,iplot%2],teff[gd],abun[gd]-func_uncal[gd],typeref=clust[gd],yr=[-0.29,0.29],xr=[3500,5500],
                                         types=clusts,color=colors,marker=markers,size=8,xt='Teff',yt=el)
@@ -969,6 +988,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                                 lineax[iline,1].text(0.05,0.8,'{:8.2f}-{:8.2f}   {:8.2f}'.format(w[0],w[1],w[2]),transform=lineax[iline,1].transAxes,fontsize=10)
 
                     # stuff for interactive plots
+                    print('plots 3 ....')
                     plots._id_cols=['APOGEE_ID','VISIT']
                     plots._id_cols=['APOGEE_ID']
                     plots._data=data[ind]
@@ -980,6 +1000,7 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
                     plots.plotl(ax[1,0],x,func)
                     if sepplot: plots.plotl(ax1,x,func)
                     if len(doels) > 2 :
+                        print('plots 4 ....')
                         # figure with all elements on same plot
                         if iline==0 : plots.plotl(allax[iplot//2,iplot%2],x,func)
                         # solar circle stars

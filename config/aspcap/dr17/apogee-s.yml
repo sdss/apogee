@@ -208,10 +208,42 @@ elems :
       griddim : 'O Mg Si S Ca Ti'
     - name : Na
       griddim : 'METALS'
+    - name : Mg
+      griddim : 'O Mg Si S Ca Ti'
     - name : Al
       griddim : 'METALS'
-  
-
+    - name : Si
+      griddim : 'O Mg Si S Ca Ti'
+    - name : P
+      griddim : 'METALS'
+    - name : S
+      griddim : 'O Mg Si S Ca Ti'
+    - name : K
+      griddim : 'METALS'
+    - name : Ca
+      griddim : 'O Mg Si S Ca Ti'
+    - name : Ti
+      griddim : 'O Mg Si S Ca Ti'
+    - name : TiII
+      griddim : 'O Mg Si S Ca Ti'
+    - name : V
+      griddim : 'METALS'
+    - name : Cr
+      griddim : 'METALS'
+    - name : Mn
+      griddim : 'METALS'
+    - name : Fe
+      griddim : 'METALS'
+    - name : Co
+      griddim : 'METALS'
+    - name : Ni
+      griddim : 'METALS'
+    - name : Cu
+      griddim : 'METALS'
+    - name : Ce
+      griddim : 'METALS'
+    - name : Nd
+      griddim : 'METALS'
 
 #CLASS coarse       0 100000 -10  10 -10  10 -1 301  turbospec/marcs/giantisotopes/tFGKM_180901_lsfcombo5_l33/p_apstFGKM_180901_lsfcombo5_l33_012_0
 #75 None 1 { 0.470794 0. 0. -0.254120 } { 1 1 1 1 1 1 1 1 } -4 3 0.  0.

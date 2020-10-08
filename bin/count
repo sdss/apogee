@@ -1,0 +1,12 @@
+#!/bin/csh
+foreach dir ( visit/apo1m visit/apo25m visit/lco25m )
+  set tel = `basename $dir`
+  ls -lt $dir/*/*VisitSum* > log/$tel.visitsum 
+  if  ( $tel == apo1m) then 
+    ls $dir/*/*/*Plan*.par > log/$tel.plan 
+  else
+    ls $dir/*/*/*/*Plan*.par > log/$tel.plan 
+  endif
+  awk -F/ '{print $4}' log/$tel.visitsum | awk -F- '{print $2, $3}' | sed 's/\.fits//' | sort -n --key=1 --key=2> log/$tel.visitsum.id
+  awk -F/ '{print $6}' log/$tel.plan | awk -F- '{print $2, $3}' | sed 's/\.par//' | sort -n --key=1 --key=2 > log/$tel.plan.id
+end

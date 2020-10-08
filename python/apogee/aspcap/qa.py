@@ -424,15 +424,15 @@ def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
     # HR diagrams
     grid=[]
     row=[]
-    aspcap.hr(a[i1],hard=out+'hr_match1.png',grid=True,size=1)
+    hr(a[i1],hard=out+'hr_match1.png',grid=True,size=1)
     row.append(os.path.basename(out+'hr_match1.png'))
-    aspcap.hr(b[i2],hard=out+'hr_match2.png',grid=True,size=1)
+    hr(b[i2],hard=out+'hr_match2.png',grid=True,size=1)
     row.append(os.path.basename(out+'hr_match2.png'))
     grid.append(row)
     row=[]
-    aspcap.hr(a[i1],hard=out+'hrcal_match1.png',param='PARAM',grid=True,size=1)
+    hr(a[i1],hard=out+'hrcal_match1.png',param='PARAM',grid=True,size=1)
     row.append(os.path.basename(out+'hrcal_match1.png'))
-    aspcap.hr(b[i2],hard=out+'hrcal_match2.png',param='PARAM',grid=True,size=1)
+    hr(b[i2],hard=out+'hrcal_match2.png',param='PARAM',grid=True,size=1)
     row.append(os.path.basename(out+'hrcal_match2.png'))
     grid.append(row)
     hrtab=html.table(grid)

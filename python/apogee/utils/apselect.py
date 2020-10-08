@@ -202,7 +202,7 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
 
     return gd
 
-def clustdata() :
+def clustdata(gals=True) :
     """
     Returns structure containing cluster data
     """
@@ -217,6 +217,9 @@ def clustdata() :
         'M4','N2808','Pal6','47TUC','Pal1','N6539','N6388','Terzan12','N6441','N6316',
         'N6760','Terzan5','N6553','N6528',
         'SGRC-1','SGRC-3','SGRC-4','SCULPTOR','CARINA','LMC9','SMC3']
+    gd = np.arange(len(clust))
+    if gals == False : 
+        gd = np.where(np.array(clust[0:-7]) != 'Omegacen')[0]
 
     out = np.recarray(len(clust),dtype=[
                        ('name','U24'),
@@ -353,14 +356,14 @@ def clustdata() :
              13.00,13.30,8.20,16.60,
              90.,90.,90.,90.,90.,90.,90.]
 
-    return out.view(np.recarray)
+    return out[gd].view(np.recarray)
 
 
 def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=True,raw=False,firstgen=False,firstpos=True,
                 ratag='RA',dectag='DEC',rvtag='VHELIO',idtag='APOGEE_ID',btag='J',rtag='K',
-                plot=False,hard=None) :
+                plot=False,hard=None,gals=True) :
 
-    clust=clustdata()
+    clust=clustdata(gals=gals)
     ic = np.where( np.core.defchararray.strip(clust.name) == cluster)[0]
     if len(ic) == 0 :
         print('no cluster found: ',cluster)

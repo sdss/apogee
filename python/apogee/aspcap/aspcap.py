@@ -256,9 +256,10 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
             #if visits=1 take ALL visits, else take min(visits,row['NVISITS'])
             if visits == 1 : nvisits = row['NVISITS']
             else : nvisits = np.min([visits,row['NVISITS']])
-            for ivisit in range(nvisits) :
-                row['VISIT'] = ivisit+1
-                newfield.add_row(row)
+            if nvisits > 1 :
+                for ivisit in range(nvisits) :
+                    row['VISIT'] = ivisit+1
+                    newfield.add_row(row)
         aspcapfield = newfield
 
     # read ASPCAP configuration
@@ -335,6 +336,8 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
             else : 
                 row=star['VISIT']+1
                 star['SNR'] = apstar.header['SNRVIS{:d}'.format(star['VISIT'])]
+                star['APOGEE_ID'] = '{:s}.{:d}'.format(star['APOGEE_ID'],star['VISIT'])
+        print(star['APOGEE_ID'])
 
         norm=np.nanmedian(apStar2aspcap(apstar.flux[row,:]))
         aspcapspec['OBS'][istar] = apStar2aspcap(apstar.flux[row,:])/norm
@@ -373,11 +376,12 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
     aspcap_config=plan['aspcap_config']
     instrument=plan['instrument']
     telescope=plan['telescope']
+    visits=plan['visits']
     field=plan['field']
 
     # get initial aspcapField if not provided
     if aspcapdata is None : 
-        aspcapfield,aspcapspec=apField2aspcapField(planfile,nobj=nobj,minerr=minerr,apstar_vers=apstar_vers)
+        aspcapfield,aspcapspec=apField2aspcapField(planfile,nobj=nobj,minerr=minerr,apstar_vers=apstar_vers,visits=visits)
     else :
         aspcapfield = copy.deepcopy(aspcapdata[0])
         aspcapspec = copy.deepcopy(aspcapdata[1])
@@ -691,7 +695,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
         fp=open(outdir+'/ferre/'+grid['name']+'.nmlfiles','w')
         fit = False
         for ielem,elem in enumerate(config['elems']) :
-        
+            print('Element: ', elem) 
             # set up output FERRE directory for this grid
             dirname='elem_'+elem['name']
             if calib: dirname=dirname+'_PARAM'

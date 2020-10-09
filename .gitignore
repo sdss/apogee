@@ -103,7 +103,3 @@ ENV/
 # mypy
 .mypy_cache/
 
-external/synple/bin
-external/synple/synspec/list2bin
-external/synple/synspec/rotin3
-external/synple/synspec/s54d

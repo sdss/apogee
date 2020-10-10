@@ -275,7 +275,7 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
     aspcapfield.add_column(Column(name='CHI2_CLASS',dtype=float,shape=(ngrids),length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='FPARAM',dtype=float,shape=(nparam),length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='FPARAM_COV',dtype=float,shape=(nparam,nparam),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='PARAM_CHI2',dtype=float,length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='ASPCAP_CHI2',dtype=float,length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='PARAM',dtype=float,shape=(nparam),length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='PARAM_COV',dtype=float,shape=(nparam,nparam),length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='PARAMFLAG',dtype=np.uint64,shape=(nparam),length=len(aspcapfield)))
@@ -376,7 +376,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
     aspcap_config=plan['aspcap_config']
     instrument=plan['instrument']
     telescope=plan['telescope']
-    visits=plan['visits']
+    visits = plan['visits'] if plan.get('visits') else 0
     field=plan['field']
 
     # get initial aspcapField if not provided
@@ -403,7 +403,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
     aspcapfield['ASPCAPFLAG'] |= aspcapmask.getval('NO_GRID')
 
     # reset CHI2 if we are iterating on a previous solution
-    aspcapfield['PARAM_CHI2'] = 0.
+    aspcapfield['ASPCAP_CHI2'] = 0.
     pars=params()[0]
 
     # loop over all grids
@@ -512,16 +512,16 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
             if len(i) == 0 : continue
             aspcapfield['FPARAM_CLASS'][gd[istar],igrid,:] = param['FPARAM'][i]
             aspcapfield['FPARAM_COV_CLASS'][gd[istar],igrid,:] = param['FPARAM_COV'][i]
-            aspcapfield['CHI2_CLASS'][gd[istar],igrid] = param['PARAM_CHI2'][i]
-            # if this is the lowest CHI2, store in FPARAM and PARAM_CHI2
+            aspcapfield['CHI2_CLASS'][gd[istar],igrid] = param['ASPCAP_CHI2'][i]
+            # if this is the lowest CHI2, store in FPARAM and ASPCAP_CHI2
             # penalize GK grid in favor of finer M grid
-            chi2 = param['PARAM_CHI2'][i]
+            chi2 = param['ASPCAP_CHI2'][i]
             if ('GK' in grid['name']) and (param['FPARAM'][i,0] < 3985) : 
                 print('penalizing GK')
                 chi2 *= 10
-            if chi2 < aspcapfield['PARAM_CHI2'][gd[istar]] or aspcapfield['PARAM_CHI2'][gd[istar]]<=0 :
+            if chi2 < aspcapfield['ASPCAP_CHI2'][gd[istar]] or aspcapfield['ASPCAP_CHI2'][gd[istar]]<=0 :
                 aspcapfield['CLASS'][gd[istar]] = grid['name']
-                aspcapfield['PARAM_CHI2'][gd[istar]] = param['PARAM_CHI2'][i]
+                aspcapfield['ASPCAP_CHI2'][gd[istar]] = param['ASPCAP_CHI2'][i]
                 aspcapfield['FPARAM'][gd[istar]] = param['FPARAM'][i]
                 aspcapfield['FPARAM_COV'][gd[istar]] = param['FPARAM_COV'][i]
                 aspcapfield['ASPCAPFLAG'][gd[istar]] = param['ASPCAPFLAG'][i]
@@ -763,7 +763,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
                     aspcapfield['FELEM'][gd[istar],jelem] = param['FPARAM'][i,index]
                     if param['FPARAM_COV'][i,index,index] > 0 :
                         aspcapfield['FELEM_ERR'][gd[istar],jelem] = np.sqrt(param['FPARAM_COV'][i,index,index])
-                    aspcapfield['ELEM_CHI2'][gd[istar],jelem] = param['PARAM_CHI2'][i]
+                    aspcapfield['ELEM_CHI2'][gd[istar],jelem] = param['ASPCAP_CHI2'][i]
                     aspcapfield['ELEMFLAG'][gd[istar],jelem] = param['PARAMFLAG'][i,index]
                 except: pdb.set_trace()
 
@@ -912,7 +912,7 @@ def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
         fp.write('<FONT COLOR=blue> STARFLAGS </FONT>: {:s}<BR>\n'.format(aspcapfield['STARFLAGS'][istar]))
         fp.write('<FONT COLOR=blue> ASPCAPFLAGS </FONT>: {:s}<BR>\n'.format(aspcapfield['ASPCAPFLAGS'][istar]))
         fp.write('<TD>{:s}\n'.format(aspcapfield['CLASS'][istar]))
-        fp.write('<TD>{:6.1f}\n'.format(aspcapfield['PARAM_CHI2'][istar]))
+        fp.write('<TD>{:6.1f}\n'.format(aspcapfield['ASPCAP_CHI2'][istar]))
         for ipar in range(8) :
             p = aspcapfield['FPARAM'][istar,ipar]
             if aspcapfield['FPARAM_COV'][istar,ipar,ipar] > 0 :

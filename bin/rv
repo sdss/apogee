@@ -38,6 +38,8 @@ if __name__ == '__main__' :
     parser.add_argument("--host")
     parser.add_argument("--flag",type=str,default='11111')
     parser.add_argument('--clobber', help='Overwrite files?',action="store_true")
+    parser.add_argument('--rvclobber', help='Overwrite RV files?',action="store_true")
+    parser.add_argument('--vcclobber', help='Overwrite visitcomb files?',action="store_true")
     args=parser.parse_args()
 
     now = datetime.datetime.now()
@@ -45,7 +47,7 @@ if __name__ == '__main__' :
     print("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
 
     try:
-        rv.doppler_rv(args.field,threads=args.threads,clobber=args.clobber,tweak=args.tweak,nres=args.nres)
+        rv.doppler_rv(args.field,threads=args.threads,clobber=args.clobber,rvclobber=args.rvclobber,vcclobber=args.vcclobber,tweak=args.tweak,nres=args.nres)
         print('rv completed successfully for {:s}'.format(args.field))
         finish.done(args.done,args.host,start)
     except:

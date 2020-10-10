@@ -549,7 +549,7 @@ from apogee.apred import bc
 
 def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_vers=None,obj=None,
                nobj=0,threads=8,maxvisit=500,snmin=3,nres=[5,4.25,3.5],
-               clobber=False,verbose=False,tweak=False,plot=False,windows=None) :
+               clobber=False,rvclobber=False,vcclobber=False,verbose=False,tweak=False,plot=False,windows=None) :
     """ Run DOPPLER RVs for a field
     """ 
   
@@ -563,7 +563,11 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
 
     telescope=plan['telescope']
     field=plan['field']
- 
+
+    if clobber :
+        rvclobber= True 
+        vcclobber= True 
+
     # get all the VisitSum files for this field and concatenate them
     files=glob.glob(os.environ['APOGEE_REDUX']+'/'+apred+'/visit/'+telescope+'/'+field+'/apVisitSum*')
     if len(files) == 0 :
@@ -663,7 +667,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         nvisit+=len(visits)
 
         if len(visits) > 0 :
-            allfiles.append([allvisits[gd[visits]],load,(field,star,clobber,verbose,tweak,plot,windows,apstar_vers)])
+            allfiles.append([allvisits[gd[visits]],load,(field,star,rvclobber,verbose,tweak,plot,windows,apstar_vers)])
     print('total objects: ', nobj, ' total visits: ', nvisit) 
 
     # now do the RVs, in parallel if requested
@@ -749,7 +753,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                 # set up visit combination, removing visits with suspect RVs
                 gdrv = np.where((allvisits[visits]['STARFLAG'] & starmask.getval('RV_REJECT')) == 0)[0]
                 if len(gdrv) > 0 : 
-                    allv.append([allvisits[visits[gdrv]],load,(field,apogee_id,clobber,apstar_vers,nres)])
+                    allv.append([allvisits[visits[gdrv]],load,(field,apogee_id,vcclobber,apstar_vers,nres)])
                 else :
                     bd = np.where(allfield['APOGEE_ID'] == apogee_id.encode())[0]
                     if len(bd) > 0 : 
@@ -832,7 +836,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         star['ANDFLAGS'] = starmask.getname(star['ANDFLAG'])
         star['TARGFLAGS'] = (bitmask.targflags(star['APOGEE_TARGET1'],star['APOGEE_TARGET2'],star['APOGEE_TARGET3'],0,survey='apogee')+
                              bitmask.targflags(star['APOGEE2_TARGET1'],star['APOGEE2_TARGET2'],star['APOGEE2_TARGET3'],star['APOGEE2_TARGET4'],survey='apogee2'))
-    pdb.set_trace()
+    
     # add GAIA information
     allfield=gaia.add_gaia(allfield)
 
@@ -1236,15 +1240,19 @@ def mkhtml(field,suffix='',apred='r13',telescope='apo25m',apstar_vers='stars') :
 
     # match
     if doapfield: i1,i2 = match.match(apfv['FILE'],apfieldvisits['FILE'])
-    fig,ax=plots.multi(1,2,figsize=(12,4),hspace=0.5)
+    fig,ax=plots.multi(1,3,figsize=(12,6),hspace=0.5)
     ax[0].hist(apf['VHELIO_AVG'],bins=np.arange(-600,600,5),label='doppler',color='g',histtype='step')
     if doapfield: ax[0].hist(apfield['VHELIO_AVG'],bins=np.arange(-600,600,5),label='IDL',color='r',histtype='step')
     ax[0].legend()
     ax[0].set_xlabel('VHELIO_AVG')
     ax[1].hist(apf['VSCATTER'],bins=np.arange(0,5,0.02),label='doppler',color='g',histtype='step')
-    if doapfield: ax[1].hist(apfield['VSCATTER'],bins=np.arange(0,1,0.02),label='IDL',color='r',histtype='step')
+    if doapfield: ax[1].hist(apfield['VSCATTER'],bins=np.arange(0,5,0.02),label='IDL',color='r',histtype='step')
     ax[1].legend()
     ax[1].set_xlabel('VSCATTER')
+    ax[2].hist(apf['SNR'],bins=np.arange(0,200,5),label='doppler',color='g',histtype='step')
+    if doapfield: ax[2].hist(apfield['SNR'],bins=np.arange(0,200,5),label='IDL',color='r',histtype='step')
+    ax[2].legend()
+    ax[2].set_xlabel('SNR')
     fig.savefig(outdir+'/plots/'+field+'_rvhist.png')
 
     # create HTML and loop over objects
@@ -1447,12 +1455,12 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
     if load is None : load = apload.ApLoad(apred=apred,telescope=telescope)
     cspeed = 2.99792458e5  # speed of light in km/s
 
-    print('doing visitcomb for {:s} '.format(allvisit['APOGEE_ID'][0]))
 
     wnew=aspcap.apStarWave()  
     nwave=len(wnew)
     nvisit=len(allvisit)
 
+    print('doing visitcomb for {:s}, nvisit: {:d}'.format(allvisit['APOGEE_ID'][0],nvisit))
     # initialize array for stack of interpolated spectra
     zeros = np.zeros([nvisit,nwave])
     izeros = np.zeros([nvisit,nwave],dtype=int)
@@ -1568,8 +1576,12 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
             except: pass
 
     # create final spectrum
-    zeros = np.zeros([nvisit+2,nwave])
-    izeros = np.zeros([nvisit+2,nwave],dtype=int)
+    if nvisit > 1 :
+        zeros = np.zeros([nvisit+2,nwave])
+        izeros = np.zeros([nvisit+2,nwave],dtype=int)
+    else :
+        zeros = np.zeros([1,nwave])
+        izeros = np.zeros([1,nwave],dtype=int)
     apstar=apload.ApSpec(zeros,err=zeros.copy(),bitmask=izeros,wave=aspcap.apStarWave(),
                 sky=zeros.copy(),skyerr=zeros.copy(),telluric=zeros.copy(),telerr=zeros.copy(),
                 cont=zeros.copy(),template=zeros.copy())
@@ -1586,19 +1598,27 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
     apstar.bitmask[0,:] = np.bitwise_and.reduce(stack.bitmask,0)
     apstar.cont[0,:] = cont
 
-    # individual visits
-    apstar.flux[2:,:] = stack.flux * stack.cont
-    apstar.err[2:,:] = stack.err * stack.cont
-    apstar.bitmask[2:,:] = stack.bitmask
-    apstar.sky[2:,:] = stack.sky
-    apstar.skyerr[2:,:] = stack.skyerr
-    apstar.telluric[2:,:] = stack.telluric
-    apstar.telerr[2:,:] = stack.telerr
+    # global weighting and individual visits
+    if nvisit > 1 :
+        # "global" weighted average
+        newerr = median_filter(stack.err,[1,100],mode='reflect')
+        bd = np.where((stack.bitmask&pixelmask.getval('SIG_SKYLINE')) > 0)[0]
+        if len(bd) > 0 : newerr[bd[0],bd[1]] *= np.sqrt(100)
+        apstar.flux[1,:] = np.sum(stack.flux/newerr**2,axis=0)/np.sum(1./newerr**2,axis=0) * cont
+        apstar.err[1,:] =  np.sqrt(1./np.sum(1./newerr**2,axis=0)) * cont
+
+        apstar.flux[2:,:] = stack.flux * stack.cont
+        apstar.err[2:,:] = stack.err * stack.cont
+        apstar.bitmask[2:,:] = stack.bitmask
+        apstar.sky[2:,:] = stack.sky
+        apstar.skyerr[2:,:] = stack.skyerr
+        apstar.telluric[2:,:] = stack.telluric
+        apstar.telerr[2:,:] = stack.telerr
 
     # populate header
     apstar.header['FIELD'] = (allvisit['FIELD'][0], 'APOGEE field name')
     apstar.header['OBJID'] = (allvisit['APOGEE_ID'][0], 'APOGEE object name')
-    try :apstar.header['SNR'] = (np.nanmedian(apstar.flux/apstar.err), 'Median S/N per apStar pixel')
+    try :apstar.header['SNR'] = (np.nanmedian(apstar.flux[0,:]/apstar.err[0,:]), 'Median S/N per apStar pixel')
     except :apstar.header['SNR'] = (0., 'Median S/N per apStar pixel')
     apstar.header['RA'] = (allvisit['RA'].max(), 'right ascension, deg, J2000')
     apstar.header['DEC'] = (allvisit['DEC'].max(), 'declination, deg, J2000')

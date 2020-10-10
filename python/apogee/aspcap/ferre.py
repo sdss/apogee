@@ -183,11 +183,11 @@ def read(name,libfile) :
     a=np.zeros(nobj, dtype=[('APOGEE_ID','S100'),
                               ('FPARAM','f4',(ntotparams)),
                               ('FPARAM_COV','f4',(ntotparams,ntotparams)),
-                              ('PARAM_CHI2','f4'),
+                              ('ASPCAP_CHI2','f4'),
                               ('PARAMFLAG','i4',(ntotparams)),
                               ('ASPCAPFLAG','i4')])
     a['APOGEE_ID']=ipfobj
-    a['PARAM_CHI2']=chi2
+    a['ASPCAP_CHI2']=chi2
 
     parammask=bitmask.ParamBitMask()
     aspcapmask=bitmask.AspcapBitMask()

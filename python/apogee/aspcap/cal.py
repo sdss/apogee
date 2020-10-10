@@ -69,21 +69,108 @@ def allField(search=['apo*/*/a?Field-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?
 
     return all
 
-def m67(all) :
 
-    m67=[]
+def plotclust(all,cluster='M67',hard=None) :
+
+    inds=[]
     for a in all :
-        m67.append(np.array(apselect.clustmember(a,'M67',raw=True)))
+        inds.append(np.array(apselect.clustmember(a,cluster,raw=True)))
 
     els = aspcap.elems()[0]
     fig,ax=plots.multi(1,len(all),hspace=0.001)
-    for iel,el in enumerate(els) :
-        for i,(a,j) in enumerate(zip(all,m67)) :
+
+    for i,(a,j) in enumerate(zip(all,inds)) :
+        ax[i].cla()
+        try: plots.plotc(ax[i],a['FPARAM'][j,1],a['ASPCAP_CHI2'][j],a['FPARAM'][j,0],yt='CHI2',
+                    xr=[0,5],yr=[0,30],xt='log g')
+        except: plots.plotc(ax[i],a['FPARAM'][j,1],a['PARAM_CHI2'][j],a['FPARAM'][j,0],yt='CHI2',
+                    xr=[0,5],yr=[0,30],xt='log g')
+        fig.suptitle(cluster)
+    if hard is not None:
+        fig.savefig(hard+cluster+'_'+'chi2'+'.png')
+    else : pdb.set_trace()    
+
+    for iparam,param in zip([3,4,5,6],['M','Cpar','Npar','alpha']) :
+        for i,(a,j) in enumerate(zip(all,inds)) :
             ax[i].cla()
-            plots.plotc(ax[i],a['FPARAM'][j,1],a['FELEM'][j,iel],a['FPARAM'][j,0],yt=el,
-                    xr=[0,5],yr=[-0.3,0.3])
-        pdb.set_trace()    
-    return m67
+            ymed=np.median(a['FPARAM'][j,iparam])
+            print(param,ymed)
+            plots.plotc(ax[i],a['FPARAM'][j,1],a['FPARAM'][j,iparam],a['FPARAM'][j,0],yt=param,
+                        xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g')
+            fig.suptitle(cluster)
+        if hard is not None:
+            fig.savefig(hard+cluster+'_'+param+'.png')
+        else : pdb.set_trace()    
+
+    # parameter [C/N]
+    for i,(a,j) in enumerate(zip(all,inds)) :
+        ax[i].cla()
+        ymed=np.median(a['FPARAM'][j,4]-a['FPARAM'][j,5])
+        plots.plotc(ax[i],a['FPARAM'][j,1],a['FPARAM'][j,4]-a['FPARAM'][j,5],a['FPARAM'][j,0],yt='[Cpar/Npar]',
+                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g')
+        fig.suptitle(cluster)
+    if hard is not None:
+        fig.savefig(hard+cluster+'_'+'Cpar_Npar'+'.png')
+    else : pdb.set_trace()    
+
+    # element [C/N]
+    for i,(a,j) in enumerate(zip(all,inds)) :
+        ax[i].cla()
+        try :
+            ymed=np.median(a['FELEM'][j,0]-a['FELEM'][j,2])
+            plots.plotc(ax[i],a['FPARAM'][j,1],a['FELEM'][j,0]-a['FELEM'][j,2],a['FPARAM'][j,0],yt='[C/N]',
+                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g')
+        except :
+            ymed=np.median(a['FELEM'][j,0,0]-a['FELEM'][j,0,2])
+            plots.plotc(ax[i],a['FPARAM'][j,1],a['FELEM'][j,0,0]-a['FELEM'][j,0,2],a['FPARAM'][j,0],yt='[C/N]',
+                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g')
+        fig.suptitle(cluster)
+    if hard is not None:
+        fig.savefig(hard+cluster+'_'+'C_N'+'.png')
+    else : pdb.set_trace()    
+
+    for iel,el in enumerate(els) :
+        for i,(a,j) in enumerate(zip(all,inds)) :
+            ax[i].cla()
+            try:
+                ymed=np.median(a['FELEM'][j,iel])
+                plots.plotc(ax[i],a['FPARAM'][j,1],a['FELEM'][j,iel],a['FPARAM'][j,0],yt=el,
+                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g')
+            except:
+                ymed=np.median(a['FELEM'][j,0,iel])
+                plots.plotc(ax[i],a['FPARAM'][j,1],a['FELEM'][j,0,iel],a['FPARAM'][j,0],yt=el,
+                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g')
+            fig.suptitle(cluster)
+        if hard is not None:
+            fig.savefig(hard+cluster+'_'+el+'.png')
+        else : pdb.set_trace()    
+    plt.close()
+    return inds
+
+def allclust(all,clusters=['M67','N7789','N6819','N6791','M3','M15']) :
+    allinds=[]
+    for cluster in clusters :
+        inds=plotclust(all,cluster=cluster,hard='plots/')
+        allinds.append(inds)
+
+    grid=[]
+    for param in ['chi2','M','Cpar','Npar','alpha','Cpar_Npar','C_N'] :
+        row=[]
+        for clust in clusters :
+            fig=clust+'_'+param+'.png'
+            row.append(fig)
+        grid.append(row)
+
+    for el in aspcap.elems()[0] :
+        row=[]
+        for clust in clusters :
+            fig=clust+'_'+el+'.png'
+            row.append(fig)
+        grid.append(row)
+
+    html.htmltab(grid,file='plots/clust.html')
+    return allinds
+
     
 def allCal(search=['clust???/aspcapField-*.fits','cal???/aspcapField-*.fits'],nelem=15,out='allCal.fits',allfield=None) :
     '''
@@ -364,11 +451,6 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
     all=[]
     if clusters :
         jc=[]
-        fstars=open(dir+'/allclust.txt','w')
-        f=html.head(file=dir+'/'+file)
-        f.write('<A HREF=allclust.txt> cluster stars list </a>')
-        f.write('<TABLE BORDER=2>\n')
-        f.write('<TR><TD>NAME<TD>RA<TD>DEC<TD>Radius<TD>RV<TD>Delta RV<TD>Position criterion<TD>RV criterion<TD>PM criterion<TD>Parallax criterion<TD> CMD')
         clust=apselect.clustdata(gals=False)
         for ic in range(len(clust.name)) :
             print(clust[ic].name)
@@ -376,17 +458,6 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
             print(clust[ic].name,len(j))
             # clusters to exclude here
             if (clust[ic].name not in ['OmegaCen','Pal1','Pal6','Pal5','Terzan12'])  and (len(j) >= 5): jc.extend(j)
-            f.write('<TR><TD><A HREF='+clust[ic].name+'.txt>'+clust[ic].name+'</A><TD>{:12.6f}<TD>{:12.6f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
-                    clust[ic].ra,clust[ic].dec,clust[ic].rad,clust[ic].rv,clust[ic].drv))
-            f.write('<TD><A HREF='+clust[ic].name+'_pos.png><IMG SRC='+clust[ic].name+'_pos.png width=300></A>\n')
-            f.write('<TD><A HREF='+clust[ic].name+'_rv.png><IMG SRC='+clust[ic].name+'_rv.png width=300></A>\n')
-            f.write('<TD><A HREF='+clust[ic].name+'_pm.png><IMG SRC='+clust[ic].name+'_pm.png width=300></A>\n')
-            f.write('<TD><A HREF='+clust[ic].name+'_parallax.png><IMG SRC='+clust[ic].name+'_parallax.png width=300></A>\n')
-            f.write('<TD><A HREF='+clust[ic].name+'_cmd.png><IMG SRC='+clust[ic].name+'_cmd.png width=300></A>\n')
-            np.savetxt(dir+'/'+clust[ic].name+'.txt',data[jc]['APOGEE_ID'],fmt='%s')
-            for star in data[jc]['APOGEE_ID'] : fstars.write('{:s} {:s}\n'.format(star,clust[ic].name))
-        html.tail(f)
-        fstars.close()
         print('Number of cluster stars: ',len(jc))
         if mkindiv: mklinks(data,jc,dir+'_clust',apred=apred)
         all.extend(jc)

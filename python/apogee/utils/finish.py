@@ -1,5 +1,8 @@
 import time
 import datetime
+import os
+import subprocess
+
 
 def done(done,host,start) :
 

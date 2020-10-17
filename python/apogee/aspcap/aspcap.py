@@ -585,6 +585,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                           ('ELEMTOH','i4',len(elems()[0])),
                           ('ELEM_VALUE','S12',len(elems()[2])),
                           ('CLASSES','S5',len(config['grids']))])
+    aspcapkey['WAVE'] = wave
     aspcapkey['PARAM_SYMBOL'] = params()[1]
     aspcapkey['ELEM_SYMBOL'] = elems()[0]
     aspcapkey['ELEMTOH'] = elems()[1]

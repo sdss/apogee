@@ -19,6 +19,7 @@ from sdss_access.sync.http import HttpAccess
 import pdb
 import sys
 from astroquery.gaia import Gaia
+
 from esutil import htm
 
 import numpy as np
@@ -197,7 +198,11 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
         gd=gd[gdclass]
 
     if field is not None :
-        gdfield = np.where(np.core.defchararray.strip(data['FIELD'][gd]) ==field)[0]
+        if type(field) is str : field=[field]
+        gdfield=[]
+        for f in field :
+            gdfield.extend(np.where((np.core.defchararray.strip(data['FIELD'][gd]) ==f) |
+                                    (np.core.defchararray.strip(data['FIELD'][gd]) ==f.encode())  )[0])
         gd=gd[gdfield]
 
     return gd

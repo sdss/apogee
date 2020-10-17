@@ -643,6 +643,7 @@ FOR i=0L,nplanfiles-1 do begin
            VREL:999999.0,vrelerr:999999.0,VHELIO:999999.0,Vlsr:999999.0,Vgsr:999999.0,$
            chisq:0.0,rv_teff:0.0,rv_feh:99.9,rv_logg:99.9,rv_alpha: 99.9,rv_carb: 99.9,synthfile:''}
 
+    visitstr.file=visitfile
     visitstr.apogee_id=obj[istar]
     visitstr.target_id=targid[istar]
     visitstr.fiberid=objdata[istar].fiberid

@@ -221,11 +221,11 @@ def read(name,libfile) :
     out=np.empty(nobj, dtype=[('obj','S24'),('spm',sform),('obs',form),('frd',form),('err',form),('mdl',form),('chi2',form)])
     out['obj']=ipfobj
     out['spm'][i1,:]=spm[i2,:]
-    out['obs']=readspec(name+'.obs')[i2,:]
-    out['frd']=readspec(name+'.frd')[i2,:]
-    out['err']=readspec(name+'.err')[i2,:]
-    out['mdl']=readspec(name+'.mdl')[i2,:]
-    out['chi2']=(out['obs']-out['mdl'])**2/out['err']**2
+    out['obs'][i1,:]=readspec(name+'.obs')[i2,:]
+    out['frd'][i1,:]=readspec(name+'.frd')[i2,:]
+    out['err'][i1,:]=readspec(name+'.err')[i2,:]
+    out['mdl'][i1,:]=readspec(name+'.mdl')[i2,:]
+    out['chi2'][i1,:]=(out['obs']-out['mdl'])**2/out['err']**2
 
     return a,out,wave
 

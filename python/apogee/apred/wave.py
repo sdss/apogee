@@ -38,7 +38,7 @@ chips=['a','b','c']
 colors=['r','g','b','c','m','y']
 xlim=[[16400,17000],[15900,16500],[15100,15800]]
 
-def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],npoly=4,reject=3,
+def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],npoly=4,reject=3,pixellim=[3,2043],
             plot=False,hard=True,verbose=False,clobber=False,init=False,nofit=False,test=False) :
     """ APOGEE wavelength calibration
 
@@ -145,7 +145,8 @@ def wavecal(nums=[2420038],name=None,vers='current',inst='apogee-n',rows=[150],n
     # loop over requested rows
     for irow,row in enumerate(rows) :
         # set up independent variable array with pixel, chip, groupid, and dependent variable (wavelength)
-        thisrow = np.where((linestr['row'] == row) & (linestr['peak'] > 100) & (linestr['pixel']>0) )[0]
+        thisrow = np.where((linestr['row'] == row) & (linestr['peak'] > 100) & 
+                           (linestr['pixel']>pixellim[0]) & (linestr['pixel']<pixellim[1]) )[0]
         x = np.zeros([3,len(thisrow)])
         x[0,:] = linestr['pixel'][thisrow]
         x[1,:] = linestr['chip'][thisrow]

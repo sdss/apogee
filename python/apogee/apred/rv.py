@@ -616,7 +616,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                           ('TARG_PMRA',float),('TARG_PMDEC',float),('TARG_PM_SRC','S16'),
                           ('AK_TARG',float),('AK_TARG_METHOD','S32'),
                           ('AK_WISE',float),('SFD_EBV',float),
-                          ('APOGEE_TARGET1',int),('APOGEE_TARGET2',int),('APOGEE_TARGET3',int),
+                          ('APOGEE_TARGET1',int),('APOGEE_TARGET2',int),
                           ('APOGEE2_TARGET1',int),('APOGEE2_TARGET2',int),('APOGEE2_TARGET3',int),('APOGEE2_TARGET4',int),
                           ('TARGFLAGS','S132'),('SURVEY','S16'),('PROGRAMNAME','S32'),
                           ('NINST',int),('NVISITS',int),('COMBTYPE',int),('COMMISS',int),
@@ -659,6 +659,9 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         for key in keys :
             try: allfield['TARG_'+key][iobj] = allvisits[key][visit0]
             except KeyError: pass
+        #initialize VHELIO_AVG in case RV fails
+        allfield['VHELIO_AVG'] = np.nan
+        allfield['N_COMPONENTS'] = -1
 
         # we will only consider good visits for RVs and combination
         visits=np.where(allvisits['APOGEE_ID'][gd] == star)[0]
@@ -747,6 +750,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                     allvisits[visit]['STARFLAG'] |= starmask.getval('RV_REJECT')
                 elif (np.abs(allvisits[visit]['VHELIO']-allvisits[visit]['XCORR_VHELIO']) > 0) :
                     allvisits[visit]['STARFLAG'] |= starmask.getval('RV_SUSPECT')
+                allvisits[visit]['STARFLAGS'] = starmask.getname(allvisits[visit]['STARFLAG'])
 
             if len(visits) > 0 :
                 visits=np.array(visits)
@@ -759,12 +763,16 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                     if len(bd) > 0 : 
                         allfield['STARFLAG'][bd] |= starmask.getval('RV_FAIL') 
                         allfield['ANDFLAG'][bd] |= starmask.getval('RV_FAIL') 
+                        allfield['STARFLAG'][bd] |= starmask.getval('RV_REJECT') 
+                        allfield['ANDFLAG'][bd] |= starmask.getval('RV_REJECT') 
         else :
-            for v in files[0] : 
-                v['STARFLAG'] |= starmask.getval('RV_FAIL')
             bd = np.where(allfield['APOGEE_ID'] == apogee_id.encode())[0]
             if len(bd) > 0 : 
                 allfield['ANDFLAG'][bd] |= starmask.getval('RV_FAIL') 
+            bd = np.where(allvisits['APOGEE_ID'] == apogee_id.encode())[0]
+            if len(bd) > 0 : 
+                allvisits['STARFLAG'][bd] |= starmask.getval('RV_FAIL') 
+                for b in bd: allvisits['STARFLAGS'][b] = starmask.getname(allvisits[b]['STARFLAG'])
 
     # do the visit combination, in parallel if requested
     if threads == 0 :
@@ -803,7 +811,6 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         apogee2_target4 = apstar.header['AP2TARG4']
         allfield['APOGEE_TARGET1'][j] = apogee_target1
         allfield['APOGEE_TARGET2'][j] = apogee_target2
-        allfield['APOGEE_TARGET3'][j] = apogee_target3
         allfield['APOGEE2_TARGET1'][j] = apogee2_target1
         allfield['APOGEE2_TARGET2'][j] = apogee2_target2
         allfield['APOGEE2_TARGET3'][j] = apogee2_target3
@@ -834,7 +841,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     for star in allfield :
         star['STARFLAGS'] = starmask.getname(star['STARFLAG'])
         star['ANDFLAGS'] = starmask.getname(star['ANDFLAG'])
-        star['TARGFLAGS'] = (bitmask.targflags(star['APOGEE_TARGET1'],star['APOGEE_TARGET2'],star['APOGEE_TARGET3'],0,survey='apogee')+
+        star['TARGFLAGS'] = (bitmask.targflags(star['APOGEE_TARGET1'],star['APOGEE_TARGET2'],0,0,survey='apogee')+
                              bitmask.targflags(star['APOGEE2_TARGET1'],star['APOGEE2_TARGET2'],star['APOGEE2_TARGET3'],star['APOGEE2_TARGET4'],survey='apogee2'))
     
     # add GAIA information
@@ -1110,7 +1117,7 @@ def dop_plot(outdir,obj,out,decomp=None) :
     fig2,ax2=plots.multi(len(windows),n,hspace=0.001,wspace=0.001,figsize=(12,2+n))
     ax2=np.atleast_2d(ax2)
 
-    # loop over visitis
+    # loop over visits
     for i,(mod,spec) in enumerate(zip(out[2],out[3])) :
         ax[i].plot(spec.wave,spec.flux,color='k')
         for iorder in range(3) :
@@ -1567,7 +1574,6 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
         if visit['SURVEY'] == 'apogee' :
             apogee_target1 |= visit['APOGEE_TARGET1'] 
             apogee_target2 |= visit['APOGEE_TARGET2'] 
-            apogee_target3 |= visit['APOGEE_TARGET3'] 
         elif visit['SURVEY'].find('apogee2') >=0  :
             apogee2_target1 |= visit['APOGEE_TARGET1'] 
             apogee2_target2 |= visit['APOGEE_TARGET2'] 
@@ -1644,7 +1650,6 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
     apstar.header['SFD_EBV'] = (allvisit['SFD_EBV'].max(),'SFD E(B-V)')
     apstar.header['APTARG1'] = (apogee_target1, 'APOGEE_TARGET1 targeting flag')
     apstar.header['APTARG2'] = (apogee_target2, 'APOGEE_TARGET2 targeting flag')
-    apstar.header['APTARG3'] = (apogee_target3, 'APOGEE_TARGET3 targeting flag')
     apstar.header['AP2TARG1'] = (apogee2_target1, 'APOGEE2_TARGET1 targeting flag')
     apstar.header['AP2TARG2'] = (apogee2_target2, 'APOGEE2_TARGET2 targeting flag')
     apstar.header['AP2TARG3'] = (apogee2_target3, 'APOGEE2_TARGET3 targeting flag')

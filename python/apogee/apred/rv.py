@@ -618,7 +618,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                           ('AK_WISE',float),('SFD_EBV',float),
                           ('APOGEE_TARGET1',int),('APOGEE_TARGET2',int),
                           ('APOGEE2_TARGET1',int),('APOGEE2_TARGET2',int),('APOGEE2_TARGET3',int),('APOGEE2_TARGET4',int),
-                          ('TARGFLAGS','S132'),('SURVEY','S16'),('PROGRAMNAME','S32'),
+                          ('TARGFLAGS','S132'),('SURVEY','S32'),('PROGRAMNAME','S32'),
                           ('NINST',int),('NVISITS',int),('COMBTYPE',int),('COMMISS',int),
                           ('SNR',float),('STARFLAG',np.uint64),('STARFLAGS','S132'),('ANDFLAG',np.uint64),('ANDFLAGS','S132'),
                           ('VHELIO_AVG',float),('VSCATTER',float),('VERR',float),
@@ -1580,6 +1580,9 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
             apogee2_target3 |= visit['APOGEE_TARGET3'] 
             try: apogee2_target4 |= visit['APOGEE_TARGET4'] 
             except: pass
+        elif visit['SURVEY'] == 'apo1m') :
+            apogee_target2 |= visit['APOGEE_TARGET2'] 
+            apogee2_target2 |= visit['APOGEE_TARGET2'] 
 
     # create final spectrum
     if nvisit > 1 :

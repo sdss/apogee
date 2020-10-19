@@ -24,7 +24,7 @@ pro mkwave,waveid,name=name,darkid=darkid,flatid=flatid,psfid=psfid,fiberid=fibe
   ; process the frames
   cmjd=getcmjd(psfid)
   mkpsf,psfid,darkid=darkid,flatid=flatid,fiberid=fiberid
-  w=approcess(waveid,dark=darkid,flat=flatid,psf=psfid,flux=0,/doproc)
+  w=approcess(waveid,dark=darkid,flat=flatid,psf=psfid,flux=0,/doproc,clobber=clobber)
 
   ; new Python version! 
   if keyword_set(nofit) then nofit='--nofit' else nofit=''

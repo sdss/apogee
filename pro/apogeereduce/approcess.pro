@@ -86,6 +86,7 @@ print,'calling ap3dproc...'
    for jj=0,n_elements(files)-1 do begin
       if file_test(files[jj]) then begin
         file_delete,files[jj]+'.fz',/allow_nonexistent
+        ; this is lossy compression!
         ;SPAWN,['fpack','-D','-Y',files[jj]],/noshell
       endif
       if file_test(modfiles[jj]) then begin

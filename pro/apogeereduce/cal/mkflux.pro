@@ -35,8 +35,8 @@ pro mkflux,ims,cmjd=cmjd,darkid=darkid,flatid=flatid,psfid=psfid,waveid=waveid,l
   APMKFLUXCAL,inpfile,outdir=fluxdir,/clobber
 
   ; clean up in case someone might want to reduce these files with flux calibration
-  files=file_search(dirs.expdir+getcmjd(i1)+'/'+dirs.prefix+'1D-?-'+string(format='(i8.8)',i1)+'.fits')
-  if files[0] ne '' then file_delete,files
+  ;files=file_search(dirs.expdir+getcmjd(i1)+'/'+dirs.prefix+'1D-?-'+string(format='(i8.8)',i1)+'.fits')
+  ;if files[0] ne '' then file_delete,files
 
 if keyword_set(holtz) then begin
 ;  below is Holtz flux calibration method

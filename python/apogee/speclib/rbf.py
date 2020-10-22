@@ -330,7 +330,9 @@ def comp(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',grid='
     if not os.path.isfile(planfile):
         print('{:s} does not exist'.format(planfile))
         return
-    p=yanny.yanny(planfile,np=True)
+    p=yaml.safe_load(open(planfile,'r'))
+    vmicrofit = int(p['vmicrofit']) if p.get('vmicrofit') else 0
+    vmicro = np.array(p['vmicro']) if p.get('vmicro') else 0.
 
     # input directory 
     if dir is None :
@@ -349,7 +351,7 @@ def comp(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',grid='
         try:
             vtrange=10.**spectra.vector(p['vt0'],p['dvt'],p['nvt'])
         except :
-            vtrange = [float(p['vmicro'])]
+            vtrange = vmicro
 
     if grid is None :
         if p['specdir'].find('GK_') >= 0 : grid = 'GK'
@@ -461,7 +463,9 @@ def mergeholes(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
     if not os.path.isfile(planfile):
         print('{:s} does not exist'.format(planfile))
         return
-    p=yanny.yanny(planfile,np=True)
+    p=yaml.safe_load(open(planfile,'r'))
+    vmicrofit = int(p['vmicrofit']) if p.get('vmicrofit') else 0
+    vmicro = np.array(p['vmicro']) if p.get('vmicro') else 0.
 
     if dir is None :
         indir = os.environ['APOGEE_SPECLIB']+'/synth/'+p['specdir']+'/' if p.get('specdir') else './'
@@ -474,7 +478,7 @@ def mergeholes(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
         try:
             vtrange=10.**spectra.vector(p['vt0'],p['dvt'],p['nvt'])
         except :
-            vtrange = [float(p['vmicro'])]
+            vtrange = vmicro
 
     if grid is None :
         if p['specdir'].find('GK_') >= 0 : grid = 'GK'

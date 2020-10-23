@@ -189,7 +189,8 @@ def eval(x,fiber='combo',lsfid=5440020,waveid=2420038,sparse=False):
        2015-03-12 - Written based on Jon H's code (based on David N's code) - Bovy (IAS)
     """
     # Parse fiber input
-    if (isinstance(fiber,str) or isinstance(fiber,unicode)) and fiber.lower() == 'combo':
+    #if (isinstance(fiber,str) or isinstance(fiber,unicode)) and fiber.lower() == 'combo':
+    if isinstance(fiber,str) and fiber.lower() == 'combo':
         fiber= [50,100,150,200,250]
     elif isinstance(fiber,int):
         fiber= [fiber]

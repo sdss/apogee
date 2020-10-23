@@ -1288,17 +1288,18 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,teles
     if not os.path.isfile(planfile): 
         print('{:s} does not exist'.format(planfile))
         return
-    p=yanny.yanny(planfile,np=True)
+    p=yaml.safe_load(open(planfile,'r'))
+
     # header information
     specdir = os.environ['APOGEE_SPECLIB']+'/synth/'+p['specdir'] if p.get('specdir') else './'
-    if fiber is None : fiber=np.array(p.get('lsffiber').split()).astype(int).tolist()
+    if fiber is None : fiber=p['lsffiber']
     if isinstance(fiber,int): fiber= [fiber]
     if apred is None :apred = p['apred'] if p.get('apred') else 'r10'
     if telescope is None : telescope = p['telescope'] if p.get('telescope') else 'apo25m'
     lsfid=int(p.get('lsfid'))
     waveid=int(p.get('waveid'))
     vmacrofit = int(p['vmacrofit']) if p.get('vmacrofit') else 0
-    vmacro_arr=np.array(p['vmacro'].split()).astype(float)
+    vmacro_arr=p['vmacro']
     kernel=p['kernel'] if p.get('kernel') else 'rot'
 
     if ls is None :
@@ -1315,6 +1316,7 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,teles
     # get the synthesis
     # for regular grids, we just want to process the first extension,
     # for minigrids, we want to process all except the last (which is the normalized synthesis)
+    print(specdir+'/'+prefix+p['name']+'.fits')
     speclist = fits.open(specdir+'/'+prefix+p['name']+'.fits')
     nexten = len(speclist) - 1
 
@@ -1371,7 +1373,6 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,teles
             nout=smoothdata.shape[-1]
             smoothdata=np.reshape(smoothdata,(nelem,nmh,nlogg,nteff,nout)).astype(np.float32)
         else :
-            smoothdata=np.zeros([nrot,nelem,nmh,nlogg,nteff,nout],dtype=np.float32)
             for irot,vrot in enumerate(prange(p['rot0'],p['drot'],p['nrot'])) :
                 if kernel == 'rot' :
                     smooth,waveout=lsf.convolve(ws,specdata.data,lsf=ls,xlsf=x,vrot=10.**vrot,vmacro=vmacro)
@@ -1380,6 +1381,8 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,teles
                 else :
                     print('Unknown kernel!')
                     pdb.set_trace()
+                nout=smooth.shape[-1]
+                if irot == 0 : smoothdata=np.zeros([nrot,nelem,nmh,nlogg,nteff,nout],dtype=np.float32)
                 smoothdata[irot,:,:,:,:,:]=np.reshape(smooth,(nelem,nmh,nlogg,nteff,nout)).astype(np.float32)
 
         specdata.data=np.reshape(specdata.data,(nelem,nmh,nlogg,nteff,npix))

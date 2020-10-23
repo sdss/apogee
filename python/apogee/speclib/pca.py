@@ -27,6 +27,7 @@ import multiprocessing as mp
 import numpy as np
 import time
 import struct
+import yaml
 from apogee.aspcap import aspcap
 from apogee.aspcap import ferre
 from apogee.speclib import atmos
@@ -71,7 +72,8 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
     if not os.path.isfile(planfile):
         print('{:s} does not exist'.format(planfile))
         return
-    p=yanny.yanny(planfile,np=True)
+    p=yaml.safe_load(open(planfile,'r'))
+
     if not p.get('oa0') : p['oa0'] = 0.
     if not p.get('doa') : p['doa'] = 0.
     if not p.get('noa') : p['noa'] = 1
@@ -85,7 +87,6 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
     # input directory 
     indir=os.environ['APOGEE_SPECLIB']+'/synth/'+dir+'/'
     print('indir: ', indir)
-
     outfile=os.path.basename(p['name'])
     if test :
         p['nvt'] = '1'
@@ -380,7 +381,7 @@ def test(planfile,grid='GKg',npiece=12,npca=75,runraw=True,runpca=True,fit=True,
     if not os.path.isfile(planfile):
         print('{:s} does not exist'.format(planfile))
         return
-    p=yanny.yanny(planfile,np=True)
+    p=yaml.safe_load(open(planfile,'r'))
     outfile=os.path.basename(p['name'])
 
     # create test directory

@@ -58,6 +58,7 @@ def mkgriddirs(configfile,nosynth=False,synthonly=False,writeraw=False,queryport
         # move GRID keys up one level
         #out = copy.deepcopy(p)
         out = p['GRID'][i]
+        out['name'] = name
         #for key in out['GRID'][i].keys() : out[key] = out['GRID'][i][key]
         #out.pop('GRID')
 
@@ -80,7 +81,7 @@ def mkgriddirs(configfile,nosynth=False,synthonly=False,writeraw=False,queryport
             else : raw = ''
             mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.yml',queryhost=os.uname()[1],queryport=queryport,maxrun=12,time='24:00:00')
             #mkslurm.write('bundle plan/'+name+'_??.yml',queryhost=os.uname()[1],queryport=queryport,maxrun=32)
-            mkslurm.write('pca --pcas 12 75 --incremental --threads 0 '+raw+' plan/'+name+'.yml',runplans=False,time='72:00:00')
+            mkslurm.write('"pca --pcas 12 75 --incremental --threads 0" '+raw+' plan/'+name+'.yml',maxrun=1,time='72:00:00',queryhost=os.uname()[1],queryport=queryport)
             mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.yml',queryhost=os.uname()[1],queryport=queryport,maxrun=12,time='72:00:00',
                           postcmd='pca --pcas 12 75 --incremental --threads 0 '+raw+' plan/'+name+'.yml',name='mkgridlsf_pca')
 

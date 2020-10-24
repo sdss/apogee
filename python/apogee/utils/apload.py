@@ -26,13 +26,14 @@ import numpy as np
 from apogee.apred import wave
 from apogee.apred import sincint
 from apogee.utils import spectra
+from astropy.table import Table
 
 class ApSpec() :
     """ a simple class to hold APOGEE spectra
     """
     def __init__(self,flux,header=None,err=None,wave=None,mask=None,bitmask=None,
                  sky=None,skyerr=None,telluric=None,telerr=None,cont=None,template=None,filename='',
-                 sptype='apStar',waveregime='NIR',instrument='APOGEE',snr=100) :
+                 lsftab=Table(),rvtab=Table(),sptype='apStar',waveregime='NIR',instrument='APOGEE',snr=100) :
         # Initialize the object
         self.flux = flux
         if header is None : self.header = fits.PrimaryHDU().header
@@ -48,6 +49,8 @@ class ApSpec() :
         self.cont = cont
         self.template = template
         self.filename = filename
+        self.rvtab = rvtab
+        self.lsftab = lsftab
         self.sptype = sptype
         self.waveregime = waveregime
         self.instrument = instrument
@@ -92,6 +95,8 @@ class ApSpec() :
         hdu.header['HISTORY'] = 'HDU5 : sky uncertainty'
         hdu.header['HISTORY'] = 'HDU6 : telluric'
         hdu.header['HISTORY'] = 'HDU7 : telluric uncertainty'
+        hdu.header['HISTORY'] = 'HDU8 : LSF table'
+        hdu.header['HISTORY'] = 'HDU9 : RV table'
         hdulist.append(hdu)
         header=fits.Header()
         header['CRVAL1'] = hdu.header['CRVAL1']
@@ -112,6 +117,8 @@ class ApSpec() :
         hdulist.append(fits.ImageHDU(self.telluric,header=header))
         header['BUNIT'] = 'Telluric error'
         hdulist.append(fits.ImageHDU(self.telerr,header=header))
+        hdulist.append(fits.table_to_hdu(self.lsftab))
+        hdulist.append(fits.table_to_hdu(self.rvtab))
         hdulist.writeto(filename,overwrite=overwrite)
 
 class ApLoad :

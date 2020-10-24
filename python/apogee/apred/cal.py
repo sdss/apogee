@@ -18,6 +18,8 @@ import glob
 import pdb
 import numpy as np
 from astropy.io import fits
+from tools import plots
+from apogee.utils import apload
 
 def mkpar(mjdstart,mjdend,out='wave',lco=False,yearout='multiwave', append=False,maxsky=41) :
     """ Make calibration file list for wavecals between input dates
@@ -126,3 +128,65 @@ def mkallpars(apo=True,lco=True) :
         for i in range(len(mjds)-1) :
             mkpar(mjds[i],mjds[i+1],out='apogee-n-year{:d}.par'.format(i),yearout='apogee-n-multiwave.par', append=True,maxsky=20)
         
+
+def darkplot(apred='r14',telescope='apo25m'):
+    """ Make some plots of dark frames for a reduction version
+    """
+    chips=['a','b','c'] 
+    if telescope == 'apo25m' :
+        prefix='ap'
+        xbin=np.arange(1,1200,0.2)
+        inst='apogee-n'
+    else :
+        prefix='as'
+        xbin=np.arange(1,300,0.2)
+        inst='apogee-s'
+
+    # get dark frames
+    load=apload.ApLoad(apred=apred,telescope=telescope)
+    darkdir=os.path.dirname(load.filename('Dark',chips='a',num=0))
+    try: os.makedirs(darkdir)
+    except: pass
+    files=np.sort(glob.glob(darkdir+'/'+prefix+'Dark-a-*.fits'))
+
+    fig,ax=plots.multi(2,3,hspace=0.001,wspace=0.001,figsize=(14,8))
+    imfig=[]
+    imax=[]
+    for ichip in range(3) :
+        tfig,tax=plots.multi(2,3,hspace=0.001,wspace=0.001,figsize=(10,8))
+        imfig.append(tfig)
+        imax.append(tax)
+    i=0
+    for file in files :
+        im = os.path.basename(file).replace('.fits','').split('-')[-1]
+        print(im)
+        for ichip,chip in enumerate(chips) :
+            dark=fits.open('{:s}/{:s}DarkRate-{:s}-{:s}.fits'.format(
+                           darkdir,prefix,chip,im))[0].data
+            ax[ichip,0].hist(dark.flatten(),bins=np.arange(0,1,0.02),label='{:s}'.format(im),histtype='step')
+            ax[ichip,1].hist(dark.flatten(),bins=xbin,label='{:s}'.format(im),histtype='step')
+            imax[ichip][i%3,i//3].imshow(dark,vmin=0,vmax=0.25,cmap='Greys')
+            imax[ichip][i%3,i//3].text(0.1,0.9,im,transform=imax[ichip][i%3,i//3].transAxes)
+            imax[ichip][i%3,i//3].get_xaxis().set_visible(False)
+            imax[ichip][i%3,i//3].get_yaxis().set_visible(False)
+        i+=1
+    while i<6 :
+        print('removing: ',i,i%3,i//3)
+        for ichip in range(3) :
+            imax[ichip][i%3,i//3].set_visible(False)
+            imax[ichip][i%3,i//3].set_visible(False)
+        i+=1
+
+    for ichip,chip in enumerate(chips) :
+        ax[ichip,0].set_title('chip: {:s}'.format(chip))
+        ax[ichip,1].set_title('chip: {:s}'.format(chip))
+        ax[ichip,0].legend(fontsize='x-small')
+        ax[ichip,0].set_yscale('log')
+        ax[ichip,1].legend(fontsize='x-small')
+        ax[ichip,1].set_yscale('log')
+        #imfig[ichip].suptitle('chip: {:s}'.format(chip))
+        imfig[ichip].savefig('{:s}/plots/{:s}_{:s}_darkimage.png'.format(darkdir,inst,chip))
+    ax[2,0] = 'Dark rate (cnts/read)'
+    ax[2,1] = 'Dark rate (cnts/read)'
+    fig.tight_layout()
+    fig.savefig('{:s}/plots/{:s}_darkhist.png'.format(darkdir,inst))

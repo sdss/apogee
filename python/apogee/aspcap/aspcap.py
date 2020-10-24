@@ -361,7 +361,7 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
     return aspcapfield, aspcapspec
 
 def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,minerr=0.005,apstar_vers=None,plot=False,
-               init='RV',fix=None,renorm=False,suffix='',html=True) :
+               init='RV',fix=None,renorm=False,suffix='',html=True,mult=False,dostar=None) :
     """ run ASPCAP on a field to get parameters
     """
     # read configuration file
@@ -418,6 +418,8 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
         else :
             out=outdir+'/ferre/class_'+grid['name']+'_'+init+'/'+grid['name']+'-'+field
 
+        if mult: out=out+'_mult'
+
         try: os.makedirs(os.path.dirname(out))
         except: pass
         link(os.environ['APOGEE_SPECLIB']+'/synth/',os.path.dirname(out)+'/lib')
@@ -441,6 +443,11 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                           (aspcapfield['MEANFIB'] < grid['fibermax']) ) [0]
         else :
             gd = np.where(aspcapfield['CLASS'] == grid['name'])[0]
+
+        if dostar is not None :
+            pdb.set_trace()
+            gdstar=np.where(aspcapfield['APOGEE_ID'][gd] == dostar.encode())[0]
+            gd=gd[gdstar]
 
         print(grid['name'],len(gd))
         if len(gd) == 0 : continue
@@ -472,6 +479,21 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
             else :
                 flux.append(spec['OBS'])
                 err.append(spec['ERR'])
+            if mult :
+                imult=0
+                for dlogg in np.linspace(-0.2,0.2,3) :
+                    for dam in np.linspace(-0.2,0.2,3) :
+                        for dcm in np.linspace(-0.2,0.2,3) :
+                            stars.append(star['APOGEE_ID']+'.{:d}'.format(imult))
+                            cent=copy.copy(star['FPARAM'])
+                            cent[1]+=dlogg
+                            cent[6]+=dam
+                            cent[4]+=dcm
+                            inpars.append(list(cent))
+                            flux.append(spec['OBS']/spec['NORM'])
+                            err.append(spec['ERR']/spec['NORM'])
+                            imult+=1
+        if mult: pdb.set_trace()
       
 
         # write FERRE files and run FERRE
@@ -705,7 +727,8 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
             except: pass
 
             # write FERRE files
-            if clobber or not os.path.exists(out+'.spm') :
+            if clobber or not os.path.exists(out+'.spm') or \
+               (os.path.exists(out+'.spm') and len(open(out+'.spm').readlines()) < len(stars) ) :
                 link(os.environ['APOGEE_SPECLIB']+'/synth/',os.path.dirname(out)+'/lib')
                 filterfile = elem['name']+'.mask'
                 shutil.copyfile(os.environ['APOGEE_DIR']+'/data/windows/'+grid['windows']+'/'+filterfile,

@@ -18,6 +18,7 @@ import glob
 import pdb
 import numpy as np
 from astropy.io import fits
+from tools import html
 from tools import plots
 from apogee.utils import apload
 
@@ -149,11 +150,13 @@ def darkplot(apred='r14',telescope='apo25m'):
     except: pass
     files=np.sort(glob.glob(darkdir+'/'+prefix+'Dark-a-*.fits'))
 
-    fig,ax=plots.multi(2,3,hspace=0.001,wspace=0.001,figsize=(14,8))
+    ny=len(files)//2
+    fig,ax=plots.multi(2,3,hspace=0.001,wspace=0.001,figsize=(14,ny*4))
     imfig=[]
     imax=[]
+    if ny%2 == 1 : ny+=1
     for ichip in range(3) :
-        tfig,tax=plots.multi(2,3,hspace=0.001,wspace=0.001,figsize=(10,8))
+        tfig,tax=plots.multi(2,ny,hspace=0.001,wspace=0.001,figsize=(10,8))
         imfig.append(tfig)
         imax.append(tax)
     i=0
@@ -165,16 +168,15 @@ def darkplot(apred='r14',telescope='apo25m'):
                            darkdir,prefix,chip,im))[0].data
             ax[ichip,0].hist(dark.flatten(),bins=np.arange(0,1,0.02),label='{:s}'.format(im),histtype='step')
             ax[ichip,1].hist(dark.flatten(),bins=xbin,label='{:s}'.format(im),histtype='step')
-            imax[ichip][i%3,i//3].imshow(dark,vmin=0,vmax=0.25,cmap='Greys')
-            imax[ichip][i%3,i//3].text(0.1,0.9,im,transform=imax[ichip][i%3,i//3].transAxes)
-            imax[ichip][i%3,i//3].get_xaxis().set_visible(False)
-            imax[ichip][i%3,i//3].get_yaxis().set_visible(False)
+            imax[ichip][i%ny,i//ny].imshow(dark,vmin=0,vmax=0.25,cmap='Greys')
+            imax[ichip][i%ny,i//ny].text(0.1,0.9,im,transform=imax[ichip][i%ny,i//ny].transAxes)
+            imax[ichip][i%ny,i//ny].get_xaxis().set_visible(False)
+            imax[ichip][i%ny,i//ny].get_yaxis().set_visible(False)
         i+=1
-    while i<6 :
-        print('removing: ',i,i%3,i//3)
+    while i<2*ny :
         for ichip in range(3) :
-            imax[ichip][i%3,i//3].set_visible(False)
-            imax[ichip][i%3,i//3].set_visible(False)
+            imax[ichip][i%ny,i//ny].set_visible(False)
+            imax[ichip][i%ny,i//ny].set_visible(False)
         i+=1
 
     for ichip,chip in enumerate(chips) :
@@ -186,7 +188,78 @@ def darkplot(apred='r14',telescope='apo25m'):
         ax[ichip,1].set_yscale('log')
         #imfig[ichip].suptitle('chip: {:s}'.format(chip))
         imfig[ichip].savefig('{:s}/plots/{:s}_{:s}_darkimage.png'.format(darkdir,inst,chip))
-    ax[2,0] = 'Dark rate (cnts/read)'
-    ax[2,1] = 'Dark rate (cnts/read)'
+    ax[2,0].set_xlabel('Dark rate (cnts/read)')
+    ax[2,1].set_xlabel('Dark rate (cnts/read)')
     fig.tight_layout()
     fig.savefig('{:s}/plots/{:s}_darkhist.png'.format(darkdir,inst))
+
+    grid=[['{:s}_darkhist.png'.format(inst)]]
+    for ichip,chip in enumerate(chips) :
+        grid.append(['{:s}_{:s}_darkimage.png'.format(inst,chip)])
+
+    html.htmltab(grid,file='{:s}/plots/{:s}_darks.html'.format(darkdir,inst))
+
+def flatplot(apred='r14',telescope='apo25m'):
+    """ Make flat plot of flat frames for a reduction version
+    """
+    chips=['a','b','c'] 
+    if telescope == 'apo25m' :
+        prefix='ap'
+        xbin=np.arange(1,1200,0.2)
+        inst='apogee-n'
+    else :
+        prefix='as'
+        xbin=np.arange(1,300,0.2)
+        inst='apogee-s'
+
+    # get flat frames
+    load=apload.ApLoad(apred=apred,telescope=telescope)
+    flatdir=os.path.dirname(load.filename('Flat',chips='a',num=0))
+    try: os.makedirs(flatdir)
+    except: pass
+    files=np.sort(glob.glob(flatdir+'/'+prefix+'Flat-a-*.fits'))
+
+    ny=len(files)//2
+    if ny%2 == 1 : ny+=1
+    fig,ax=plots.multi(1,3,figsize=(8,ny*4))
+    imfig=[]
+    imax=[]
+    for ichip in range(3) :
+        tfig,tax=plots.multi(2,ny,hspace=0.001,wspace=0.001,figsize=(10,8))
+        imfig.append(tfig)
+        imax.append(tax)
+    i=0
+    for file in files :
+        im = os.path.basename(file).replace('.fits','').split('-')[-1]
+        print(im)
+        for ichip,chip in enumerate(chips) :
+            flat=fits.open('{:s}/{:s}Flat-{:s}-{:s}.fits'.format(
+                           flatdir,prefix,chip,im))[1].data
+            ax[ichip].hist(flat.flatten(),bins=np.arange(0,2,0.02),label='{:s}'.format(im),histtype='step')
+            med=np.median(flat)
+            imax[ichip][i%ny,i//ny].imshow(flat,vmin=0.8*med,vmax=1.2*med,cmap='Greys')
+            imax[ichip][i%ny,i//ny].text(0.1,0.9,im,transform=imax[ichip][i%ny,i//ny].transAxes)
+            imax[ichip][i%ny,i//ny].get_xaxis().set_visible(False)
+            imax[ichip][i%ny,i//ny].get_yaxis().set_visible(False)
+        i+=1
+    while i<2*ny :
+        for ichip in range(3) :
+            imax[ichip][i%ny,i//ny].set_visible(False)
+            imax[ichip][i%ny,i//ny].set_visible(False)
+        i+=1
+
+    for ichip,chip in enumerate(chips) :
+        ax[ichip].set_title('chip: {:s}'.format(chip))
+        ax[ichip].legend(fontsize='x-small')
+        ax[ichip].set_yscale('log')
+        #imfig[ichip].suptitle('chip: {:s}'.format(chip))
+        imfig[ichip].savefig('{:s}/plots/{:s}_{:s}_flatimage.png'.format(flatdir,inst,chip))
+    fig.tight_layout()
+    out='{:s}/plots/{:s}_flathist.png'.format(flatdir,inst)
+    fig.savefig(out)
+    grid=[[os.path.basename(out)]]
+    for ichip,chip in enumerate(chips) :
+        grid.append(['{:s}_{:s}_flatimage.png'.format(inst,chip)])
+
+    html.htmltab(grid,file='{:s}/plots/{:s}_flats.html'.format(flatdir,inst))
+

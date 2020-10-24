@@ -205,7 +205,7 @@ for ichip=0,n_elements(chips)-1 do begin
 
  ; make some plots/images
  if not file_test(caldir+'darkcorr/plots',/dir) then file_mkdir,caldir+'darkcorr/plots'
- darkplot,dark,mask,caldir+'darkcorr/plots/'+file,/hard
+ ;darkplot,dark,mask,caldir+'darkcorr/plots/'+file,/hard
  
  ; summary data table
  darklog[ichip].num=i1

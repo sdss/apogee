@@ -1132,7 +1132,7 @@ def train(file='all_noelem',name='test',plot=False,suffix='',fitfrac=0.5, steps=
     #----------------------------------------------------------------------------------------
     # choose only a certain labels
 
-    try :
+    if labels.shape[1] == 6 :
         gd=np.where((labels[ind_shuffle,0]>=teff[0]) & (labels[ind_shuffle,0]<=teff[1]) &
                     (labels[ind_shuffle,1]>=logg[0]) & (labels[ind_shuffle,1]<=logg[1]) &
                     (labels[ind_shuffle,2]>=mh[0]) & (labels[ind_shuffle,2]<=mh[1]) &
@@ -1140,11 +1140,16 @@ def train(file='all_noelem',name='test',plot=False,suffix='',fitfrac=0.5, steps=
                     (labels[ind_shuffle,4]>=cm[0]) & (labels[ind_shuffle,4]<=cm[1])  &
                     (labels[ind_shuffle,5]>=nm[0]) & (labels[ind_shuffle,5]<=nm[1])
                    )[0]
-    except :
+    elif labels.shape[1] == 4 :
         gd=np.where((labels[ind_shuffle,0]>=teff[0]) & (labels[ind_shuffle,0]<=teff[1]) &
                     (labels[ind_shuffle,1]>=logg[0]) & (labels[ind_shuffle,1]<=logg[1]) &
                     (labels[ind_shuffle,2]>=mh[0]) & (labels[ind_shuffle,2]<=mh[1]) &
                     (labels[ind_shuffle,3]>=am[0]) & (labels[ind_shuffle,3]<=am[1]) 
+                   )[0]
+    elif labels.shape[1] == 3 :
+        gd=np.where((labels[ind_shuffle,0]>=teff[0]) & (labels[ind_shuffle,0]<=teff[1]) &
+                    (labels[ind_shuffle,1]>=logg[0]) & (labels[ind_shuffle,1]<=logg[1]) &
+                    (labels[ind_shuffle,2]>=mh[0]) & (labels[ind_shuffle,2]<=mh[1]) 
                    )[0]
  
     nfit = int(fitfrac*len(gd))

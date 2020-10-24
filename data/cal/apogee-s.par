@@ -1,13 +1,14 @@
 # darks:   start end   name     frames
-dark       57800 99999 22620001 22620001-22620030
+dark       99999 99999 22620001 22620001-22620030
 dark       99999 99999 26710001 26710001-26710025
-dark       99999 99999 33640001 33640001-33640030
+dark       57800 59000 33640001 33640001-33640030
+dark       59001 99999 35800002 35800002-35800031
 # flats:   start  end  name     frames     nexpperframe
 flat       57800 99999 22660002 22660002-22660031 1 0
 flat       99999 99999 26710029 26710029-26710058 1 0
 flat       99999 99999 33640032 33640032-33640061 1 0
 # bpm      start end   name     darkid   flatid 
-bpm        57822 99999 22620001 22620001 22660002
+bpm        57800 99999 33640001 33640001 22660002
 # det      start end   name     linid
 det        57000 99999 22810006 0
 #
@@ -79,3 +80,13 @@ lsf        99999 99999 32690044 32690044 32690045
 # 4/25/18 (58233)  : darks and flats
 #         (58311)   : darks and flats?
 # 4/xx/20  (58926) : darks and flats before instrument is warmed
+# 10/19/10 (59142) : darks after instrument is cooled
+#
+# year 1: 57926 2267   (6/22/2017)
+# year 2: 57966 2404   (8/1/2017)
+# year 3: 58360 2798   (8/30/2018) 
+# year 4: 58700 3138   (8/5/2019)
+# year 5: 58950 3388  (4/11/2020)  COVID!
+# instrument warmed, not opened
+# year 6:
+# -

@@ -700,6 +700,8 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     allvisits['N_COMPONENTS'] = -1
     rv_components = Column(name='RV_COMPONENTS',dtype=float,shape=(3),length=len(allvisits))
     allvisits.add_column(rv_components)
+    rvtab = Column(name='RVTAB',dtype=Table,length=len(allvisits))
+    allvisits.add_column(rvtab)
 
     # now load the new ones with the dorv() output
     allv=[]
@@ -743,6 +745,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                     rv_comp = np.array(g['best_fit_parameters'])[2*n+gd]
                     n_rv_comp = np.min([3,len(rv_comp)])
                     allvisits[visit]['RV_COMPONENTS'][0:n_rv_comp] = rv_comp[0:n_rv_comp]
+                allvisits[visit]['RVTAB'] = v
                 # flag visits with suspect RVs
                 if allvisits[visit]['RV_TEFF'] < 6000 : bd_diff = 10
                 else : bd_diff = 50.
@@ -804,7 +807,6 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         # targeting flags have different names and are combined from visits
         apogee_target1 = apstar.header['APTARG1']
         apogee_target2 = apstar.header['APTARG2']
-        apogee_target3 = apstar.header['APTARG3']
         apogee2_target1 = apstar.header['AP2TARG1']
         apogee2_target2 = apstar.header['AP2TARG2']
         apogee2_target3 = apstar.header['AP2TARG3']
@@ -816,7 +818,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         allfield['APOGEE2_TARGET3'][j] = apogee2_target3
         allfield['APOGEE2_TARGET4'][j] = apogee2_target4
         # add character string for target flags
-        allfield['TARGFLAGS'][j] = (bitmask.targflags(apogee_target1,apogee_target2,apogee_target3,0,survey='apogee')+
+        allfield['TARGFLAGS'][j] = (bitmask.targflags(apogee_target1,apogee_target2,0,0,survey='apogee')+
                                     bitmask.targflags(apogee2_target1,apogee2_target2,apogee2_target3,apogee2_target4,survey='apogee2'))
         # some modified names
         allfield['N_COMPONENTS'][j] = apstar.header['N_COMP']
@@ -854,6 +856,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     hdulist.writeto(outfield,overwrite=True)
 
     hdulist=fits.HDUList()
+    allvisits.remove_column('RVTAB')
     hdulist.append(fits.table_to_hdu(allvisits))
     hdulist[0].header['V_APRED'] = os.environ['APOGEE_VER']
     hdulist.writeto(outfieldvisits,overwrite=True)
@@ -1580,7 +1583,7 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
             apogee2_target3 |= visit['APOGEE_TARGET3'] 
             try: apogee2_target4 |= visit['APOGEE_TARGET4'] 
             except: pass
-        elif visit['SURVEY'] == 'apo1m') :
+        elif visit['SURVEY'] == 'apo1m' :
             apogee_target2 |= visit['APOGEE_TARGET2'] 
             apogee2_target2 |= visit['APOGEE_TARGET2'] 
 
@@ -1591,9 +1594,13 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
     else :
         zeros = np.zeros([1,nwave])
         izeros = np.zeros([1,nwave],dtype=int)
+    if len(allvisit) == 1 :
+        rvtab=Table(np.vstack(allvisit['RVTAB']))
+    else :
+        rvtab=Table(np.squeeze(np.vstack(allvisit['RVTAB'])))
     apstar=apload.ApSpec(zeros,err=zeros.copy(),bitmask=izeros,wave=aspcap.apStarWave(),
                 sky=zeros.copy(),skyerr=zeros.copy(),telluric=zeros.copy(),telerr=zeros.copy(),
-                cont=zeros.copy(),template=zeros.copy())
+                cont=zeros.copy(),template=zeros.copy(),rvtab=rvtab)
     apstar.header['CRVAL1'] = aspcap.logw0
     apstar.header['CDELT1'] = aspcap.dlogw
     apstar.header['CRPIX1'] = 1
@@ -1734,7 +1741,7 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
         try: os.makedirs(os.path.dirname(outfile))
         except : pass
         apstar.write(outfile)
-
+        
         # plot
         gd=np.where((apstar.bitmask[0,:] & (pixelmask.badval()|pixelmask.getval('SIG_SKYLINE'))) == 0) [0]
         fig,ax=plots.multi(1,3,hspace=0.001,figsize=(48,6))

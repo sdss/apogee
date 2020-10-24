@@ -151,12 +151,12 @@ def darkplot(apred='r14',telescope='apo25m'):
     files=np.sort(glob.glob(darkdir+'/'+prefix+'Dark-a-*.fits'))
 
     ny=len(files)//2
-    fig,ax=plots.multi(2,3,hspace=0.001,wspace=0.001,figsize=(14,ny*4))
+    fig,ax=plots.multi(2,3,hspace=0.001,wspace=0.001,figsize=(8,12))
     imfig=[]
     imax=[]
     if ny%2 == 1 : ny+=1
     for ichip in range(3) :
-        tfig,tax=plots.multi(2,ny,hspace=0.001,wspace=0.001,figsize=(10,8))
+        tfig,tax=plots.multi(2,ny,hspace=0.001,wspace=0.001,figsize=(12*4,ny*4*4))
         imfig.append(tfig)
         imax.append(tax)
     i=0
@@ -168,7 +168,7 @@ def darkplot(apred='r14',telescope='apo25m'):
                            darkdir,prefix,chip,im))[0].data
             ax[ichip,0].hist(dark.flatten(),bins=np.arange(0,1,0.02),label='{:s}'.format(im),histtype='step')
             ax[ichip,1].hist(dark.flatten(),bins=xbin,label='{:s}'.format(im),histtype='step')
-            imax[ichip][i%ny,i//ny].imshow(dark,vmin=0,vmax=0.25,cmap='Greys')
+            imax[ichip][i%ny,i//ny].imshow(dark,vmin=0,vmax=0.25,cmap='Greys',interpolation='nearest',resample=False,origin='lower')
             imax[ichip][i%ny,i//ny].text(0.1,0.9,im,transform=imax[ichip][i%ny,i//ny].transAxes)
             imax[ichip][i%ny,i//ny].get_xaxis().set_visible(False)
             imax[ichip][i%ny,i//ny].get_yaxis().set_visible(False)
@@ -221,11 +221,12 @@ def flatplot(apred='r14',telescope='apo25m'):
 
     ny=len(files)//2
     if ny%2 == 1 : ny+=1
-    fig,ax=plots.multi(1,3,figsize=(8,ny*4))
+    fig,ax=plots.multi(1,3,figsize=(8,12))
     imfig=[]
     imax=[]
     for ichip in range(3) :
-        tfig,tax=plots.multi(2,ny,hspace=0.001,wspace=0.001,figsize=(10,8))
+        tfig,tax=plots.multi(2,ny,hspace=0.001,wspace=0.001,figsize=(12*4,ny*4*4))
+        tax=np.atleast_2d(tax)
         imfig.append(tfig)
         imax.append(tax)
     i=0
@@ -237,7 +238,7 @@ def flatplot(apred='r14',telescope='apo25m'):
                            flatdir,prefix,chip,im))[1].data
             ax[ichip].hist(flat.flatten(),bins=np.arange(0,2,0.02),label='{:s}'.format(im),histtype='step')
             med=np.median(flat)
-            imax[ichip][i%ny,i//ny].imshow(flat,vmin=0.8*med,vmax=1.2*med,cmap='Greys')
+            imax[ichip][i%ny,i//ny].imshow(flat,vmin=0.8*med,vmax=1.2*med,cmap='Greys',interpolation='nearest',origin='lower')
             imax[ichip][i%ny,i//ny].text(0.1,0.9,im,transform=imax[ichip][i%ny,i//ny].transAxes)
             imax[ichip][i%ny,i//ny].get_xaxis().set_visible(False)
             imax[ichip][i%ny,i//ny].get_yaxis().set_visible(False)

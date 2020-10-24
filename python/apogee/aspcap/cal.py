@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from astropy.io import fits
 from astropy.io import ascii
-from astropy.table import Table
+from astropy.table import Table, vstack
 from astropy.table import Column
 from astropy.coordinates import SkyCoord
 import astropy.units as units
@@ -47,17 +47,20 @@ def allField(search=['apo*/*/a?Field-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?
     a=[]
     for file in allfiles :
         if 'Field-cal_' not in file :
-            dat=fits.open(file)[1].data
-            if type(dat['STARFLAG'][0]) is not np.uint64 :
-                print(file, type(dat['STARFLAG'][0]))
+            #dat=fits.open(file)[1].data
+            dat=Table.read(file)
+            #if type(dat['STARFLAG'][0]) is not np.uint64 :
+            #   print(file, type(dat['STARFLAG'][0]))
             a.append(dat)
-    all = np.hstack(a)
+    all =vstack(a)
 
-    bd=np.where((all['RA'] < 0.0001) & (all['DEC'] < 0.0001) )[0]
-    starmask=bitmask.StarBitMask()
-    rvfail=starmask.getval('RV_FAIL')
-    for i in bd:
-        all['STARFLAG'][i] |= np.int64(rvfail)
+    #all = np.hstack(a)
+
+    #bd=np.where((all['RA'] < 0.0001) & (all['DEC'] < 0.0001) )[0]
+    #starmask=bitmask.StarBitMask()
+    #rvfail=starmask.getval('RV_FAIL')
+    #for i in bd:
+    #    all['STARFLAG'][i] |= np.int64(rvfail)
 
     # concatenate the structures
     #all=struct.concat(search,verbose=verbose)
@@ -65,96 +68,203 @@ def allField(search=['apo*/*/a?Field-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?
     # write out the file
     if out is not None:
         print('writing',out)
-        struct.wrfits(all,out)
+        #struct.wrfits(all,out)
+        all.write(out)
 
     return all
 
 
-def plotclust(all,cluster='M67',hard=None) :
+def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) :
+    """ Create set of plots for input cluster with CHI2/parameters/abundances as
+        a function of log g, for multiple input data sets
+    """
 
+    if zindex == 0 : zr=[3500,5000]
+    elif zindex == 3 : zr=[-1, 0.5]
+    else : zr=None
+
+    # get indices of cluster stars for each input data set, and indices of MULTIPLES
     inds=[]
+    mult=[]
     for a in all :
-        inds.append(np.array(apselect.clustmember(a,cluster,raw=True)))
+        if cluster == '' :
+            j=np.arange(len(a))
+        elif cluster == 'solar' :
+            j=np.where((a['GAIA_PARALLAX_ERROR']/abs(a['GAIA_PARALLAX']) < 0.1) )[0]
+            distance = 1000./a['GAIA_PARALLAX'][j]
+            x,y,z,r=lbd2xyz(a['GLON'][j],a['GLAT'][j],distance/1000.)
+            gd = np.where((abs(z) < 0.5) & (r>8) & (r<9) ) [0]
+            j=j[gd]
+        else :
+            j=np.array(apselect.clustmember(a,cluster,raw=True))
+        gd=apselect.select(a[j],sn=[75,100000],field=field,mh=mh,raw=True)
+        inds.append(j[gd])
+        try :bd=np.where(np.core.defchararray.find(a[j[gd]]['STARFLAGS'],'MULTIPLE'.encode()) >=0 )[0]
+        except :bd=np.where(np.core.defchararray.find(a[j[gd]]['STARFLAGS'],'MULTIPLE') >=0 )[0]
+        mult.append(j[gd[bd]])
 
-    els = aspcap.elems()[0]
+    # CHI2
     fig,ax=plots.multi(1,len(all),hspace=0.001)
-
+    ax=np.atleast_1d(ax)
     for i,(a,j) in enumerate(zip(all,inds)) :
         ax[i].cla()
-        try: plots.plotc(ax[i],a['FPARAM'][j,1],a['ASPCAP_CHI2'][j],a['FPARAM'][j,0],yt='CHI2',
-                    xr=[0,5],yr=[0,30],xt='log g')
-        except: plots.plotc(ax[i],a['FPARAM'][j,1],a['PARAM_CHI2'][j],a['FPARAM'][j,0],yt='CHI2',
+        try: plots.plotc(ax[i],a['FPARAM'][j,1],a['ASPCAP_CHI2'][j],a['FPARAM'][j,zindex],yt='CHI2',
+                    xr=[0,5],yr=[0,30],xt='log g',zr=zr)
+        except: plots.plotc(ax[i],a['FPARAM'][j,1],a['PARAM_CHI2'][j],a['FPARAM'][j,zindex],yt='CHI2',
                     xr=[0,5],yr=[0,30],xt='log g')
         fig.suptitle(cluster)
     if hard is not None:
-        fig.savefig(hard+cluster+'_'+'chi2'+'.png')
+        fig.savefig(hard+cluster+suffix+'_'+'chi2'+'.png')
     else : pdb.set_trace()    
 
+    # Parameters
+    els = aspcap.elems()[0]
+    rms=np.zeros([len(all),6+len(els),3])
+    irms=0
     for iparam,param in zip([3,4,5,6],['M','Cpar','Npar','alpha']) :
-        for i,(a,j) in enumerate(zip(all,inds)) :
+        for i,(a,j,m) in enumerate(zip(all,inds,mult)) :
+            giants=np.where(a['FPARAM'][j,1] < 3.8)[0]
+            dwarfs=np.where(a['FPARAM'][j,1] > 3.8)[0]
             ax[i].cla()
             ymed=np.median(a['FPARAM'][j,iparam])
             print(param,ymed)
-            plots.plotc(ax[i],a['FPARAM'][j,1],a['FPARAM'][j,iparam],a['FPARAM'][j,0],yt=param,
-                        xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g')
+            plots.plotc(ax[i],a['FPARAM'][j,1],a['FPARAM'][j,iparam],a['FPARAM'][j,zindex],yt=param,
+                        xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr)
+            plots.plotp(ax[i],a['FPARAM'][m,1],a['FPARAM'][m,iparam],color='k')
+            ax[i].text(0.9,0.8,'{:8.3f}'.format(a['FPARAM'][j,iparam].std()),transform=ax[i].transAxes)
+            ax[i].text(0.9,0.7,'{:8.3f}'.format(a['FPARAM'][j[giants],iparam].std()),transform=ax[i].transAxes,color='r')
+            ax[i].text(0.9,0.6,'{:8.3f}'.format(a['FPARAM'][j[dwarfs],iparam].std()),transform=ax[i].transAxes,color='g')
+            rms[i,irms,0] = a['FPARAM'][j,iparam].std()
+            rms[i,irms,1] = a['FPARAM'][j[giants],iparam].std()
+            rms[i,irms,2] = a['FPARAM'][j[dwarfs],iparam].std()
+            if i == 0 : y0 = ymed
+            ax[i].plot([0,5],[y0,y0],ls=':')
             fig.suptitle(cluster)
+        irms+=1
         if hard is not None:
-            fig.savefig(hard+cluster+'_'+param+'.png')
+            fig.savefig(hard+cluster+suffix+'_'+param+'.png')
         else : pdb.set_trace()    
 
     # parameter [C/N]
     for i,(a,j) in enumerate(zip(all,inds)) :
+        giants=np.where(a['FPARAM'][j,1] < 3.8)[0]
+        dwarfs=np.where(a['FPARAM'][j,1] > 3.8)[0]
         ax[i].cla()
+        cn=a['FPARAM'][:,4]-a['FPARAM'][:,5]
         ymed=np.median(a['FPARAM'][j,4]-a['FPARAM'][j,5])
-        plots.plotc(ax[i],a['FPARAM'][j,1],a['FPARAM'][j,4]-a['FPARAM'][j,5],a['FPARAM'][j,0],yt='[Cpar/Npar]',
-                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g')
+        plots.plotc(ax[i],a['FPARAM'][j,1],a['FPARAM'][j,4]-a['FPARAM'][j,5],a['FPARAM'][j,zindex],yt='[Cpar/Npar]',
+                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr)
+        plots.plotp(ax[i],a['FPARAM'][m,1],a['FPARAM'][m,4]-a['FPARAM'][m,5],color='k')
+        ax[i].text(0.9,0.8,'{:8.3f}'.format(cn[j].std()),transform=ax[i].transAxes)
+        ax[i].text(0.9,0.7,'{:8.3f}'.format(cn[j[giants]].std()),transform=ax[i].transAxes,color='r')
+        ax[i].text(0.9,0.6,'{:8.3f}'.format(cn[j[dwarfs]].std()),transform=ax[i].transAxes,color='g')
+        rms[i,irms,0] = cn[j].std()
+        rms[i,irms,1] = cn[j[giants]].std()
+        rms[i,irms,2] = cn[j[dwarfs]].std()
+        if i == 0 : y0=ymed
+        ax[i].plot([0,5],[y0,y0],ls=':')
         fig.suptitle(cluster)
+    irms+=1
     if hard is not None:
-        fig.savefig(hard+cluster+'_'+'Cpar_Npar'+'.png')
+        fig.savefig(hard+cluster+suffix+'_'+'Cpar_Npar'+'.png')
     else : pdb.set_trace()    
 
     # element [C/N]
     for i,(a,j) in enumerate(zip(all,inds)) :
+        giants=np.where(a['FPARAM'][j,1] < 3.8)[0]
+        dwarfs=np.where(a['FPARAM'][j,1] > 3.8)[0]
         ax[i].cla()
         try :
-            ymed=np.median(a['FELEM'][j,0]-a['FELEM'][j,2])
-            plots.plotc(ax[i],a['FPARAM'][j,1],a['FELEM'][j,0]-a['FELEM'][j,2],a['FPARAM'][j,0],yt='[C/N]',
-                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g')
-        except :
-            ymed=np.median(a['FELEM'][j,0,0]-a['FELEM'][j,0,2])
-            plots.plotc(ax[i],a['FPARAM'][j,1],a['FELEM'][j,0,0]-a['FELEM'][j,0,2],a['FPARAM'][j,0],yt='[C/N]',
-                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g')
+            cn=a['FELEM'][:,0]-a['FELEM'][:,2]
+        except:
+            cn=a['FELEM'][:,0,0]-a['FELEM'][:,0,2]
+
+        ymed=np.median(a['FELEM'][j,0]-a['FELEM'][j,2])
+        plots.plotc(ax[i],a['FPARAM'][j,1],cn[j],a['FPARAM'][j,zindex],yt='[C/N]',
+                xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr)
+        plots.plotp(ax[i],a['FPARAM'][m,1],a['FELEM'][m,0]-a['FELEM'][m,2],color='k')
+        ax[i].text(0.9,0.8,'{:8.3f}'.format(cn[j].std()),transform=ax[i].transAxes)
+        ax[i].text(0.9,0.7,'{:8.3f}'.format(cn[j[giants]].std()),transform=ax[i].transAxes,color='r')
+        ax[i].text(0.9,0.6,'{:8.3f}'.format(cn[j[dwarfs]].std()),transform=ax[i].transAxes,color='g')
+        rms[i,irms,0] = cn[j].std()
+        rms[i,irms,1] = cn[j[giants]].std()
+        rms[i,irms,2] = cn[j[dwarfs]].std()
+        if i == 0 : y0=ymed
+        ax[i].plot([0,5],[y0,y0],ls=':')
         fig.suptitle(cluster)
+    irms+=1
     if hard is not None:
-        fig.savefig(hard+cluster+'_'+'C_N'+'.png')
+        fig.savefig(hard+cluster+suffix+'_'+'C_N'+'.png')
     else : pdb.set_trace()    
 
+    # elements
+    els = aspcap.elems()[0]
     for iel,el in enumerate(els) :
         for i,(a,j) in enumerate(zip(all,inds)) :
+            giants=np.where(a['FPARAM'][j,1] < 3.8)[0]
+            dwarfs=np.where(a['FPARAM'][j,1] > 3.8)[0]
             ax[i].cla()
             try:
                 ymed=np.median(a['FELEM'][j,iel])
-                plots.plotc(ax[i],a['FPARAM'][j,1],a['FELEM'][j,iel],a['FPARAM'][j,0],yt=el,
-                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g')
+                plots.plotc(ax[i],a['FPARAM'][j,1],a['FELEM'][j,iel],a['FPARAM'][j,zindex],yt=el,
+                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr)
+                plots.plotp(ax[i],a['FPARAM'][m,1],a['FELEM'][m,iel],color='k')
             except:
                 ymed=np.median(a['FELEM'][j,0,iel])
-                plots.plotc(ax[i],a['FPARAM'][j,1],a['FELEM'][j,0,iel],a['FPARAM'][j,0],yt=el,
-                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g')
+                plots.plotc(ax[i],a['FPARAM'][j,1],a['FELEM'][j,0,iel],a['FPARAM'][j,zindex],yt=el,
+                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr)
+            ax[i].text(0.9,0.8,'{:8.3f}'.format(a['FELEM'][j,iel].std()),transform=ax[i].transAxes)
+            ax[i].text(0.9,0.7,'{:8.3f}'.format(a['FELEM'][j[giants],iel].std()),transform=ax[i].transAxes,color='r')
+            ax[i].text(0.9,0.6,'{:8.3f}'.format(a['FELEM'][j[dwarfs],iel].std()),transform=ax[i].transAxes,color='g')
+            rms[i,irms,0] = a['FELEM'][j,iel].std()
+            rms[i,irms,1] = a['FELEM'][j[giants],iel].std()
+            rms[i,irms,2] = a['FELEM'][j[dwarfs],iel].std()
+            if i == 0 : y0=ymed
+            ax[i].plot([0,5],[y0,y0],ls=':')
             fig.suptitle(cluster)
+        irms+=1
         if hard is not None:
-            fig.savefig(hard+cluster+'_'+el+'.png')
+            fig.savefig(hard+cluster+suffix+'_'+el+'.png')
         else : pdb.set_trace()    
     plt.close()
-    return inds
+    fig,ax=plots.multi(1,3,hspace=0.001)
+    for i in range(rms.shape[0]) :
+        ax[0].plot(rms[i,:,0],label='all {:d}'.format(i))
+        ax[1].plot(rms[i,:,1],label='rgb {:d}'.format(i))
+        ax[2].plot(rms[i,:,2],label='ms {:d}'.format(i))
+    for i in range(3) :
+        ax[i].legend()
+        ax[i].set_ylim(0,0.2)
+        ax[i].set_ylabel('rms')
+    labs=['M','Cp','Np','al','CNp','CN']
+    labs.extend(els)
+    ax[2].set_xlim(ax[0].get_xlim())
+    ax[2].set_xticks(np.arange(rms.shape[1]))
+    ax[2].set_xticklabels(labs)
+    fig.savefig(hard+cluster+suffix+'_rms.png')
+    plt.close()
+
+    grid=[[cluster+suffix+'_rms.png']]
+    for param in ['chi2','M','Cpar','Npar','alpha','Cpar_Npar','C_N'] :
+        fig=cluster+suffix+'_'+param+'.png'
+        grid.append([fig])
+    for el in aspcap.elems()[0] :
+        fig=cluster+suffix+'_'+el+'.png'
+        grid.append([fig])
+    html.htmltab(grid,file=hard+cluster+suffix+'.html')
+
+    return inds, rms
 
 def allclust(all,clusters=['M67','N7789','N6819','N6791','M3','M15']) :
+    """ Create cluster plots for multiple clusters and make summary web page
+    """
     allinds=[]
     for cluster in clusters :
-        inds=plotclust(all,cluster=cluster,hard='plots/')
+        inds=plotlogg(all,cluster=cluster,hard='plots/')
         allinds.append(inds)
 
     grid=[]
-    for param in ['chi2','M','Cpar','Npar','alpha','Cpar_Npar','C_N'] :
+    for param in ['rms','chi2','M','Cpar','Npar','alpha','Cpar_Npar','C_N'] :
         row=[]
         for clust in clusters :
             fig=clust+'_'+param+'.png'
@@ -410,10 +520,20 @@ def concat(files,hdu=1) :
         print(len(all), len(a))
     return all
 
+def solarsample(indata,data,raw=True) :
+    """ selects sample of solar neighborhood low log g stars from previous data set
+    """
+    i1,i2 = match.match(indata['APOGEE_ID'],data['APOGEE_ID'])
+    solar=np.where((data['gaia_parallax_error'][i2]/abs(data['gaia_parallax'][i2]) < 0.1) )[0]
+    distance = 1000./data['gaia_parallax'][solar]
+    x,y,z,r=lbd2xyz(data['GLON'][solar],data['GLAT'][solar],distance/1000.)
+    gd = np.where((abs(z) < 0.5) & (r>8) & (r<9) & (data['FPARAM'][i2[solar],1]<2.5)&(data['FPARAM'][i2[solar],1]>-1) )[0]
+    solar=solar[gd]
+    return i1[solar], i2[solar]
+
 def hrsample(indata,hrdata,maxbin=50,raw=True) :
-    ''' 
-    selects stars covering HR diagram as best as possible from input sample
-    '''
+    """ selects stars covering HR diagram as best as possible from input sample
+    """
     i1,i2 = match.match(indata['APOGEE_ID'],hrdata['APOGEE_ID'])
     gd=[]
     for teff in np.arange(3000,6000,500) :
@@ -430,11 +550,13 @@ def hrsample(indata,hrdata,maxbin=50,raw=True) :
     return i1[gd],i2[gd]
 
 def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v4.4.2',apred=None,
-              cal1m=True,coolstars=True,dir='cal',hrdata=None,optical='cal_stars_20190329.txt',ns=True,special=None,Ce=True,ebvmax=None,snmin=75,mkindiv=False,mkall=True) :
-    '''
-    selects a calibration subsample from an input apField structure, including several calibration sub-classes: 
+              calclusters=None,solarneigh=False,solardata=None,
+              cal1m=True,coolstars=True,dir='cal',hrdata=None,optical='cal_stars_20190329.txt',ns=True,
+              special=None,Ce=True,ebvmax=None,snmin=75,mkindiv=False,mkall=True) :
+
+    """ selects a calibration subsample from an input apField structure, including several calibration sub-classes: 
         cluster, APOKASC stars, 1m calibration stars. Creates cluster web pages/plots if requested
-    '''
+    """
 
     if apred is None : 
         print('need to provide apred')
@@ -457,11 +579,31 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
             j=apselect.clustmember(data,clust[ic].name,plot=False,hard=None,gals=False)
             print(clust[ic].name,len(j))
             # clusters to exclude here
-            if (clust[ic].name not in ['OmegaCen','Pal1','Pal6','Pal5','Terzan12'])  and (len(j) >= 5): jc.extend(j)
+            if calclusters is None :
+                if (clust[ic].name not in ['OmegaCen','Pal1','Pal6','Pal5','Terzan12'])  and (len(j) >= 5): jc.extend(j)
+            else :
+                if (clust[ic].name in calclusters) and (len(j) >= 5): jc.extend(j)
         print('Number of cluster stars: ',len(jc))
         if mkindiv: mklinks(data,jc,dir+'_clust',apred=apred)
         all.extend(jc)
-    
+   
+    if solarneigh :
+        solar=np.where((data['gaia_parallax_error']/abs(data['gaia_parallax']) < 0.1) )[0]
+        distance = 1000./data['gaia_parallax'][solar]
+        x,y,z,r=lbd2xyz(data['GLON'][solar],data['GLAT'][solar],distance/1000.)
+        gd = np.where((abs(z) < 0.5) & (r>8) & (r<9) & (data['RV_TEFF'][solar]<5500) & (data['H'][solar] < 9) )[0]
+        solar=solar[gd]
+        print('Number of solar neighborhood stars: ',len(solar))
+
+        if solardata is not None :
+            i1, i2 = solarsample(data,solardata)
+            solar=list(solar)
+            solar.extend(i1)
+            solar=list(set(solar))
+
+        if mkindiv: mklinks(data,solar,dir+'_solar',apred=apred)
+        all.extend(solar)
+
     if apokasc is not None :
         jc=[]
         apokasc = fits.open(os.environ['APOGEE_DIR']+'/data/apokasc/'+apokasc+'.fits')[1].data
@@ -588,7 +730,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
 
     return indata,all
 
-def mklinks(data,j,out,n=24,apred=None) :
+def mklinks(data,j,out,ndir=None,apred=None) :
     """ Create links in n different output directories for requested indices
     """
 
@@ -596,11 +738,13 @@ def mklinks(data,j,out,n=24,apred=None) :
         # create symbolic links in output directories, separate for each instrument
         outdir=tel+'/'+out+'_'
         # remove existing output directories, create new ones
-        cleandir(outdir,n)
         if type(data['TELESCOPE'][0]) is str :
             gd=np.where(data['TELESCOPE'][j] == tel )[0]
         else: 
             gd=np.where(data['TELESCOPE'][j] == tel.encode() )[0]
+        if ndir is None : n=np.min([24,len(gd) // 200])
+        else : n = ndir
+        cleandir(outdir,n)
         nsplit=len(gd)//n+1
         load=apload.ApLoad(apred=apred,telescope=tel)
         if len(gd) > 0 :
@@ -615,7 +759,7 @@ def mklinks(data,j,out,n=24,apred=None) :
                 for star in tmp :
                     star['APOGEE_ID']=star['APOGEE_ID']+'.'+star['FIELD']
                     star['FIELD'] = field
-                tmp.write(apfield)
+                tmp.write(apfield,overwrite=True)
                 ii+=nsplit
             # create apStar links
             for i in range(len(gd)) :
@@ -976,4 +1120,15 @@ def clip(x,xmin,xmax) :
     return new
 
 
+def lbd2xyz(l,b,d,R0=8.5) :
+    ''' Angular coordinates + distance -> galactocentry x,y,z '''
+
+    brad = b*np.pi/180.
+    lrad = l*np.pi/180.
+
+    x = d*np.sin(0.5*np.pi-brad)*np.cos(lrad)-R0
+    y = d*np.sin(0.5*np.pi-brad)*np.sin(lrad)
+    z = d*np.cos(0.5*np.pi-brad)
+    r = np.sqrt(x**2+y**2)
+    return x, y, z, r
 

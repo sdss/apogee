@@ -150,11 +150,51 @@ lsfd: &lsfd
 GRID :
   - <<: *GKg
     <<: *lsfcombo 
+  - <<: *GKg
+    <<: *lsfa
+  - <<: *GKg
+    <<: *lsfb
+  - <<: *GKg
+    <<: *lsfc
+  - <<: *GKg
+    <<: *lsfd
   - <<: *Mg
     <<: *lsfcombo 
+  - <<: *Mg
+    <<: *lsfa
+  - <<: *Mg
+    <<: *lsfb
+  - <<: *Mg
+    <<: *lsfc
+  - <<: *Mg
+    <<: *lsfd
   - <<: *Fd
     <<: *lsfcombo 
+  - <<: *Fd
+    <<: *lsfa
+  - <<: *Fd
+    <<: *lsfb
+  - <<: *Fd
+    <<: *lsfc
+  - <<: *Fd
+    <<: *lsfd
   - <<: *GKd
     <<: *lsfcombo 
+  - <<: *GKd
+    <<: *lsfa
+  - <<: *GKd
+    <<: *lsfb
+  - <<: *GKd
+    <<: *lsfc
+  - <<: *GKd
+    <<: *lsfd
   - <<: *Md
     <<: *lsfcombo 
+  - <<: *Md
+    <<: *lsfa
+  - <<: *Md
+    <<: *lsfb
+  - <<: *Md
+    <<: *lsfc
+  - <<: *Md
+    <<: *lsfd

@@ -780,7 +780,7 @@ def intplot(a=None,param='FPARAM',indir='cal',apred='r10',aspcap='t33b',verbose=
     load=apload.ApLoad(apred=apred,aspcap=aspcap,verbose=verbose)
     if a is None : a=load.allCal()[1].data
 
-    fig,ax = hr(a,param=param)
+    fig,ax=hr(a)
     plots.event(fig)
     sf,sa=plots.multi(1,1)
     nplot = 11

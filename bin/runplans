@@ -109,11 +109,11 @@ foreach plan ( $plans )
  else
    echo done: $base
  endif
- if ( -e log/stop.$host) break
+ if ( -e log/$host.stop) break
  if ( $nobj >= $maxobj ) break
 
 end
 
-if ( -e log/stop.$host) 'rm' log/stop.$host
+if ( -e log/$host.stop) 'rm' log/$host.stop
 
 wait

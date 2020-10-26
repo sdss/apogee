@@ -6,6 +6,8 @@ pro write_plateplan,out,plate,cmjd,exp,sky,dome,planfiles
 
  ; procedure to write out the information for a given plate, once the
  ;   variables have been loaded
+ if plate ge 15000 then return
+
  cplate=strtrim(string(format='(i6.4)',plate),2)
  printf,out,'plate='+cplate
  printf,out,'psfid='+dome

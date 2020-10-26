@@ -90,9 +90,10 @@ for i=0,n_elements(mjds)-1 do begin
     endif else begin
       ; if not started, make the plan files and start the reductions if transfer is complete
       if file_test(apogee_data+'/'+cmjd+'/'+cmjd+'.log') then begin
-        readcol,apogee_data+'/'+cmjd+'/'+cmjd+'.log',n,f,skip=3,format='(i,a)'
+        readcol,apogee_data+'/'+cmjd+'/'+cmjd+'.log',n,f,ptype,plateid,skip=3,format='(i,a,x,x,a,i)'
         complete=1
         for j=0,n_elements(f)-1 do begin
+         if plateid[j] lt 15000 then begin
           if ~file_test(apogee_data+'/'+cmjd+'/'+f[j]) then complete=0 else begin
             ; check to see if plugmap is available
             h=headfits(apogee_data+'/'+cmjd+'/'+f[j],ext=1)
@@ -106,6 +107,7 @@ for i=0,n_elements(mjds)-1 do begin
               endif
             endif
           endelse
+         endif
         endfor
         if complete then begin
           print,cmjd+' not done and transferred, creating plan files and running'

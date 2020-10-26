@@ -127,7 +127,7 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
       if keyword_set(mjd) then  begin
         num=getnum(mjd) 
         red=where(flatstr.frames/10000L eq num)
-      endif else red=indgen(n_elements(darkstr))
+      endif else red=indgen(n_elements(flatstr))
       if (red[0] ge 0) then begin
        for i=0,n_elements(red)-1 do begin
         ims=getnums(flatstr[red[i]].frames)
@@ -227,7 +227,22 @@ pro makecal,file=file,det=det,dark=dark,flat=flat,wave=wave,multiwave=multiwave,
       getcal,mjd,calfile,darkid=darkid,flatid=flatid,sparseid=sparseid,fiberid=fiberid
       makecal,flat=flatid
       mklittrow,littrow,cmjd=cmjd,darkid=darkid,flatid=flatid,sparseid=sparseid,fiberid=fiberid,clobber=clobber
-    endif
+    endif else begin
+      if keyword_set(mjd) then  begin
+        num=getnum(mjd) 
+        red=where(littrowstr.frames/10000L eq num)
+      endif else red=indgen(n_elements(littrowstr))
+      if (red[0] ge 0) then begin
+       for i=0,n_elements(red)-1 do begin
+        ims=littrowstr[red[i]].name
+        cmjd=getcmjd(ims,mjd=mjd)
+        getcal,mjd,calfile,darkid=darkid,flatid=flatid,sparseid=sparseid,fiberid=fiberid
+        makecal,dark=darkid
+        makecal,flat=flatid
+        mklittrow,ims,cmjd=cmjd,darkid=darkid,flatid=flatid,sparseid=sparseid,fiberid=fiberid,clobber=clobber
+       endfor
+      endif
+    endelse
   endif
 
   if keyword_set(persist) then begin

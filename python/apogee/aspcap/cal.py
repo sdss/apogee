@@ -69,7 +69,7 @@ def allField(search=['apo*/*/a?Field-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?
     if out is not None:
         print('writing',out)
         #struct.wrfits(all,out)
-        all.write(out)
+        all.write(out,overwrite=True)
 
     return all
 

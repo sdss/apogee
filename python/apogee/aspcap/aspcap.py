@@ -406,6 +406,14 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
     aspcapfield['ASPCAP_CHI2'] = 0.
     pars=params()[0]
 
+    if mult :
+        aspcapfield=Table(aspcapfield)
+        aspcapspec=Table(aspcapspec)
+        nparam = len(params()[0])
+        aspcapfield.add_column(Column(name='FPARAM_MULT',dtype=float,shape=(27,nparam),length=len(aspcapfield)))
+        nwave = nw_chip.sum()
+        aspcapspec.add_column(Column(name='SPEC_BESTFIT_MULT',dtype=float,shape=(27,nwave),length=len(aspcapfield)))
+
     # loop over all grids
     param_class=[]
     spec_class=[]
@@ -445,8 +453,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
             gd = np.where(aspcapfield['CLASS'] == grid['name'])[0]
 
         if dostar is not None :
-            pdb.set_trace()
-            gdstar=np.where(aspcapfield['APOGEE_ID'][gd] == dostar.encode())[0]
+            gdstar=np.where(aspcapfield['APOGEE_ID'][gd] == dostar)[0]
             gd=gd[gdstar]
 
         print(grid['name'],len(gd))
@@ -495,7 +502,6 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                             imult+=1
         if mult: pdb.set_trace()
       
-
         # write FERRE files and run FERRE
         if clobber or not os.path.exists(out+'.spm') :
             if fix is not None :
@@ -543,7 +549,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                 chi2 *= 10
             if chi2 < aspcapfield['ASPCAP_CHI2'][gd[istar]] or aspcapfield['ASPCAP_CHI2'][gd[istar]]<=0 :
                 aspcapfield['CLASS'][gd[istar]] = grid['name']
-                aspcapfield['ASPCAP_CHI2'][gd[istar]] = param['ASPCAP_CHI2'][i]
+                aspcapfield['ASPCAP_CHI2'][gd[istar]] = chi2
                 aspcapfield['FPARAM'][gd[istar]] = param['FPARAM'][i]
                 aspcapfield['FPARAM_COV'][gd[istar]] = param['FPARAM_COV'][i]
                 aspcapfield['ASPCAPFLAG'][gd[istar]] = param['ASPCAPFLAG'][i]
@@ -593,9 +599,19 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                     filterfile=os.environ['APOGEE_DIR']+'/data/windows/'+grid['mask']
                     fmask=np.loadtxt(filterfile)
                     bd = np.where(fmask < 0.001)[0]
-                    aspcapspec['MASK'][gd[istar]][bd] !=  pixelmask.getval('FERRE_MASK')
+                    aspcapspec['MASK'][gd[istar]][bd] |=  pixelmask.getval('FERRE_MASK')
                 except: pdb.set_trace()
+            if mult :
+                for imult in range(27) :
+                    i = np.where(param['APOGEE_ID'] == '{:s}.{:d}'.format(star['APOGEE_ID'],imult).encode())[0]
+                    if len(i) == 0 : continue
+                    aspcapfield['FPARAM_MULT'][gd[istar],imult,:] = param['FPARAM'][i]
+                    aspcapspec['SPEC_BESTFIT_MULT'][gd[istar],imult,:] =  spec['mdl'][i]
 
+
+    if mult : 
+        suffix='_mult'
+        pdb.set_trace()
 
     # Results in astropy tables
     aspcapfield=Table(aspcapfield)

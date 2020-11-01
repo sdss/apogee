@@ -163,22 +163,27 @@ def get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type='marcs',atmosroot=None,nskip
         if nskip == 2 : trim=15
         if nskip > 2 : return 0.,0.
         kurucz2turbo(atmod,outmod,trim=trim )
+
     elif atmos_type == 'marcs' :
         try :        
             ret = marcs2turbo(atmod,outmod,trim=nskip,fill=fill )
             if not fill and ret<0 : return ret
         except:
             return -2
+
     elif atmos_type == 'synspec' :
         if os.path.exists(atmod) :
             shutil.copy(atmod,outmod)
             shutil.copy(atmod.replace('.22','.5'),outmod.replace('.22','.5'))
+            return outmod
         elif cm<-1 :
             atmod=atmosdir+atmos.filename(teff,logg,mh,-1,am,model=model)
-            shutil.copy(atmod,outmod)
-            shutil.copy(atmod.replace('.22','.5'),outmod.replace('.22','.5'))
-        else :
-            return -1
+            if os.path.exists(atmod) :
+                shutil.copy(atmod,outmod)
+                shutil.copy(atmod.replace('.22','.5'),outmod.replace('.22','.5'))
+                return outmod
+        return -1
+
     return outmod
 
 def get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=False,save=False,elemgrid=None,vmicro=1.) :

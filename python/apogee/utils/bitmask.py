@@ -383,6 +383,49 @@ class ApogeeTarget4(BitMask) :
               '','','','','','','','',
               '','','','','','','',''])
 
+class RVMask(BitMask) :
+    '''
+    BitMask class for RVMask
+    '''
+    name = ([ 'RV_BCFIT','RV_BCFIT_FAIL','RV_FAINT_FIT','RV_WINDOW_MASK','RV_VALUE_ERROR','RV_RUNTIME_ERROR','RV_ERROR','',
+              '','','','','','','','',
+              '','','','','','','','',
+              '','','','','','','',''])
+    descrip=([
+     'Initial fit on BC combined spectra, then small RV range',
+     'Failed fit on BC combined spectra',
+     'Faint star, RV fit on reduced range',
+     'Regions masked in RV fit'
+     'Jointfit failed with ValueError',
+     'Jointfit failed with RuntimeError',
+     'Jointfit failed with exception',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     '',
+     ''
+    ])
+
 def targflags(targ1,targ2,targ3,targ4,survey='apogee2') :
 
     if 'apogee2' in survey :

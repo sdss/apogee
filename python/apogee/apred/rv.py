@@ -1653,9 +1653,13 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
         zeros = np.zeros([1,nwave])
         izeros = np.zeros([1,nwave],dtype=int)
     if len(allvisit) == 1 :
-        rvtab=Table(np.vstack(allvisit['RVTAB']))
+        rvtab=Table(np.squeeze(np.vstack(allvisit['RVTAB']),axis=0))
     else :
         rvtab=Table(np.squeeze(np.vstack(allvisit['RVTAB'])))
+    gdccf=np.where(np.isfinite(rvtab['x_ccf'][0,:]))[0]
+    rvtab['x_ccf']=rvtab['x_ccf'][:,gdccf]
+    rvtab['ccf']=rvtab['ccf'][:,gdccf]
+    rvtab['ccferr']=rvtab['ccferr'][:,gdccf]
     apstar=apload.ApSpec(zeros,err=zeros.copy(),bitmask=izeros,wave=aspcap.apStarWave(),
                 sky=zeros.copy(),skyerr=zeros.copy(),telluric=zeros.copy(),telerr=zeros.copy(),
                 cont=zeros.copy(),template=zeros.copy(),rvtab=rvtab)

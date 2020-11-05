@@ -633,7 +633,6 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
             allobj=set(allvisits['APOGEE_ID'])
     else :
         allobj = obj
-    pdb.set_trace()
 
     # output apField structure
     fieldtype = np.dtype([('FILE','S64'),('APOGEE_ID','S30'),('TELESCOPE','S6'),('LOCATION_ID',int),('FIELD','S20'),

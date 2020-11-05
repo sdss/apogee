@@ -602,6 +602,8 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
             visitsum.append(Table.read(file))
         allvisits=vstack(visitsum)
         allvisits.sort('JD')
+        # strip spaces from APOGEE_ID
+        for visit in allvisits : visit['APOGEE_ID'] = visit['APOGEE_ID'].strip()
 
     starmask=bitmask.StarBitMask()
     gd=np.where(((allvisits['STARFLAG'] & starmask.badval()) == 0) & 
@@ -631,6 +633,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
             allobj=set(allvisits['APOGEE_ID'])
     else :
         allobj = obj
+    pdb.set_trace()
 
     # output apField structure
     fieldtype = np.dtype([('FILE','S64'),('APOGEE_ID','S30'),('TELESCOPE','S6'),('LOCATION_ID',int),('FIELD','S20'),
@@ -807,7 +810,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         else :
             bdvisits = np.where(allvisits['APOGEE_ID'] == apogee_id.encode())[0]
             if len(bdvisits) > 0 : 
-                starflag,andflag = np.uint64(0),np.uint64(0)
+                starflag,andflag,rvflag = np.uint64(0),np.uint64(0),np.uint64(0)
                 for bd in bdvisits :
                     allvisits['STARFLAG'][bd] |= starmask.getval('RV_FAIL') 
                     starflag |= allvisits['STARFLAG'][bd]

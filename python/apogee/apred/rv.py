@@ -809,7 +809,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         else :
             bdvisits = np.where(allvisits['APOGEE_ID'] == apogee_id.encode())[0]
             if len(bdvisits) > 0 : 
-                starflag,andflag,rvflag = np.uint64(0),np.uint64(0),np.uint64(0)
+                starflag,andflag,rvflag = np.uint64(0),np.uint64(0),0
                 for bd in bdvisits :
                     allvisits['STARFLAG'][bd] |= starmask.getval('RV_FAIL') 
                     starflag |= allvisits['STARFLAG'][bd]

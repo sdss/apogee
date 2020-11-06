@@ -718,7 +718,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
 
     # load up the individual visit RV information
 
-    # first remove old visit RV tags and initialize new ones
+    # remove old visit RV tags and initialize new ones
     for col in ['VTYPE','VREL','VRELERR','VHELIO','BC','RV_TEFF','RV_LOGG','RV_FEH','RV_CARB','RV_ALPHA'] :
         allvisits.remove_column(col)
         if col != 'VTYPE' : allvisits[col] = np.nan
@@ -1546,7 +1546,12 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
     if plot : fig,ax=plots.multi(1,2,hspace=0.001)
     for i,visit in enumerate(allvisit) :
 
-        if bconly : vrel = -visit['BC']
+        if bconly : 
+            #vrel = -visit['BC']
+            if telescope == 'lco25m' :
+                vrel=bc.getbc(visit['RA'],visit['DEC'],visit['JD'],obs='LCO') / 1000.
+            else :
+                vrel=bc.getbc(visit['RA'],visit['DEC'],visit['JD'],obs='APO') / 1000.
         else : vrel = visit['VREL']
 
         # skip if we don't have an RV
@@ -1654,14 +1659,18 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
     else :
         zeros = np.zeros([1,nwave])
         izeros = np.zeros([1,nwave],dtype=int)
-    if len(allvisit) == 1 :
-        rvtab=Table(np.squeeze(np.vstack(allvisit['RVTAB']),axis=0))
-    else :
-        rvtab=Table(np.squeeze(np.vstack(allvisit['RVTAB'])))
-    gdccf=np.where(np.isfinite(rvtab['x_ccf'][0,:]))[0]
-    rvtab['x_ccf']=rvtab['x_ccf'][:,gdccf]
-    rvtab['ccf']=rvtab['ccf'][:,gdccf]
-    rvtab['ccferr']=rvtab['ccferr'][:,gdccf]
+
+    if not bconly :
+        if len(allvisit) == 1 :
+            rvtab=Table(np.squeeze(np.vstack(allvisit['RVTAB']),axis=0))
+        else :
+            rvtab=Table(np.squeeze(np.vstack(allvisit['RVTAB'])))
+        gdccf=np.where(np.isfinite(rvtab['x_ccf'][0,:]))[0]
+        rvtab['x_ccf']=rvtab['x_ccf'][:,gdccf]
+        rvtab['ccf']=rvtab['ccf'][:,gdccf]
+        rvtab['ccferr']=rvtab['ccferr'][:,gdccf]
+    else : rvtab = None
+
     apstar=apload.ApSpec(zeros,err=zeros.copy(),bitmask=izeros,wave=aspcap.apStarWave(),
                 sky=zeros.copy(),skyerr=zeros.copy(),telluric=zeros.copy(),telerr=zeros.copy(),
                 cont=zeros.copy(),template=zeros.copy(),rvtab=rvtab)
@@ -1694,6 +1703,8 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
         apstar.skyerr[2:,:] = stack.skyerr
         apstar.telluric[2:,:] = stack.telluric
         apstar.telerr[2:,:] = stack.telerr
+
+    if bconly : return apstar
 
     # populate header
     apstar.header['FIELD'] = (allvisit['FIELD'][0], 'APOGEE field name')

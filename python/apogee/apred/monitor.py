@@ -2,8 +2,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tools import plots
 import pdb
+import glob
+import os
+from astropy.io import fits
+from tools import html
 
-def fwhm(a,mjd=[0,99999]):
+def fwhm(mjd=[0,99999],apred='current',telescope='apo25m'):
+    """ FWHM as a function of MJD from Sci.fits summary files
+    """
+    if telescope == 'lco25m' :
+        a=fits.open(os.environ['APOGEE_REDUX']+'/'+apred+'/apogee-nSci'.fits)
+    else :
+        a=fits.open(os.environ['APOGEE_REDUX']+'/'+apred+'/apogee-sSci'.fits)
 
     thar = np.where((a['THAR'] == 1) )[0]
     gd = np.where((a['THAR'] == 1) & (a['JD']>mjd[0]+2400000) & (a['JD']<=mjd[1]+2400000) )[0]
@@ -30,4 +40,57 @@ def fwhm(a,mjd=[0,99999]):
         plt.draw()
     fig.suptitle('FWHM of two (left/right) ThArNe lines ')
     pdb.set_trace()
+
+def flats(mjd=[58000,59155],apred='current',inst='apogee-n',clobber=False) :
+    """ Look at flux frames (from petal and internal flats) levels as a function  of fiber
+    """
+    grid=[]
+    if inst == 'apogee-s' : prefix = 'as'
+    else : prefix = 'ap'
+    rms=[]
+    jd=[]
+    cartid=[]
+    for m in range(mjd[0],mjd[1]) :
+        print(m)
+        dayno = m-55562
+        files=np.sort(glob.glob(os.environ['APOGEE_REDUX']+'/'+apred+'/cal/flux/'+prefix+'Flux-b-'+'{:04d}'.format(dayno)+'*.fits'))
+        if len(files) > 0 :
+            for i,file in enumerate(files) :
+                a=fits.open(file)
+                ngd=np.where(np.isfinite(a[1].data[:,1000]))[0]
+                if len(ngd) > 150 :
+                    jd.append(a[0].header['JD-MID'])
+                    rms.append(np.nanstd(a[1].data[:,1000]))
+                    try:
+                        if a[0].header['EXPTYPE'] == 'QUARTZFLAT' : cart = 0
+                        else : cart = a[0].header['CARTID']
+                    except: cart=0
+                    cartid.append(cart)
+           
+            if clobber or not os.path.exists(os.environ['APOGEE_REDUX']+'/'+apred+'/cal/flux/plots/'+prefix+'Flux-'+str(m)+'.png') :
+                fig,ax=plots.multi(1,len(files),figsize=(6,2+len(files)),wspace=0.001,hspace=0.001)
+                ax=np.atleast_1d(ax)
+                for i,file in enumerate(files) :
+                    a=fits.open(file)
+                    print(file)
+                    plots.plotp(ax[i],300-np.arange(300),a[1].data[:,1000],yr=[0.25,1.75],xt='Fiber')
+                    try:
+                        if a[0].header['EXPTYPE'] == 'QUARTZFLAT' :
+                            plate = 'QUARTZFLAT'
+                            cart = 0
+                        else :
+                            plate = 'PLATE: '+str(a[0].header['PLATEID'])
+                            cart =  'CART: '+str(a[0].header['CARTID'])
+                        ax[i].text(0.1,0.1,plate,transform=ax[i].transAxes)
+                        ax[i].text(0.8,0.1,cart,transform=ax[i].transAxes)
+                    except: pass
+                fig.suptitle(m)
+                fig.savefig(os.environ['APOGEE_REDUX']+'/'+apred+'/cal/flux/plots/'+prefix+'Flux-'+str(m)+'.png')
+            grid.append([prefix+'Flux-'+str(m)+'.png'])
+            plt.close()
+    fig,ax=plots.multi(1,1,figsize=(16,8))
+    plots.plotc(ax,np.array(jd),np.array(rms),np.array(cartid),xt='JD',yt='flat rms',yr=[0,1],colorbar=True,zt='Cart')
+    fig.savefig(os.environ['APOGEE_REDUX']+'/'+apred+'/monitor/'+inst+'/'+prefix+'Flux.png')
+    html.htmltab(grid,file=os.environ['APOGEE_REDUX']+'/'+apred+'/cal/flux/plots/'+prefix+'Flux.html')
+    return jd,rms,cartid
 

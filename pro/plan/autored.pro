@@ -126,7 +126,7 @@ for i=0,n_elements(mjds)-1 do begin
           printf,out,'#SBATCH --account=sdss-kp-fast'
           printf,out,'#SBATCH --partition=sdss-kp'
           printf,out,'#SBATCH --ntasks=16'
-          printf,out,'#SBATCH --time=240:00:00'
+          printf,out,'#SBATCH --time=24:00:00'
           printf,out,'#SBATCH --nodes=1'
           printf,out,'#SBATCH -o '+cmjd+'.out'
           printf,out,'#SBATCH -e '+cmjd+'.out'

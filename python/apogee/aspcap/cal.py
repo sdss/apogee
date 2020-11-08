@@ -730,13 +730,13 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
 
     return indata,all
 
-def mklinks(data,j,out,ndir=None,apred=None) :
+def mklinks(data,j,out,ndir=None,apred=None,root='./') :
     """ Create links in n different output directories for requested indices
     """
 
     for tel in ['apo1m','apo25m','lco25m'] :
         # create symbolic links in output directories, separate for each instrument
-        outdir=tel+'/'+out+'_'
+        outdir=root+'/'+tel+'/'+out+'_'
         # remove existing output directories, create new ones
         if type(data['TELESCOPE'][0]) is str :
             gd=np.where(data['TELESCOPE'][j] == tel )[0]

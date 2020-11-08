@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+# encoding: utf-8
+#
+# @Author: Jon Holtzman
+# @Date: March 2018
+# @Filename: apred
+# @License: BSD 3-Clause
+# @Copyright: Jon Holtzman
+
+
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import unicode_literals
+
+import argparse
+import os
+import sys
+import subprocess
+import pdb
+import time
+import datetime
+
+from apogee.apred import monitor
+
+if __name__ == '__main__' :
+
+    parser = argparse.ArgumentParser(
+        prog=os.path.basename(sys.argv[0]),
+        description='Runs RVs')
+
+    parser.add_argument("--apred",type=str,help='apred version',default='current')
+    parser.add_argument("--inst",type=str,help='instrument',default='apogee-n')
+    parser.add_argument("--mjd",type=float,nargs=2,help='MJD range',default=[55800,59500])
+    parser.add_argument("--fwhm",help='ThArNe fwhm',action='store_true')
+    parser.add_argument("--flats",help='flat field fluxes',action='store_true')
+    parser.add_argument("--clobber",help='overwrite existing',action='store_true')
+    parser.add_argument("--done")
+    parser.add_argument("--host")
+    args=parser.parse_args()
+
+    now = datetime.datetime.now()
+    start = time.time()
+    print("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
+
+    if args.fwhm : monitor.fwhm(mjd=args.mjd,clobber=args.clobber,apred=args.apred,inst=args.inst)
+    if args.flats : monitor.flats(mjd=args.mjd,clobber=args.clobber,apred=args.apred,inst=args.inst)

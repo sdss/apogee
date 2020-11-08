@@ -2,6 +2,7 @@ linelists/*19*
 linelists/*20*
 bin/s*
 bin/rotin*
+bin/list2bin
 synspec/rotin3
 synspec/s54h
 synspec/s54d

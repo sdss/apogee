@@ -671,10 +671,10 @@ if ims[0] gt 0 then begin
   if ~keyword_set(onem) then begin
     if size(gcam,/type) eq 8 then begin
       jcam=where(gcam.mjd gt mjd0 and gcam.mjd lt mjd1,nj) 
+      file='guider-'+name
       device,file=outdir+file+'guider.eps',/encap
       plot,gcam[jcam].mjd,gcam[jcam].gdrms
       device,/close
-      file='guider-'+name
       ps2gif,outdir+file+'guider.eps',/eps,chmod='664'o,/delete
     endif
   endif

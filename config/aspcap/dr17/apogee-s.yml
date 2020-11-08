@@ -13,8 +13,8 @@ lsfd : &lsfd
     fibermax : 32
 
 defaults : &defaults
-    mask :  dr16/global_mask_v02.txt
-    windows : dr16/
+    mask :  dr17/global_mask_v02.txt
+    windows : dr17/
     inter :           3
     renorm :          -4
     obscont :    1

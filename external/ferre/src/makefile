@@ -84,8 +84,8 @@ a.out:  ${OBJS} ${SOURCE}
 	${F90} -c ${OPT} $*.f90
 
 install:
-	cp a.out ../bin/ferre.x
-	cp ascii2bin ../bin/ascii2bin
+	cp a.out ../../../bin/ferre.x
+	cp ascii2bin ../../../bin/ascii2bin
 
 test: 
 	@ echo ${OS1} ${OS2}  ${OS3} / ${OS4} / ${F90} ${OPT}

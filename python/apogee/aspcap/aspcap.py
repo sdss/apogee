@@ -634,17 +634,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
     aspcapkey=Table(aspcapkey)
 
     if write :
-        hdulist=fits.HDUList()
-        hdulist.append(fits.table_to_hdu(aspcapfield))
-        hdulist.append(fits.table_to_hdu(aspcapspec))
-        hdulist.append(fits.table_to_hdu(aspcapkey))
-
-        #output aspcapField
-        outfield=load.filename('aspcapField',field=field)
-        try: os.makedirs(os.path.dirname(outfield))
-        except: pass
-        outfile=os.path.dirname(outfield)+'/'+os.path.splitext(os.path.basename(outfield))[0]+suffix+'.fits'
-        hdulist.writeto(outfile,overwrite=True)
+        writefiles(load,field,aspcapfield,aspcapspec,aspcapkey,suffix=suffix)
 
     if html :
         # create output HTML page
@@ -810,17 +800,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
     # Results into an HDUList 
 
     if write :
-        hdulist=fits.HDUList()
-        hdulist.append(fits.table_to_hdu(aspcapfield))
-        hdulist.append(fits.table_to_hdu(aspcapspec))
-        hdulist.append(fits.table_to_hdu(aspcapkey))
-
-        #output aspcapField
-        outfield=load.filename('aspcapField',field=field)
-        try: os.makedirs(os.path.dirname(outfield))
-        except: pass
-        outfile=os.path.dirname(outfield)+'/'+os.path.splitext(os.path.basename(outfield))[0]+suffix+'.fits'
-        hdulist.writeto(outfile,overwrite=True)
+        writefiles(load,field,aspcapfield,aspcapspec,aspcapkey,suffix=suffix)
 
     if html :
         # create output HTML page
@@ -828,6 +808,47 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
 
     return aspcapfield,aspcapspec,aspcapkey
 
+def writefiles(load,field,aspcapfield,aspcapspec,aspcapkey,suffix='') :
+
+    """ Write aspcapField and aspcapStar files
+    """
+    hdulist=fits.HDUList()
+    hdulist.append(fits.table_to_hdu(aspcapfield))
+    hdulist.append(fits.table_to_hdu(aspcapspec))
+    hdulist.append(fits.table_to_hdu(aspcapkey))
+
+    #output aspcapField
+    outfield=load.filename('aspcapField',field=field)
+    try: os.makedirs(os.path.dirname(outfield))
+    except: pass
+    outfile=os.path.dirname(outfield)+'/'+os.path.splitext(os.path.basename(outfield))[0]+suffix+'.fits'
+    hdulist.writeto(outfile,overwrite=True)
+
+    #output aspcapStar
+    for star,spec in zip(aspcapfield,aspcapspec) :
+        outfile=load.filename('aspcapStar',field=field,obj=star['APOGEE_ID'])
+        hdulist=fits.HDUList()
+        hdulist.append(fits.PrimaryHDU())
+        hdu=fits.ImageHDU(aspcap2apStar(spec['SPEC']))
+        add_header(hdu)
+        hdulist.append(hdu)
+        hdu=fits.ImageHDU(aspcap2apStar(spec['SPEC_ERR']))
+        add_header(hdu)
+        hdulist.append(hdu)
+        hdu=fits.ImageHDU(aspcap2apStar(spec['SPEC_BESTFIT']))
+        add_header(hdu)
+        hdulist.append(hdu)
+        hdulist.append(fits.table_to_hdu(Table(star)))
+        hdulist.writeto(outfile,overwrite=True)
+
+    return
+
+def add_header(hdu) :
+    hdu.header['CRVAL1']=logw0
+    hdu.header['CDELT1']=dlogw
+    hdu.header['CRPIX1']=1
+    hdu.header['CTYPE1'] = 'LOG-LINEAR'
+    hdu.header['DC-FLAG'] = 1
 
 def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
     """ Create ASPCAP field web page and plots

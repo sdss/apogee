@@ -20,7 +20,7 @@ def getdata(data) :
     tab.add_column(Column(data['APOGEE_ID'],name='twomass'))
     tab.add_column(Column(data['RA'],name='apogee_ra'))
     tab.add_column(Column(data['DEC'],name='apogee_dec'))
-    if type(data['APOGEE_ID'][0]) is str : 
+    if type(data['APOGEE_ID'][0]) is str or type(data['APOGEE_ID'][0]) is np.str_ : 
         j=np.where(np.core.defchararray.find(data['APOGEE_ID'],'2M') == 0)[0]
         out,ind=np.unique(np.core.defchararray.replace(data['APOGEE_ID'][j],'2M',''),return_index=True)
     else :

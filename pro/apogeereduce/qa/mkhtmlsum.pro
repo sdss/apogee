@@ -75,16 +75,28 @@ for i=n_elements(mjd)-1,0,-1 do begin
   else $
   printf,html,'<TD><center><FONT COLOR=red> '+cmjd+' QA </font></center>' 
   ; find plates reduced for this night
-  if dirs.telescope eq 'apo1m' then $
-  plates=file_search(spectrodir+'/visit/'+dirs.telescope+'/*/'+cmjd+'/html/'+cmjd+'*sum.html') else $
-  plates=file_search(spectrodir+'/visit/'+dirs.telescope+'/*/*/'+cmjd+'/html/[1-9]*-'+cmjd+'.html')
+  if dirs.telescope eq 'apo1m' then begin
+    if file_test('plates/'+dirs.telescope+'_'+cmjd+'.lis') then readcol,'plates/'+dirs.telescope+'_'+cmjd+'.lis',plates,format='a',count=nplates else begin
+      plates=file_search(spectrodir+'/visit/'+dirs.telescope+'/*/'+cmjd+'/html/'+cmjd+'*sum.html',count=nplates) 
+      openw,pfile,/get_lun,'plates/'+dirs.telescope+'_'+cmjd+'.lis' 
+      for ii=0,nplates-1 do printf,pfile,plates[ii]
+      free_lun,pfile
+    endelse
+  endif else begin
+    if file_test('plates/'+dirs.telescope+'_'+cmjd+'.lis') then readcol,'plates/'+dirs.telescope+'_'+cmjd+'.lis',plates,format='a',count=nplates else begin
+      plates=file_search(spectrodir+'/visit/'+dirs.telescope+'/*/*/'+cmjd+'/html/[1-9]*-'+cmjd+'.html',count=nplates)
+      openw,pfile,/get_lun,'plates/'+dirs.telescope+'_'+cmjd+'.lis' 
+      for ii=0,nplates-1 do printf,pfile,plates[ii]
+      free_lun,pfile
+    endelse
+  endelse
 ;  if dirs.telescope eq 'apo1m' then allplates=plates_apo1m
 ;  if dirs.telescope eq 'apo25m' then allplates=plates_apo25m
 ;  if dirs.telescope eq 'lco25m' then allplates=plates_lco25m
 ;  j=where(strpos(allplates,'/'+cmjd+'/') ge 0)
 ;  plates=allplates[j]
   printf,html,'<TD>'
-  for j=0,n_elements(plates)-1 do begin
+  for j=0,nplates-1 do begin
    if plates[j] ne '' then begin
     plate=file_basename(plates[j])
     comp=strsplit(plate,'-',/extract)
@@ -105,9 +117,14 @@ for i=n_elements(mjd)-1,0,-1 do begin
   endfor 
 
   ;find combined files for this night
-  plates=file_search(spectrodir+'visit/'+dirs.telescope+'/*/*/'+cmjd+'/html/sum*-'+cmjd+'.html')
+  if file_test('plates/'+dirs.telescope+'_'+cmjd+'sum.lis') then readcol,'plates/'+dirs.telescope+'_'+cmjd+'sum.lis',plates,format='a',count=nplates else begin
+    plates=file_search(spectrodir+'visit/'+dirs.telescope+'/*/*/'+cmjd+'/html/sum*-'+cmjd+'.html',count=nplates)
+    openw,pfile,/get_lun,'plates/'+dirs.telescope+'_'+cmjd+'sum.lis' 
+    for ii=0,nplates-1 do printf,pfile,plates[ii]
+    free_lun,pfile
+  endelse
   printf,html,'<TD>'
-  for j=0,n_elements(plates)-1 do begin
+  for j=0,nplates-1 do begin
    if plates[j] ne '' then begin
     plate=file_basename(plates[j])
     comp=strsplit(plate,'-',/extract)

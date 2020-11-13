@@ -28,7 +28,7 @@ import scipy.ndimage.filters
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy.io import ascii
-from astropy.table import Table, Column
+from astropy.table import Table, Column, vstack
 #from holtz.tools import struct
 from tools import plots
 from tools import match
@@ -227,16 +227,24 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
     instrument=plan['instrument']
     telescope=plan['telescope']
     field=plan['field']
+    if type(field) is str : field=[field]
 
     # setup reader and load apField file
     load = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope=telescope)
-    apfieldname=load.filename('Field',field=field)
-    if apstar_vers != 'stars' :
-        apfieldname=apfieldname.replace('/stars/','/'+apstar_vers+'/')
-        apfield = fits.open(apfieldname)[1].data
-    else :
-        apfield=load.apField(field)[1].data
-    print('apField file: ', apfieldname)
+
+    # if we have multiple fields, read them all and stack them
+    apfield=[]
+    for f in field :
+        apfieldname=load.filename('Field',field=f)
+        if apstar_vers != 'stars' :
+            apfieldname=apfieldname.replace('/stars/','/'+apstar_vers+'/')
+            #apfield.append(fits.open(apfieldname)[1].data)
+            apfield.append(Table.read(apfieldname))
+        else :
+            #apfield.append(load.apField(f)[1].data)
+            apfield.append(Table(load.apField(f)[1].data))
+        print('apField file: ', apfieldname)
+    apfield=vstack(apfield)
 
     # add GAIA data
     apfield=gaia.add_gaia(apfield)
@@ -281,6 +289,8 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
     aspcapfield.add_column(Column(name='PARAMFLAG',dtype=np.uint64,shape=(nparam),length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='ASPCAPFLAG',dtype=np.uint64,length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='ASPCAPFLAGS',dtype='S132',length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='FRAC_LOWSNR',dtype=float,length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='FRAC_SIGSKY',dtype=float,length=len(aspcapfield)))
     nelem = len(elems()[0])
     aspcapfield.add_column(Column(name='FELEM',dtype=float,shape=(nelem),length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='FELEM_ERR',dtype=float,shape=(nelem),length=len(aspcapfield)))
@@ -308,7 +318,7 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
     aspcapmask=bitmask.AspcapBitMask()
     for istar,star in enumerate(aspcapfield) :
 
-        apstarfile=load.filename('Star',field=field,obj=star['APOGEE_ID'])
+        apstarfile=load.filename('Star',field=star['FIELD'],obj=star['APOGEE_ID'])
         if apstar_vers != 'stars' :
             apstarfile=apstarfile.replace('/stars/','/'+apstar_vers+'/')
             try: 
@@ -320,11 +330,11 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
                               telluric=hdulist[6].data,telerr=hdulist[7].data)
             except: 
                 print('No apStar file found: ',apstarfile)
-                try: aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('MISSING_APSTAR')
-                except: pdb.set_trace()
+                aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('MISSING_APSTAR')
+                aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('NO_ASPCAP_RESULT')
                 apstar=None
         else :
-            apstar=load.apStar(field,star['APOGEE_ID'],load=True)
+            apstar=load.apStar(star['FIELD'],star['APOGEE_ID'],load=True)
         print('apstarfile: ',apstarfile)
         if apstar is None: continue
 
@@ -344,9 +354,9 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
         mask= np.where((apStar2aspcap(apstar.bitmask[row,:]) & badval) > 0)[0]
         tmp = apStar2aspcap(apstar.err[row,:])
         tmp[mask] *= 100.
-        # set uncertainty floor to minerr (fractional)
-        ind = np.where(tmp/apStar2aspcap(apstar.flux[row,:]) < minerr)[0]
-        tmp[ind] = minerr*apStar2aspcap(apstar.flux[row,:])[ind]
+        # set uncertainty floor to minerr (fractional): check for negative fluxes!
+        ind = np.where(tmp/np.abs(apStar2aspcap(apstar.flux[row,:])) < minerr)[0]
+        tmp[ind] = minerr*np.abs(apStar2aspcap(apstar.flux[row,:]))[ind]
         aspcapspec['ERR'][istar] = tmp/norm
         bd=np.where(~np.isfinite(aspcapspec['ERR'][istar]))[0]
         if len(bd) > 0 : 
@@ -357,6 +367,13 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
             aspcapspec['ERR'][istar,bd] = 1.e10
         aspcapspec['MASK'][istar] = apStar2aspcap(apstar.bitmask[0,:])
         aspcapspec['NORM'][istar] = 1.
+
+        aspcapfield['FRAC_LOWSNR'][istar] = len(np.where(aspcapspec['ERR'][istar]/aspcapspec['OBS'][istar] > 0.1)[0]) / \
+                  len(aspcapspec['OBS'][istar])
+        aspcapfield['FRAC_SIGSKY'][istar] = len(mask) / len(aspcapspec['OBS'][istar])
+        if aspcapfield['FRAC_LOWSNR'][istar] > 0.9 : 
+            aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('NO_ASPCAP_RESULT')
+            aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('BAD_FRAC_LOWSNR')
 
     return aspcapfield, aspcapspec
 
@@ -378,6 +395,8 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
     telescope=plan['telescope']
     visits = plan['visits'] if plan.get('visits') else 0
     field=plan['field']
+    if 'outfield' not in plan.keys() : outfield = field
+    else : outfield = plan['outfield']
 
     # get initial aspcapField if not provided
     if aspcapdata is None : 
@@ -388,8 +407,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
 
     # output directory
     load = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope=telescope)
-    outfield=load.filename('aspcapField',field=field)
-    outdir=os.path.dirname(outfield)
+    outdir=os.path.dirname(load.filename('aspcapField',field=outfield))
 
     # read ASPCAP configuration
     config = yaml.safe_load(open(os.environ['APOGEE_DIR']+'/config/aspcap/'+aspcap_config+'/'+instrument+'.yml','r'))
@@ -422,9 +440,9 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
 
         # set up output FERRE directory for this grid
         if  init == 'RV' :
-            out=outdir+'/ferre/class_'+grid['name']+'/'+grid['name']+'-'+field
+            out=outdir+'/ferre/class_'+grid['name']+'/'+grid['name']+'-'+outfield
         else :
-            out=outdir+'/ferre/class_'+grid['name']+'_'+init+'/'+grid['name']+'-'+field
+            out=outdir+'/ferre/class_'+grid['name']+'_'+init+'/'+grid['name']+'-'+outfield
 
         if mult: out=out+'_mult'
 
@@ -470,7 +488,8 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
         for star,spec in zip(aspcapfield[gd],aspcapspec[gd]) :
             if star['ASPCAPFLAG'] & aspcapmask.getval('MISSING_APSTAR') : continue
 
-            stars.append(star['APOGEE_ID'])
+            # append field in case we have duplicates
+            stars.append(star['APOGEE_ID']+'__'+star['FIELD'])
             if init == 'RV' :
                 vmicro=np.array([0.372160,-0.090531,-0.000802,0.001263,-0.027321])
                 logg=star['RV_LOGG']
@@ -503,7 +522,8 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
         if mult: pdb.set_trace()
       
         # write FERRE files and run FERRE
-        if clobber or not os.path.exists(out+'.spm') :
+        if clobber or not os.path.exists(out+'.spm') or \
+               (os.path.exists(out+'.spm') and len(open(out+'.spm').readlines()) < len(stars) ) :
             if fix is not None :
                 indv=[]
                 for i,par in enumerate(libhead0['LABEL']) :
@@ -536,7 +556,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
 
         # load into apcapField
         for istar,star in enumerate(aspcapfield[gd]) :
-            i = np.where(param['APOGEE_ID'] == star['APOGEE_ID'].encode())[0]
+            i = np.where(param['APOGEE_ID'] == (star['APOGEE_ID']+'__'+star['FIELD']).encode())[0]
             if len(i) == 0 : continue
             aspcapfield['FPARAM_CLASS'][gd[istar],igrid,:] = param['FPARAM'][i]
             aspcapfield['FPARAM_COV_CLASS'][gd[istar],igrid,:] = param['FPARAM_COV'][i]
@@ -566,7 +586,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                     med=scipy.ndimage.filters.median_filter(obs,[5*width],mode='nearest')
                     bd=np.where(obs < 0.01)[0]
                     obs[bd] = med[bd]
-                    # populate error with FERRE-normalized error
+                    # populate SPEC_ERR with FERRE-normalized error
                     err= spec['err'][i,p1:p1+npix]*spec['frd'][i,p1:p1+npix]/obs
                     bd=np.where(~np.isfinite(err))[0]
                     err[bd] = 1.e10
@@ -634,11 +654,17 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
     aspcapkey=Table(aspcapkey)
 
     if write :
-        writefiles(load,field,aspcapfield,aspcapspec,aspcapkey,suffix=suffix)
+        writefiles(load,outfield,aspcapfield,aspcapspec,aspcapkey,suffix=suffix)
+        for f in field :
+            gd = np.where(aspcapfield['FIELD'] == f)[0]
+            if len(gd) > 0 : writefiles(load,f,aspcapfield[gd],aspcapspec[gd],aspcapkey,suffix=suffix)
 
     if html :
         # create output HTML page
-        mkhtml(field,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
+        mkhtml(outfield,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
+        for f in field :
+            gd = np.where(aspcapfield['FIELD'] == f)[0]
+            if len(gd) > 0 : mkhtml(f,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
 
     return aspcapfield,aspcapspec,aspcapkey
 
@@ -658,15 +684,18 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
     instrument=plan['instrument']
     telescope=plan['telescope']
     field=plan['field']
+    if 'outfield' not in plan.keys() : outfield = field
+    else : outfield = plan['outfield']
 
     # get aspcapField if not provided
     load = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope=telescope)
-    outfield=load.filename('aspcapField',field=field)
-    outdir=os.path.dirname(outfield)
+    outfile=load.filename('aspcapField',field=outfield)
+    outdir=os.path.dirname(outfile)
+
     if aspcapdata is None : 
-        aspcapfield=Table(fits.open(outfield)[1].data)
-        aspcapspec=Table(fits.open(outfield)[2].data)
-        aspcapkey=Table(fits.open(outfield)[3].data)
+        aspcapfield=Table(fits.open(outfile)[1].data)
+        aspcapspec=Table(fits.open(outfile)[2].data)
+        aspcapkey=Table(fits.open(outfile)[3].data)
     else :
         aspcapfield = copy.deepcopy(aspcapdata[0])
         aspcapspec = copy.deepcopy(aspcapdata[1])
@@ -684,7 +713,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
     for igrid,grid in enumerate(config['grids']) :
 
         # output directory for spectra
-        outspec=outdir+'/ferre/spectra/'+grid['name']+'-'+field
+        outspec=outdir+'/ferre/spectra/'+grid['name']+'-'+outfield
         try: os.makedirs(os.path.dirname(outspec))
         except: pass
 
@@ -705,7 +734,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
         err=[]
         stars=[]
         for star,spec in zip(aspcapfield[gd],aspcapspec[gd]) :
-            stars.append(star['APOGEE_ID'])
+            stars.append(star['APOGEE_ID']+'__'+star['FIELD'])
             inpars.append(star[useparam])
             print(star['APOGEE_ID'])
             if renorm :
@@ -728,7 +757,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
             # set up output FERRE directory for this grid
             dirname='elem_'+elem['name']
             if calib: dirname=dirname+'_PARAM'
-            out=outdir+'/ferre/'+dirname+'/'+elem['name']+'-'+grid['name']+'-'+field
+            out=outdir+'/ferre/'+dirname+'/'+elem['name']+'-'+grid['name']+'-'+outfield
             try: os.makedirs(os.path.dirname(out))
             except: pass
 
@@ -776,7 +805,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
         for ielem,elem in enumerate(config['elems']) :
             dirname='elem_'+elem['name']
             if calib: dirname=dirname+'_PARAM'
-            out=outdir+'/ferre/'+dirname+'/'+elem['name']+'-'+grid['name']+'-'+field
+            out=outdir+'/ferre/'+dirname+'/'+elem['name']+'-'+grid['name']+'-'+outfield
             # read FERRE output
             param,spec,wave=ferre.read(out,outdir+'/ferre/'+libfile)
             # fill in locked parameters
@@ -786,7 +815,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
 
             # load into aspcapField
             for istar,star in enumerate(aspcapfield[gd]) :
-                i = np.where(param['APOGEE_ID'] == star['APOGEE_ID'].encode())[0]
+                i = np.where(param['APOGEE_ID'] == (star['APOGEE_ID']+'__'+star['FIELD']).encode())[0]
                 if len(i) == 0 : continue
                 index = np.where(params()[0] == elem['griddim'])[0]
                 try:
@@ -800,11 +829,16 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
     # Results into an HDUList 
 
     if write :
-        writefiles(load,field,aspcapfield,aspcapspec,aspcapkey,suffix=suffix)
+        for f in field :
+            gd = np.where(aspcapfield['FIELD'] == f)[0]
+            if len(gd) > 0 : writefiles(load,f,aspcapfield[gd],aspcapspec[gd],aspcapkey,suffix=suffix)
 
     if html :
         # create output HTML page
-        mkhtml(field,suffix=suffix,apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
+        mkhtml(outfield,suffix=suffix,apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
+        for f in field :
+            gd = np.where(aspcapfield['FIELD'] == f)[0]
+            if len(gd) > 0 : mkhtml(f,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
 
     return aspcapfield,aspcapspec,aspcapkey
 
@@ -812,6 +846,7 @@ def writefiles(load,field,aspcapfield,aspcapspec,aspcapkey,suffix='') :
 
     """ Write aspcapField and aspcapStar files
     """
+
     hdulist=fits.HDUList()
     hdulist.append(fits.table_to_hdu(aspcapfield))
     hdulist.append(fits.table_to_hdu(aspcapspec))

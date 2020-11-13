@@ -97,7 +97,9 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
             j=j[gd]
         else :
             j=np.array(apselect.clustmember(a,cluster,raw=True))
+        if len(j) == 0 : return None, None
         gd=apselect.select(a[j],sn=[75,100000],field=field,mh=mh,raw=True)
+        if len(gd) == 0 : return None, None
         inds.append(j[gd])
         try :bd=np.where(np.core.defchararray.find(a[j[gd]]['STARFLAGS'],'MULTIPLE'.encode()) >=0 )[0]
         except :bd=np.where(np.core.defchararray.find(a[j[gd]]['STARFLAGS'],'MULTIPLE') >=0 )[0]
@@ -131,9 +133,10 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
             plots.plotc(ax[i],a['FPARAM'][j,1],a['FPARAM'][j,iparam],a['FPARAM'][j,zindex],yt=param,
                         xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr)
             plots.plotp(ax[i],a['FPARAM'][m,1],a['FPARAM'][m,iparam],color='k')
-            ax[i].text(0.9,0.8,'{:8.3f}'.format(a['FPARAM'][j,iparam].std()),transform=ax[i].transAxes)
-            ax[i].text(0.9,0.7,'{:8.3f}'.format(a['FPARAM'][j[giants],iparam].std()),transform=ax[i].transAxes,color='r')
-            ax[i].text(0.9,0.6,'{:8.3f}'.format(a['FPARAM'][j[dwarfs],iparam].std()),transform=ax[i].transAxes,color='g')
+            out=stats(a['FPARAM'][j,iparam],subsets=[giants,dwarfs])
+            ax[i].text(0.99,0.8,'{:8.3f}, {:8.3f}'.format(out[0][0],out[0][1]),transform=ax[i].transAxes,ha='right')
+            ax[i].text(0.99,0.7,'{:8.3f}, {:8.3f}'.format(out[1][0],out[1][1]),transform=ax[i].transAxes,ha='right',color='r')
+            ax[i].text(0.99,0.6,'{:8.3f}, {:8.3f}'.format(out[2][0],out[2][1]),transform=ax[i].transAxes,ha='right',color='g')
             rms[i,irms,0] = a['FPARAM'][j,iparam].std()
             rms[i,irms,1] = a['FPARAM'][j[giants],iparam].std()
             rms[i,irms,2] = a['FPARAM'][j[dwarfs],iparam].std()
@@ -146,7 +149,7 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
         else : pdb.set_trace()    
 
     # parameter [C/N]
-    for i,(a,j) in enumerate(zip(all,inds)) :
+    for i,(a,j,m) in enumerate(zip(all,inds,mult)) :
         giants=np.where(a['FPARAM'][j,1] < 3.8)[0]
         dwarfs=np.where(a['FPARAM'][j,1] > 3.8)[0]
         ax[i].cla()
@@ -170,7 +173,7 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
     else : pdb.set_trace()    
 
     # element [C/N]
-    for i,(a,j) in enumerate(zip(all,inds)) :
+    for i,(a,j,m) in enumerate(zip(all,inds,mult)) :
         giants=np.where(a['FPARAM'][j,1] < 3.8)[0]
         dwarfs=np.where(a['FPARAM'][j,1] > 3.8)[0]
         ax[i].cla()
@@ -200,7 +203,7 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
     # elements
     els = aspcap.elems()[0]
     for iel,el in enumerate(els) :
-        for i,(a,j) in enumerate(zip(all,inds)) :
+        for i,(a,j,m) in enumerate(zip(all,inds,mult)) :
             giants=np.where(a['FPARAM'][j,1] < 3.8)[0]
             dwarfs=np.where(a['FPARAM'][j,1] > 3.8)[0]
             ax[i].cla()
@@ -213,9 +216,10 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
                 ymed=np.median(a['FELEM'][j,0,iel])
                 plots.plotc(ax[i],a['FPARAM'][j,1],a['FELEM'][j,0,iel],a['FPARAM'][j,zindex],yt=el,
                     xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr)
-            ax[i].text(0.9,0.8,'{:8.3f}'.format(a['FELEM'][j,iel].std()),transform=ax[i].transAxes)
-            ax[i].text(0.9,0.7,'{:8.3f}'.format(a['FELEM'][j[giants],iel].std()),transform=ax[i].transAxes,color='r')
-            ax[i].text(0.9,0.6,'{:8.3f}'.format(a['FELEM'][j[dwarfs],iel].std()),transform=ax[i].transAxes,color='g')
+            out=stats(a['FELEM'][j,iel],subsets=[giants,dwarfs])
+            ax[i].text(0.99,0.8,'{:8.3f}, {:8.3f}'.format(out[0][0],out[0][1]),transform=ax[i].transAxes,ha='right')
+            ax[i].text(0.99,0.7,'{:8.3f}, {:8.3f}'.format(out[1][0],out[1][1]),transform=ax[i].transAxes,ha='right',color='r')
+            ax[i].text(0.99,0.6,'{:8.3f}, {:8.3f}'.format(out[2][0],out[2][1]),transform=ax[i].transAxes,ha='right',color='g')
             rms[i,irms,0] = a['FELEM'][j,iel].std()
             rms[i,irms,1] = a['FELEM'][j[giants],iel].std()
             rms[i,irms,2] = a['FELEM'][j[dwarfs],iel].std()
@@ -549,7 +553,7 @@ def hrsample(indata,hrdata,maxbin=50,raw=True) :
                 gd.extend(x)
     return i1[gd],i2[gd]
 
-def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v4.4.2',apred=None,
+def calsample(indata=None,root='stars.calsample',file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v4.4.2',apred=None,
               calclusters=None,solarneigh=False,solardata=None,
               cal1m=True,coolstars=True,dir='cal',hrdata=None,optical='cal_stars_20190329.txt',ns=True,
               special=None,Ce=True,ebvmax=None,snmin=75,mkindiv=False,mkall=True) :
@@ -576,15 +580,13 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         clust=apselect.clustdata(gals=False)
         for ic in range(len(clust.name)) :
             print(clust[ic].name)
-            j=apselect.clustmember(data,clust[ic].name,plot=False,hard=None,gals=False)
-            print(clust[ic].name,len(j))
-            # clusters to exclude here
-            if calclusters is None :
-                if (clust[ic].name not in ['OmegaCen','Pal1','Pal6','Pal5','Terzan12'])  and (len(j) >= 5): jc.extend(j)
-            else :
-                if (clust[ic].name in calclusters) and (len(j) >= 5): jc.extend(j)
+            if ( calclusters is None and  (clust[ic].name not in ['OmegaCen','Pal1','Pal6','Pal5','Terzan12']) )  or \
+               clust[ic].name in calclusters :
+                j=apselect.clustmember(data,clust[ic].name,plot=False,hard=None,gals=False)
+                print(clust[ic].name,len(j))
+                if len(j) >= 5: jc.extend(j)
         print('Number of cluster stars: ',len(jc))
-        if mkindiv: mklinks(data,jc,dir+'_clust',apred=apred)
+        if mkindiv: mklinks(data,jc,dir+'_clust',apred=apred,root=root)
         all.extend(jc)
    
     if solarneigh :
@@ -601,7 +603,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
             solar.extend(i1)
             solar=list(set(solar))
 
-        if mkindiv: mklinks(data,solar,dir+'_solar',apred=apred)
+        if mkindiv: mklinks(data,solar,dir+'_solar',apred=apred,root=root)
         all.extend(solar)
 
     if apokasc is not None :
@@ -633,7 +635,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         lowz=np.where((apokasc['FE_H_ADOP_COR'][i2] < -1.) & (apokasc['FE_H_ADOP_COR'][i2] > -90.))[0]
         print('Number of APOKASC low [Fe/H] stars: ',len(lowz))
         jc.extend(i1[lowz])
-        if mkindiv: mklinks(data,jc,dir+'_apokasc',apred=apred)
+        if mkindiv: mklinks(data,jc,dir+'_apokasc',apred=apred,root=root)
         all.extend(jc)
     
     if coolstars :
@@ -645,7 +647,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         i1,i2=match.match(data['APOGEE_ID'],stars['id'])
         print('Number of cool stars: ',len(i1))
         jc.extend(i1)
-        if mkindiv: mklinks(data,jc,dir+'_galcen',apred=apred)
+        if mkindiv: mklinks(data,jc,dir+'_galcen',apred=apred,root=root)
         all.extend(jc)
 
     if cal1m :
@@ -655,21 +657,21 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         j=np.where(data['FIELD'] == 'RCB')[0]
         print('Number of 1m RCB stars: ',len(j))
         all.extend(j)
-        if mkindiv: mklinks(data,j,dir+'_cal1m',apred=apred)
+        if mkindiv: mklinks(data,j,dir+'_cal1m',apred=apred,root=root)
 
     if optical is not None:
         #stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/validation_stars_DR16.txt',names=['id'],format='fixed_width_no_header')
         stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/'+optical,names=['id'],format='fixed_width_no_header')
         i1,i2=match.match(data['APOGEE_ID'],stars['id'])
         print('Number of optical validation stars: ',len(i1))
-        if mkindiv: mklinks(data,i1,dir+'_optical',apred=apred)
+        if mkindiv: mklinks(data,i1,dir+'_optical',apred=apred,root=root)
         all.extend(i1)
 
     if Ce :
         stars = np.loadtxt(os.environ['APOGEE_DIR']+'/data/calib/Ce_test_stars.txt',dtype=str)[:,0]
         i1,i2=match.match(data['APOGEE_ID'],stars)
         print('Number of Ce test stars: ',len(i1))
-        if mkindiv: mklinks(data,i1,dir+'_Ce',apred=apred)
+        if mkindiv: mklinks(data,i1,dir+'_Ce',apred=apred,root=root)
         all.extend(i1)
 
     if ns :
@@ -692,7 +694,7 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         jc.extend(jn[i1])
         i1,i2=match.match(data['APOGEE_ID'][js],stars['id'])
         jc.extend(js[i2])
-        if mkindiv: mklinks(data,jc,dir+'_ns',apred=apred)
+        if mkindiv: mklinks(data,jc,dir+'_ns',apred=apred,root=root)
         print('Number of N/S overlap stars: ',len(jc))
         all.extend(jc)
 
@@ -709,28 +711,28 @@ def calsample(indata=None,file='clust.html',plot=True,clusters=True,apokasc='APO
         i1,i2=match.match(data['APOGEE_ID'][js],stars['id'])
         jc.extend(js[i2])
         print('Number of '+special+' stars: ',len(i1))
-        if mkindiv: mklinks(data,jc,dir+'_special',apred=apred)
+        if mkindiv: mklinks(data,jc,dir+'_special',apred=apred,root=root)
         all.extend(jc)
 
     if ebvmax is not None:
         jc=np.where( (data['SFD_EBV']>0) & (data['SFD_EBV'] < ebvmax) )[0]
         print('Number of low E(B-V) stars: ',len(jc))
-        if mkindiv: mklinks(data,jc,dir+'_ebv',apred=apred)
+        if mkindiv: mklinks(data,jc,dir+'_ebv',apred=apred,root=root)
         all.extend(jc)
 
     if hrdata is not None:
         i1, i2 = hrsample(data,hrdata)
         print('Number of HR sample stars: ',len(i1))
-        if mkindiv: mklinks(data,i1,dir+'_hr',apred=apred)
+        if mkindiv: mklinks(data,i1,dir+'_hr',apred=apred,root=root)
         all.extend(i1)
 
     # create "all" directories with all stars, removing duplicates
     print('Total number of stars: ',len(list(set(all))))
-    if mkall: mklinks(data,list(set(all)),dir+'_all',apred=apred)
+    if mkall: mklinks(data,list(set(all)),dir+'_all',apred=apred,root=root)
 
     return indata,all
 
-def mklinks(data,j,out,ndir=None,apred=None,root='./') :
+def mklinks(data,j,out,ndir=None,apred=None,root='stars.calsample') :
     """ Create links in n different output directories for requested indices
     """
 
@@ -742,41 +744,43 @@ def mklinks(data,j,out,ndir=None,apred=None,root='./') :
             gd=np.where(data['TELESCOPE'][j] == tel )[0]
         else: 
             gd=np.where(data['TELESCOPE'][j] == tel.encode() )[0]
-        if ndir is None : n=np.min([24,len(gd) // 200])
-        else : n = ndir
-        cleandir(outdir,n)
-        nsplit=len(gd)//n+1
-        load=apload.ApLoad(apred=apred,telescope=tel)
         if len(gd) > 0 :
+            if ndir is None : n=np.min([24,np.max([1,len(gd) // 2000])])
+            else : n = ndir
+            load=apload.ApLoad(apred=apred,telescope=tel)
+            nsplit=len(gd)//n+1
             # create apField files
             ii=0
             for i in range(n) :
-                field=os.path.basename(outdir)+'{:03d}'.format(i)
-                apfield=load.filename('Field',field=field)
+                field='{:s}_{:03d}'.format(out,i)
+                apfield=load.filename('Field',field=field).replace('stars',root)
+                outdir=os.path.dirname(apfield)
+                cleandir(outdir)
                 tmp=Table(data[np.array(j)[gd[ii:ii+nsplit]]])
-                # we will add original FIELD to APOGEE_ID, so increase column width
+                # we will add original FIELD to APOGEE_ID in case of duplicates, so increase column width
                 tmp['APOGEE_ID']=tmp['APOGEE_ID'].astype('U40')
+                print(outdir)
                 for star in tmp :
+                    infile=load.filename('Star',field=star['FIELD'],obj=star['APOGEE_ID'])
                     star['APOGEE_ID']=star['APOGEE_ID']+'.'+star['FIELD']
                     star['FIELD'] = field
+                    # create apStar links
+                    outfile=load.filename('Star',field=star['FIELD'],obj=star['APOGEE_ID']).replace('stars',root)
+                    os.symlink(infile,outfile)
                 tmp.write(apfield,overwrite=True)
                 ii+=nsplit
-            # create apStar links
-            for i in range(len(gd)) :
-                symlink(data[j[gd[i]]],outdir,i//nsplit,load=load)
 
 
-def cleandir(out,n) :
+def cleandir(outdir) :
     '''
     auxiliary routine to clean and remake calibration directories
     '''
-    for i in range(n) : 
-        try:
-            shutil.rmtree('{:s}{:03d}'.format(out,i))
-        except : pass
-        try:
-            os.makedirs('{:s}{:03d}'.format(out,i))
-        except : pass
+    try:
+        shutil.rmtree(outdir)
+    except : pass
+    try:
+        os.makedirs(outdir)
+    except : pass
 
 def tostr(dat) :
     if type(dat) is str : return dat
@@ -1131,4 +1135,14 @@ def lbd2xyz(l,b,d,R0=8.5) :
     z = d*np.cos(0.5*np.pi-brad)
     r = np.sqrt(x**2+y**2)
     return x, y, z, r
+
+def stats(a,subsets=None) :
+    med=np.median(a)
+    out=[a.std(), np.median(np.abs(a-med))]
+    if subsets is not None :
+        out=[out]
+        for subset in subsets :
+            med=np.median(a[subset])
+            out.append([a[subset].std(), np.median(np.abs(a[subset]-med))])
+    return out
 

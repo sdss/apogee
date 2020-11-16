@@ -34,7 +34,9 @@ if __name__ == '__main__' :
     cfg = yaml.safe_load(open(args.config,'r'))
 
     # create output directory
+    rundir = os.environ['APOGEE_ASPCAP']+'/'+cfg['apred_vers']+'/'+cfg['aspcap_vers']
     outdir = os.environ['APOGEE_ASPCAP']+'/'+cfg['apred_vers']+'/'+cfg['aspcap_vers']+'/plan'
+    slurmdir = os.environ['APOGEE_ASPCAP']+'/'+cfg['apred_vers']+'/'+cfg['aspcap_vers']+'/slurm/'
     os.makedirs(outdir,exist_ok=True)
 
     # loop over fields
@@ -49,10 +51,11 @@ if __name__ == '__main__' :
             if telescope == 'lco25m' : instrument = 'apogee-s'
             else : instrument = 'apogee-n'
 
+            print(field)
             apfield=glob.glob(field+'/a?Field-*')
             a=fits.open(apfield[0])[1].data
             tot+=len(a)
-            group.append(field)
+            group.append(name)
             if tot > args.bundle or i==len(args.fields)-1 :
                 print(group,tot)
                 fp = open(outdir+'/{:s}_{:d}.yml'.format(telescope,igroup),'w')
@@ -75,6 +78,11 @@ if __name__ == '__main__' :
                 fp.write('field: \n'.format(name))
                 for g in group: fp.write(' - {:s}\n'.format(g))
                 fp.close()
+
+                #write inidividual slurm file for node-sharing
+                mkslurm.write('aspcap plan/{:s}_{:d}.yml'.format(telescope,igroup) ,outdir=slurmdir,name='aspcap_{:s}_{:d}'.format(telescope,igroup),cwd=rundir,
+                    maxrun=2,idlthreads=16,queryport=1051,queryhost=os.uname()[1],pythreads=1,runplans=False,notchpeak=True)
+
                 tot=0
                 group=[]
                 igroup+=1

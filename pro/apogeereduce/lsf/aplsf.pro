@@ -506,7 +506,7 @@ if keyword_set(gauss) then begin
 
   si = sort(linestr.x)
   sigcoef = robust_poly_fit(linestr[si].x,linestr[si].gpar[2],5)
-  xx = scale_vector(findgen(1000),-3222,3222)
+  xx = cgscalevector(findgen(1000),-3222,3222)
   if keyword_set(pl) then oplot,xx,poly(xx,sigcoef),co=250
   std = MAD(linestr.gpar[2]-poly(linestr.x,sigcoef),/zero)
   gd = where(abs(linestr.gpar[2]-poly(linestr.x,sigcoef)) lt 4*std,ngd)

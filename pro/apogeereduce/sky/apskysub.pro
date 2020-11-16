@@ -967,7 +967,7 @@ End  ; nearest sky fibers
       ; Colored points on the sky
       pos = [0.08,0.08,0.50,0.42]
       colpos = [0.08,0.49,0.50,0.51]
-      arr1 = scale_vector(findgen(400),-1.5,1.5)
+      arr1 = cgscalevector(findgen(400),-1.5,1.5)
       xarr = arr1#replicate(1.0,400)
       yarr = replicate(1.0,400)#arr1
       zarr = FUNC_POLY2D(xarr,yarr,pars)
@@ -984,7 +984,7 @@ End  ; nearest sky fibers
             colpos=colpos,/noerase,/over,min=zmin,max=zmax,bottom=1,ncolors=253
   
       ; Overplot the circle
-      phi = scale_vector(findgen(100),0.0,2*!dpi)
+      phi = cgscalevector(findgen(100),0.0,2*!dpi)
       oplot,1.5*sin(phi),1.5*cos(phi),co=255,thick=1.5
   
       ;ps_close

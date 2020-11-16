@@ -176,7 +176,7 @@ For ii=0L,n_elements(fibers)-1 do begin
     par2 = MPFITFUN('skewgauss',xbin,hist,hist*0+1,[par1,skew],yfit=yfit2,/quiet)
     yfit2 = skewgauss(xbin,par2)
     nb = 5000
-    xb = scale_vector(findgen(nb),min(xbin),max(xbin))
+    xb = cgscalevector(findgen(nb),min(xbin),max(xbin))
     yfit3 = skewgauss(xb,par2)
     maxind = first_el(maxloc(yfit3))
     skewmax = xb[maxind]  ; position of maximum

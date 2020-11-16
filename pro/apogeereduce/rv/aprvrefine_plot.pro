@@ -43,7 +43,7 @@ line2 = 'Teff='+stringize(starstr.rv_teff,ndec=0)+' logg='+stringize(starstr.rv_
 al_legend,[line1,line2],position=[1.515,yr[1]-0.05*range(yr)],box=1,charsize=1.3,charthick=4,/clear
 loadct,39,/silent
 if nvisits gt 1 then nspec=nvisits+2 else nspec=1
-co = scale_vector(findgen(nspec),50,250)
+co = cgscalevector(findgen(nspec),50,250)
 
 ; apStar-relative CCFs
 if n_elements(vout0) gt 0 then begin

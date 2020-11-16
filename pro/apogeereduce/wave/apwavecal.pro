@@ -2025,8 +2025,8 @@ End ; 2D poly fitting method
   
       ; Total fit
       ;xx = findgen(6432)
-      xx = scale_vector(findgen(6432),-2198,4246)
-      ;xx = scale_vector(findgen(6432),-3222,3222)
+      xx = cgscalevector(findgen(6432),-2198,4246)
+      ;xx = cgscalevector(findgen(6432),-3222,3222)
       ff = fit_pix2wave(xx,fpars,chipnum=xx*0+2,xb=xx2)  ; all chip=2 since we are inputting XB
       yr1 = [min([lines2.model_wave,ff]),max([lines2.model_wave,ff])]
       yr1 = [yr1[0]-0.1*range(yr1),yr1[1]+0.1*range(yr1)]/1e4

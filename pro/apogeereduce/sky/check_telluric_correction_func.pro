@@ -5,7 +5,7 @@ max_scales = 10.0 ; 4.0
 
 ; Loop through the scaling factors and measure rms
 nscales = 100 ; 50
-scales = scale_vector(findgen(nscales),min_scales,max_scales)
+scales = cgscalevector(findgen(nscales),min_scales,max_scales)
 stdarr = fltarr(nscales)
 sigarr = fltarr(nscales)
 for i=0,nscales-1 do begin
@@ -26,7 +26,7 @@ endfor
 ;monte_str[count].best_scale_sig = best_scale_sig
 ;monte_str[count].best_sig = min(sigarr)
 
-scales2 = scale_vector(findgen(1000),min_scales,max_scales)
+scales2 = cgscalevector(findgen(1000),min_scales,max_scales)
 stdarr2 = spline(scales,stdarr,scales2)
 
 bestind_std = first_el(minloc(stdarr2))

@@ -423,7 +423,7 @@ For i=0,nvisits-1 do begin
 ;  ; Fit a low-order polynomial to the data
 ;  ;;  bad/missing values at the ends have flag=NAN
 ;  gddata = where(finite(vstackstr.mask[i,*]) eq 1,ngddata)    ; only want good values
-;  ;yy = scale_vector(findgen(npix),-1,1)
+;  ;yy = cgscalevector(findgen(npix),-1,1)
 ;  scalecoef = ROBUST_POLY_FITQ(y[gddata],vstackstr.spec[i,gddata],5)
 ;  ;scalecoef = ROBUST_POLY_FIT(y,spec,5)
 ;  cont = POLY(y,scalecoef)

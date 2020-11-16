@@ -590,7 +590,7 @@ status=0
     pos = [0.08,0.58,0.50,0.95]
     colpos = [0.08,0.49,0.50,0.51]
     if dirs.telescope eq 'lco25m' then maxrad=1.1 else maxrad=1.5
-    arr1 = scale_vector(findgen(400),-maxrad,maxrad)
+    arr1 = cgscalevector(findgen(400),-maxrad,maxrad)
     xarr = arr1#replicate(1.0,400)
     yarr = replicate(1.0,400)#arr1
     zarr = FUNC_POLY2D(xarr,yarr,pars)
@@ -609,7 +609,7 @@ status=0
           colpos=colpos,/noerase,/over,min=zmin,max=zmax,bottom=1,ncolors=253
 
     ; Overplot the circle
-    phi = scale_vector(findgen(100),0.0,2*!dpi)
+    phi = cgscalevector(findgen(100),0.0,2*!dpi)
     oplot,3.5*sin(phi),3.5*cos(phi),co=255,thick=1.5
 
     ;ps_close

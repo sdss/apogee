@@ -727,7 +727,7 @@ endif
 ;
 ;; Try various dispersions
 ;ndisp = 31
-;disparr = scale_vector(findgen(ndisp),0.7*coef0[1],1.3*coef0[1])
+;disparr = cgscalevector(findgen(ndisp),0.7*coef0[1],1.3*coef0[1])
 ;xcorr_best = fltarr(ndisp)
 ;shift_best = fltarr(ndisp)
 ;for j=0,ndisp-1 do begin

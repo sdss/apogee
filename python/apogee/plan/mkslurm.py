@@ -4,7 +4,7 @@ import os
 import argparse
 
 def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None,idlthreads=1,runplans=True,
-          time='240:00:00',name=None,fast=False,tacc=False, postcmd=None, flag=None, pythreads=None) :
+          time='240:00:00',name=None,fast=False,tacc=False, notchpeak=False, postcmd=None, flag=None, pythreads=None) :
     """ Routine to write a slurm file with specified input command and parameteres
     """
 
@@ -21,6 +21,14 @@ def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None
     if tacc :
         f.write('#SBATCH --partition=normal\n')
         f.write('#SBATCH --ntasks-per-node=24\n')
+    elif notchpeak :
+        f.write('#SBATCH --account=sdss\n')
+        f.write('#SBATCH --partition=notchpeak\n')
+        f.write('#SBATCH --ntasks=8\n')
+        f.write('#SBATCH -C rom\n')
+        f.write('#SBATCH --mem=32G\n')
+        f.write('#SBATCH --time=48:00:00\n')
+        f.write('#SBATCH --nodes=1\n')
     else :
         if fast : f.write('#SBATCH --account=sdss-kp-fast\n')
         else : f.write('#SBATCH --account=sdss-kp\n')

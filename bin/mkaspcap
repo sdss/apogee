@@ -14,6 +14,7 @@ import subprocess
 import pdb
 from apogee.plan import mkslurm
 import yaml
+from astropy.io import fits
 
 if __name__ == '__main__' :
 
@@ -23,6 +24,7 @@ if __name__ == '__main__' :
 
     parser.add_argument("config",type=str, help='configfile')
     parser.add_argument("--fields",type=str,nargs='+',help='list of fields',default=[])
+    parser.add_argument("--bundle",type=int,help='min bundles size to bundle multiple fields?',default=5000)
     parser.add_argument("--visits",type=int,help='number of visits to process')
     parser.add_argument("--ncpus",type=int,help='number of threads',default=16)
     parser.add_argument("--cal",type=str,help='caldir',default='cal')
@@ -32,42 +34,92 @@ if __name__ == '__main__' :
     cfg = yaml.safe_load(open(args.config,'r'))
 
     # create output directory
+    rundir = os.environ['APOGEE_ASPCAP']+'/'+cfg['apred_vers']+'/'+cfg['aspcap_vers']
     outdir = os.environ['APOGEE_ASPCAP']+'/'+cfg['apred_vers']+'/'+cfg['aspcap_vers']+'/plan'
+    slurmdir = os.environ['APOGEE_ASPCAP']+'/'+cfg['apred_vers']+'/'+cfg['aspcap_vers']+'/slurm/'
     os.makedirs(outdir,exist_ok=True)
 
     # loop over fields
-    for i,field in enumerate(args.fields) :
-        comp=field.split('/')
-        name=comp[-1]
-        telescope=comp[-2]
-        if telescope == 'lco25m' : instrument = 'apogee-s'
-        else : instrument = 'apogee-n'
+    if args.bundle > 0:
+        tot=0
+        group=[]
+        igroup=0
+        for i,field in enumerate(np.sort(args.fields)) :
+            comp=field.split('/')
+            name=comp[-1]
+            telescope=comp[-2]
+            if telescope == 'lco25m' : instrument = 'apogee-s'
+            else : instrument = 'apogee-n'
 
-        fp = open(outdir+'/{:s}_{:s}.yml'.format(name,telescope),'w')
-        fp.write('---\n')
-        fp.write('apogee_ver : {:s}\n'.format(cfg['apogee_ver']))
-        fp.write('apred_vers : {:s}\n'.format(cfg['apred_vers']))
-        fp.write('apstar_vers : {:s}\n'.format(cfg['apstar_vers']))
-        fp.write('aspcap_vers : {:s}\n'.format(cfg['aspcap_vers']))
-        fp.write('aspcap_config : {:s}\n'.format(cfg['aspcap_config']))
-        fp.write('telescope: {:s}\n'.format(telescope))
-        fp.write('instrument: {:s}\n'.format(instrument))
-        if args.visits is not None : fp.write('visits : {:d}\n'.format(args.visits))
-        fp.write('apvisit: 0\n')
-        fp.write('ncpus: {:d}\n'.format(args.ncpus))
-        fp.write('queue: 0\n')
-        fp.write('qname: apogee\n')
-        fp.write('qgroup: apogee\n')
-        fp.write('caldir: {:s}\n'.format(args.cal))
-        fp.write('field: {:s}\n'.format(name))
-        fp.close()
+            print(field)
+            apfield=glob.glob(field+'/a?Field-*')
+            a=fits.open(apfield[0])[1].data
+            tot+=len(a)
+            group.append(name)
+            if tot > args.bundle or i==len(args.fields)-1 :
+                print(group,tot)
+                fp = open(outdir+'/{:s}_{:d}.yml'.format(telescope,igroup),'w')
+                fp.write('---\n')
+                fp.write('apogee_ver : {:s}\n'.format(cfg['apogee_ver']))
+                fp.write('apred_vers : {:s}\n'.format(cfg['apred_vers']))
+                fp.write('apstar_vers : {:s}\n'.format(cfg['apstar_vers']))
+                fp.write('aspcap_vers : {:s}\n'.format(cfg['aspcap_vers']))
+                fp.write('aspcap_config : {:s}\n'.format(cfg['aspcap_config']))
+                fp.write('telescope: {:s}\n'.format(telescope))
+                fp.write('instrument: {:s}\n'.format(instrument))
+                if args.visits is not None : fp.write('visits : {:d}\n'.format(args.visits))
+                fp.write('apvisit: 0\n')
+                fp.write('ncpus: {:d}\n'.format(args.ncpus))
+                fp.write('queue: 0\n')
+                fp.write('qname: apogee\n')
+                fp.write('qgroup: apogee\n')
+                fp.write('caldir: {:s}\n'.format(args.cal))
+                fp.write('outfield: {:s}_{:d}\n'.format(telescope,igroup))
+                fp.write('field: \n'.format(name))
+                for g in group: fp.write(' - {:s}\n'.format(g))
+                fp.close()
 
+                #write inidividual slurm file for node-sharing
+                mkslurm.write('aspcap plan/{:s}_{:d}.yml'.format(telescope,igroup) ,outdir=slurmdir,name='aspcap_{:s}_{:d}'.format(telescope,igroup),cwd=rundir,
+                    maxrun=2,idlthreads=16,queryport=1051,queryhost=os.uname()[1],pythreads=1,runplans=False,notchpeak=True)
+
+                tot=0
+                group=[]
+                igroup+=1
+    else :
+
+        for i,field in enumerate(args.fields) :
+            comp=field.split('/')
+            name=comp[-1]
+            telescope=comp[-2]
+            if telescope == 'lco25m' : instrument = 'apogee-s'
+            else : instrument = 'apogee-n'
+
+            fp = open(outdir+'/{:s}_{:s}.yml'.format(name,telescope),'w')
+            fp.write('---\n')
+            fp.write('apogee_ver : {:s}\n'.format(cfg['apogee_ver']))
+            fp.write('apred_vers : {:s}\n'.format(cfg['apred_vers']))
+            fp.write('apstar_vers : {:s}\n'.format(cfg['apstar_vers']))
+            fp.write('aspcap_vers : {:s}\n'.format(cfg['aspcap_vers']))
+            fp.write('aspcap_config : {:s}\n'.format(cfg['aspcap_config']))
+            fp.write('telescope: {:s}\n'.format(telescope))
+            fp.write('instrument: {:s}\n'.format(instrument))
+            if args.visits is not None : fp.write('visits : {:d}\n'.format(args.visits))
+            fp.write('apvisit: 0\n')
+            fp.write('ncpus: {:d}\n'.format(args.ncpus))
+            fp.write('queue: 0\n')
+            fp.write('qname: apogee\n')
+            fp.write('qgroup: apogee\n')
+            fp.write('caldir: {:s}\n'.format(args.cal))
+            fp.write('field: {:s}\n'.format(name))
+            fp.close()
 
     # make the SLURM file
     os.chdir(os.environ['APOGEE_ASPCAP']+'/'+cfg['apred_vers']+'/'+cfg['aspcap_vers'])
     cmd = 'aspcap'
     mkslurm.write('"'+cmd+'" plan/*.yml' ,maxrun=2,idlthreads=16,queryport=1051,queryhost=os.uname()[1],pythreads=1)
 
+ 
     #sort=np.argsort(nstars)[::-1]
     #fp=open(topdir+'/slurm/fields.sort','w')
     #for i in range(len(sort)) : 

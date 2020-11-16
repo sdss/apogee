@@ -1,11 +1,38 @@
 import numpy as np
 from esutil import htm
-from astropy.table import Table
+from astropy.table import Table, vstack
 from astropy.io import fits
 from apogee.utils import bitmask
 from tools import match
 import os
 import pdb
+import glob
+
+def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out='allStar.fits',verbose=False) :
+    '''
+    Concatenate set of aspcapField files
+    '''
+
+    if type(search) == str:
+        search=[search]
+    allfiles=[]
+    for path in search :
+        allfiles.extend(glob.glob(path))
+
+    a=[]
+    for file in allfiles :
+        if 'Field-cal_' not in file :
+            dat=Table.read(file,hdu=1)
+            a.append(dat)
+    all =vstack(a)
+
+    # write out the file
+    if out is not None:
+        print('writing',out)
+        all.write(out,overwrite=True)
+
+    return all
+
  
 def mkcoord(file='allStar-r12-l33-58358.fits') :
     """ Create coordinate CSV from allStar file, to use for GAIA cross-match

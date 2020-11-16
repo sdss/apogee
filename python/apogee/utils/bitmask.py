@@ -131,7 +131,7 @@ class AspcapBitMask(BitMask):
           'CHI2_WARN','COLORTE_WARN','ROTATION_WARN','SN_WARN','SPEC_HOLE_WARN','ATMOS_HOLE_WARN','VSINI_WARN','',
           'TEFF_BAD','LOGG_BAD','VMICRO_BAD','M_H_BAD','ALPHA_M_BAD','C_M_BAD','N_M_BAD','STAR_BAD',
           'CHI2_BAD','COLORTE_BAD','ROTATION_BAD','SN_BAD','SPEC_HOLE_BAD','ATMOS_HOLE_BAD','VSINI_BAD','NO_ASPCAP_RESULT',
-          'MISSING_APSTAR','NO_GRID','','','','','','',
+          'MISSING_APSTAR','NO_GRID','BAD_FRAC_LOWSNR','','','','','',
           '','','','','','','','',
           '','','','','','','','',
           '','','','','','','',''])
@@ -139,7 +139,7 @@ class AspcapBitMask(BitMask):
             2,2,2,2,2,2,0,0,
             1,1,0,0,0,0,0,1,
             1,1,1,1,1,2,0,1,
-            1,2,0,0,0,0,0,0,
+            1,2,1,0,0,0,0,0,
             0,0,0,0,0,0,0,0,
             0,0,0,0,0,0,0,0,
             0,0,0,0,0,0,0,0])
@@ -176,7 +176,7 @@ class AspcapBitMask(BitMask):
      'Grid point within 1 grid steps of hole-filled synthesis ',
      'Grid point within 1 grid steps of hole-filled atmosphere ',
      ' ',' ',
-     'Missing apStar file','Not processed by any ASPCAP grid','','','','','','',
+     'Missing apStar file','Not processed by any ASPCAP grid','Fraction low SNR pixels > 0.9','','','','','',
      '','','','','','','','',
      '','','','','','','','',
      '','','','','','','',''

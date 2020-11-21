@@ -35,10 +35,11 @@ from tools import match
 from tools import html
 from apogee.utils import apload
 from apogee.utils import bitmask
-from apogee.utils import gaia
+try: from apogee.utils import gaia
+except: print('gaia not available')
 from apogee.utils import spectra
 try: from apogee.aspcap import ferre
-except: pass
+except: print('ferre not available')
 
 def params() :
     '''
@@ -289,6 +290,7 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
     aspcapfield.add_column(Column(name='PARAMFLAG',dtype=np.uint64,shape=(nparam),length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='ASPCAPFLAG',dtype=np.uint64,length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='ASPCAPFLAGS',dtype='S132',length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='FRAC_BADPIX',dtype=float,length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='FRAC_LOWSNR',dtype=float,length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='FRAC_SIGSKY',dtype=float,length=len(aspcapfield)))
     nelem = len(elems()[0])
@@ -351,29 +353,44 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
 
         norm=np.nanmedian(apStar2aspcap(apstar.flux[row,:]))
         aspcapspec['OBS'][istar] = apStar2aspcap(apstar.flux[row,:])/norm
-        mask= np.where((apStar2aspcap(apstar.bitmask[row,:]) & badval) > 0)[0]
+        aspcapspec['MASK'][istar] = apStar2aspcap(apstar.bitmask[row,:])
+        aspcapspec['NORM'][istar] = 1.
+
+        # enhance error around sky lines
         tmp = apStar2aspcap(apstar.err[row,:])
+        mask= np.where((aspcapspec['MASK'][istar] & pixelmask.getval('SIG_SKYLINE')) > 0)[0]
         tmp[mask] *= 100.
+        aspcapfield['FRAC_SIGSKY'][istar] = len(mask) / len(aspcapspec['OBS'][istar])
+
         # set uncertainty floor to minerr (fractional): check for negative fluxes!
         ind = np.where(tmp/np.abs(apStar2aspcap(apstar.flux[row,:])) < minerr)[0]
         tmp[ind] = minerr*np.abs(apStar2aspcap(apstar.flux[row,:]))[ind]
         aspcapspec['ERR'][istar] = tmp/norm
-        bd=np.where(~np.isfinite(aspcapspec['ERR'][istar]))[0]
-        if len(bd) > 0 : 
-            aspcapspec['ERR'][istar,bd] = 1.e10
-        bd=np.where(~np.isfinite(aspcapspec['OBS'][istar]))[0]
-        if len(bd) > 0 : 
-            aspcapspec['OBS'][istar,bd] = 0.
-            aspcapspec['ERR'][istar,bd] = 1.e10
-        aspcapspec['MASK'][istar] = apStar2aspcap(apstar.bitmask[0,:])
-        aspcapspec['NORM'][istar] = 1.
+        # fraction of low S/N pixels 
+        fracerr = aspcapspec['ERR'][istar]/aspcapspec['OBS'][istar] 
+        aspcapfield['FRAC_LOWSNR'][istar] = len(np.where(fracerr > 0.1)[0]) / len(aspcapspec['OBS'][istar])
 
-        aspcapfield['FRAC_LOWSNR'][istar] = len(np.where(aspcapspec['ERR'][istar]/aspcapspec['OBS'][istar] > 0.1)[0]) / \
-                  len(aspcapspec['OBS'][istar])
-        aspcapfield['FRAC_SIGSKY'][istar] = len(mask) / len(aspcapspec['OBS'][istar])
-        if aspcapfield['FRAC_LOWSNR'][istar] > 0.9 : 
+        # make sure bad pixels are not included
+        bd=np.where(~np.isfinite(aspcapspec['ERR'][istar]) | 
+                    ~np.isfinite(aspcapspec['OBS'][istar]) |
+                    (aspcapspec['MASK'][istar] & pixelmask.badval()) > 0 |
+                    aspcapspec['ERR'][istar] < 0. )[0]
+        if len(bd) > 0 : 
+            aspcapspec['OBS'][istar,bd] = 0.0001
+            aspcapspec['ERR'][istar,bd] = 1.e10
+        # fraction of bad
+        aspcapfield['FRAC_BADPIX'][istar] = len(bd) / len(aspcapspec['OBS'][istar])
+        if aspcapfield['FRAC_BADPIX'][istar] > 0.5 :
+            aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('BAD_FRAC_BADPIX')
             aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('NO_ASPCAP_RESULT')
-            aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('BAD_FRAC_LOWSNR')
+
+
+        #p0=0
+        #for pix in nw_chip :
+        #    if len(np.where(fracerr[p0:pix]) < 0.1)[0] < 100 : 
+        #        aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('BAD_FRAC_LOWSNR')
+        #        aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('NO_ASPCAP_RESULT')
+        #        p0+=pix
 
     return aspcapfield, aspcapspec
 
@@ -486,7 +503,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
         err=[]
         stars=[]
         for star,spec in zip(aspcapfield[gd],aspcapspec[gd]) :
-            if star['ASPCAPFLAG'] & aspcapmask.getval('MISSING_APSTAR') : continue
+            if star['ASPCAPFLAG'] & aspcapmask.getval('NO_ASPCAP_RESULT') : continue
 
             # append field in case we have duplicates
             stars.append(star['APOGEE_ID']+'__'+star['FIELD'])
@@ -541,9 +558,9 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
             ferr=open(out+'.stderr','w')
             print('running ferre.x: ', os.path.basename(out)+'.nml')
             start = time.time()
-            subprocess.call(['ferre.x',os.path.basename(out)+'.nml'],shell=False,
+            ret = subprocess.call(['ferre.x',os.path.basename(out)+'.nml'],shell=False,
                             cwd=os.path.dirname(out),stdout=fout,stderr=ferr)
-            print('elapsed: ',time.time()-start)
+            print('elapsed: ',ret, time.time()-start)
             fout.close()
             ferr.close()
 
@@ -596,7 +613,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                     mdl=spec['mdl'][i,p1:p1+npix].flatten()
                     ratio=obs/mdl
                     corr=scipy.ndimage.filters.median_filter(ratio,[width],mode='nearest')
-                    bd=np.where(~np.isfinite(corr) | np.isclose(corr,0.))[0]
+                    bd=np.where(~np.isfinite(corr) | corr < 0.1 | corr > 10. )[0]
                     corr[bd] = 1.
                     if not renorm: 
                         aspcapspec['NORM'][gd[istar]][p1:p1+npix] = corr
@@ -797,8 +814,11 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
         if fit :
             fout=open(outdir+'/ferre/'+grid['name']+'.stdout','w')
             ferr=open(outdir+'/ferre/'+grid['name']+'.stderr','w')
-            subprocess.call(['ferre.x','-l',grid['name']+'.nmlfiles'],shell=False,
+            print('running ferre.x: -l', grid['name']+'.nmlfiles')
+            start = time.time()
+            ret = subprocess.call(['ferre.x','-l',grid['name']+'.nmlfiles'],shell=False,
                             cwd=outdir+'/ferre',stdout=fout,stderr=ferr)
+            print('return, elapsed: ',ret, time.time()-start)
             fout.close()
             ferr.close()
 
@@ -829,6 +849,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
     # Results into an HDUList 
 
     if write :
+        writefiles(load,outfield,aspcapfield,aspcapspec,aspcapkey,suffix=suffix)
         for f in field :
             gd = np.where(aspcapfield['FIELD'] == f)[0]
             if len(gd) > 0 : writefiles(load,f,aspcapfield[gd],aspcapspec[gd],aspcapkey,suffix=suffix)

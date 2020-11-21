@@ -21,7 +21,7 @@ defaults : &defaults
     inter :           3
     renorm :          -4
     obscont :    1
-    rejectcont :    0.10
+    rejectcont :    0.30
     algor : 3
 
 dwarf : &dwarf
@@ -127,15 +127,15 @@ grids :
     lib : synspec/marcs/solarisotopes/sdGK_200921nlte_lsfcombo5_dr17/p_apssdGK_200921nlte_lsfcombo5_dr17_012_075
     <<: *GKd
     <<: *lsfcombo5
-  - name : Mg_a 
+  - name : Mg
     lib : synspec/marcs/giantisotopes/sgM_200921nlte_lsfcombo5_dr17/p_apssgM_200921nlte_lsfcombo5_dr17_012_075
     <<: *Mg
     <<: *lsfcombo5
-  - name : Md_a  
-    lib : synspec/marcs/solarisotopes/sdM_200921nlte_lsfcombo5_dr17/p_apssdM_200921nlte_lsfcombo5_dr17012_075
+  - name : Md
+    lib : synspec/marcs/solarisotopes/sdM_200921nlte_lsfcombo5_dr17/p_apssdM_200921nlte_lsfcombo5_dr17_012_075
     <<: *Md
     <<: *lsfcombo5
-  - name : Fd_a  
+  - name : Fd
     lib : synspec/marcs/solarisotopes/sdF_200921nlte_lsfcombo5_dr17/p_apssdF_200921nlte_lsfcombo5_dr17_012_025
     <<: *Fd
     <<: *lsfcombo5

@@ -18,7 +18,7 @@ defaults : &defaults
     inter :           3
     renorm :          -4
     obscont :    1
-    rejectcont :    0.10
+    rejectcont :    0.30
     algor : 3
 
 dwarf : &dwarf

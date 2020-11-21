@@ -8,7 +8,7 @@ def periodic(n) :
                    'K','Ca','Sc','Ti','V','Cr','Mn','Fe','Co','Ni','Cu','Zn','Ga','Ge','As','Se','Br','Kr',
                    'Rb','Sr','Y','Zr','Nb','Mo','Tc','Ru','Rh','Pd','Ag','Cd','In','Sn','Sb','Te','I','Xe',
                    'Cs','Ba','La','Ce','Pr','Nd'])
-    if isinstance(n,str) or isinstance(n,unicode) :
+    if isinstance(n,str) :
         j=np.where(elem == n)[0]
         return j+1
     else :

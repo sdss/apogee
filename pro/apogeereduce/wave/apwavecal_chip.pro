@@ -655,10 +655,10 @@ For i=0L,nfibers-1 do begin
       oplot,xx,yfit,co=180
       if keyword_set(uselsf) then begin
         oplot,xx,yfit2,co=250
-        legend,['Spectrum','Error','Spectrum - Other lines Removed','Residual','Gaussian Fit','LSF Fit'],$
+        al_legend,['Spectrum','Error','Spectrum - Other lines Removed','Residual','Gaussian Fit','LSF Fit'],$
                textcolor=[255,150,200,100,180,250],/top,/left
       endif else begin
-        legend,['Spectrum','Error','Spectrum - Other lines Removed','Residual','Gaussian Fit'],$
+        al_legend,['Spectrum','Error','Spectrum - Other lines Removed','Residual','Gaussian Fit'],$
                textcolor=[255,150,200,100,180],/top,/left
       endelse
       ;wait,0.1

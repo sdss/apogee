@@ -533,9 +533,9 @@ CASE suboption of
           ;oplot,fiber,co=250
           oplot,fibersub,co=200
           ;oplot,skyspec,co=150
-          ;legend,['Before Subtraction','After Subtraction','Sky Lines'],textcolor=[250,200,150],charsize=1.2,$
+          ;al_legend,['Before Subtraction','After Subtraction','Sky Lines'],textcolor=[250,200,150],charsize=1.2,$
           ;       pos=[30,yr[1]-range(yr)*0.02]
-          legend,['Before Subtraction','After Subtraction'],textcolor=[255,250],charsize=1.2,$
+          al_legend,['Before Subtraction','After Subtraction'],textcolor=[255,250],charsize=1.2,$
                  pos=[30,yr[1]-range(yr)*0.02]
           ;stop
         endif
@@ -953,7 +953,7 @@ End  ; nearest sky fibers
       plot,xx,zz,ps=1,xtit='Zeta (deg)',ytit='Median Flux Fraction',tit='Species '+species[i],$
            xr=xr,yr=yr,xs=1,ys=1,position=pos
       oplot,xx,yfit,ps=4,co=250
-      legend,['Data','Model'],textcolor=[co1,250],/top,/left
+      al_legend,['Data','Model'],textcolor=[co1,250],/top,/left
   
       ; Med Fluxfrac vs. eta
       xr = minmax(yy)
@@ -962,7 +962,7 @@ End  ; nearest sky fibers
       plot,yy,zz,ps=1,xtit='Eta (deg)',ytit='Median Flux Fraction',tit='Species '+species[i],$
            xr=xr,yr=yr,xs=1,ys=1,position=pos,/noerase
       oplot,yy,yfit,ps=4,co=250
-      legend,['Data','Model'],textcolor=[co1,250],/top,/left
+      al_legend,['Data','Model'],textcolor=[co1,250],/top,/left
   
       ; Colored points on the sky
       pos = [0.08,0.08,0.50,0.42]
@@ -1119,7 +1119,7 @@ End  ; nearest sky fibers
           oplot,linepix/xscale,fibersub[usepix],co=200
           oplot,linepix/xscale,line,co=150
           ;oplot,linepix/2,line2,co=80
-          legend,['Before Subtraction','After Subtraction','Sky Line'],textcolor=[250,200,150],/top,/left,charsize=1.2
+          al_legend,['Before Subtraction','After Subtraction','Sky Line'],textcolor=[250,200,150],/top,/left,charsize=1.2
           ;wait,0.3
           ;stop
         endif
@@ -1140,7 +1140,7 @@ End  ; nearest sky fibers
         oplot,fiber
         oplot,skyspec,co=250,linestyle=2
         oplot,fibersub,co=150
-        legend,['Before Subtraction','After Subtraction','Sky Lines'],textcolor=[255,150,250],charsize=1.2,$
+        al_legend,['Before Subtraction','After Subtraction','Sky Lines'],textcolor=[255,150,250],charsize=1.2,$
                pos=[30,yr[1]-range(yr)*0.02]
         ;stop
       endif

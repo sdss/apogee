@@ -378,7 +378,7 @@ if keyword_set(verbose) then print,max(percheight),max(abs(diffcenter)),count
            ' Chisq='+stringize(fchisq,ndec=3)+' Nlines='+strtrim(ngdlines,2),charsize=1.3
       oplot,yfit,co=250,linestyle=2
       oplot,specin-yfit-4000   ; residuals
-      legend,['Data','Fit'],textcolor=[255,250],/top,/left,charsize=1.2
+      al_legend,['Data','Fit'],textcolor=[255,250],/top,/left,charsize=1.2
     endif
 
     ; Print the parameters

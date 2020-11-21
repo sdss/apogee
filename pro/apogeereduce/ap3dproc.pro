@@ -593,8 +593,7 @@ for k=0,nbdpix-1 do begin
   coef = poly_fit(xx,pixel_fixed,1)
   oplot,xx,poly(xx,coef)
 
-  legend_old,['Original','Saturated','CR','Fixed','Linear Fit'],textcolor=[250,200,150,80,255],$
-  ;al_legend,['Original','Saturated','CR','Fixed','Linear Fit'],textcolor=[250,200,150,80,255],$
+  al_legend,['Original','Saturated','CR','Fixed','Linear Fit'],textcolor=[250,200,150,80,255],$
          /top,/left,charsize=1.3
 
 

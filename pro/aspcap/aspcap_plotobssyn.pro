@@ -60,15 +60,15 @@ for i=0,2 do begin
         ; add information in labels
         if i eq 0 then begin
            !p.color=50
-           legend,'SN='+string(sn,format='(F5.1)')+' H='+string(Hmag,format='(F5.2)')+' J-Ks='+strcompress(string(Jmag-Kmag,format='(F5.2)'),/remove_all)+' chi^2'+string(format='(2f8.2)',chi2,mychi2),$
+           al_legend,'SN='+string(sn,format='(F5.1)')+' H='+string(Hmag,format='(F5.2)')+' J-Ks='+strcompress(string(Jmag-Kmag,format='(F5.2)'),/remove_all)+' chi^2'+string(format='(2f8.2)',chi2,mychi2),$
            color=50,box=0,posit=[1520,0.3],/data,charsize=1;/top,/center
            !p.color=0
-           legend,['obs','synth','rel. resid'],line=[0,0,1],color=[0,250,0],/center,/right,box=0,charsize=1.0
+           al_legend,['obs','synth','rel. resid'],line=[0,0,1],color=[0,250,0],/center,/right,box=0,charsize=1.0
         endif
 
         if i eq 1 then begin
            !p.color=50
-           legend,'Vrel= '+strcompress(string(vvrad,format='(F7.2)'),/remove_all)+' Vhelio='$
+           al_legend,'Vrel= '+strcompress(string(vvrad,format='(F7.2)'),/remove_all)+' Vhelio='$
            +strcompress(string(vhel,format='(F7.2)'),/remove_all)+' +/-'$
            +strcompress(string(vraderr,format='(F7.2)'),/remove_all),color=50,box=0,posit=[1604,0.3],/data,charsize=1
            !p.color=0
@@ -77,8 +77,8 @@ for i=0,2 do begin
 
         if i eq 2 then begin
            !p.color=50
-           legend,label,position=[0.45,0.20],/normal,box=0,charsize=1.1,textcolor=50
-           legend,sspm,position=[0.45,0.16],box=0,/normal,charsize=1.1,textcolor=50
+           al_legend,label,position=[0.45,0.20],/normal,box=0,charsize=1.1,textcolor=50
+           al_legend,sspm,position=[0.45,0.16],box=0,/normal,charsize=1.1,textcolor=50
            !p.color=0
         endif
 

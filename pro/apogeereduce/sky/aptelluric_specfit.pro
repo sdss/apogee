@@ -209,7 +209,7 @@ CASE specfitopt of
       ;oplot,x,telnorm*smspecnorm,co=250,linestyle=2
       ;oplot,x,spec/telnorm,co=150
       ;oplot,x[gd],spec[gd],ps=1
-      ;legend,['Original','Telluric','Corrected'],textcolor=[255,250,150],/bottom,/left
+      ;al_legend,['Original','Telluric','Corrected'],textcolor=[255,250,150],/bottom,/left
       plot,x,specnorm/telnorm,xtit='Pixels',ytit='corrected',xs=1,tit='Count='+strtrim(count,2)+' ChiSq='+strtrim(rchisq,2),yr=[0.7,1.3],ystyle=1
 
       plot,x,specnorm,xtit='Pixels',ytit='Counts',xs=1,tit='Count='+strtrim(count,2)+' ChiSq='+strtrim(rchisq,2)+' starind='+strtrim(starind,2),yr=[0,1.2]
@@ -446,7 +446,7 @@ if keyword_set(pl) then begin
   ;oplot,x,yfit1*smspec,co=250,linestyle=2
   oplot,x,telnorm*smspec,co=250,linestyle=2
   oplot,x,spec/telnorm,co=150
-  legend,['Original','Telluric','Corrected'],textcolor=[co,250,150],/bottom,/left
+  al_legend,['Original','Telluric','Corrected'],textcolor=[co,250,150],/bottom,/left
   xyouts,mean(xr),yr[1]-0.05*range(yr),'N ormalization='+strjoin(stringize(par[0:2],ndec=4),' '),align=0.5,charsize=1.5,charthick=4
 
   ;if keyword_set(save) then ps_close

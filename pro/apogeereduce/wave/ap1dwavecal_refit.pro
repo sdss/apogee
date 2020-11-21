@@ -647,7 +647,7 @@ for i=0,nchipshift-1 do begin
     x = findgen(nfibers)
     oplot,x,interpshift,co=3
     if nbd gt 0 then oplot,[x[bd]],[shiftstr[bd].pixshift[i]],ps=4,co=2
-    legend,['Fit','Bad values','Zero '+string(format='(f8.3)',shcoef[0]),'Slope '+string(format='(e10.2)',shcoef[1])],textcolor=[3,2,1,1],/top,/left
+    al_legend,['Fit','Bad values','Zero '+string(format='(f8.3)',shcoef[0]),'Slope '+string(format='(e10.2)',shcoef[1])],textcolor=[3,2,1,1],/top,/left
     if keyword_set(pfile) then begin
       device,/close
       ps2gif,pfile+'.eps',/delete,/eps,chmod='664'o

@@ -331,7 +331,7 @@ if keyword_set(pl) or keyword_set(save) then begin
                '  '+textoidl('\chi^2')+'='+stringize(str.chisq,ndec=2),align=0.5,color=co,charsize=1.2
 
       if k eq 0 then $
-        legend,['Observed','Model'],textcolor=[co,250],/bottom,/left,charsize=1.2
+        al_legend,['Observed','Model'],textcolor=[co,250],/bottom,/left,charsize=1.2
 
     endfor ; chip loop
     xyouts,0.5,0.97,file_basename(visitfile,'.fits')+'  '+visitstr.apogee_id,align=0.5,/norm,charsize=1.4

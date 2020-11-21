@@ -325,7 +325,7 @@ if keyword_set(xcorr) then begin
     ;xyouts,750,-0.12,'Chip c',align=0.5,charsize=1.3
     ;xyouts,mean(xr),yr[1]-0.1*(yr[1]-yr[0]),'Shift = '+strtrim(shift,2)+'+/-'+strtrim(shifterr,2)+' pixels',$
     ;       align=0.5,charsize=1.5
-  legend,['Zero '+string(format='(f8.3)',shift[0]),'Slope '+string(format='(e10.2)',shift[1])],textcolor=[1,1],/top,/left
+    al_legend,['Zero '+string(format='(f8.3)',shift[0]),'Slope '+string(format='(e10.2)',shift[1])],textcolor=[1,1],/top,/left
 
     if keyword_set(pfile) then begin
       device,/close

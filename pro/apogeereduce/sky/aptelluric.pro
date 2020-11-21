@@ -331,7 +331,7 @@ for iter=0,niter-1 do begin
     ;oplot,x,yfit1*smspec,co=250,linestyle=2
     oplot,outstr.x,outstr.telluric*outstr.cont,co=250,linestyle=2
     oplot,outstr.x,outstr.spec/outstr.telluric,co=150
-    legend,['Original','Telluric','Corrected'],textcolor=[co,250,150],/bottom,/left
+    al_legend,['Original','Telluric','Corrected'],textcolor=[co,250,150],/bottom,/left
     xyouts,mean(xr),yr[1]-0.05*range(yr),'Normalization='+strjoin(stringize(outstr.par[0:2],ndec=4),' '),align=0.5,charsize=1.5,charthick=4
 
     plot,outstr.x,outstr.spec,xtit='Pixels',ytit='Counts',xs=1,ys=1,xr=[3000,5000],yr=yr,tit='Fiber '+strtrim(ifiber,2)
@@ -339,7 +339,7 @@ for iter=0,niter-1 do begin
     ;oplot,x,yfit1*smspec,co=250,linestyle=2
     oplot,outstr.x,outstr.telluric*outstr.cont,co=250,linestyle=2
     oplot,outstr.x,outstr.spec/outstr.telluric,co=150
-    legend,['Original','Telluric','Corrected'],textcolor=[co,250,150],/bottom,/left
+    al_legend,['Original','Telluric','Corrected'],textcolor=[co,250,150],/bottom,/left
     xyouts,mean(xr),yr[1]-0.05*range(yr),'Normalization='+strjoin(stringize(outstr.par[0:2],ndec=4),' '),align=0.5,charsize=1.5,charthick=4
     !p.multi=[0,0,0]
 
@@ -573,7 +573,7 @@ status=0
     plot,xx,zz,ps=1,xtit='Zeta (deg)',ytit='Normalization',tit='Species '+species[i],$
          xr=xr,yr=yr,xs=1,ys=1,position=pos
     oplot,xx,yfit,ps=4,co=250
-    legend,['Data','Model'],textcolor=[co1,250],/top,/left
+    al_legend,['Data','Model'],textcolor=[co1,250],/top,/left
 
     ; Normalization vs. Eta
     xr = minmax(yy)
@@ -583,7 +583,7 @@ status=0
     plot,yy,zz,ps=1,xtit='Eta (deg)',ytit='Normalization',tit='Species '+species[i],$
          xr=xr,yr=yr,xs=1,ys=1,position=pos,/noerase
     oplot,yy,yfit,ps=4,co=250
-    legend,['Data','Model'],textcolor=[co1,250],/top,/left
+    al_legend,['Data','Model'],textcolor=[co1,250],/top,/left
 
     ; Colored points on the sky
     pos = [0.08,0.08,0.50,0.42]
@@ -810,7 +810,7 @@ for i=0,nfibers-1 do begin
     yr = [0,median([spec])*1.5]
     plot,x,spec,xtit='Pixels',ytit='Counts',xs=1,yr=yr,ys=1,tit='Fiber='+strtrim(i+1,2)
     oplot,x,spec2,co=250
-    legend,['Original','Corrected'],textcolor=[255,250],/bottom,/left
+    al_legend,['Original','Corrected'],textcolor=[255,250],/bottom,/left
     print,normpar
   endif
 

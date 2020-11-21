@@ -2049,7 +2049,7 @@ End ; 2D poly fitting method
       oplot,[0,0]+1023.5,[-10,10],linestyle=1
       oplot,[0,0]+1023.5+chipgap2,[-10,10],linestyle=1
   
-      legend,['Data','Total Fit'],textcolor=[co,250],charsize=1.3,/top,/left
+      al_legend,['Data','Total Fit'],textcolor=[co,250],charsize=1.3,/top,/left
       endif
   
   

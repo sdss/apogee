@@ -780,7 +780,7 @@ for ii=0,n_elements(ifibers)-1 do begin
         off = range([specin,yfit])*0.075
         oplot,xin,specin-yfit-off,co=150
         oplot,xr,[0,0]-off,linestyle=2
-        legend,['Data','Model','Residuals'],textcolor=[255,250,150],/top,/left,charsize=1.2
+        al_legend,['Data','Model','Residuals'],textcolor=[255,250,150],/top,/left,charsize=1.2
         xyouts,mean(xr),yr[1]-0.05*range(yr),'Chisq = '+strtrim(rchisq,2),align=0.5,charsize=1.2
         wait,0.3
       endif
@@ -983,7 +983,7 @@ for ii=0,n_elements(ifibers)-1 do begin
           fwhm = 2.35482 * par[2]  ; FWHM in pixels
           print,(wave[xhi]+wave[xlo])/2.,(wave[xhi]+wave[xlo])/2./(fwhm*(wave[xhi]-wave[xlo])/(n_elements(gd)-1.))
           oplot,x[gd],yfit
-          legend,[string(format='(f6.0)',(wave[xhi]+wave[xlo])/2.),'R = '+string(format='(f6.0)',(wave[xhi]+wave[xlo])/2./(fwhm*(wave[xlo]-wave[xhi])/(n_elements(gd)-1.)))]
+          al_legend,[string(format='(f6.0)',(wave[xhi]+wave[xlo])/2.),'R = '+string(format='(f6.0)',(wave[xhi]+wave[xlo])/2./(fwhm*(wave[xlo]-wave[xhi])/(n_elements(gd)-1.)))]
         stop
         endif
       end
@@ -1215,7 +1215,7 @@ for ii=0,n_elements(ifibers)-1 do begin
           tmp= min(abs(xin-chiplinestr[k].x),ix)
           oplot,[ix,ix],[0.,1e5]
         endfor
-        legend,['Data','Final Fit: FLUX, CENTER, and LSF params fit'],$
+        al_legend,['Data','Final Fit: FLUX, CENTER, and LSF params fit'],$
                textcolor=[200,250],/top,/left,charsize=1.2
         xi=indgen(n_elements(xin))
         plot,xr,xr*0,xr=xr,yr=[-5,5],xs=1,ys=1,tit='fractional residual',linestyle=1,ytit='sigma resid'
@@ -2035,7 +2035,7 @@ endif
 ;       plot,specin,xs=1,xr=xr,ytit='Counts',tit='Sky Fiber='+strtrim(i,2)+' Chip='+strtrim(j,2)+$
 ;            ' Chisq='+stringize(fchisq,ndec=3)+' Nlines='+strtrim(ngdlines,2),charsize=1.3
 ;       oplot,yfit2,co=250,linestyle=2
-;       legend,['Data','Final fit'],textcolor=[200,250],/top,/left,charsize=1.2
+;       al_legend,['Data','Final fit'],textcolor=[200,250],/top,/left,charsize=1.2
 ;     endif
 ;
 ;     ; Print the parameters

@@ -101,8 +101,8 @@ for ichip=0,2 do begin
   oplot,allcal[q].jd-2400000,allcal[q].flux[10,ichip]/allcal[q].nread*10.,psym=6,color=2,symsize=0.3,thick=2
   oplot,allcal[q].jd-2400000,allcal[q].flux[150,ichip]/allcal[q].nread*10.,psym=6,color=3,symsize=0.3,thick=2
   oplot,allcal[q].jd-2400000,allcal[q].flux[290,ichip]/allcal[q].nread*10.,psym=6,color=4,symsize=0.3,thick=2
-  legend,['Fiber 290','Fiber 150','Fiber 10'],textcolors=[2,3,4],/right
-  legend,['Chip '+string(ichip)],/bottom
+  al_legend,['Fiber 290','Fiber 150','Fiber 10'],textcolors=[2,3,4],/right
+  al_legend,['Chip '+string(ichip)],/bottom
 endfor
 if hard eq 1 then begin
   device,/close
@@ -150,8 +150,8 @@ for ichip=0,2 do begin
   oplot,allcal[t].jd-2400000,flux[2,ichip,*]/allcal[t].nread*10.,psym=6,color=4,symsize=0.3,thick=2
   oplot,allcal[t].jd-2400000,flux[3,ichip,*]/allcal[t].nread*10.,psym=6,color=5,symsize=0.3,thick=2
   oplot,allcal[t].jd-2400000,flux[4,ichip,*]/allcal[t].nread*10.,psym=6,color=6,symsize=0.3,thick=2
-  legend,['Fiber 290','Fiber 150','Fiber 10'],textcolors=[2,3,4],/right
-  legend,['Chip '+string(ichip)],/bottom
+  al_legend,['Fiber 290','Fiber 150','Fiber 10'],textcolors=[2,3,4],/right
+  al_legend,['Chip '+string(ichip)],/bottom
 endfor
 if hard eq 1 then begin
   device,/close
@@ -171,8 +171,8 @@ for ichip=0,2 do begin
   oplot,allcal[u].jd-2400000,flux[0,ichip,*]/allcal[u].nread*10.,psym=6,color=2,symsize=0.3,thick=2
   oplot,allcal[u].jd-2400000,flux[2,ichip,*]/allcal[u].nread*10.,psym=6,color=4,symsize=0.3,thick=2
   oplot,allcal[u].jd-2400000,flux[4,ichip,*]/allcal[u].nread*10.,psym=6,color=6,symsize=0.3,thick=2
-  legend,['Fiber 290','Fiber 150','Fiber 10'],textcolors=[2,4,6],/right
-  legend,['Chip '+string(ichip)],/bottom
+  al_legend,['Fiber 290','Fiber 150','Fiber 10'],textcolors=[2,4,6],/right
+  al_legend,['Chip '+string(ichip)],/bottom
 endfor
 if hard eq 1 then begin
   device,/close
@@ -197,8 +197,8 @@ for ichip=0,2 do begin
   oplot,allexp[d].jd-2400000,allexp[d].med[10,ichip],psym=6,color=2,symsize=0.3,thick=2
   oplot,allexp[d].jd-2400000,allexp[d].med[150,ichip],psym=6,color=4,symsize=0.3,thick=2
   oplot,allexp[d].jd-2400000,allexp[d].med[290,ichip],psym=6,color=6,symsize=0.3,thick=2
-  legend,['Fiber 290','Fiber 150','Fiber 10'],textcolors=[2,4,6]
-  legend,['Chip '+string(ichip)],/bottom
+  al_legend,['Fiber 290','Fiber 150','Fiber 10'],textcolors=[2,4,6]
+  al_legend,['Chip '+string(ichip)],/bottom
 endfor
 if hard eq 1 then begin
   device,/close
@@ -231,8 +231,8 @@ for ichip=0,2 do begin
   oplot,allcal[t].jd-2400000,allcal[t].gauss[1,0,ichip],psym=6,color=2,symsize=0.3,thick=2
   oplot,allcal[t].jd-2400000,allcal[t].gauss[1,2,ichip],psym=6,color=4,symsize=0.3,thick=2
   oplot,allcal[t].jd-2400000,allcal[t].gauss[1,4,ichip],psym=6,color=6,symsize=0.3,thick=2
-  legend,['Fiber 290','Fiber 150','Fiber 10'],textcolors=[2,4,6]
-  legend,['Chip '+string(ichip)],/bottom
+  al_legend,['Fiber 290','Fiber 150','Fiber 10'],textcolors=[2,4,6]
+  al_legend,['Chip '+string(ichip)],/bottom
 endfor
 if hard eq 1 then begin
   device,/close
@@ -266,8 +266,8 @@ for iline=0,1 do begin
     oplot,allcal[t].jd-2400000,2.354*allcal[t].gauss[2,4,ichip,iline],psym=6,color=6,symsize=0.3,thick=2
     w=median(2.354*allcal[t].gauss[2,4,ichip,iline])
     oplot,!x.crange,[w,w],color=4,thick=2
-    legend,['Fiber 290','Fiber 220','Fiber 150','Fiber 80','Fiber 10'],textcolors=[2,3,4,5,6]
-    legend,['Chip '+string(ichip)],/bottom
+    al_legend,['Fiber 290','Fiber 220','Fiber 150','Fiber 80','Fiber 10'],textcolors=[2,3,4,5,6]
+    al_legend,['Chip '+string(ichip)],/bottom
   endfor
   if hard eq 1 then begin
     device,/close
@@ -330,7 +330,7 @@ for ichip=0,2 do begin
  for ibias=0,3 do begin
    oplot,alldark[dark].jd-2400000.5,alldark[dark].mean[ichip,ibias],psym=6,color=ibias+1,symsize=0.3,thick=2
  endfor
- legend,['Chip '+string(ichip)],/bottom
+ al_legend,['Chip '+string(ichip)],/bottom
 endfor
 if hard eq 1 then begin
   device,/close
@@ -349,7 +349,7 @@ for ichip=0,2 do begin
  for ibias=0,3 do begin
    oplot,alldark[dark].jd-2400000.5,alldark[dark].sig[ichip,ibias],psym=6,color=ibias+1,symsize=0.3,thick=2
  endfor
- legend,['Chip '+string(ichip)],/bottom
+ al_legend,['Chip '+string(ichip)],/bottom
 endfor
 if hard eq 1 then begin
   device,/close

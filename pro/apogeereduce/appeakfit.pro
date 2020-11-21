@@ -418,7 +418,7 @@ For ii=0L,n_elements(fibers)-1 do begin
       oplot,xx,resid_withline[lo:hi],co=200
       oplot,xx,resid[lo:hi],co=100
       oplot,xx,yfit,co=250
-      legend,['Original spectrum','Continuum','Error','Resid With Line','After Line Removed','Fit'],$
+      al_legend,['Original spectrum','Continuum','Error','Resid With Line','After Line Removed','Fit'],$
              textcolor=[255,80,150,200,100,250],/top,/left
       wait,0.5
     endif

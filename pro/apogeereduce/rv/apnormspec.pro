@@ -380,7 +380,7 @@ if keyword_set(pl) then begin
   plot,str.(waveind)/1e4,str.(specind),/xsty,/ysty,xtit='Wavelength (um)',ytit='Spectrum',charsize=1.2
   oplot,str.(waveind)/1e4,str.continuum,co=250
   if nbdpix gt 0 then oplot,w[bdpix],y[bdpix],ps=1,co=200
-  legend,['Spectrum','Continuum','Rejected Pixels'],textcolor=[255,250,200],/top,/left,charsize=1.2
+  al_legend,['Spectrum','Continuum','Rejected Pixels'],textcolor=[255,250,200],/top,/left,charsize=1.2
 endif
 
 ;stop

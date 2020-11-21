@@ -361,6 +361,10 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
                            solarisotopes=solarisotopes,bsyn=False,atmos_type=atmos_type,vmicro=vmicro)
     elif code == 'synspec' :
         abundances = 10.**(np.array(abundances)-abundances[0])
+        model_read = synple.read_model(atmod)
+        diff = np.where(~np.isclose(abundances,model_read[4][:92]))[0]
+        for d in diff : 
+            print('synthesis - model mismatch: ',atomic.periodic(d+1),np.log10(abundances[d]/model_read[4][d]))
 
     # if this is an elemgrid, loop over abundances
     for ielem,abun in enumerate(eabun) :

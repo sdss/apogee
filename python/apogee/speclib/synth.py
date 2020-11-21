@@ -362,7 +362,7 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
     elif code == 'synspec' :
         abundances = 10.**(np.array(abundances)-abundances[0])
         model_read = synple.read_model(atmod)
-        diff = np.where(~np.isclose(abundances,model_read[4][:92]))[0]
+        diff = np.where(~np.isclose(abundances,model_read[4]))[0]
         for d in diff : 
             print('synthesis - model mismatch: ',atomic.periodic(d+1),np.log10(abundances[d]/model_read[4][d]))
 
@@ -387,7 +387,7 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
             print('synple.syn: ',atmod,wrange,linelists,dw,vmicro,save)
             # add 10*dw to range because of synple's spline interpolation
             wtmp=[wrange[0]-10*dw,wrange[1]+10*dw]
-            wave,flux,cont = synple.syn(atmod,wtmp,linelist=linelists,dw=dw,vmciro=vmciro,abu=abundances,save=save,clean=not save)
+            wave,flux,cont = synple.syn(atmod,wtmp,linelist=linelists,dw=dw,vmicro=vmicro,abu=abundances,save=save,clean=not save)
             wave=wave[10:-10]
             flux=flux[10:-10]
             cont=cont[10:-10]

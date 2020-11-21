@@ -8,7 +8,7 @@ import os
 import pdb
 import glob
 
-def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out='allStar.fits',verbose=False) :
+def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out='allStar.fits',verbose=False,skipcal=True) :
     '''
     Concatenate set of aspcapField files
     '''
@@ -21,7 +21,7 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
 
     a=[]
     for file in allfiles :
-        if 'Field-cal_' not in file :
+        if 'Field-cal_' not in file or skipcal == False:
             dat=Table.read(file,hdu=1)
             a.append(dat)
     all =vstack(a)

@@ -131,7 +131,7 @@ class AspcapBitMask(BitMask):
           'CHI2_WARN','COLORTE_WARN','ROTATION_WARN','SN_WARN','SPEC_HOLE_WARN','ATMOS_HOLE_WARN','VSINI_WARN','',
           'TEFF_BAD','LOGG_BAD','VMICRO_BAD','M_H_BAD','ALPHA_M_BAD','C_M_BAD','N_M_BAD','STAR_BAD',
           'CHI2_BAD','COLORTE_BAD','ROTATION_BAD','SN_BAD','SPEC_HOLE_BAD','ATMOS_HOLE_BAD','VSINI_BAD','NO_ASPCAP_RESULT',
-          'MISSING_APSTAR','NO_GRID','BAD_FRAC_LOWSNR','','','','','',
+          'MISSING_APSTAR','NO_GRID','BAD_FRAC_LOWSNR','BAD_FRAC_BADPIX','','','','',
           '','','','','','','','',
           '','','','','','','','',
           '','','','','','','',''])

@@ -85,7 +85,7 @@ foreach plan ( $plans )
    # setrunning will check for done or already running before starting and return status appropriately
    if ( { setrunning log/$base } )  then
 
-     echo $cmd $plan --host $host --done log/$base
+     echo running $cmd $plan --host $host --done log/$base
 
      if ( $?UUFSCELL & ( $maxrun == 2 | $maxrun == 4 | $maxrun == 8 ) ) then
        if ( $maxrun == 2 ) set nodes = "00ff00ff ff00ff00"

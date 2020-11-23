@@ -374,6 +374,7 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
         bd=np.where(~np.isfinite(aspcapspec['ERR'][istar]) | 
                     ~np.isfinite(aspcapspec['OBS'][istar]) |
                     (aspcapspec['MASK'][istar] & pixelmask.badval()) > 0 |
+                    (aspcapspec['OBS'][istar] < 0.) |
                     (aspcapspec['ERR'][istar] < 0.) )[0]
         if len(bd) > 0 : 
             aspcapspec['OBS'][istar,bd] = 0.0001

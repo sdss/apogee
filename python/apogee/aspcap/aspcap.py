@@ -374,7 +374,7 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
         bd=np.where(~np.isfinite(aspcapspec['ERR'][istar]) | 
                     ~np.isfinite(aspcapspec['OBS'][istar]) |
                     (aspcapspec['MASK'][istar] & pixelmask.badval()) > 0 |
-                    aspcapspec['ERR'][istar] < 0. )[0]
+                    (aspcapspec['ERR'][istar] < 0.) )[0]
         if len(bd) > 0 : 
             aspcapspec['OBS'][istar,bd] = 0.0001
             aspcapspec['ERR'][istar,bd] = 1.e10
@@ -613,7 +613,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                     mdl=spec['mdl'][i,p1:p1+npix].flatten()
                     ratio=obs/mdl
                     corr=scipy.ndimage.filters.median_filter(ratio,[width],mode='nearest')
-                    bd=np.where(~np.isfinite(corr) | corr < 0.1 | corr > 10. )[0]
+                    bd=np.where(~np.isfinite(corr) | (corr < 0.1) | (corr > 10.) )[0]
                     corr[bd] = 1.
                     if not renorm: 
                         aspcapspec['NORM'][gd[istar]][p1:p1+npix] = corr

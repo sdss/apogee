@@ -27,6 +27,8 @@ if __name__ == '__main__' :
     parser.add_argument("--bundle",type=int,help='min bundles size to bundle multiple fields?',default=5000)
     parser.add_argument("--visits",type=int,help='number of visits to process')
     parser.add_argument("--ncpus",type=int,help='number of threads',default=16)
+    parser.add_argument("--maxrun",type=int,help='number of plans to run',default=2)
+    parser.add_argument("--queryport",type=int,help='number of plans to run',default=1064)
     parser.add_argument("--cal",type=str,help='caldir',default='cal')
     args=parser.parse_args()
 
@@ -81,7 +83,7 @@ if __name__ == '__main__' :
 
                 #write inidividual slurm file for node-sharing
                 mkslurm.write('aspcap plan/{:s}_{:d}.yml'.format(telescope,igroup) ,outdir=slurmdir,name='aspcap_{:s}_{:d}'.format(telescope,igroup),cwd=rundir,
-                    maxrun=2,idlthreads=16,queryport=1051,queryhost=os.uname()[1],pythreads=1,runplans=False,notchpeak=True)
+                    maxrun='{:d}'.format(args.maxrun),idlthreads='{:d}'.format(args.ncpus),queryport='{:d}'.format(args.queryport),queryhost=os.uname()[1],pythreads='{:d}'.format(args.ncpus),runplans=False,notchpeak=True)
 
                 tot=0
                 group=[]
@@ -117,7 +119,8 @@ if __name__ == '__main__' :
     # make the SLURM file
     os.chdir(os.environ['APOGEE_ASPCAP']+'/'+cfg['apred_vers']+'/'+cfg['aspcap_vers'])
     cmd = 'aspcap'
-    mkslurm.write('"'+cmd+'" plan/*.yml' ,maxrun=2,idlthreads=16,queryport=1051,queryhost=os.uname()[1],pythreads=1)
+    mkslurm.write('"'+cmd+'" plan/*.yml' ,maxrun='{:d}'.format(args.maxrun),idlthreads='{:d}'.format(args.ncpus),
+                  queryport='{:d}'.format(args.queryport),queryhost=os.uname()[1],pythreads='{:d}'.format(args.ncpus))
 
  
     #sort=np.argsort(nstars)[::-1]

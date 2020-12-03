@@ -26,6 +26,7 @@ if __name__ == '__main__' :
     parser.add_argument("--fields",type=str,nargs='+',help='list of fields',default=[])
     parser.add_argument("--bundle",type=int,help='min bundles size to bundle multiple fields?',default=5000)
     parser.add_argument("--visits",type=int,help='number of visits to process')
+    parser.add_argument("--np",help='use sdss-np?',action="store_true")
     parser.add_argument("--ncpus",type=int,help='number of threads',default=16)
     parser.add_argument("--maxrun",type=int,help='number of plans to run',default=2)
     parser.add_argument("--queryport",type=int,help='number of plans to run',default=1064)
@@ -81,7 +82,7 @@ if __name__ == '__main__' :
                 for g in group: fp.write(' - {:s}\n'.format(g))
                 fp.close()
 
-                #write inidividual slurm file for node-sharing
+                #write individual slurm file for node-sharing
                 mkslurm.write('aspcap plan/{:s}_{:d}.yml'.format(telescope,igroup) ,outdir=slurmdir,name='aspcap_{:s}_{:d}'.format(telescope,igroup),cwd=rundir,
                     maxrun='{:d}'.format(args.maxrun),idlthreads='{:d}'.format(args.ncpus),queryport='{:d}'.format(args.queryport),queryhost=os.uname()[1],pythreads='{:d}'.format(args.ncpus),runplans=False,notchpeak=True)
 
@@ -119,7 +120,7 @@ if __name__ == '__main__' :
     # make the SLURM file
     os.chdir(os.environ['APOGEE_ASPCAP']+'/'+cfg['apred_vers']+'/'+cfg['aspcap_vers'])
     cmd = 'aspcap'
-    mkslurm.write('"'+cmd+'" plan/*.yml' ,maxrun='{:d}'.format(args.maxrun),idlthreads='{:d}'.format(args.ncpus),
+    mkslurm.write('"'+cmd+'" plan/*.yml' ,maxrun='{:d}'.format(args.maxrun),idlthreads='{:d}'.format(args.ncpus),np=args.np,
                   queryport='{:d}'.format(args.queryport),queryhost=os.uname()[1],pythreads='{:d}'.format(args.ncpus))
 
  

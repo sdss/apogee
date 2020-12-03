@@ -10,6 +10,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from apogee.aspcap import aspcap
 from apogee.aspcap import err
+from apogee.aspcap import ferre
 from apogee.speclib import isochrones
 from apogee.utils import apload
 from apogee.utils import apselect
@@ -1314,3 +1315,31 @@ def resid(data,spec,teff=[3000,3500,4000,4500,5000,5500],logg=[0,2,4,6],out='res
         grid.append(xg)
 
     html.htmltab(grid,file='resid.html')
+
+def plotmult(name,lib) :
+    a,out,wave=ferre.read(name,lib)
+    nstars=len(a)//28
+    fig,ax=plots.multi(2,2,hspace=0.4,wspace=0.4)
+    fig.suptitle(name)
+    colors=['r','g','b','c','y','m','k']
+    for i in range(nstars) :
+        diff=[]
+        dat=[]
+        chi2=[]
+        for j in range(27) :
+            chi2.append(a['ASPCAP_CHI2'][i*28+1+j])
+            dat.append(a['FPARAM'][i*28+1+j])
+            diff.append(a['FPARAM'][i*28+1+j]-a['FPARAM'][i*28])
+        diff=np.array(diff)
+        dat=np.array(dat)
+        plots.plotp(ax[0,0],dat[:,3],dat[:,6],color=colors[i%7],xt='[M/H]',yt=r'$[\alpha/M]$')
+        plots.plotp(ax[0,1],diff[:,4],diff[:,6],color=colors[i%7],xt=r'$\Delta([C/M]$',yt=r'$\Delta([\alpha/M])$')
+        plots.plotc(ax[1,0],dat[:,3],dat[:,6],chi2,xt='[M/H]',yt=r'$[\alpha/M]$')
+        plots.plotc(ax[1,1],diff[:,4],diff[:,6],chi2,xt=r'$\Delta([C/M]$',yt=r'$\Delta([\alpha/M])$')
+    fig.savefig(name+'.png')
+
+def allmult() :
+    for lsf in ['a','b','c'] :
+        name = 'class_Mg_{:s}_FPARAM/Mg_{:s}-cal_special_000_mult'.format(lsf,lsf)
+        lib = 'class_Mg_{:s}_FPARAM/lib/turbospec/marcs/giantisotopes/tgM_180901_lsf{:s}_l33/p_apstgM_180901_lsf{:s}_l33_012_075.hdr'.format(lsf,lsf,lsf)
+        plotmult(name,lib)

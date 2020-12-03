@@ -61,13 +61,17 @@ def elems(nelem=0) :
     elemtoh=[0,0,0,0,1,0,1,0,1,0,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1] #0,0,0,0,0,0,0,0,0]
     tagnames=[]
     elemfitnames=[]
-    for i in range(len(elems) ) :
-        if elemtoh[i] :
-            tagnames.append(elems[i]+'_Fe')
-            elemfitnames.append('['+elems[i]+'/Fe]')
+    for i,el in enumerate(elems) :
+        if el == 'Fe' : 
+            tagnames.append('{:s}_H'.format(el).upper())
+            elemfitnames.append('[{:s}/H]'.format(el))
         else :
-            tagnames.append(elems[i]+'_M')
-            elemfitnames.append('['+elems[i]+'/M]')
+            tagnames.append('{:s}_Fe'.format(el).upper())
+            if elemtoh[i] :
+                elemfitnames.append('[{:s}/H]'.format(el))
+            else :
+                elemfitnames.append('[{:s}/M]'.format(el))
+
     return np.array(elems),np.array(elemtoh),np.array(tagnames),np.array(elemfitnames)
 
 logw0=4.179
@@ -537,7 +541,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                             flux.append(spec['OBS']/spec['NORM'])
                             err.append(spec['ERR']/spec['NORM'])
                             imult+=1
-        if mult: pdb.set_trace()
+        #if mult: pdb.set_trace()
       
         # write FERRE files and run FERRE
         if clobber or not os.path.exists(out+'.spm') or \
@@ -590,7 +594,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                 aspcapfield['ASPCAP_CHI2'][gd[istar]] = chi2
                 aspcapfield['FPARAM'][gd[istar]] = param['FPARAM'][i]
                 aspcapfield['FPARAM_COV'][gd[istar]] = param['FPARAM_COV'][i]
-                aspcapfield['ASPCAPFLAG'][gd[istar]] = param['ASPCAPFLAG'][i]
+                aspcapfield['ASPCAPFLAG'][gd[istar]] |= param['ASPCAPFLAG'][i]
                 aspcapfield['ASPCAPFLAGS'][gd[istar]] = aspcapmask.getname(aspcapfield['ASPCAPFLAG'][gd[istar]])
                 aspcapspec['SPEC'][gd[istar]] = spec['frd'][i]
                 aspcapspec['SPEC_BESTFIT'][gd[istar]] =  spec['mdl'][i]
@@ -649,7 +653,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
 
     if mult : 
         suffix='_mult'
-        pdb.set_trace()
+        #pdb.set_trace()
 
     # Results in astropy tables
     aspcapfield=Table(aspcapfield)
@@ -672,7 +676,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
     aspcapkey=Table(aspcapkey)
 
     if write :
-        writefiles(load,outfield,aspcapfield,aspcapspec,aspcapkey,suffix=suffix)
+        writefiles(load,outfield,aspcapfield,aspcapspec,aspcapkey,suffix=suffix,aspcapstar=False)
         for f in field :
             gd = np.where(aspcapfield['FIELD'] == f)[0]
             if len(gd) > 0 : writefiles(load,f,aspcapfield[gd],aspcapspec[gd],aspcapkey,suffix=suffix)
@@ -850,7 +854,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
     # Results into an HDUList 
 
     if write :
-        writefiles(load,outfield,aspcapfield,aspcapspec,aspcapkey,suffix=suffix)
+        writefiles(load,outfield,aspcapfield,aspcapspec,aspcapkey,suffix=suffix,aspcapstar=False)
         for f in field :
             gd = np.where(aspcapfield['FIELD'] == f)[0]
             if len(gd) > 0 : writefiles(load,f,aspcapfield[gd],aspcapspec[gd],aspcapkey,suffix=suffix)
@@ -864,7 +868,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
 
     return aspcapfield,aspcapspec,aspcapkey
 
-def writefiles(load,field,aspcapfield,aspcapspec,aspcapkey,suffix='') :
+def writefiles(load,field,aspcapfield,aspcapspec,aspcapkey,suffix='',aspcapstar=True) :
 
     """ Write aspcapField and aspcapStar files
     """
@@ -882,21 +886,22 @@ def writefiles(load,field,aspcapfield,aspcapspec,aspcapkey,suffix='') :
     hdulist.writeto(outfile,overwrite=True)
 
     #output aspcapStar
-    for star,spec in zip(aspcapfield,aspcapspec) :
-        outfile=load.filename('aspcapStar',field=field,obj=star['APOGEE_ID'])
-        hdulist=fits.HDUList()
-        hdulist.append(fits.PrimaryHDU())
-        hdu=fits.ImageHDU(aspcap2apStar(spec['SPEC']))
-        add_header(hdu)
-        hdulist.append(hdu)
-        hdu=fits.ImageHDU(aspcap2apStar(spec['SPEC_ERR']))
-        add_header(hdu)
-        hdulist.append(hdu)
-        hdu=fits.ImageHDU(aspcap2apStar(spec['SPEC_BESTFIT']))
-        add_header(hdu)
-        hdulist.append(hdu)
-        hdulist.append(fits.table_to_hdu(Table(star)))
-        hdulist.writeto(outfile,overwrite=True)
+    if aspcapstar :
+        for star,spec in zip(aspcapfield,aspcapspec) :
+            outfile=load.filename('aspcapStar',field=field,obj=star['APOGEE_ID'])
+            hdulist=fits.HDUList()
+            hdulist.append(fits.PrimaryHDU())
+            hdu=fits.ImageHDU(aspcap2apStar(spec['SPEC']))
+            add_header(hdu)
+            hdulist.append(hdu)
+            hdu=fits.ImageHDU(aspcap2apStar(spec['SPEC_ERR']))
+            add_header(hdu)
+            hdulist.append(hdu)
+            hdu=fits.ImageHDU(aspcap2apStar(spec['SPEC_BESTFIT']))
+            add_header(hdu)
+            hdulist.append(hdu)
+            hdulist.append(fits.table_to_hdu(Table(star)))
+            hdulist.writeto(outfile,overwrite=True)
 
     return
 

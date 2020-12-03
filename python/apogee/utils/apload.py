@@ -33,7 +33,7 @@ class ApSpec() :
     """
     def __init__(self,flux,header=None,err=None,wave=None,mask=None,bitmask=None,
                  sky=None,skyerr=None,telluric=None,telerr=None,cont=None,template=None,filename='',
-                 lsftab=Table(),rvtab=Table(),sptype='apStar',waveregime='NIR',instrument='APOGEE',snr=100) :
+                 lsfpars=None,rvtab=Table(),sptype='apStar',waveregime='NIR',instrument='APOGEE',snr=100) :
         # Initialize the object
         self.flux = flux
         if header is None : self.header = fits.PrimaryHDU().header
@@ -50,7 +50,7 @@ class ApSpec() :
         self.template = template
         self.filename = filename
         self.rvtab = rvtab
-        self.lsftab = lsftab
+        self.lsfpars = lsfpars
         self.sptype = sptype
         self.waveregime = waveregime
         self.instrument = instrument
@@ -117,7 +117,7 @@ class ApSpec() :
         hdulist.append(fits.ImageHDU(self.telluric,header=header))
         header['BUNIT'] = 'Telluric error'
         hdulist.append(fits.ImageHDU(self.telerr,header=header))
-        hdulist.append(fits.table_to_hdu(self.lsftab))
+        hdulist.append(fits.ImageHDU(self.lsfpars))
         hdulist.append(fits.table_to_hdu(self.rvtab))
         hdulist.writeto(filename,overwrite=overwrite)
 
@@ -489,7 +489,7 @@ class ApLoad :
                     spec=ApSpec(hdulist[1].data,header=hdulist[0].header,
                                 err=hdulist[2].data,bitmask=hdulist[3].data,wave=hdulist[4].data,
                                 sky=hdulist[5].data,skyerr=hdulist[5].data,
-                                telluric=hdulist[7].data,telerr=hdulist[8].data)
+                                telluric=hdulist[7].data,telerr=hdulist[8].data,lsfpars=hdulist[10].data)
                     return spec
                 return self._readhdu(file,**kwargs)
             except :

@@ -35,6 +35,7 @@ if __name__ == '__main__' :
     parser.add_argument("--host")
     parser.add_argument("--cal", type=str, help='calibration dir (and calibrate only')
     parser.add_argument('--nobj', type=int, help='Maximum objects',default=None)
+    parser.add_argument('--mult', help='multiple starting guesses?',action="store_true")
     parser.add_argument('--noparam', help='Skip parameter determination?',action="store_true")
     parser.add_argument('--calparam', help='Skip redo parameter determination with calibrated logg?',action="store_true")
     parser.add_argument('--noelem', help='Skip elemental abundances?',action="store_true")
@@ -60,7 +61,7 @@ if __name__ == '__main__' :
             #refit with renomalization and with all paramters fit
             print('Refit with renomalization, initial fit parameters, all parameters fit')
             out_renorm=aspcap.fit_params(args.planfile,aspcapdata=out,clobber=args.clobber,
-                                         init='FPARAM',renorm=True,html=False,nobj=args.nobj)
+                                         init='FPARAM',renorm=True,html=False,nobj=args.nobj,mult=args.mult)
         if args.calparam :
             #calibrate log g
             out_renorm[0]['PARAM'] = out_renorm[0]['FPARAM'] 

@@ -88,9 +88,15 @@ foreach plan ( $plans )
      echo running $cmd $plan --host $host --done log/$base
 
      if ( $?UUFSCELL & ( $maxrun == 2 | $maxrun == 4 | $maxrun == 8 ) ) then
-       if ( $maxrun == 2 ) set nodes = "00ff00ff ff00ff00"
-       if ( $maxrun == 4 ) set nodes = "000000ff 0000ff00 00ff0000 ff000000" 
-       if ( $maxrun == 8 ) set nodes = "f0000000 0f000000 00f00000 000f0000 0000f000 00000f00 000000f0 0000000f"
+       if ( $UUFSCELL == 'kingspeak.peak' ) then
+         if ( $maxrun == 2 ) set nodes = "00ff00ff ff00ff00"
+         if ( $maxrun == 4 ) set nodes = "000000ff 0000ff00 00ff0000 ff000000" 
+         if ( $maxrun == 8 ) set nodes = "f0000000 0f000000 00f00000 000f0000 0000f000 00000f00 000000f0 0000000f"
+       else 
+         if ( $maxrun == 2 ) set nodes = "ffffffffffffffff0000000000000000 0000000000000000ffffffffffffffff"
+         if ( $maxrun == 4 ) set nodes = "ffffffff000000000000000000000000 00000000ffffffff0000000000000000 0000000000000000ffffffff00000000 000000000000000000000000ffffffff"
+         if ( $maxrun == 8 ) set nodes = "ffff0000000000000000000000000000 0000ffff000000000000000000000000 00000000ffff00000000000000000000 000000000000ffff0000000000000000 0000000000000000ffff000000000000 00000000000000000000ffff00000000 000000000000000000000000ffff0000 0000000000000000000000000000ffff"
+       endif
        foreach node ( $nodes )
          set n = `ls log/*.$node.$host | wc | awk '{print $1}'`
          if ( $n == 0 ) set usenode = $node

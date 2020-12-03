@@ -258,7 +258,9 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
     # atmosphere: make local copy in Turbospectrum input format, allowing for trimmed layers
     # note that [N/M] is solar for atmospheres (since it doesn't have a big effect)
     if nlte : atmos_type='synspec'
-    atmod = get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type=atmos_type,nskip=nskip, atmosroot=atmosroot,atmosdir=atmosdir,workdir=workdir)
+    if atmod is None : atmod = get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type=atmos_type,nskip=nskip, atmosroot=atmosroot,atmosdir=atmosdir,workdir=workdir)
+    else : shutil.copy(atmod,workdir+'/'+os.path.basename(atmod))
+
     if type(atmod) is int :
         if atmod == -1 :        
             print('HOLE NOT SYNTHESIZED: ', atmod)
@@ -1933,4 +1935,78 @@ def plotcross(a,val=[0,0,0],hard=None,sum=True) :
         if hard is not None : 
             fig.savefig(hard+'_vsini.pdf')
             plt.close()
+
+def co( teff=3400,logg=1,mh=0,am=0,cm=0,nm=0,vmicro=1.2,nearest=False) :
+    """ Create set of syntheses with different C/O ratios
+        using 1) synthesis with grid atmospheres, and 2) synthesis
+        with custom self-consistent atmospheres
+        Also create FERRE ipf file to use to make FERRE interpolated set
+    """
+    fp=open('synth.ipf','w')
+    syn=[]
+    syn2=[]
+    #for carbon in np.arange(0,0.51,0.025) :
+    for co in [0.5,0.537,0.75,0.899,0.925,0.951,0.971,0.991] :
+        carbon = np.log10(co) + 0.27
+        if nearest: cm = round(carbon/0.25)*0.25
+        if np.isclose(cm,0.) : cm= 0.
+        # self-consistent synthesis
+        out = mk_synthesis('turbospec',teff,logg,mh,am,cm,nm,vmicro=vmicro,
+                 els=[['C',carbon]],atmod=os.environ['APOGEE_SPECLIB']+'/atmos/marcs/CO/3400g1.0m1.0z0.00a0.00c{:5.3f}s0.00.mod'.format(co))
+        syn2.append(out[0])
+        # synthesis with grid atmosphere
+        out = mk_synthesis('turbospec',teff,logg,mh,am,cm,nm,vmicro=vmicro,
+                 els=[['C',carbon]] )
+        syn.append(out[0])
+        fp.write('test_{:.3f}{:9.3f}{:9.3f}{:9.3f}{:9.3f}{:9.3f}{:9.3f}{:9.3f}\n'.format(carbon,np.log10(vmicro),carbon,nm,am,mh,logg,teff))
+    fp.close()
+
+    lsfid=14600018
+    waveid=13140000
+    highres=9
+    apred='dr17'
+    prefix='lsf_'
+    telescope='apo25m'
+    fiber=150
+    x, ls = synth.getlsf(lsfid,waveid,prefix=prefix,apred=apred,telescope=telescope,fiber=fiber,highres=highres)
+    conv=[]
+    conv2=[]
+    ws=np.linspace(15100.,17000., 38001)
+    # synthesis is in air, we want vacuum
+    ws=spectra.airtovac(ws)
+    for spec,spec2 in zip(syn,syn2) :
+        vmacro = 10.**(0.470794-0.254*mh)
+        vmacro = vmacro if vmacro<15 else 15.
+        # convolve one at a time because we have different vrot for each
+        z,waveout=lsf.convolve(ws,spec,lsf=ls,xlsf=x,vmacro=vmacro,vrot=None)
+        z=np.squeeze(z)
+        conv.append(z/np.nanmedian(z))
+        z,waveout=lsf.convolve(ws,spec2,lsf=ls,xlsf=x,vmacro=vmacro,vrot=None)
+        z=np.squeeze(z)
+        conv2.append(z/np.nanmedian(z))
+
+    asp=[]
+    for spec in conv2 : asp.append(aspcap.apStar2aspcap(spec)/np.nanmedian(aspcap.apStar2aspcap(spec)))
+    asp=np.array(asp)
+    ferre.writespec('synth.obs',asp)
+    ferre.writespec('synth.err',asp*0+0.001)
+
+    return syn,syn2,conv,conv2
+
+def plotco(syn,syn2,ferre) :
+    """ Plot the C/O results
+    """
+    co = [0.5,0.537,0.75,0.899,0.925,0.951,0.971,0.991] 
+    fig,ax=plots.multi(2,3,hspace=0.001,sharex=True,figsize=(16,8),wspace=0.5)
+    for i in range(8) :
+        tit = '{:8.3f} [{:6.2f}]'.format(co[i],np.log10(co[i])+0.27)
+        ax[0,0].plot(aspcap.apStarWave(),syn[i])
+        ax[1,0].plot(aspcap.apStarWave(),syn2[i])
+        ax[2,0].plot(aspcap.apStarWave(),aspcap.aspcap2apStar(ferre[i]))
+        ax[0,1].plot(aspcap.apStarWave(),syn[i]-syn2[i],label=tit)
+        ax[1,1].plot(aspcap.apStarWave(),syn2[i]-syn2[i],label=tit)
+        ax[2,1].plot(aspcap.apStarWave(),aspcap.aspcap2apStar(ferre[i])-syn2[i])
+    ax[1,1].legend(fontsize='x-small')
+    for i in range(3) : ax[i,0].set_ylim(0.4,1.25)
+    for i in range(3) : ax[i,1].set_ylim(-0.2,0.2)
 

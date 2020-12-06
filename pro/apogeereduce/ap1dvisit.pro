@@ -272,13 +272,13 @@ FOR i=0L,nplanfiles-1 do begin
         ;if tag_exist(frame0.(0),'WCOEF') and not keyword_set(newwave) then begin
         if tag_exist(chstr,'WCOEF') and not keyword_set(newwave) then begin
           print,'using WCOEF from 1D...'
-          chstr = CREATE_STRUCT(temporary(chstr),'LSFFILE',lsffiles[k],'LSFCOEF',$
-                                lsfcoef,'WAVE_DIR',plate_dir,'WAVEFILE',wavefiles[k])
+          chstr = CREATE_STRUCT(temporary(chstr),'LSFFILE',lsffiles[k],$
+                                'LSFCOEF',lsfcoef,'WAVE_DIR',plate_dir,'WAVEFILE',wavefiles[k])
         ; Need wavelength information
         endif else begin
           FITS_READ,wavefiles[k],wcoef,whead,exten=1
-          chstr = CREATE_STRUCT(temporary(chstr),'LSFFILE',lsffiles[k],'LSFCOEF',$
-                                lsfcoef,'WAVEFILE',wavefiles[k],'WCOEF',wcoef,'WAVE_DIR',plate_dir)
+          chstr = CREATE_STRUCT(temporary(chstr),'LSFFILE',lsffiles[k], 'LSFCOEF',lsfcoef,$
+                                'WAVEID',planstr.waveid,'WAVEFILE',wavefiles[k],'WCOEF',wcoef,'WAVE_DIR',plate_dir)
         endelse
 
         ; Now add this to the final FRAME structure
@@ -559,7 +559,7 @@ FOR i=0L,nplanfiles-1 do begin
   undefine,mjdfrac
   if tag_exist(planstr,'mjdfrac') then if planstr.mjdfrac eq 1 then $
     mjdfrac=sxpar(finalframe.(0).header,'JD-MID')-2400000.5 
-  APVISIT_OUTPUT,finalframe,plugmap,shiftstr,pairstr,$
+  APVISIT_OUTPUT,finalframe,plugmap,shiftstr,pairstr,planstr,$
     /silent,single=single,iter=iter,mjdfrac=mjdfrac,survey=survey
   writelog,logfile,' output '+file_basename(planfile)+string(format='(f8.2)',systime(1)-t1)+string(format='(f8.2)',systime(1)-t0)
 

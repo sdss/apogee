@@ -1,4 +1,4 @@
-pro apvisit_output,frame,plugmap,shiftstr,pairstr,silent=silent,stp=stp,single=single,iter=iter,mjdfrac=mjdfrac,survey=survey
+pro apvisit_output,frame,plugmap,shiftstr,pairstr,planstr,silent=silent,stp=stp,single=single,iter=iter,mjdfrac=mjdfrac,survey=survey
 
 ;+
 ;
@@ -112,6 +112,8 @@ For i=0,2 do begin
   remhead = where(stregex(header,'HISTORY AP3D: ',/boolean) eq 1 or $
                   stregex(header,'HISTORY AP2D: ',/boolean) eq 1,nremhead)
   if nremhead gt 0 then REMOVE,remhead,header
+  sxaddpar,header,'WAVEID',planstr.waveid,'Wavelength calibration frame used'
+  sxaddpar,header,'LSFID',planstr.lsfid,'LSF calibration frame used'
 
   ; Remove the trailing blank lines
   indend = where(stregex(header,'^END',/boolean) eq 1,nindend)
@@ -463,6 +465,8 @@ For i=0,nfibers-1 do begin
     sxaddpar,header,'EXPTIME',sxpar(frame.(0).header,'EXPTIME'),'Total visit exptime per dither pos'
     sxaddpar,header,'JD-MID',sxpar(frame.(0).header,'JD-MID'),' JD at midpoint of visit'
     sxaddpar,header,'UT-MID',sxpar(frame.(0).header,'UT-MID'),' Date at midpoint of visit'
+    sxaddpar,header,'WAVEID',planstr.waveid,'Wavelength calibration frame used'
+    sxaddpar,header,'LSFID',planstr.lsfid,'LSF calibration frame used'
     ncombine = sxpar(frame.(0).header,'NCOMBINE',count=num_ncombine)
     if num_ncombine eq 0 then ncombine=1
     sxaddpar,header,'NCOMBINE',ncombine

@@ -89,7 +89,7 @@ def add_gaia(data) :
     in_names=('source_id','parallax','parallax_error','pmra','pmra_error','pmdec','pmdec_error',
               'phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag','a_g_val', 'e_bp_min_rp_val',
               'radial_velocity','radial_velocity_error', 'r_est','r_lo','r_hi')
-    dtypes=('i8','f8','f8','f8','f8','f8','f8','f4','f4','f4','f4','f4','f8','f8','f8','f8','f8')
+    dtypes=('i8','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4')
     out_names=[]
     for name in in_names: out_names.append(('gaia_'+name).upper())
     # initialize
@@ -109,6 +109,8 @@ def add_gaia(data) :
         try: tab.add_column(col)
         except ValueError: pass
     #tab.add_columns(newcols.columns.values())
+
+    #if gaia_twomass is None or gaia_posn is None : return tab
 
     # remove dups in GAIA twomass in favor of brightest
     print('number in GAIA-2MASS xmatch catalog: ',len(gaia_twomass),len(set(gaia_twomass['original_ext_source_id'])))

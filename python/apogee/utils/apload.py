@@ -495,7 +495,7 @@ class ApLoad :
             except :
                 self.printerror()
     
-    def apVisit1m(self,*args, load=False, **kwargs) :
+    def apVisit1m(self,*args, load=False, usefile=None, **kwargs) :
         """
         NAME: apload.apVisit
         PURPOSE:  read apVisit file (downloading if necessary)
@@ -509,6 +509,7 @@ class ApLoad :
             try :
                 file = self.allfile(
                    'Visit',plate=args[0],mjd=args[1],reduction=args[2])
+                if usefile is not None : file = os.path.dirname(file)+'/'+usefile
                 if load : 
                     hdulist=self._readhdu(file)
                     spec=ApSpec(hdulist[1].data,header=hdulist[0].header,
@@ -709,10 +710,10 @@ class ApLoad :
             return data, header
     
     def filename(self,root,
-                 location=None,obj=None,plate=None,mjd=None,num=None,fiber=None,chips=False,field=None) :
+                 location=None,obj=None,reduction=None,plate=None,mjd=None,num=None,fiber=None,chips=False,field=None) :
 
         return self.allfile(root,
-                            location=location,obj=obj,plate=plate,mjd=mjd,num=num,fiber=fiber,chips=chips,field=field,
+                            location=location,obj=obj,reduction=reduction,plate=plate,mjd=mjd,num=num,fiber=fiber,chips=chips,field=field,
                             download=False)
 
     def allfile(self,root,

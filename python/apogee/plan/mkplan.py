@@ -15,7 +15,7 @@ from apogee.speclib import atmos
 from apogee.utils import spectra
 from apogee.plan import mkslurm
 
-def mkgriddirs(configfile,nosynth=False,synthonly=False,writeraw=False,queryport=1052) :
+def mkgriddirs(configfile,nosynth=False,synthonly=False,writeraw=False,queryport=1052,digits=3) :
     """ Script to create output directories and plan and batch queue files for all grids listed in master grid configuration file
     """
 
@@ -65,14 +65,14 @@ def mkgriddirs(configfile,nosynth=False,synthonly=False,writeraw=False,queryport
         fp = open(dir+name+'.yml','w')
         fp.write(yaml.dump(out,sort_keys=False))
         fp.close()
-        for elem in p['GRID'][i]['elem'] : speclib_split(dir+name,el=elem)
+        for elem in p['GRID'][i]['elem'] : speclib_split(dir+name,el=elem,digits=digits)
 
         # make pbs scripts
         os.chdir('..')
         specdir = synthcode.strip("'")+'/'+atmos+'/'+iso+'/'+name
 
         if name == p['GRID'][i]['specdir'] :
-            speclib_split(dir+name,amsplit=False)
+            speclib_split(dir+name,amsplit=False,digits=digits)
             mkslurm.write('mkgrid plan/'+name+'_a[mp]*vp20.yml plan/'+name+'_a[mp]*vp48.yml plan/'+name+'_a[mp]*vp??.yml',queryhost=os.uname()[1],queryport=queryport,maxrun=32)
             mkslurm.write('mkrbf plan/'+name+'_c[mp]*vp??.yml',queryhost=os.uname()[1],queryport=queryport,maxrun=1,time='72:00:00')
             mkslurm.write('mkrbf --nofill plan/'+name+'.yml',name='mkrbfholes',runplans=False,time='72:00:00')
@@ -85,7 +85,7 @@ def mkgriddirs(configfile,nosynth=False,synthonly=False,writeraw=False,queryport
             mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.yml',queryhost=os.uname()[1],queryport=queryport,maxrun=12,time='72:00:00',
                           postcmd='pca --pcas 12 75 --incremental --threads 0 '+raw+' plan/'+name+'.yml',name='mkgridlsf_pca')
 
-def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,oasplit=True,vtsplit=True,el='') :
+def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,oasplit=True,vtsplit=True,el='',digits=3) :
     """ Make a bunch of individual plan files from master, splitting [alpha/M],[C/M],[N/M],vt
     """
     # read master plan file
@@ -162,10 +162,10 @@ def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,oasplit=True,v
                                 else : p['dw'] = 0.10   
     
                         suffix=''
-                        if amsplit : suffix+='a'+atmos.cval(am)
-                        if cmsplit : suffix+='c'+atmos.cval(cm)
-                        if nmsplit : suffix+='n'+atmos.cval(nm)
-                        if oasplit : suffix+='o'+atmos.cval(oa)
+                        if amsplit : suffix+='a'+atmos.cval(am,digits=digits)
+                        if cmsplit : suffix+='c'+atmos.cval(cm,digits=digits)
+                        if nmsplit : suffix+='n'+atmos.cval(nm,digits=digits)
+                        if oasplit : suffix+='o'+atmos.cval(oa,digits=digits)
                         if vtsplit : suffix+='v'+atmos.cval(10.**vt)
                         p['name'] = suffix
 

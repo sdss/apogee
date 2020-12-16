@@ -283,41 +283,40 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
     # add tags to structure
     ngrids=len(config['grids'])
     aspcapfield.add_column(Column(name='CLASS',dtype='S8',length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='FPARAM_CLASS',dtype=float,shape=(ngrids,nparam),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='FPARAM_COV_CLASS',dtype=float,shape=(ngrids,nparam,nparam),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='CHI2_CLASS',dtype=float,shape=(ngrids),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='FPARAM',dtype=float,shape=(nparam),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='FPARAM_COV',dtype=float,shape=(nparam,nparam),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='ASPCAP_CHI2',dtype=float,length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='PARAM',dtype=float,shape=(nparam),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='PARAM_COV',dtype=float,shape=(nparam,nparam),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='FPARAM_CLASS',dtype=np.float32,shape=(ngrids,nparam),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='CHI2_CLASS',dtype=np.float32,shape=(ngrids),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='FPARAM',dtype=np.float32,shape=(nparam),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='FPARAM_COV',dtype=np.float32,shape=(nparam,nparam),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='ASPCAP_CHI2',dtype=np.float32,length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='PARAM',dtype=np.float32,shape=(nparam),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='PARAM_COV',dtype=np.float32,shape=(nparam,nparam),length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='PARAMFLAG',dtype=np.uint64,shape=(nparam),length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='ASPCAPFLAG',dtype=np.uint64,length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='ASPCAPFLAGS',dtype='S132',length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='FRAC_BADPIX',dtype=float,length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='FRAC_BADPIX',dtype=np.float32,length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='FRAC_LOWSNR',dtype=float,length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='FRAC_SIGSKY',dtype=float,length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='FRAC_SIGSKY',dtype=np.float32,length=len(aspcapfield)))
     nelem = len(elems()[0])
-    aspcapfield.add_column(Column(name='FELEM',dtype=float,shape=(nelem),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='FELEM',dtype=np.float32,shape=(nelem),length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='FELEM_ERR',dtype=float,shape=(nelem),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='X_H',dtype=float,shape=(nelem),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='X_H_ERR',dtype=float,shape=(nelem),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='X_M',dtype=float,shape=(nelem),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='X_M_ERR',dtype=float,shape=(nelem),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='ELEM_CHI2',dtype=float,shape=(nelem),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='X_H',dtype=np.float32,shape=(nelem),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='X_H_ERR',dtype=np.float32,shape=(nelem),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='X_M',dtype=np.float32,shape=(nelem),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='X_M_ERR',dtype=np.float32,shape=(nelem),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='ELEM_CHI2',dtype=np.float32,shape=(nelem),length=len(aspcapfield)))
     aspcapfield.add_column(Column(name='ELEMFLAG',dtype=np.uint64,shape=(nelem),length=len(aspcapfield)))
 
     # load spectra
     # create table for output spectral data
     aspcapspec = Table()
     nwave = nw_chip.sum()
-    aspcapspec.add_column(Column(name='SPEC',dtype=float,shape=(nwave),length=len(aspcapfield)))
-    aspcapspec.add_column(Column(name='SPEC_ERR',dtype=float,shape=(nwave),length=len(aspcapfield)))
+    aspcapspec.add_column(Column(name='SPEC',dtype=np.float32,shape=(nwave),length=len(aspcapfield)))
+    aspcapspec.add_column(Column(name='SPEC_ERR',dtype=np.float32,shape=(nwave),length=len(aspcapfield)))
     aspcapspec.add_column(Column(name='MASK',dtype=np.uint64,shape=(nwave),length=len(aspcapfield)))
-    aspcapspec.add_column(Column(name='SPEC_BESTFIT',dtype=float,shape=(nwave),length=len(aspcapfield)))
-    aspcapspec.add_column(Column(name='OBS',dtype=float,shape=(nwave),length=len(aspcapfield)))
-    aspcapspec.add_column(Column(name='ERR',dtype=float,shape=(nwave),length=len(aspcapfield)))
-    aspcapspec.add_column(Column(name='NORM',dtype=float,shape=(nwave),length=len(aspcapfield)))
+    aspcapspec.add_column(Column(name='SPEC_BESTFIT',dtype=np.float32,shape=(nwave),length=len(aspcapfield)))
+    aspcapspec.add_column(Column(name='OBS',dtype=np.float32,shape=(nwave),length=len(aspcapfield)))
+    aspcapspec.add_column(Column(name='ERR',dtype=np.float32,shape=(nwave),length=len(aspcapfield)))
+    aspcapspec.add_column(Column(name='NORM',dtype=np.float32,shape=(nwave),length=len(aspcapfield)))
 
     pixelmask=bitmask.PixelBitMask()
     badval=pixelmask.badval()|pixelmask.getval('SIG_SKYLINE')
@@ -335,14 +334,15 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
                               sky=hdulist[4].data,skyerr=hdulist[5].data,
                               telluric=hdulist[6].data,telerr=hdulist[7].data)
             except: 
-                print('No apStar file found: ',apstarfile)
-                aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('MISSING_APSTAR')
-                aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('NO_ASPCAP_RESULT')
                 apstar=None
         else :
             apstar=load.apStar(star['FIELD'],star['APOGEE_ID'],load=True)
         print('apstarfile: ',apstarfile)
-        if apstar is None: continue
+        if apstar is None: 
+            print('No apStar file found: ',apstarfile)
+            aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('MISSING_APSTAR')
+            aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('NO_ASPCAP_RESULT')
+            continue
 
         # if we have an individual visit, use it, and load appropriate SNR
         row = 0
@@ -450,9 +450,9 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
         aspcapfield=Table(aspcapfield)
         aspcapspec=Table(aspcapspec)
         nparam = len(params()[0])
-        aspcapfield.add_column(Column(name='FPARAM_MULT',dtype=float,shape=(27,nparam),length=len(aspcapfield)))
+        aspcapfield.add_column(Column(name='FPARAM_MULT',dtype=np.float32,shape=(27,nparam),length=len(aspcapfield)))
         nwave = nw_chip.sum()
-        aspcapspec.add_column(Column(name='SPEC_BESTFIT_MULT',dtype=float,shape=(27,nwave),length=len(aspcapfield)))
+        aspcapspec.add_column(Column(name='SPEC_BESTFIT_MULT',dtype=np.float32,shape=(27,nwave),length=len(aspcapfield)))
 
     # loop over all grids
     param_class=[]
@@ -581,7 +581,6 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
             i = np.where(param['APOGEE_ID'] == (star['APOGEE_ID']+'__'+star['FIELD']).encode())[0]
             if len(i) == 0 : continue
             aspcapfield['FPARAM_CLASS'][gd[istar],igrid,:] = param['FPARAM'][i]
-            aspcapfield['FPARAM_COV_CLASS'][gd[istar],igrid,:] = param['FPARAM_COV'][i]
             aspcapfield['CHI2_CLASS'][gd[istar],igrid] = param['ASPCAP_CHI2'][i]
             # if this is the lowest CHI2, store in FPARAM and ASPCAP_CHI2
             # penalize GK grid in favor of finer M grid

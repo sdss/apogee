@@ -1,39 +1,201 @@
 import numpy as np
 from esutil import htm
-from astropy.table import Table, vstack
+import astropy
+from astropy.table import Table, Column, vstack
 from astropy.io import fits
 from apogee.utils import bitmask
+from apogee.aspcap import aspcap
 from tools import match
 import os
 import pdb
 import glob
 
-def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out='allStar.fits',verbose=False,skipcal=True) :
+def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out='allStar.fits',
+            skip=['Field-cal','Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.']) :
     '''
     Concatenate set of aspcapField files
     '''
 
+    # search for input files
     if type(search) == str:
         search=[search]
     allfiles=[]
     for path in search :
         allfiles.extend(glob.glob(path))
 
+    # read and append all of the individual field tables
     a=[]
     for file in allfiles :
-        if 'Field-cal_' not in file or skipcal == False:
-            dat=Table.read(file,hdu=1)
-            a.append(dat)
+        if skip is not None and doskip(file,skip) : continue
+        print(file)
+        dat=Table.read(file,hdu=1)
+        try : dat.remove_column('FPARAM_COV_CLASS')
+        except : pass
+        a.append(dat)
+    # stack them
     all =vstack(a)
+    del(a)
+    all.sort(['RA'])
+
+    #rename column CLASS to ASPCAP_CLASS
+    all.rename_column('CLASS','ASPCAP_CLASS')
+
+    # add named tags
+    add_named_tags(all)
+
+    # add EXTRATARG, H_MIN, H_MAX, JKMIN, JKMAX
+    add_extratarg(all)
 
     # write out the file
     if out is not None:
         print('writing',out)
-        all.write(out,overwrite=True)
+        hdulist=fits.HDUList()
+        hdulist.append(fits.BinTableHDU(all))
+        dat=Table.read(file,hdu=3)
+        hdulist.append(fits.BinTableHDU(dat))
+        hdulist.append(fits.BinTableHDU(dat))
+        hdulist.writeto(out,overwrite=True)
 
     return all
 
- 
+def doskip(file,skip) :
+    for sk in skip : 
+        if sk in file : return True
+    return False
+
+def add_named_tags(tab) :
+    """ Add abundance named tags
+    """
+    if not isinstance(tab,astropy.table.table.Table) : tab=Table(tab)
+    # named param flags
+    for name in ['TEFF', 'LOGG', 'M_H', 'ALPHA_M'] :
+        col = Column(np.full([len(tab)],np.nan),name=name,dtype=np.float32)
+        try : tab.remove_column(name)
+        except: pass
+        tab.add_column(col)
+        col = Column(np.full([len(tab)],np.nan),name=name+'_ERR',dtype=np.float32)
+        try : tab.remove_column(name+'_ERR')
+        except: pass
+        tab.add_column(col)
+    for name in ['VMICRO', 'VMACRO', 'VSINI', 'TEFF_SPEC', 'LOGG_SPEC'] :
+        col = Column(np.full([len(tab)],np.nan),name=name,dtype=np.float32)
+        try : tab.remove_column(name)
+        except: pass
+        tab.add_column(col)
+    pdb.set_trace()
+    tab['TEFF'] = tab['PARAM'][:,0].astype(np.float32)
+    tab['TEFF_ERR'] = np.sqrt(tab['PARAM_COV'][:,0,0]).astype(np.float32)
+    tab['LOGG'] = tab['PARAM'][:,1].astype(np.float32)
+    tab['LOGG_ERR'] = np.sqrt(tab['PARAM_COV'][:,1,1]).astype(np.float32)
+    tab['M_H'] = tab['PARAM'][:,3].astype(np.float32)
+    tab['M_H_ERR'] = np.sqrt(tab['PARAM_COV'][:,3,3]).astype(np.float32)
+    tab['ALPHA_M'] = tab['PARAM'][:,6].astype(np.float32)
+    tab['ALPHA_M_ERR'] = np.sqrt(tab['PARAM_COV'][:,6,6]).astype(np.float32)
+    tab['TEFF_SPEC'] = tab['FPARAM'][:,0].astype(np.float32)
+    tab['LOGG_SPEC'] = tab['FPARAM'][:,1].astype(np.float32)
+    tab['VMICRO'] = 10.**tab['FPARAM'][:,2].astype(np.float32)
+    dw=np.where(np.core.defchararray.find(tab['ASPCAP_CLASS'],b'BA') |
+                np.core.defchararray.find(tab['ASPCAP_CLASS'],b'GKd') |
+                np.core.defchararray.find(tab['ASPCAP_CLASS'],b'Fd') |
+                np.core.defchararray.find(tab['ASPCAP_CLASS'],b'Md') ) [0]
+    tab['VMACRO'][dw] = 0.
+    tab['VSINI'][dw] = 10.**tab['FPARAM'][:,7].astype(np.float32)
+    giant=np.where(np.core.defchararray.find(tab['ASPCAP_CLASS'],b'GKg') |
+                np.core.defchararray.find(tab['ASPCAP_CLASS'],b'Mg') ) [0]
+    tab['VMACRO'][giant] = 10.**tab['FPARAM'][:,7].astype(np.float32)
+
+    # named element flags
+    elems, elemtoh, tagnames, elemfitnames = aspcap.elems()
+    newtags=[]
+    for name in tagnames :
+        col = Column(np.full([len(tab)],np.nan),name=name,dtype=np.float32)
+        try : tab.remove_column(tagname)
+        except: pass
+        tab.add_column(col)
+        col = Column(np.full([len(tab)],np.nan),name=name+'_ERR',dtype=np.float32)
+        try : tab.remove_column(tagname)
+        except: pass
+        tab.add_column(col)
+        col = Column(np.full([len(tab)],np.uint32(0)),name=name+'_FLAG',dtype=np.uint32)
+        try : tab.remove_column(tagname)
+        except: pass
+        tab.add_column(col)
+    ife =np.where(elems == 'Fe')[0][0]
+    for i,(el,tag) in enumerate(zip(elems,tagnames)) :
+        if el == 'Fe' :
+            tab[tag] = tab['X_H'][:,i].astype(np.float32)
+        else :
+            tab[tag] = tab['X_H'][:,i].astype(np.float32) - tab['X_H'][:,ife].astype(np.float32)
+        tab[tag+'_ERR'] = tab['X_H_ERR'][:,i].astype(np.float32)
+        tab[tag+'_FLAG'] = tab['ELEMFLAG'][:,i].astype(np.uint32)
+
+def add_extratarg(tab) :
+    """ add EXTRATARG, MIN_H, MAX_H, MIN_JK, MAX_JK
+    """
+    if not isinstance(tab,astropy.table.table.Table) : tab=Table(tab)
+    col = Column(np.full([len(tab)],np.uint32(0)),name='EXTRATARG',dtype=np.uint32)
+    try : tab.remove_column(name)
+    except: pass
+    # start with OTHER set
+    tab.add_column(col)
+    apogee_targ1 = bitmask.ApogeeTarget1()
+    apogee_targ2 = bitmask.ApogeeTarget2()
+    apogee2_targ1 = bitmask.Apogee2Target1()
+    apogee2_targ2 = bitmask.Apogee2Target2()
+    
+    # main : turn off OTHER
+    main = np.where( tab['APOGEE_TARGET1'] & (apogee_targ1.getval('APOGEE_SHORT')|apogee_targ1.getval('APOGEE_MEDIUM')|apogee_targ1.getval('APOGEE_LONG')) ) [0]
+    tab['EXTRATARG'][main] = 0
+    print('APOGEE main',len(main))
+    main = np.where( tab['APOGEE2_TARGET1'] & (apogee2_targ1.getval('APOGEE2_SHORT')|apogee2_targ1.getval('APOGEE2_MEDIUM')|apogee2_targ1.getval('APOGEE2_LONG')) ) [0]
+    tab['EXTRATARG'][main] = 0
+    print('APOGEE2 main',len(main))
+
+    #telluric
+    tell = np.where( tab['APOGEE_TARGET2'] & (apogee_targ2.getval('APOGEE_TELLURIC')|apogee_targ2.getval('APOGEE_TELLURIC_BAD')) )[0]
+    tab['EXTRATARG'][tell] |= 4
+    print('APOGEE telluric',len(tell))
+    tell = np.where( tab['APOGEE2_TARGET2'] & (apogee2_targ2.getval('APOGEE2_TELLURIC')|apogee2_targ2.getval('APOGEE2_TELLURIC_BAD')) )[0]
+    tab['EXTRATARG'][tell] |= 4
+    print('APOGEE2 telluric',len(tell))
+
+    # apo1m
+    j= np.where(tab['TELESCOPE'] == 'apo1m')[0]
+    tab['EXTRATARG'] |= 8
+    print('apo1m',len(j))
+
+    names=['MIN_H','MAX_H','MIN_JK','MAX_JK']
+    for name in names :
+        col = Column(np.full([len(tab)],np.nan),name=name,dtype=np.float32)
+        try : tab.remove_column(name)
+        except: pass
+        tab.add_column(col)
+
+    min_h=[0.,0.,0.]
+    j=np.where( (tab['APOGEE_TARGET1'] & apogee_targ1.getval('APOGEE_SHORT') ) |
+                (tab['APOGEE2_TARGET1'] & apogee2_targ1.getval('APOGEE2_SHORT')) )[0]
+    tab['MIN_H'][j] = min_h[0]
+    j=np.where( (tab['APOGEE_TARGET1'] & apogee_targ1.getval('APOGEE_MEDIUM') ) |
+                (tab['APOGEE2_TARGET1'] & apogee2_targ1.getval('APOGEE2_MEDIUM')) )[0]
+    tab['MIN_H'][j] = min_h[1]
+    j=np.where( (tab['APOGEE_TARGET1'] & apogee_targ1.getval('APOGEE_LONG') ) |
+                (tab['APOGEE2_TARGET1'] & apogee2_targ1.getval('APOGEE2_LONG')) )[0]
+    tab['MIN_H'][j] = min_h[2]
+
+    j=np.where((np.core.defchararray.find(tab['SURVEY'],b'apogee2') >=0) &
+               tab['APOGEE2_TARGET1'] & apogee2_targ1.getval('APOGEE2_ONEBIN_GT_0_5')  )[0]
+    tab['MIN_JK'][j] = 0.5
+    j=np.where((np.core.defchararray.find(tab['SURVEY'],b'apogee2') >=0) &
+               tab['APOGEE2_TARGET1'] & apogee2_targ1.getval('APOGEE2_TWOBIN_0_5_TO_0_8')  )[0]
+    tab['MIN_JK'][j] = 0.5
+    tab['MAX_JK'][j] = 0.8
+    j=np.where((np.core.defchararray.find(tab['SURVEY'],b'apogee2') >=0) &
+               tab['APOGEE2_TARGET1'] & apogee2_targ1.getval('APOGEE2_TWOBIN_GT_0_8')  )[0]
+    tab['MIN_JK'][j] = 0.8
+    j=np.where((np.core.defchararray.find(tab['SURVEY'],b'apogee2') >=0) &
+               tab['APOGEE2_TARGET1'] & apogee2_targ1.getval('APOGEE2_ONEBIN_GT_0_3')  )[0]
+    tab['MIN_JK'][j] = 0.3
+
 def mkcoord(file='allStar-r12-l33-58358.fits') :
     """ Create coordinate CSV from allStar file, to use for GAIA cross-match
     """
@@ -110,16 +272,6 @@ def add_gaia(data,gaia_1='gaia_2mass_xmatch.fits.gz', gaia_2='gaia_posn_xmatch.f
         tab[name][bd] = -9999.
 
     return tab
-
-def add_spec(data) :
-    tab=Table(data)
-    names=['TEFF_SPEC','LOGG_SPEC']
-    newcols=Table(np.zeros([len(tab),len(names)])-9999.,names=names)
-    tab.add_columns(newcols.columns.values())
-    tab['TEFF_SPEC'] = tab['FPARAM'][:,0]
-    tab['LOGG_SPEC'] = tab['FPARAM'][:,1]
-
-    return(tab)
 
         
 def trimfile(data) :

@@ -28,7 +28,8 @@ if __name__ == '__main__' :
     parser.add_argument('--nosynth', help='Skip synthesis directory file creation',action="store_true")
     parser.add_argument('--writeraw', help='Create raw FERRE files',action="store_true")
     parser.add_argument('--queryport', type=int, help='queryhost port to use',default=1052)
+    parser.add_argument("--digits", type=int, default=3, help='number of digits in atmos coding')
     args=parser.parse_args()
 
     mkplan.mkgriddirs(args.grid,nosynth=args.nosynth,synthonly=args.synthonly,
-                      queryport=args.queryport,writeraw=args.writeraw)
+                      queryport=args.queryport,writeraw=args.writeraw,digits=args.digits)

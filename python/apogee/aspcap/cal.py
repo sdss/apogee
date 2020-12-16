@@ -96,7 +96,7 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
             gd = np.where((abs(z) < 0.5) & (r>8) & (r<9) ) [0]
             j=j[gd]
         else :
-            j=np.array(apselect.clustmember(a,cluster,raw=True))
+            j=np.array(apselect.clustmember(a,cluster,raw=True,logg=[-1,6],te=[3000,6000]))
         if len(j) == 0 : return None, None
         gd=apselect.select(a[j],sn=[75,100000],field=field,mh=mh,raw=True)
         if len(gd) == 0 : return None, None
@@ -105,15 +105,24 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
         except :bd=np.where(np.core.defchararray.find(a[j[gd]]['STARFLAGS'],'MULTIPLE') >=0 )[0]
         mult.append(j[gd[bd]])
 
+    # HR
+    fig,ax=plots.multi(1,len(all),hspace=0.001)
+    ax=np.atleast_1d(ax)
+    for i,(a,j) in enumerate(zip(all,inds)) :
+        ax[i].cla()
+        plots.plotc(ax[i],a['FPARAM'][j,0],a['FPARAM'][j,1],a['FPARAM'][j,3],
+                    xr=[6000,3000],yr=[6,-1],xt='Teff',yt='log g',zr=[-2,0.5])
+        fig.suptitle(cluster)
+    if hard is not None:
+        fig.savefig(hard+cluster+suffix+'_'+'hr'+'.png')
+
     # CHI2
     fig,ax=plots.multi(1,len(all),hspace=0.001)
     ax=np.atleast_1d(ax)
     for i,(a,j) in enumerate(zip(all,inds)) :
         ax[i].cla()
-        try: plots.plotc(ax[i],a['FPARAM'][j,1],a['ASPCAP_CHI2'][j],a['FPARAM'][j,zindex],yt='CHI2',
+        plots.plotc(ax[i],a['FPARAM'][j,1],a['ASPCAP_CHI2'][j],a['FPARAM'][j,zindex],yt='CHI2',
                     xr=[0,5],yr=[0,30],xt='log g',zr=zr)
-        except: plots.plotc(ax[i],a['FPARAM'][j,1],a['PARAM_CHI2'][j],a['FPARAM'][j,zindex],yt='CHI2',
-                    xr=[0,5],yr=[0,30],xt='log g')
         fig.suptitle(cluster)
     if hard is not None:
         fig.savefig(hard+cluster+suffix+'_'+'chi2'+'.png')
@@ -249,7 +258,7 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
     plt.close()
 
     grid=[[cluster+suffix+'_rms.png']]
-    for param in ['chi2','M','Cpar','Npar','alpha','Cpar_Npar','C_N'] :
+    for param in ['hr','chi2','M','Cpar','Npar','alpha','Cpar_Npar','C_N'] :
         fig=cluster+suffix+'_'+param+'.png'
         grid.append([fig])
     for el in aspcap.elems()[0] :
@@ -259,7 +268,7 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
 
     return inds, rms
 
-def allclust(all,clusters=['M67','N7789','N6819','N6791','M3','M15']) :
+def allclust(all,clusters=['M67','N7789','N6819','N6791','M3','M15'],out='clust') :
     """ Create cluster plots for multiple clusters and make summary web page
     """
     allinds=[]
@@ -268,7 +277,7 @@ def allclust(all,clusters=['M67','N7789','N6819','N6791','M3','M15']) :
         allinds.append(inds)
 
     grid=[]
-    for param in ['rms','chi2','M','Cpar','Npar','alpha','Cpar_Npar','C_N'] :
+    for param in ['hr','rms','chi2','M','Cpar','Npar','alpha','Cpar_Npar','C_N'] :
         row=[]
         for clust in clusters :
             fig=clust+'_'+param+'.png'
@@ -282,7 +291,7 @@ def allclust(all,clusters=['M67','N7789','N6819','N6791','M3','M15']) :
             row.append(fig)
         grid.append(row)
 
-    html.htmltab(grid,file='plots/clust.html')
+    html.htmltab(grid,file='plots/'+out+'.html',xtitle=clusters)
     return allinds
 
     
@@ -1045,7 +1054,7 @@ def allplots() :
     errplots(tags=['PARAM_ALPHA_M','O_H','MG_H','NI_H','PARAM_M_H'])
 
 def logg(a,caldir='cal/') :
-    """ Check IDL corrections for log g
+    """ apply log g calibration
     """
     #a=fits.open('allStar-r12-l33.fits')[1].data
 
@@ -1112,6 +1121,91 @@ def logg(a,caldir='cal/') :
     diff =a['PARAM'][:,1]-new
     bd = np.where (np.isclose(diff,0.,1.e-6,0.01) == False)[0]
     return new
+
+def teff(a,caldir='cal/'):
+    """ Apply Teff calibration
+    """
+    aspcapmask=bitmask.AspcapBitMask()
+    parammask=bitmask.ParamBitMask()
+    starmask=bitmask.StarBitMask()
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
+
+    cal=fits.open(caldir+'/all_tecal.fits')[1].data[0]
+    calteffmin=cal['caltemin']
+    calteffmax=cal['caltemax']
+    teff=clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
+    mh=clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
+
+    new=np.zeros(len(a))-9999.99
+    ok =np.where((a['FPARAM'][gd,0] >= calteffmin) & (a['FPARAM'][gd,0] <= calteffmax) )[0]
+    pdb.set_trace()
+    new[gd[ok]] = a['FPARAM'][gd[ok],0] - (cal['par2d'][0]+cal['par2d'][1]*mh[ok]+cal['par2d'][2]*teff[ok])
+    return new
+
+def elem(a,caldir='cal/') :
+    """ Calibrate abundances 
+    """
+
+    aspcapmask=bitmask.AspcapBitMask()
+    parammask=bitmask.ParamBitMask()
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
+
+    giant = np.where( (a['FPARAM'][gd,1] < 2./1300.*(a['FPARAM'][gd,0]-3500)+2.) &
+                      (a['FPARAM'][gd,1] < 4) & (a['FPARAM'][gd,0] < 7000) )[0]
+    tmp = np.zeros(len(gd),dtype=bool)
+    tmp[giant] = True
+    dwarf = np.where(~tmp)[0]
+
+    new_param=np.zeros([len(a),9])-9999.99
+    new_x_h=np.zeros(len(a))-9999.99
+    new_x_m=np.zeros(len(a))-9999.99
+    els = ['M','alpha']
+    els.extend(aspcap.elems()[0])
+    elemtoh = aspcap.elems()[1]
+    for group in ['dwarf','giant'] :
+        cal=fits.open(caldir+'/'+group+'_abuncal.fits')[1].data
+        if group == 'giant' :
+            ok = gd[giant]
+        else :
+            ok = gd[dwarf]
+
+        for el in els :
+            iel = np.where(cal['elem'] == el)[0][0]
+            calteffmin=cal['caltemin'][iel]
+            calteffmax=cal['caltemax'][iel]
+            print(el,calteffmin,calteffmax)
+
+            gdel=np.where( (a['FPARAM'][ok,0] >= calteffmin)  &
+                           (a['FPARAM'][ok,0] <= calteffmax) ) [0]
+
+            teff=clip(a['FPARAM'][ok[gdel],0],cal['temin'][iel],cal['temax'][iel])
+            mh=clip(a['FPARAM'][ok[gdel],3],cal['femin'][iel],cal['femax'][iel])
+            x = teff-cal['te0'][iel]
+
+            # "internal" calibration
+            fit=0
+            for iorder in range(0,cal['elemfit'][iel]) :
+                fit+=cal['par'][iel,iorder] * x**(iorder+1)
+
+            # "external" calibration
+            for iorder in range(2) :
+                fit+=cal['extpar'][iel,iorder] * x**(iorder)
+
+            if el == 'M' :
+                new_param[ok[gdel],3] = a['FPARAM'][ok[gdel],3]-fit
+            elif el == 'alpha' :
+                new_param[ok[gdel],6] = a['FPARAM'][ok[gdel],6]-fit
+            else :
+                jel = np.where(aspcap.elems()[0] == el)[0]
+                if elemtoh[jel] :
+                    new_x_h[ok[gdel]] = a['FELEM'][ok[gdel],6]-fit
+                    new_x_m[ok[gdel]] = a['FELEM'][ok[gdel],6]-fit-a['FPARAM'][ok[gdel],3]
+                else :
+                    new_x_m[ok[gdel]] = a['FELEM'][ok[gdel],6]-fit
+                    new_x_h[ok[gdel]] = a['FELEM'][ok[gdel],6]-fit+a['FPARAM'][ok[gdel],3]
+
+    return new_param,new_x_h,new_x_m
+
 
 def clip(x,xmin,xmax) :
     """ clip input array so that x<xmin becomes xmin, x>xmax becomes xmax, return clipped array

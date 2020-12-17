@@ -182,6 +182,9 @@ def get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type='marcs',atmosroot=None,nskip
                 shutil.copy(atmod,outmod)
                 shutil.copy(atmod.replace('.22','.5'),outmod.replace('.22','.5'))
                 return outmod
+        else :
+            tmp = np.round(cm/0.25)*0.25
+            atmod=atmosdir+atmos.filename(teff,logg,mh,tmp,am,model=model)
         return -1
 
     return outmod
@@ -214,7 +217,7 @@ def get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=False,sav
     return workdir
 
 def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
-    nlte=False,els=None,atmod=None,atmos_type='marcs',atmosroot=None,atmosdir=None,nskip=0,fill=True,
+    nlte=False,els=None,atmod=None,atmos_type='marcs',atmosroot=None,atmosdir=None,nskip=0,fill=True,cmnear=False,
     linelist='20180901',h2o=0,linelistdir=None,atoms=True,molec=True, msuffix='', save=False,run=True) :
     """ Do synthesis
 
@@ -258,7 +261,28 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
     # atmosphere: make local copy in Turbospectrum input format, allowing for trimmed layers
     # note that [N/M] is solar for atmospheres (since it doesn't have a big effect)
     if nlte : atmos_type='synspec'
-    if atmod is None : atmod = get_atmod_file(teff,logg,mh,am,cm,nm,atmos_type=atmos_type,nskip=nskip, atmosroot=atmosroot,atmosdir=atmosdir,workdir=workdir)
+    if cmnear : 
+        #if cm < am+0.125 or cm>am+0.375 : cmtmp = np.round(cm/0.25)*0.25 
+        #else : cmtmp = np.floor(cm/0.25)*0.25 
+        #if np.isclose(cmtmp,0.) : cmtmp=0. 
+        #amtmp = np.round(am/0.25)*0.25
+        #if np.isclose(amtmp,0.) : amtmp=0. 
+
+        #new
+        amtmp = np.round(am/0.25)*0.25
+        cmtmp=np.round(cm/0.25)*0.25
+        # if synthesis has C/O<-0.025 ([C/M]<0.245), make sure adoped model is
+        if (cm-am < 0.245) and (cmtmp-amtmp > 0.245) : cmtmp -= 0.25
+        # if synthesis has C/O>-0.025 ([C/M]>0.245), make sure adoped model is
+        if (cm-am > 0.245) and (cmtmp-amtmp < 0.245) : cmtmp += 0.25
+        if np.isclose(cmtmp,0.) : cmtmp=0.
+        if np.isclose(amtmp,0.) : amtmp=0.
+        print('cmnear: ',cm,cmtmp,am,amtmp) 
+
+    else : 
+        cmtmp = cm
+        amtmp = am
+    if atmod is None : atmod = get_atmod_file(teff,logg,mh,amtmp,cmtmp,nm,atmos_type=atmos_type,nskip=nskip, atmosroot=atmosroot,atmosdir=atmosdir,workdir=workdir)
     else : shutil.copy(atmod,workdir+'/'+os.path.basename(atmod))
 
     if type(atmod) is int :
@@ -907,6 +931,7 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec
     solarisotopes = int(p['solarisotopes']) if p.get('solarisotopes') else 0
     solarisotopes = True if abs(solarisotopes) == 1 else False
     nlte = p['nlte'] if p.get('nlte') else False
+    cmnear = p['cmnear'] if p.get('cmnear') else False
     enhanced_o = p['enhanced_o'] if p.get('enhanced_o') else 0
     elem = p['elem'] if p.get('elem') else ''
     maskdir = p['maskdir'] if p.get('maskdir') else None
@@ -998,7 +1023,7 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec
                         solarisotopes=solarisotopes,
                         nskip=nskip,kurucz=kurucz,run=run,save=save) 
                   else :
-                      spec,specnorm=mk_synthesis(code,int(teff),logg,mh,am,cm,nm,els=oa,
+                      spec,specnorm=mk_synthesis(code,int(teff),logg,mh,am,cm,nm,els=oa,cmnear=cmnear,
                         wrange=wrange,dw=dw,atmosdir=marcsdir,
                         elemgrid=elem,linelistdir=linelistdir+'/'+elem+'/',linelist=linelist,vmicro=vout,
                         solarisotopes=solarisotopes,nlte=nlte,
@@ -1063,7 +1088,7 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec
                 hdu.header['LOGW'] = 0
                 if p.get('width') : hdu.header['width'] = p['width']
                 if p.get('linelist') : hdu.header['linelist'] = p['linelist']
-                if p.get('solarisotopes') : hdu.header['solarisotopes'] = int(p['solarisotopes'])
+                if p.get('solarisotopes') : hdu.header['isotopes'] = int(p['solarisotopes'])
                 if p['synthcode'] == 'asset'  : hdu.header.add_comment('ASSET generated synthetic spectra')
                 if p['synthcode'] == 'turbospec' : hdu.header.add_comment('Turbospec generated synthetic spectra')
                 if p['synthcode'] == 'moog ' : hdu.header.add_comment('MOOG generated synthetic spectra')
@@ -1968,7 +1993,7 @@ def co( teff=3400,logg=1,mh=0,am=0,cm=0,nm=0,vmicro=1.2,nearest=False) :
     prefix='lsf_'
     telescope='apo25m'
     fiber=150
-    x, ls = synth.getlsf(lsfid,waveid,prefix=prefix,apred=apred,telescope=telescope,fiber=fiber,highres=highres)
+    x, ls = getlsf(lsfid,waveid,prefix=prefix,apred=apred,telescope=telescope,fiber=fiber,highres=highres)
     conv=[]
     conv2=[]
     ws=np.linspace(15100.,17000., 38001)

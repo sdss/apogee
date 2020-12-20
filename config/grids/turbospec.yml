@@ -1,7 +1,7 @@
----
+
 defaults : &defaults
     config :   'l33'
-    linelist : '20200921nlte'
+    linelist : '20180901'
     wrange :   [15100.,17000.]
     continuum :    [4.00,1.00,0.00,0.00]
     npart :     12
@@ -10,9 +10,9 @@ defaults : &defaults
     telescope : apo25m
     lsfid :     14600018
     waveid :    13140000
-    synthcode : synspec
+    synthcode : turbospec
     atmos : marcs
-    nlte : True
+    nlte : False
     r0 : 1
     dw : 0.05
     vmacrofit : 1
@@ -30,7 +30,7 @@ giant: &giant
     am0 : -0.75
     dam : 0.25
     nam : 8
-    cm0 : -1.5
+    cm0 : -0.75
     dcm : 0.25
     ncm : 11
     nm0 : -0.5
@@ -95,25 +95,16 @@ dwarf: &dwarf
 
 GKg : &GKg
     <<: *giant
-    specdir : sgGK_200921nlte
+    specdir : tgGK_180901_dr17
     teff0 : 3500
     dteff : 250
     nteff : 11
     logg0 : 0
     dlogg : 0.5
     nlogg : 10
-Mg : &Mgfine
-    <<: *giant
-    specdir : sgMfine_200921nlte
-    teff0 : 3000
-    dteff : 100
-    nteff : 11
-    logg0 : -0.5
-    dlogg : 0.5
-    nlogg : 8
 Mg : &Mg
-    <<: *giant
-    specdir : sgM_200921nlte
+    <<: *giantfine
+    specdir : tgM_180901_dr17
     teff0 : 3000
     dteff : 100
     nteff : 11
@@ -122,7 +113,7 @@ Mg : &Mg
     nlogg : 8
 Fd: &Fd
     <<: *dwarf
-    specdir : sdF_200921nlte
+    specdir : tdF_180901_dr17
     npca : 25
     r0 : 0.5
     solarisotopes : 1
@@ -134,7 +125,7 @@ Fd: &Fd
     nlogg : 7
 GKd: &GKd
     <<: *dwarf
-    specdir : sdGK_200921nlte
+    specdir : tdGK_180901_dr17
     solarisotopes : 1
     teff0 : 3500
     dteff : 250
@@ -144,7 +135,7 @@ GKd: &GKd
     nlogg : 7
 Md: &Md
     <<: *dwarf
-    specdir : sdM_200921nlte
+    specdir : tdM_180901_dr17
     teff0 : 3000
     dteff : 100
     nteff : 11
@@ -153,7 +144,7 @@ Md: &Md
     nlogg : 7
 AB: &AB
     <<: *dwarf
-    specdir : sdAB_200921nlte
+    specdir : tdAB_180901_dr17
     teff0 : 7000
     dteff : 500
     nteff : 27
@@ -162,23 +153,23 @@ AB: &AB
     nlogg : 7
 
 lsfcombo: &lsfcombo
-    smooth : lsfcombo5_dr17
+    smooth : lsfcombo5
     suffix : dr17
     lsffiber : [50,100,150,200,250]
 lsfa: &lsfa
-    smooth : lsfa_dr17
+    smooth : lsfa
     suffix : dr17
     lsffiber : [266,272,280,288,296]
 lsfb: &lsfb
-    smooth : lsfb_dr17
+    smooth : lsfb
     suffix : dr17
     lsffiber : [160,183,206,228,250]
 lsfc: &lsfc
-    smooth : lsfc_dr17
+    smooth : lsfc
     suffix : dr17
     lsffiber : [60,80,100,119,140]
 lsfd: &lsfd
-    smooth : lsfd_dr17
+    smooth : lsfd
     suffix : dr17
     lsffiber : [5,15,25,35,45]
 GRID :

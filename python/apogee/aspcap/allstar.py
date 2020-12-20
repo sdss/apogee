@@ -13,7 +13,7 @@ import glob
 def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out='allStar.fits',
             skip=['Field-cal','Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.']) :
     '''
-    Concatenate set of aspcapField files
+    Concatenate set of aspcapField files, and add named_tags, extratarg
     '''
 
     # search for input files
@@ -195,6 +195,8 @@ def add_extratarg(tab) :
     j=np.where((np.core.defchararray.find(tab['SURVEY'],b'apogee2') >=0) &
                tab['APOGEE2_TARGET1'] & apogee2_targ1.getval('APOGEE2_ONEBIN_GT_0_3')  )[0]
     tab['MIN_JK'][j] = 0.3
+
+# routines here used for DR16 only
 
 def mkcoord(file='allStar-r12-l33-58358.fits') :
     """ Create coordinate CSV from allStar file, to use for GAIA cross-match

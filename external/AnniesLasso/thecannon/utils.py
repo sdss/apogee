@@ -118,7 +118,8 @@ class wrapper(object):
         
         increment = max(1, int(self.N/float(self.W)))
         
-        eta_minutes = ((time() - self.t_init) / index) * (self.N - index) / 60.0
+        #eta_minutes = ((time() - self.t_init) / index) * (self.N - index) / 60.0
+        eta_minutes = 1.
         
         if index >= self.N:
             status = "({0:.0f}s)                         ".format(time() - self.t_init)

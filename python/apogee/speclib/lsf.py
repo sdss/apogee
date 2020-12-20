@@ -33,7 +33,67 @@ def showtime(string) :
     print(string+' {:8.2f}'.format(time.time()))
     sys.stdout.flush()
 
-def get(lsfid,waveid,fiber,highres=9,apred=None,telescope=None) :
+def getlsf(lsfid,waveid,nlsf2=None,apred='r14',telescope='apo25m',highres=9,prefix='lsf_',fiber='combo',fiberid=None,clobber=False,fill=False) :
+    """ Create LSF FITS file or read if already created
+    """
+    if fiberid is None :
+        if isinstance(fiber,int) : fiberid='{:d}'.format(fiber)
+        elif isinstance(fiber,str) : fiberid=fiber
+        else: 
+            print('need fiberid')
+            pdb.set_trace()
+
+    lsfile = os.environ['APOGEE_REDUX']+'/'+apred+'/cal/lsf/'+prefix+'{:08d}_{:08d}_{:s}.fits'.format(lsfid,waveid,fiberid)
+    #lsfile = prefix+'{:08d}_{:08d}_{:s}.fits'.format(lsfid,waveid,fiberid)
+    print(lsfile)
+    while os.path.isfile(lsfile+'.lock') :
+        # if another process is creating LSF wait until done
+        print('waiting for lock: ',lsfile+'.lock')
+        time.sleep(10)
+
+    if os.path.isfile(lsfile) and not clobber :
+        # if file exists, read it
+        x=fits.open(lsfile)[1].data
+        ls=fits.open(lsfile)[2].data
+    else :
+        fp = open(lsfile+'.lock','w')
+        fp.close()
+        # get does the real work
+        #x,ls = get(lsfid,waveid,fiber,nlsf2=nlsf2,highres=highres,apred=apred,telescope=telescope)
+        if apred is not None: load.apred = apred
+        if telescope is not None: load.settelescope(telescope)
+        x=numpy.arange(-nlsf2,nlsf2+0.01,1./highres)
+        ls=eval(x,fiber=fiber,waveid=waveid,lsfid=lsfid)
+        if fill :
+            # for all non-finite pixels, fill in LSF from nearest good pixel
+            for ifib in range(ls.shape[0]) :
+                gd = numpy.where(numpy.isfinite(ls[ifib,:,0]) & (ls[ifib].sum(axis=1)>0))[0]
+                mask = numpy.zeros(ls.shape[1],dtype=bool)
+                mask[gd] = True
+                bd = numpy.where(mask == False)[0]
+                for i in bd:
+                    j = numpy.argmin(numpy.abs(i-gd))
+                    ls[ifib,i,:] = ls[ifib,gd[j],:]
+
+        ls=numpy.squeeze(ls)
+        hdu=fits.HDUList()
+        hdu.append(fits.PrimaryHDU())
+        hdu[0].header['APRED'] = apred
+        hdu[0].header['LSFID'] = lsfid
+        hdu[0].header['WAVEID'] = waveid
+        hdu[0].header['HIGHRES'] = highres
+        for i,f in enumerate(fiber) :
+            hdu[0].header['FIBER{:d}'.format(i)] = f
+        hdu.append(fits.ImageHDU(x))
+        hdu.append(fits.ImageHDU(ls))
+        hdu.writeto(lsfile,overwrite=True)
+        os.remove(lsfile+'.lock')
+
+    return x, ls
+
+
+
+def get(lsfid,waveid,fiber,nlsf2=7.,highres=9,apred=None,telescope=None) :
     """  Return standard sparsified LSF
 
     Args:
@@ -43,14 +103,13 @@ def get(lsfid,waveid,fiber,highres=9,apred=None,telescope=None) :
         highres (int) : number of subpixels for LSF calculation (default=9)
         apred (str) : apred version to get apLSF and apWave fromn (default=None --> uses default from apload)
     Returns :
-        x (np.array) : array of relative pixel locations for LSF
+        x (numpy.array) : array of relative pixel locations for LSF
         l () : output LSF
 
     """
     if apred is not None: load.apred = apred
     if telescope is not None: load.settelescope(telescope)
-    x=numpy.arange(-15.,15.01,1./highres)
-    x=numpy.arange(-7.,7.01,1./highres)
+    x=numpy.arange(-nlsf2,nlsf2+0.01,1./highres)
     l=eval(x,fiber=fiber,waveid=waveid,lsfid=lsfid)
     return x,l
 
@@ -176,7 +235,7 @@ def dummy(dx=1./3.,sparse=False):
     if sparse: out= sparsify(out)
     return out
 
-def eval(x,fiber='combo',lsfid=5440020,waveid=2420038,sparse=False):
+def eval(x,fiber='combo',lsfid=5440020,waveid=2420038,sparse=False) :
     """ evaluate the LSF for a given fiber
     Args :
        x - Array of X values for which to compute the LSF, in pixel offset relative to pixel centers; the LSF is calculated at the x offsets for each pixel center; x need to be 1/integer equally-spaced pixel offsets
@@ -190,7 +249,11 @@ def eval(x,fiber='combo',lsfid=5440020,waveid=2420038,sparse=False):
     """
     # Parse fiber input
     #if (isinstance(fiber,str) or isinstance(fiber,unicode)) and fiber.lower() == 'combo':
-    if isinstance(fiber,str) and fiber.lower() == 'combo':
+    average=True
+    if isinstance(fiber,str) and fiber.lower() == 'all':
+        fiber= numpy.arange(1,301)
+        average=False
+    elif isinstance(fiber,str) and fiber.lower() == 'combo':
         fiber= [50,100,150,200,250]
     elif isinstance(fiber,int):
         fiber= [fiber]
@@ -203,8 +266,12 @@ def eval(x,fiber='combo',lsfid=5440020,waveid=2420038,sparse=False):
     l10wav= numpy.log10(wav)
     dowav= l10wav[1]-l10wav[0]
     # Hi-res wavelength for output
-    hireswav= 10.**numpy.arange(l10wav[0],l10wav[-1]+dowav/hires,dowav/hires)
-    out= numpy.zeros((len(hireswav),len(x)))
+    if hires == 1 : 
+        hireswav= 10.**l10wav
+    else :
+        hireswav= 10.**numpy.arange(l10wav[0],l10wav[-1]+dowav/hires,dowav/hires)
+    if average: out= numpy.zeros((1,len(hireswav),len(x)))
+    else : out=numpy.zeros((len(fiber),len(hireswav),len(x)))
     lsfpars=load.apLSF(lsfid,hdu=0)[0]
     for chip in ['a','b','c']:
         # Get pixel array for this chip, use fiber[0] for consistency if >1 fib
@@ -219,10 +286,16 @@ def eval(x,fiber='combo',lsfid=5440020,waveid=2420038,sparse=False):
         # Read LSF file for this chip
         #lsfpars= apread.apLSF(chip,ext=0)
         # Loop through the fibers
-        for fib in fiber:
-            out[gd]+= raw(xs[gd],pix[gd],lsfpars[chip][:,300-fib])
+        for ifib,fib in enumerate(fiber):
+            print(fib)
+            if average :
+                out[0,gd]+= raw(xs[gd],pix[gd],lsfpars[chip][:,300-fib])
+            else :
+                out[ifib,gd]+= raw(xs[gd],pix[gd],lsfpars[chip][:,300-fib])
     out[out<0.]= 0.
-    out/= numpy.tile(numpy.sum(out,axis=1),(len(x),1)).T
+    if average : 
+        out=numpy.squeeze(out)
+        out/= numpy.tile(numpy.sum(out,axis=1),(len(x),1)).T
     if sparse: out= sparsify(out)
     return out
 
@@ -384,7 +457,7 @@ def scalarDecorator(func):
     return scalar_wrapper
 
 @scalarDecorator
-def wave2pix(wave,chip,fiber=300,waveid=2420038):
+def wave2pix(wave,chip,fiber=300,waveid=2420038) :
     """ convert wavelength to pixel
     Args :
        wavelength - wavelength (\AA)
@@ -396,7 +469,8 @@ def wave2pix(wave,chip,fiber=300,waveid=2420038):
         2015-02-27 - Written - Bovy (IAS)
     """
 # Load wavelength solutions
-    wave0 =load.apWave(waveid,hdu=2)[0][chip][300-fiber]
+    wavepars =load.apWave(waveid,hdu=2)[0]
+    wave0 = wavepars[chip][300-fiber]
     pix0= numpy.arange(len(wave0))
     # Need to sort into ascending order
     sindx= numpy.argsort(wave0)
@@ -582,5 +656,11 @@ def rotate(deltav,vsini,epsilon=0.6) :
     x1 = abs(1.0 - x**2)
     kernel=(e1*numpy.sqrt(x1) + e2*x1)/e3
     return kernel/kernel.sum()
+
+
+def gauss(x,m,s) :
+    """ Return gaussian kernel
+    """
+    return 1./s/numpy.sqrt(2.*numpy.pi) * numpy.exp(-0.5*(x-m)**2/s**2)
 
 

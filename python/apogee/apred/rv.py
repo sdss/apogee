@@ -17,6 +17,7 @@ from apogee.utils import bitmask
 from apogee.utils import gaia
 from apogee.utils import spectra
 from apogee.aspcap import norm
+from apogee.speclib import lsf
 from tools import plots
 from tools import html
 from tools import match
@@ -24,12 +25,15 @@ from tools import struct
 from sdss import yanny
 from scipy import interpolate
 from scipy.signal import correlate
+from scipy.signal.windows import tukey
+import scipy.linalg
 from scipy.ndimage.filters import median_filter, gaussian_filter
 
 import doppler 
 import multiprocessing as mp
 from astropy.table import Table, Column, vstack
 from apogee.apred import bc
+from apogee.apred import target
 
 colors=['r','g','b','c','m','y','k']
 chips=['a','b','c']
@@ -82,6 +86,65 @@ def allFieldVisit(search=['apo*/*/apFieldVisits-*.fits','apo*/*/apFieldC-*.fits'
         all.write(out,overwrite=True)
 
     return all
+
+def allPlate(all) :
+    """ Create allPlate file from allFieldVisit
+    """
+
+    platetype = np.dtype([('PLATE_VISIT_ID','S64'),('LOCATION_ID',int),('PLATE',int),('MJD',int),
+                          ('APRED_VERSION','S10'),('NAME','S64'),
+                          ('RACEN',float),('DECCEN',float),('RADIUS',float),('SHARED',int),
+                          ('FIELD_TYPE',int),('SURVEY','S24'),('PROGRAMNAME','S24'),('PLATERUN','S24'),('CHUNK','S24'),
+                          ('HA',(float,6)),('DESIGNID',int),('NSTANDARD',int),('NSCIENCE',int),('NSKY',int),
+                          ('PLATEDESIGN_VERSION','S24')])
+
+    # get unique PLATE-MJD
+    gd = np.where(all['TELESCOPE'] != 'apo1m') [0]
+    plate_mjd = set(all['PLATE'][gd].strip()+'_'+all['MJD'][gd].astype(str))
+
+    allplate = np.zeros(len(plate_mjd),dtype=platetype)
+    plans = yanny.yanny(os.environ['PLATELIST_DIR']+'/platePlans.par')['PLATEPLANS']
+    for i,p_m in enumerate(plate_mjd) :
+        print(i)
+        plate,mjd = p_m.split('_')
+        allplate['PLATE'][i] = int(plate)
+        allplate['MJD'][i] = int(mjd)
+        allplate['APRED_VERSION'][i] =  '?'
+        iplan = np.where(np.array(plans['plateid']) == int(plate))[0]
+        if len(iplan) != 1 :
+            print('missing or multiple plate in platePlans!')
+            pdb.set_trace()
+        else :
+            iplan=iplan[0]
+        allplate['LOCATION_ID'][i] = plans['locationid'][iplan]
+        for key in ['raCen','decCen','survey','programname','platerun','chunk','ha','designid'] :
+            allplate[key.upper()][i] = plans[key][iplan]
+
+        # get some information from plateHoles
+        holefile='{:s}/plates/{:04d}XX/{:06d}/plateHolesSorted-{:06d}.par'.format(
+                 os.environ['PLATELIST_DIR'],int(plate)//100,int(plate),int(plate))
+        #holes=yanny.yanny(holefile)
+        fp = open(holefile,'r')
+        fout = open('tmp.yml','w')
+        fout.write('---\n') 
+        for line in fp :
+            if (line[0:7] == 'typedef') : break
+            if len(line.split()) > 0 :
+                fout.write(line.split()[0])
+                fout.write(' : ')
+                for field in line.split()[1:] : fout.write(field)
+                fout.write('\n')
+        fout.close()
+        holes=yaml.safe_load(open('tmp.yml','r'))
+        for key in ['standard','science','sky'] :
+            allplate['N'+key.upper()][i] = holes['napogee_'+key]
+        allplate['PLATEDESIGN_VERSION'][i] = holes['platedesign_version']
+        try: allplate['RADIUS'][i] = holes['tilerad']
+        except: allplate['RADIUS'][i] = 1.49
+        os.remove('tmp.yml')
+
+    return allplate 
+
 
 def vscat(a,fig=None,ls=None,marker='o',nmin=2,mhmin=-3,density=False,out=None) :
     """ Make histograms of VSCATTER for different bins of Teff H], given min NVISITS, and min [M/H]
@@ -599,7 +662,10 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         #allvisits=struct.concat(files)
         visitsum=[]
         for file in files :
-            visitsum.append(Table.read(file))
+            visittab=Table.read(file)
+            target.add_design(visittab)
+            visitsum.append(visittab)
+
         allvisits=vstack(visitsum)
         allvisits.sort('JD')
         # strip spaces from APOGEE_ID
@@ -613,6 +679,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     #allvisits=Table(allvisits)
     # change datatype of STARFLAG to 64-bit
     allvisits['STARFLAG'] = allvisits['STARFLAG'].astype(np.uint64)
+
 
     # output directory
     load=apload.ApLoad(apred=apred,telescope=telescope)
@@ -637,24 +704,25 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     # output apField structure
     fieldtype = np.dtype([('FILE','S64'),('APOGEE_ID','S30'),('TELESCOPE','S6'),('LOCATION_ID',int),('FIELD','S20'),
                           ('ALT_ID','S30'),('RA',float),('DEC',float),('GLON',float),('GLAT',float),
-                          ('J',float),('J_ERR',float),('H',float),('H_ERR',float),('K',float),('K_ERR',float),
-                          ('SRC_H','S16'),('WASH_M',float),('WASH_M_ERR',float),('WASH_T2',float),('WASH_T2_ERR',float),
-                          ('DDO51',float),('DDO51_ERR',float),('IRAC_3_6',float),('IRAC_3_6_ERR',float),
-                          ('IRAC_4_5',float),('IRAC_4_5_ERR',float),('IRAC_5_8',float),('IRAC_5_8_ERR',float),
-                          ('WISE_4_5',float),('WISE_4_5_ERR',float),('TARG_4_5',float),('TARG_4_5_ERR',float),
+                          ('J',np.float32),('J_ERR',np.float32),('H',np.float32),('H_ERR',np.float32),('K',np.float32),('K_ERR',np.float32),
+                          ('SRC_H','S16'),('WASH_M',np.float32),('WASH_M_ERR',np.float32),('WASH_T2',np.float32),('WASH_T2_ERR',np.float32),
+                          ('DDO51',np.float32),('DDO51_ERR',np.float32),('IRAC_3_6',np.float32),('IRAC_3_6_ERR',np.float32),
+                          ('IRAC_4_5',np.float32),('IRAC_4_5_ERR',np.float32),('IRAC_5_8',np.float32),('IRAC_5_8_ERR',np.float32),
+                          ('WISE_4_5',np.float32),('WISE_4_5_ERR',np.float32),('TARG_4_5',np.float32),('TARG_4_5_ERR',np.float32),
                           ('WASH_DDO51_GIANT_FLAG',int),('WASH_DDO51_STAR_FLAG',int),
-                          ('TARG_PMRA',float),('TARG_PMDEC',float),('TARG_PM_SRC','S16'),
-                          ('AK_TARG',float),('AK_TARG_METHOD','S32'),
-                          ('AK_WISE',float),('SFD_EBV',float),
+                          ('TARG_PMRA',np.float32),('TARG_PMDEC',np.float32),('TARG_PM_SRC','S16'),
+                          ('AK_TARG',np.float32),('AK_TARG_METHOD','S32'),
+                          ('AK_WISE',np.float32),('SFD_EBV',np.float32),
                           ('APOGEE_TARGET1',int),('APOGEE_TARGET2',int),
                           ('APOGEE2_TARGET1',int),('APOGEE2_TARGET2',int),('APOGEE2_TARGET3',int),('APOGEE2_TARGET4',int),
                           ('TARGFLAGS','S132'),('SURVEY','S32'),('PROGRAMNAME','S32'),
                           ('NINST',int),('NVISITS',int),('COMBTYPE',int),('COMMISS',int),
-                          ('SNR',float),('STARFLAG',np.uint64),('STARFLAGS','S132'),('ANDFLAG',np.uint64),('ANDFLAGS','S132'),
-                          ('VHELIO_AVG',float),('VSCATTER',float),('VERR',float),
-                          ('RV_TEFF',float),('RV_LOGG',float),('RV_FEH',float),('RV_ALPHA',float),('RV_CARB',float),
-                          ('RV_CCFWHM',float),('RV_AUTOFWHM',float),('RV_FLAG',int),
-                          ('N_COMPONENTS',int),('MEANFIB',float),('SIGFIB',float)
+                          ('SNR',np.float32),('STARFLAG',np.uint64),('STARFLAGS','S132'),('ANDFLAG',np.uint64),('ANDFLAGS','S132'),
+                          ('VHELIO_AVG',np.float32),('VSCATTER',np.float32),('VERR',np.float32),
+                          ('RV_TEFF',np.float32),('RV_LOGG',np.float32),('RV_FEH',np.float32),('RV_ALPHA',np.float32),('RV_CARB',np.float32),
+                          ('RV_CCFWHM',np.float32),('RV_AUTOFWHM',np.float32),('RV_FLAG',int),
+                          ('N_COMPONENTS',int),('MEANFIB',np.float32),('SIGFIB',np.float32),
+                          ('MIN_H',np.float32),('MAX_H',np.float32),('MIN_JK',np.float32),('MAX_JK',np.float32)
                          ])
     allfield = np.zeros(len(allobj),dtype=fieldtype)
     allfield['TELESCOPE'] = telescope
@@ -730,7 +798,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
 
     # add columns for RV components
     allvisits['N_COMPONENTS'] = -1
-    rv_components = Column(name='RV_COMPONENTS',dtype=float,shape=(3),length=len(allvisits))
+    rv_components = Column(name='RV_COMPONENTS',dtype=np.float32,shape=(3),length=len(allvisits))
     allvisits.add_column(rv_components)
     allvisits['RV_FLAG'] = 0
     rvtab = Column(name='RVTAB',dtype=Table,length=len(allvisits))
@@ -871,7 +939,8 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         allfield['RV_AUTOFWHM'][j] = apstar.header['AUTOFWHM']
 
         # mostly unmodified names
-        for key in ['STARFLAG','ANDFLAG','SNR','VSCATTER','VERR','RV_TEFF','RV_LOGG','RV_FEH','NVISITS','MEANFIB','SIGFIB' ] :
+        for key in ['STARFLAG','ANDFLAG','SNR','VSCATTER','VERR','RV_TEFF','RV_LOGG','RV_FEH','NVISITS','MEANFIB','SIGFIB',
+                    'MIN_H','MAX_H','MIN_JK','MAX_JK' ] :
             allfield[key][j] = apstar.header[key]
         # add character string for star flags
         allfield['STARFLAGS'][j] = starmask.getname(allfield['STARFLAG'][j])
@@ -988,10 +1057,12 @@ def dorv(visitfiles) :
 
         # load all of the visits into doppler Spec1D objects
         if load.telescope == 'apo1m' :
-            visitfile= load.allfile('Visit',plate=allvisit['PLATE'][i],
+            visitfile= load.filename('Visit',plate=allvisit['PLATE'][i],
                                  mjd=allvisit['MJD'][i],reduction=allvisit['APOGEE_ID'][i])
+            # use FILE tag in case we have MJDFRAC
+            visitfile=os.path.dirname(visitfile)+'/'+allvisit['FILE'][i]
         else :
-            visitfile= load.allfile('Visit',plate=int(allvisit['PLATE'][i]),
+            visitfile= load.filename('Visit',plate=int(allvisit['PLATE'][i]),
                                  mjd=allvisit['MJD'][i],fiber=allvisit['FIBERID'][i])
         spec=doppler.read(visitfile,badval=badval)
 
@@ -1517,14 +1588,16 @@ from apogee.aspcap import aspcap
 from apogee.apred import wave
 from apogee.apred import sincint
 
-def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.5],bconly=False,
+def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
               plot=False,write=True,dorvfit=True,apstar_vers='stars') :
     """ Combine multiple visits with individual RVs to rest frame sum
     """
 
-    if load is None : load = apload.ApLoad(apred=apred,telescope=telescope)
-    cspeed = 2.99792458e5  # speed of light in km/s
+    if load is None : 
+        print('need to supply load=')
+        pdb.set_trace()
 
+    cspeed = 2.99792458e5  # speed of light in km/s
 
     wnew=aspcap.apStarWave()  
     nwave=len(wnew)
@@ -1536,6 +1609,9 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
     izeros = np.zeros([nvisit,nwave],dtype=int)
     stack=apload.ApSpec(zeros,err=zeros.copy(),bitmask=izeros,cont=zeros.copy(),
                 sky=zeros.copy(),skyerr=zeros.copy(),telluric=zeros.copy(),telerr=zeros.copy())
+    stack_homogenized=apload.ApSpec(zeros.copy())
+    nlsf=7
+    stack_lsf = np.zeros([nvisit,nwave,2*nlsf+1])
 
     apogee_target1, apogee_target2, apogee_target3 = 0, 0, 0
     apogee2_target1, apogee2_target2, apogee2_target3, apogee2_target4 = 0, 0, 0, 0
@@ -1548,10 +1624,10 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
 
         if bconly : 
             #vrel = -visit['BC']
-            if telescope == 'lco25m' :
-                vrel=bc.getbc(visit['RA'],visit['DEC'],visit['JD'],obs='LCO') / 1000.
+            if load.telescope == 'lco25m' :
+                vrel=-bc.getbc(visit['RA'],visit['DEC'],visit['JD'],obs='LCO') / 1000.
             else :
-                vrel=bc.getbc(visit['RA'],visit['DEC'],visit['JD'],obs='APO') / 1000.
+                vrel=-bc.getbc(visit['RA'],visit['DEC'],visit['JD'],obs='APO') / 1000.
         else : vrel = visit['VREL']
 
         # skip if we don't have an RV
@@ -1559,7 +1635,10 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
 
         # load the visit
         if load.telescope == 'apo1m' :
-            apvisit=load.apVisit1m(visit['PLATE'],visit['MJD'],visit['APOGEE_ID'],load=True)
+            #apvisit=load.apVisit1m(visit['PLATE'],visit['MJD'],visit['APOGEE_ID'],load=True)
+            visitfile=load.filename('Visit',plate=visit['PLATE'],mjd=visit['MJD'],reduction=visit['APOGEE_ID'])
+            # use FILE tag in case we have MJDFRAC
+            apvisit=load.apVisit1m(visit['PLATE'],visit['MJD'],visit['APOGEE_ID'],usefile=visit['FILE'],load=True)
         else :
             apvisit=load.apVisit(int(visit['PLATE']),visit['MJD'],visit['FIBERID'],load=True)
         pixelmask=bitmask.PixelBitMask()
@@ -1652,13 +1731,98 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
             apogee_target2 |= visit['APOGEE_TARGET2'] 
             apogee2_target2 |= visit['APOGEE_TARGET2'] 
 
+        # LSF for this image in resampled apStar frame
+        nlsf_homogenized=35
+        x,ls=lsf.getlsf(apvisit.header['LSFID'],apvisit.header['WAVEID'],apred=load.apred,telescope=load.telescope,
+                        nlsf2=nlsf_homogenized,fiber='all',highres=1,fill=True)
+
+        # for apStarLSF, use trimmed LSF
+        stack_lsf[i]=ls[visit['FIBERID']-1][:8575,-nlsf+nlsf_homogenized:nlsf+nlsf_homogenized+1]
+        sum=np.sum(stack_lsf[i],axis=1)
+        for ipix in range(8575) : stack_lsf[i,ipix,:]/=sum[i]
+
+        # LSF homogenized spectrum: still in development!
+        homogenize = False
+        if homogenize :
+            spec=copy.deepcopy(stack.flux[i,:])
+            err=copy.deepcopy(stack.err[i,:])
+            # set bad pixels to 1
+            bd=np.where(np.isnan(spec) | np.isclose(spec,0.) | 
+                        (stack.bitmask[i,:]&pixelmask.badval()) |
+                        (stack.bitmask[i,:]&pixelmask.getval('SIG_SKYLINE')) )[0]
+            spec[bd] = 1.
+            err[bd] = 1.e5
+
+            # taper the window
+            lsf_homogenize = ls[visit['FIBERID']-1][:8575,:]*tukey(2*nlsf_homogenized+1, alpha=0.2, sym=True)
+            # normalize LSF
+            for ipix in range(nlsf_homogenized,8575-nlsf_homogenized-1) : 
+                lsf_homogenize[ipix,:]/=lsf_homogenize[ipix,:].sum()
+
+            # test delta functions
+            test = False
+            if test :
+                spec*=0
+                spec[::100] = 1.
+                new=copy.copy(spec)
+                for ipix in range(nlsf_homogenized,len(spec)-nlsf_homogenized) :
+                    kernel=lsf_homogenize[ipix]
+                    new[ipix] = np.sum(spec[ipix-nlsf_homogenized:ipix+nlsf_homogenized+1]*kernel[::-1])
+                spec=copy.copy(new)
+
+            lsq = False
+            if lsq :
+                # least-squares fit for underlying spectrum, still in development, not working! and slow
+                rhs=np.zeros(8575)
+                curv=np.zeros([8575,4*nlsf_homogenized+1])
+                for ipix in range(8575) :
+                    print(ipix)
+                    i1 = np.max([0,ipix-nlsf_homogenized])
+                    i2 = np.min([8574,ipix+nlsf_homogenized+1])
+                    for j,jpix in enumerate(range(np.max([0,ipix-2*nlsf_homogenized]),np.min([8574,ipix+2*nlsf_homogenized+1]))) :
+                        j1 = np.max([0,jpix-nlsf_homogenized])
+                        j2 = np.min([8574,jpix+nlsf_homogenized+1])
+                        istart = np.max([i1,j1])
+                        iend = np.min([i2,j2])
+                        if iend>istart :
+                            curv[ipix,j] = (lsf_homogenize[ipix,istart-ipix+nlsf_homogenized:iend-ipix+nlsf_homogenized] *
+                                            lsf_homogenize[jpix,istart-jpix+nlsf_homogenized:iend-jpix+nlsf_homogenized]).sum()
+               
+                    #print(ipix,jpix,curv[ipix,jpix])
+                    rhs[ipix] = (lsf_homogenize[ipix,i1-ipix+nlsf_homogenized:i2-ipix+nlsf_homogenized] *
+                                 spec[i1:i2]).sum()
+                pdb.set_trace()
+                # lsq
+                curv[:,2*nlsf_homogenized]+=0.001
+                out=scipy.linalg.solve_banded((2*nlsf_homogenized,2*nlsf_homogenized), curv.T, rhs) #/err**2)
+
+            else :
+                # deconvolution:
+                out=scipy.linalg.solve_banded((nlsf_homogenized,nlsf_homogenized), lsf_homogenize.T, spec) 
+
+                R_homogenized=15000.
+                outsig=1/(aspcap.dlogw*np.log(10))/R_homogenized/2.354
+                kernel=lsf.gauss(np.arange(-nlsf_homogenized,nlsf_homogenized+1),0,outsig)
+                stack_homogenized.flux[i]=np.convolve(out,kernel,mode='same')
+                stack_homogenized.flux[i,bd] = np.nan
+
+            plot=True
+            if plot :
+                plt.clf()
+                plt.plot(out,color='y')
+                plt.plot(spec)
+                plt.plot(stack_homogenized.flux[i])
+                plt.ylim(-0.5,2)
+                plt.draw()
+                pdb.set_trace()
+
     # create final spectrum
     if nvisit > 1 :
         zeros = np.zeros([nvisit+2,nwave])
         izeros = np.zeros([nvisit+2,nwave],dtype=int)
     else :
-        zeros = np.zeros([1,nwave])
-        izeros = np.zeros([1,nwave],dtype=int)
+        zeros = np.zeros([2,nwave])
+        izeros = np.zeros([2,nwave],dtype=int)
 
     if not bconly :
         if len(allvisit) == 1 :
@@ -1687,14 +1851,24 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
     apstar.bitmask[0,:] = np.bitwise_and.reduce(stack.bitmask,0)
     apstar.cont[0,:] = cont
 
+    # LSF homogenized combination
+    if homogenize :
+        apstar.flux[1,:] = np.sum(stack_homogenized.flux/stack.err**2,axis=0)/np.sum(1./stack.err**2,axis=0) * cont
+        apstar.err[1,:] =  np.sqrt(1./np.sum(1./stack.err**2,axis=0)) * cont
+
+    # apStarLSF
+    apstarlsf = ( np.sum(stack_lsf/np.repeat(stack.err**2,2*nlsf+1).reshape(nvisit,8575,2*nlsf+1),axis=0)/
+                  np.sum(1./np.repeat(stack.err**2,2*nlsf+1).reshape(nvisit,8575,2*nlsf+1),axis=0) )
+
     # global weighting and individual visits
     if nvisit > 1 :
         # "global" weighted average
-        newerr = median_filter(stack.err,[1,100],mode='reflect')
-        bd = np.where((stack.bitmask&pixelmask.getval('SIG_SKYLINE')) > 0)[0]
-        if len(bd) > 0 : newerr[bd[0],bd[1]] *= np.sqrt(100)
-        apstar.flux[1,:] = np.sum(stack.flux/newerr**2,axis=0)/np.sum(1./newerr**2,axis=0) * cont
-        apstar.err[1,:] =  np.sqrt(1./np.sum(1./newerr**2,axis=0)) * cont
+        if not homogenize :
+            newerr = median_filter(stack.err,[1,100],mode='reflect')
+            bd = np.where((stack.bitmask&pixelmask.getval('SIG_SKYLINE')) > 0)[0]
+            if len(bd) > 0 : newerr[bd[0],bd[1]] *= np.sqrt(100)
+            apstar.flux[1,:] = np.sum(stack.flux/newerr**2,axis=0)/np.sum(1./newerr**2,axis=0) * cont
+            apstar.err[1,:] =  np.sqrt(1./np.sum(1./newerr**2,axis=0)) * cont
 
         apstar.flux[2:,:] = stack.flux * stack.cont
         apstar.err[2:,:] = stack.err * stack.cont
@@ -1766,6 +1940,10 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
     apstar.header['MEANFIB'] = (meanfib,'S/N weighted mean fiber number')
     apstar.header['SIGFIB'] = (sigfib,'standard deviation (unweighted) of fiber number')
     apstar.header['NRES'] = ('{:5.2f}{:5.2f}{:5.2f}'.format(*nres),'number of pixels/resolution used for sinc')
+    apstar.header['MIN_H'] = (allvisit['MIN_H'].min(),'minimum H mag of cohort')
+    apstar.header['MAX_H'] = (allvisit['MAX_H'].max(),'maximum H mag of cohort')
+    apstar.header['MIN_JK'] = (allvisit['MIN_JK'].min(),'minimum J-K of cohort')
+    apstar.header['MAX_JK'] = (allvisit['MAX_JK'].max(),'maximum J-K of cohort')
 
     # individual visit information in header
     for i0,visit in enumerate(allvisit) :
@@ -1818,12 +1996,17 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
 
     if write :
         outfile=load.filename('Star',field=apstar.header['FIELD'],obj=apstar.header['OBJID'])
+        outlsffile=load.filename('StarLSF',field=apstar.header['FIELD'],obj=apstar.header['OBJID'])
         if apstar_vers != 'stars' :
             outfile=outfile.replace('/stars/','/'+apstar_vers+'/')
+            outlsffile=outlsffile.replace('/stars/','/'+apstar_vers+'/')
         outdir = os.path.dirname(outfile)
         try: os.makedirs(os.path.dirname(outfile))
         except : pass
         apstar.write(outfile)
+        hdulist=fits.HDUList()
+        hdulist.append(fits.ImageHDU(apstarlsf))
+        hdulist.writeto(outlsffile,overwrite=True)
         
         # plot
         gd=np.where((apstar.bitmask[0,:] & (pixelmask.badval()|pixelmask.getval('SIG_SKYLINE'))) == 0) [0]
@@ -1831,6 +2014,7 @@ def visitcomb(allvisit,load=None, apred='r13',telescope='apo25m',nres=[5,4.25,3.
         med=np.nanmedian(apstar.flux[0,:])
         plots.plotl(ax[0],aspcap.apStarWave(),apstar.flux[0,:],color='k',yr=[0,2*med])
         ax[0].plot(aspcap.apStarWave()[gd],apstar.flux[0,gd],color='g')
+        plots.plotl(ax[0],aspcap.apStarWave(),apstar.flux[1,:],color='y',linewidth=1)
         ax[0].set_ylabel('Flux')
         try :
             ax[1].plot(aspcap.apStarWave()[gd],apstar.cont[gd],color='g')

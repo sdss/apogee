@@ -50,7 +50,7 @@ if __name__ == '__main__' :
 
     try:
         rv.doppler_rv(args.field,threads=args.threads,clobber=args.clobber,rvclobber=args.rvclobber,vcclobber=args.vcclobber,
-                      nobj=args.nobj,tweak=args.tweak,nres=args.nres,args.save)
+                      nobj=args.nobj,tweak=args.tweak,nres=args.nres,save=args.save)
         print('rv completed successfully for {:s}'.format(args.field))
         finish.done(args.done,args.host,start)
     except:

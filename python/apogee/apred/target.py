@@ -27,11 +27,21 @@ def add_design(tab) :
 
     plate = int(tab['PLATE'][0]) 
     iplan = np.where(np.array(plans['plateid']) == plate)[0]
-    if len(iplan) != 1 : print('zero or multiple plates found in platePlans')
-    else : iplan=iplan[0]
+    if len(iplan) == 0 : 
+        print('no plates found in platePlans for plate',plate)
+        return
+    elif len(iplan) != 1 : 
+        print('multiple plates found in platePlans for plate, using first',plate)
+    iplan=iplan[0]
 
     if 'apogee2' in tab['SURVEY'][0] :
-        idesign=np.where(apogee2_design['design_id'] == plans['designid'][iplan])[0][0]
+        idesign=np.where(apogee2_design['design_id'] == plans['designid'][iplan])[0]
+        if len(idesign) == 1 : 
+            print('no designs for APOGEE-2 plate',plate)
+            return
+        elif len(idesign) != 1 : 
+            print('multiple designs for APOGEE-2 plate, using first ',plate)
+        idesign=idesign[0]
         min_h = apogee2_design['cohort_min_h'][idesign]
         max_h = apogee2_design['cohort_max_h'][idesign]
         targflag = bitmask.Apogee2Target1()
@@ -55,7 +65,12 @@ def add_design(tab) :
         tab['MIN_JK'][j] = 0.3
               
     else :
-        idesign=np.where(apogee_design['design_id'] == plans['designid'][iplan])[0][0]
+        idesign=np.where(apogee_design['design_id'] == plans['designid'][iplan])[0]
+        if len(idesign) == 1 : 
+            print('no designs for APOGEE plate',plate)
+            return
+        elif len(idesign) != 1 : 
+            print('multiple designs for APOGEE plate, using first ',plate)
         min_h = [apogee_design['short_cohort_min_h'][idesign],
                  apogee_design['medium_cohort_min_h'][idesign],
                  apogee_design['long_cohort_min_h'][idesign]]

@@ -798,7 +798,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
 
     # add columns for RV components
     allvisits['N_COMPONENTS'] = -1
-    rv_components = Column(name='RV_COMPONENTS',dtype=np.float32,shape=(3),length=len(allvisits))
+    rv_components = Column(name='RV_COMPONENTS',dtype=np.float32,shape=(3,),length=len(allvisits))
     allvisits.add_column(rv_components)
     allvisits['RV_FLAG'] = 0
     rvtab = Column(name='RVTAB',dtype=Table,length=len(allvisits))

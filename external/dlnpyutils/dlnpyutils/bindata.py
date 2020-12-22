@@ -1,8 +1,8 @@
 from __future__ import division, print_function, absolute_import
 
 import numpy as np
-from scipy._lib.six import callable, xrange
-from scipy._lib._numpy_compat import suppress_warnings
+from six import callable
+from warnings import filterwarnings
 from collections import namedtuple
 from . import utils as dln
 
@@ -514,17 +514,17 @@ def binned_statistic_dd(sample, values, statistic='mean',
     else:
         smin = np.zeros(Ndim)
         smax = np.zeros(Ndim)
-        for i in xrange(Ndim):
+        for i in range(Ndim):
             smin[i], smax[i] = range[i]
 
     # Make sure the bins have a finite width.
-    for i in xrange(len(smin)):
+    for i in range(len(smin)):
         if smin[i] == smax[i]:
             smin[i] = smin[i] - .5
             smax[i] = smax[i] + .5
 
     # Create edge arrays
-    for i in xrange(Ndim):
+    for i in range(Ndim):
         if np.isscalar(bins[i]):
             nbin[i] = bins[i] + 2  # +2 for outlier bins
             edges[i] = np.linspace(smin[i], smax[i], nbin[i] - 1)
@@ -538,13 +538,13 @@ def binned_statistic_dd(sample, values, statistic='mean',
     # Compute the bin number each sample falls into, in each dimension
     sampBin = [
         np.digitize(sample[:, i], edges[i])
-        for i in xrange(Ndim)
+        for i in range(Ndim)
     ]
 
     # Using `digitize`, values that fall on an edge are put in the right bin.
     # For the rightmost bin, we want values equal to the right
     # edge to be counted in the last bin, and not as an outlier.
-    for i in xrange(Ndim):
+    for i in range(Ndim):
         # Find the rounding precision
         decimal = int(-np.log10(dedges[i].min())) + 6
         # Find which points are on the rightmost edge.
@@ -557,7 +557,7 @@ def binned_statistic_dd(sample, values, statistic='mean',
     binnumbers = np.ravel_multi_index(sampBin, nbin)
 
     # Set binnumbers of NANs/Infs to 0 to ignore them
-    for vv in xrange(Vdim):
+    for vv in range(Vdim):
         binnumbers[~np.isfinite(values[vv,:])]=0
     
     result = np.empty([Vdim, nbin.prod()], float)
@@ -566,14 +566,14 @@ def binned_statistic_dd(sample, values, statistic='mean',
         result.fill(np.nan)
         flatcount = np.bincount(binnumbers, None)
         a = flatcount.nonzero()
-        for vv in xrange(Vdim):
+        for vv in range(Vdim):
             flatsum = np.bincount(binnumbers, values[vv])
             result[vv, a] = flatsum[a] / flatcount[a]
     elif statistic == 'std':
         result.fill(0)
         flatcount = np.bincount(binnumbers, None)
         a = flatcount.nonzero()
-        for vv in xrange(Vdim):
+        for vv in range(Vdim):
             flatsum = np.bincount(binnumbers, values[vv])
             flatsum2 = np.bincount(binnumbers, values[vv] ** 2)
             result[vv, a] = np.sqrt(flatsum2[a] / flatcount[a] -
@@ -585,50 +585,50 @@ def binned_statistic_dd(sample, values, statistic='mean',
         result[:, a] = flatcount[np.newaxis, :]
     elif statistic == 'sum':
         result.fill(0)
-        for vv in xrange(Vdim):
+        for vv in range(Vdim):
             flatsum = np.bincount(binnumbers, values[vv])
             a = np.arange(len(flatsum))
             result[vv, a] = flatsum
     elif statistic == 'median':
         result.fill(np.nan)
         for i in np.unique(binnumbers):
-            for vv in xrange(Vdim):
+            for vv in range(Vdim):
                 result[vv, i] = np.median(values[vv, binnumbers == i])
     elif statistic == 'nanmedian':
         result.fill(np.nan)
         for i in np.unique(binnumbers):
-            for vv in xrange(Vdim):
+            for vv in range(Vdim):
                 result[vv, i] = np.nanmedian(values[vv, binnumbers == i])                
     elif statistic == 'mad':
         result.fill(np.nan)
         for i in np.unique(binnumbers):
-            for vv in xrange(Vdim):
+            for vv in range(Vdim):
                 result[vv, i] = mad(values[vv, binnumbers == i])
     elif statistic == 'percentile':
         result.fill(np.nan)
         for i in np.unique(binnumbers):
-            for vv in xrange(Vdim):
+            for vv in range(Vdim):
                 result[vv, i] = np.percentile(values[vv, binnumbers == i],percentile)                
     elif statistic == 'min':
         result.fill(np.nan)
         for i in np.unique(binnumbers):
-            for vv in xrange(Vdim):
+            for vv in range(Vdim):
                 result[vv, i] = np.min(values[vv, binnumbers == i])
     elif statistic == 'max':
         result.fill(np.nan)
         for i in np.unique(binnumbers):
-            for vv in xrange(Vdim):
+            for vv in range(Vdim):
                 result[vv, i] = np.max(values[vv, binnumbers == i])
     elif callable(statistic):
-        with np.errstate(invalid='ignore'), suppress_warnings() as sup:
-            sup.filter(RuntimeWarning)
+        with np.errstate(invalid='ignore') : 
+            filterwarnings('ignore')
             try:
                 null = statistic([])
             except:
                 null = np.nan
         result.fill(null)
         for i in np.unique(binnumbers):
-            for vv in xrange(Vdim):
+            for vv in range(Vdim):
                 result[vv, i] = statistic(values[vv, binnumbers == i])
 
     # Shape into a proper matrix

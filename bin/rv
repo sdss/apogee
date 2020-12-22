@@ -38,6 +38,7 @@ if __name__ == '__main__' :
     parser.add_argument("--done")
     parser.add_argument("--host")
     parser.add_argument("--flag",type=str,default='11111')
+    parser.add_argument('--save', help='save intermediate pkl files?',action="store_true")
     parser.add_argument('--clobber', help='Overwrite files?',action="store_true")
     parser.add_argument('--rvclobber', help='Overwrite RV files?',action="store_true")
     parser.add_argument('--vcclobber', help='Overwrite visitcomb files?',action="store_true")
@@ -49,7 +50,7 @@ if __name__ == '__main__' :
 
     try:
         rv.doppler_rv(args.field,threads=args.threads,clobber=args.clobber,rvclobber=args.rvclobber,vcclobber=args.vcclobber,
-                      nobj=args.nobj,tweak=args.tweak,nres=args.nres)
+                      nobj=args.nobj,tweak=args.tweak,nres=args.nres,args.save)
         print('rv completed successfully for {:s}'.format(args.field))
         finish.done(args.done,args.host,start)
     except:

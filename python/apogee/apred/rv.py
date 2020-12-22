@@ -634,7 +634,7 @@ def repeatspec(a) :
 
 def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_vers=None,obj=None,
                nobj=0,threads=8,maxvisit=500,snmin=3,nres=[5,4.25,3.5],
-               clobber=False,rvclobber=False,vcclobber=False,verbose=False,tweak=False,plot=False,windows=None) :
+               save=False,clobber=False,rvclobber=False,vcclobber=False,verbose=False,tweak=False,plot=False,windows=None) :
     """ Run DOPPLER RVs for a field
     """ 
   
@@ -768,7 +768,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         nvisit+=len(visits)
 
         if len(visits) > 0 :
-            allfiles.append([allvisits[gd[visits]],load,(field,star,rvclobber,verbose,tweak,plot,windows,apstar_vers)])
+            allfiles.append([allvisits[gd[visits]],load,(field,star,rvclobber,verbose,tweak,plot,windows,apstar_vers,save)])
     print('total objects: ', nobj, ' total visits: ', nvisit) 
 
     # now do the RVs, in parallel if requested
@@ -865,7 +865,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                 # set up visit combination, removing visits with suspect RVs
                 gdrv = np.where((allvisits[visits]['STARFLAG'] & starmask.getval('RV_REJECT')) == 0)[0]
                 if len(gdrv) > 0 : 
-                    allv.append([allvisits[visits[gdrv]],load,(field,apogee_id,vcclobber,apstar_vers,nres)])
+                    allv.append([allvisits[visits[gdrv]],load,(field,apogee_id,vcclobber,apstar_vers,nres,save)])
                 else :
                     bd = np.where(allfield['APOGEE_ID'] == apogee_id.encode())[0]
                     if len(bd) > 0 : 
@@ -999,6 +999,7 @@ def dorv(visitfiles) :
     plot=visitfiles[-1][5]
     windows=visitfiles[-1][6]
     apstar_vers=visitfiles[-1][7]
+    save=visitfiles[-1][8]
     #rvrange=visitfiles[-1][7]
     if tweak: suffix='_tweak'
     else : suffix='_out'
@@ -1083,17 +1084,19 @@ def dorv(visitfiles) :
     # dump empty pickle to stand in case of failure (to prevent redo if not clobber)
     try:
         # dump empty pickle to stand in case of failure (to prevent redo if not clobber)
-        fp=open(outdir+'/'+obj+suffix+'.pkl','wb')
-        pickle.dump(None,fp)
-        fp.close()
+        if save :
+            fp=open(outdir+'/'+obj+suffix+'.pkl','wb')
+            pickle.dump(None,fp)
+            fp.close()
         print('running jointfit for : {:s}  rvrange:[{:.1f},{:.1f}]  nvisits: {:d}'.format(obj,*rvrange,len(speclist)))
         out= doppler.rv.jointfit(speclist,maxvel=rvrange,verbose=verbose,
                                  plot=plot,saveplot=plot,outdir=outdir+'/',tweak=tweak)
         print('running decomp for :',obj)
         gout = gauss_decomp(out[1],phase='two',filt=True)
-        fp=open(outdir+'/'+obj+suffix+'.pkl','wb')
-        pickle.dump([out,gout,rvmaskval],fp)
-        fp.close()
+        if save :
+            fp=open(outdir+'/'+obj+suffix+'.pkl','wb')
+            pickle.dump([out,gout,rvmaskval],fp)
+            fp.close()
         print('running plots for :',obj,outdir)
         try : os.makedirs(outdir+'/plots/')
         except : pass
@@ -1129,6 +1132,7 @@ def dovisitcomb(allv) :
     clobber = allv[2][2]
     apstar_vers = allv[2][3]
     nres = allv[2][4]
+    save = allv[2][5]
     pixelmask=bitmask.PixelBitMask()
 
     # already done?
@@ -1150,7 +1154,7 @@ def dovisitcomb(allv) :
     apstar=visitcomb(allvisits,load=load,plot=False,apstar_vers=apstar_vers,nres=nres)
 
     # dump
-    pickle.dump(apstar,open(outdir+'/'+apogee_id+'.pkl','wb'))
+    if save: pickle.dump(apstar,open(outdir+'/'+apogee_id+'.pkl','wb'))
 
     return apstar
 

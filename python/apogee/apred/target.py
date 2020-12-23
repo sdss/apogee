@@ -36,7 +36,7 @@ def add_design(tab) :
 
     if 'apogee2' in tab['SURVEY'][0] :
         idesign=np.where(apogee2_design['design_id'] == plans['designid'][iplan])[0]
-        if len(idesign) == 1 : 
+        if len(idesign) == 0 : 
             print('no designs for APOGEE-2 plate',plate)
             return
         elif len(idesign) != 1 : 
@@ -66,11 +66,12 @@ def add_design(tab) :
               
     else :
         idesign=np.where(apogee_design['design_id'] == plans['designid'][iplan])[0]
-        if len(idesign) == 1 : 
+        if len(idesign) == 0 : 
             print('no designs for APOGEE plate',plate)
             return
         elif len(idesign) != 1 : 
             print('multiple designs for APOGEE plate, using first ',plate)
+        idesign=idesign[0]
         min_h = [apogee_design['short_cohort_min_h'][idesign],
                  apogee_design['medium_cohort_min_h'][idesign],
                  apogee_design['long_cohort_min_h'][idesign]]

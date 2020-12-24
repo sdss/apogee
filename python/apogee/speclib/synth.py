@@ -306,12 +306,23 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
             tfactor=1
             if h2o == 0 :
               if teff < 4000 :
-                if mh+am < -1.5 or teff > 3250 :
-                    linelists.append(linelistdir+'/turbospec.h2o-BC8.5V'+'.molec')
-                    tfactor=2
-                else  :
-                    linelists.append(linelistdir+'/turbospec.h2o-BC9.5V'+'.molec')
-                    tfactor=5
+                # DR16
+                #if mh+am < -1.5 or teff > 3250 :
+                #    linelists.append(linelistdir+'/turbospec.h2o-BC8.5V'+'.molec')
+                #    tfactor=2
+                #else  :
+                #    linelists.append(linelistdir+'/turbospec.h2o-BC9.5V'+'.molec')
+                #    tfactor=5
+                if teff <= 4000 : 
+                    if mh+am < -1.5 or teff >= 3500 :
+                        linelists.append(linelistdir+'/turbospec.h2o_POKAZATEL-BC8.5V'+'.molec')
+                        tfactor=2
+                    elif teff > 3250 :
+                        linelists.append(linelistdir+'/turbospec.h2o_POKAZATEL-BC9.0V'+'.molec')
+                        tfactor=4
+                    else  :
+                        linelists.append(linelistdir+'/turbospec.h2o_POKAZATEL-BC9.5V'+'.molec')
+                        tfactor=5
             elif h2o == 1 :
                 linelists.append(linelistdir+'/turbospec.h2o-BC8.5V'+'.molec')
                 tfactor=2

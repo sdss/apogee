@@ -45,6 +45,8 @@ if __name__ == '__main__' :
     parser.add_argument('--cmrange', type=float, nargs='+', help='list of [C/M]')
     parser.add_argument('--nmrange', type=float, nargs='+', help='list of [N/M]')
     parser.add_argument('--vtrange', type=float, nargs='+', help='list of vmicro')
+    parser.add_argument('--digits', type=int, default=2, help='digits for file names')
+    parser.add_argument('--cmnear', help='use nearest [C/M] per C/O issue',action="store_true")
     parser.add_argument("--flag",default='11111')
     parser.add_argument("--done")
     parser.add_argument("--host")
@@ -57,13 +59,13 @@ if __name__ == '__main__' :
 
     if not args.nofill :
         rbf.fill(args.planfile,grid=args.grid,out=args.out,dir=args.dir,r0=args.r0,apstar=args.apstar,fakehole=args.fakehole,threads=args.threads,
-                 cmrange=args.cmrange,nmrange=args.nmrange,vtrange=args.vtrange)
+                 cmrange=args.cmrange,nmrange=args.nmrange,vtrange=args.vtrange,digits=args.digits)
     rbf.mergeholes(args.planfile,grid=args.grid,out=args.out,dir=args.dir,apstar=args.apstar,
-                   cmrange=args.cmrange,nmrange=args.nmrange,vtrange=args.vtrange)
+                   cmrange=args.cmrange,nmrange=args.nmrange,vtrange=args.vtrange,digits=args.digits)
     # if we're doing fake holes, generate plots for results
     if args.fakehole :
         rbf.comp(args.planfile,out=args.out,grid=args.grid,dir=args.dir,fakehole=True,hard=True,
-                 cmrange=args.cmrange,nmrange=args.nmrange,vtrange=args.vtrange)
+                 cmrange=args.cmrange,nmrange=args.nmrange,vtrange=args.vtrange,digits=args.digits)
 
     # end time
     now = datetime.datetime.now()

@@ -1957,13 +1957,13 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
         apstar.header['JD{:d}'.format(i)] = (visit['JD'], 'Julian date of visit {:d}'.format(i))
         # hjd = helio_jd(visitstr[i].jd-2400000.0,visitstr[i].ra,visitstr[i].dec)
         #apstar.header['HJD{:d}'.format(i)] = 
-        apstar.header['FIBER{:d}'.format(i)] = (visit['FIBERID'],' Fiber, visit {:d}'.format(i))
-        apstar.header['BC{:d}'.format(i)] = (visit['BC'],' Barycentric correction (km/s), visit {:d}'.format(i))
-        apstar.header['VRAD{:d}'.format(i)] = (visit['VREL'],' Radial velocity (km/s) of visit {:d}'.format(i))
-        apstar.header['VERR{:d}'.format(i)] =  (visit['VRELERR'],' Uncertainty in radial velocity (km/s)')
-        apstar.header['VHELIO{:d}'.format(i)] = (visit['VHELIO'],' Barycentric velocity (km/s), visit {:d}'.format(i))
-        apstar.header['SNRVIS{:d}'.format(i)] = (visit['SNR'],' Signal/Noise ratio, visit {:d}'.format(i))
-        apstar.header['FLAG{:d}'.format(i)] = (visit['STARFLAG'],' STARFLAG for visit {:d}'.format(i))
+        apstar.header['FIBER{:d}'.format(i)] = (visit['FIBERID'],'Fiber, visit {:d}'.format(i))
+        apstar.header['BC{:d}'.format(i)] = (visit['BC'],'Barycentric correction (km/s), visit {:d}'.format(i))
+        apstar.header['VRAD{:d}'.format(i)] = (visit['VREL'],'Radial velocity (km/s) of visit {:d}'.format(i))
+        apstar.header['VERR{:d}'.format(i)] =  (visit['VRELERR'],'Uncertainty in radial velocity (km/s)')
+        apstar.header['VHELIO{:d}'.format(i)] = (visit['VHELIO'],'Barycentric velocity (km/s), visit {:d}'.format(i))
+        apstar.header['SNRVIS{:d}'.format(i)] = (visit['SNR'],'Signal/Noise ratio, visit {:d}'.format(i))
+        apstar.header['FLAG{:d}'.format(i)] = (visit['STARFLAG'],'STARFLAG for visit {:d}'.format(i))
         apstar.header.insert('SFILE{:d}'.format(i),('COMMENT','VISIT {:d} INFORMATION'.format(i)))
 
   #sxaddpar,header,'HJD'+num,hjd,' Reduced Heliocentric JD of visit '+num
@@ -1987,8 +1987,8 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
             out= doppler.rv.jointfit([spec],verbose=False,plot=False,tweak=False,maxvel=[-500,500])
             apstar.cont=out[3][0].flux
             apstar.template=out[2][0].flux
-            apstar.header['CCFWHM'] = (out[1]['ccpfwhm'][0],' FWHM of RV CCF of star with template (km/s)')
-            apstar.header['AUTOFWHM'] = (out[1]['autofwhm'][0],' FWHM of RV CCF of template with template (km/s)')
+            apstar.header['CCFWHM'] = (out[1]['ccpfwhm'][0],'FWHM of RV CCF of star with template (km/s)')
+            apstar.header['AUTOFWHM'] = (out[1]['autofwhm'][0],'FWHM of RV CCF of template with template (km/s)')
         except ValueError as err:
             print('Exception raised in visitcomb RV for: ', apstar.header['FIELD'],apstar.header['OBJID'])
             print("ValueError: {0}".format(err))

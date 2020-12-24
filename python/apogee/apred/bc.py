@@ -17,26 +17,35 @@ import argparse
 import barycorrpy
 import os
 import pdb
+from astropy.coordinates import SkyCoord, EarthLocation
+import astropy.units as u
+from astropy.time import Time
 
 def getbc(ra,dec,jd,obs='APO') :
     """ Get barycentric correction using barycorrpy from Eastman & Wright,
         as implemented by Kanodia & Wright, RNAAS 2, 1
     """
-    if obs == 'APO' :
-        longitude = 360. - (105. + 49./60. + 13/3600.)
-        latitude = 32. + 46/60. + 49./3600.
-        altitude = 2788.
-    elif obs == 'LCO' :
-        longitude = 360. - (70 + 41/60. + 33.36/3600.)
-        latitude = -1 * (29 + 0./60. + 52.56/3600.)
-        altitude = 2380.
-    else :
-        print('Unknown observatory')
-        pdb.set_trace()
+    #if obs == 'APO' :
+    #    longitude = 360. - (105. + 49./60. + 13/3600.)
+    #    latitude = 32. + 46/60. + 49./3600.
+    #    altitude = 2788.
+    #elif obs == 'LCO' :
+    #    longitude = 360. - (70 + 41/60. + 33.36/3600.)
+    #    latitude = -1 * (29 + 0./60. + 52.56/3600.)
+    #    altitude = 2380.
+    #else :
+    #    print('Unknown observatory')
+    #    pdb.set_trace()
+#
+#    out=barycorrpy.get_BC_vel(JDUTC=jd,ra=ra,dec=dec, 
+#                              longi=longitude,lat=latitude,alt=altitude,leap_update=False)
+#    return out[0]
 
-    out=barycorrpy.get_BC_vel(JDUTC=jd,ra=ra,dec=dec, 
-                              longi=longitude,lat=latitude,alt=altitude,leap_update=False)
-    return out[0]
+    sc = SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
+    t = Time(jd, format='jd', scale='utc')
+    barycorr = sc.radial_velocity_correction(kind='barycentric',obstime=t, location=EarthLocation.of_site(obs))
+    bc = barycorr.to(u.km/u.s)
+    return 1000.*bc.value
 
 def main(args) :
 

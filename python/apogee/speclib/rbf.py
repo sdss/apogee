@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import copy
 import os
 import pdb
 import numpy as np
@@ -16,7 +17,7 @@ from tools import html
 import matplotlib.pyplot as plt
 
 def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
-         cmrange=None, nmrange=None, vtrange=None,grid='GK',
+         amrange=None, cmrange=None, nmrange=None, vtrange=None,grid='GK',digits=2,cmnear=False,
          apstar=False,threads=30,fakehole=False,out='rbf_',r0=1.0) :
     """ routine to fill grid holes using RBF interpolation routine from Szabolcs
     """
@@ -29,6 +30,7 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
     if p.get('r0') : r0 = float(p['r0'])
     vmicrofit = int(p['vmicrofit']) if p.get('vmicrofit') else 0
     vmicro = np.array(p['vmicro']) if p.get('vmicro') else 0.
+    cmnear = p['cmnear'] if p.get('cmnear') else cmnear
 
     # input directory 
     if dir is None :
@@ -71,8 +73,7 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
         pix_aspcap=aspcap.gridPix(apStar=False)
     else :
         prefix=''
-        file=(prefix+'a{:s}c{:s}n{:s}v{:s}.fits').format(
-               atmos.cval(0.),atmos.cval(cmrange[0]),atmos.cval(nmrange[0]),atmos.cval(vtrange[0]))
+        file=getname(prefix,0.,cmrange[0],nmrange[0],vtrange[0],digits=digits)
         grid=fits.open(indir+file)[0]
         nfreq=grid.data.shape[-1]
 
@@ -83,13 +84,40 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
       if hcm< 0 :
           #print('off carbon grid edge!',hcm)
           hcm=0
+      if cmnear :
+        if amrange is None : amrange=spectra.vector(p['am0'],p['dam'],p['nam'])
+        # make a new holes array with the new [alpha/M] points
+        holestmp=np.zeros([1,p['nam'],holes.header['NAXIS3'],holes.header['NAXIS2'],holes.header['NAXIS1']])
+        # populate it
+        for iam,am in enumerate(amrange) :
+          amtmp = np.round(am/0.25)*0.25
+          cmtmp=np.round(cm/0.25)*0.25
+          # if synthesis has C/O<-0.025 ([C/M]<0.245), make sure adoped model is
+          if (cm-am < 0.245) and (cmtmp-amtmp > 0.245) : cmtmp -= 0.25
+          # if synthesis has C/O>-0.025 ([C/M]>0.245), make sure adoped model is
+          if (cm-am > 0.245) and (cmtmp-amtmp < 0.245) : cmtmp += 0.25
+          if np.isclose(cmtmp,0.) : cmtmp=0.
+          hcmtmp=int(round((cmtmp - holes.header['CRVAL5'] ) / holes.header['CDELT5']))   
+          hamtmp=int(round((amtmp - holes.header['CRVAL4'] ) / holes.header['CDELT4']))   
+          print(cm,cmtmp,hcmtmp,iam,am,hamtmp)
+          holestmp[0,iam,:,:,:] = holes.data[hcmtmp,hamtmp,:,:,:]
+        # need larger chunks in [a/M] since holes will replicated in finer [a/M] grid
+        amsize=[4,4,4,3]
+        newholes=fits.ImageHDU(holestmp)
+        for card in ['CRVAL1','CDELT1','CTYPE1','CRVAL2','CDELT2','CTYPE2','CRVAL3','CDELT3','CTYPE3'] :
+            newholes.header[card]=holes.header[card]
+        newholes.header['CRVAL4'] = p['am0']
+        newholes.header['CDELT4'] = p['dam']
+        newholes.header['CTYPE4'] = 'O Mg Si S Ca Ti'
+        hcm=0
+        holes=newholes
+
       for inm,nm in enumerate(nmrange) :
        for ivt,vt in enumerate(vtrange) :
          # load into grids of [alpha,mh,logg,teff,wave]
          data=np.zeros([int(p['nam']),int(p['nmh']),int(p['nlogg']),int(p['nteff']),nfreq],dtype=np.float32)
          for iam,am in enumerate(spectra.vector(p['am0'],p['dam'],p['nam'])) :
-           file=(prefix+'a{:s}c{:s}n{:s}v{:s}.fits').format(
-                 atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(vt))
+           file=getname(prefix,am,cm,nm,vt,digits=digits)
            grid=fits.open(indir+file)[0]
            if apstar :
                # select out ASPCAP grid wavelengths
@@ -131,7 +159,7 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
                      holes.data[hcm,ham,hmh+nmh/2,hlogg+nlogg/2,hteff+nteff/2] += 100.
 
                  # set up input for RBF:  (name, data, holes)
-                 name = out+'c{:s}n{:s}v{:s}_{:02d}'.format(atmos.cval(cm),atmos.cval(nm),atmos.cval(vt),npars)
+                 name=getname(out,am,cm,nm,vt,digits=digits)+'_{:02d}'.format(npars)
                  print(name,am1,am2,mh1,mh2,logg1,logg2,teff2,teff2,hcm,ham1,ham2,hmh1,hmh2,hlogg1,hlogg2,hteff1,hteff2)
                  pars.append((name,r0,data[am1:am2,mh1:mh2,logg1:logg2,teff1:teff2,:],
                               np.squeeze(holes.data[hcm,ham1:ham2,hmh1:hmh2,hlogg1:hlogg2,hteff1:hteff2])))
@@ -168,7 +196,7 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
                  hlogg=int(round((grid.header['CRVAL3']+slogg*grid.header['CDELT3'] - holes.header['CRVAL2'] ) / holes.header['CDELT2']))
                  hteff=int(round((grid.header['CRVAL2']+steff*grid.header['CDELT2'] - holes.header['CRVAL1'] ) / holes.header['CDELT1']))
                  nholes=len(np.where(holes.data[hcm,ham:ham+nam,hmh:hmh+nmh,hlogg:hlogg+nlogg,hteff:hteff+nteff]>0)[0])
-                 name = out+'c{:s}n{:s}v{:s}_{:02d}'.format(atmos.cval(cm),atmos.cval(nm),atmos.cval(vt),ii)
+                 name=getname(out,am,cm,nm,vt,digits=digits)+'_{:02d}'.format(ii)
                  print('loading: ',name,am1,am2,mh1,mh2,logg1,logg2,teff2,teff2,hcm,ham1,ham2,hmh1,hmh2,hlogg1,hlogg2,hteff1,hteff2)
                  # replace data and holes with filled data
                  data[sam:sam+nam,smh:smh+nmh,slogg:slogg+nlogg,steff:steff+nteff,:] = \
@@ -185,8 +213,7 @@ def fill(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
            sam+=nam
          # write out the 4D grid across appropreiate output files (separate for each [alpha/m])
          for iam,am in enumerate(spectra.vector(p['am0'],p['dam'],p['nam'])) :
-           file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
-                 atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(vt))
+           file=getname('',am,cm,nm,vt,digits=digits)
            grid=fits.open(indir+prefix+file)
            if apstar :
                # fill in apStar wavelengths
@@ -323,7 +350,7 @@ def dorbf(pars) :
     os.remove(name+'_hole.dat.filled')
     return data, holes
 
-def comp(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',grid='GK',fakehole=False,
+def comp(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',grid='GK',fakehole=False,digits=2,
          cmrange=None, nmrange=None, vtrange=None, apstar=False, hard=None,out='rbf_') :
 
     # Read planfile and set output file name
@@ -376,8 +403,7 @@ def comp(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',grid='
        for ivt,vt in enumerate(vtrange) :
          for iam,am in enumerate(spectra.vector(p['am0'],p['dam'],p['nam'])) :
            print(am,cm,nm,vt)
-           file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
-                 atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(vt))
+           file=getname('',am,cm,nm,vt,digits=digits)
            raw=fits.open(indir+prefix+file)[0].data
            filled=fits.open(out+file)[0].data
            #holes=fits.open(out+file)[1].data
@@ -456,7 +482,7 @@ def extend(start,end,vector,holevector) :
 
     return s,e,hs,he
 
-def mergeholes(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',grid='GK',fakehole=False,
+def mergeholes(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',grid='GK',fakehole=False,digits=2,
          cmrange=None, nmrange=None, vtrange=None, apstar=False, hard=None,out='rbf_') :
 
     # Read planfile and set output file name
@@ -493,8 +519,7 @@ def mergeholes(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
        for ivt,vt in enumerate(vtrange) :
          for iam,am in enumerate(spectra.vector(p['am0'],p['dam'],p['nam'])) :
            print(am,cm,nm,vt)
-           file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
-                 atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(vt))
+           file=getname('',am,cm,nm,vt,digits=digits)
            filled=fits.open(out+file)[1].data
            hcm=int(round((cm - holes[0].header['CRVAL5'] ) / holes[0].header['CDELT5'])   )
            if hcm< 0 :
@@ -503,3 +528,9 @@ def mergeholes(planfile='tgGK_180625.par',dir='marcs/giantisotopes/tgGK_180625',
            ham=int(round((am - holes[0].header['CRVAL4'] ) / holes[0].header['CDELT4']))
            holes[0].data[hcm,ham,:,:,:] = filled
     holes.writeto(out+holefile,overwrite=True)
+
+def getname(prefix,am,cm,nm,vt,digits=2) :
+    """ Construct file name
+    """
+    return '{:s}a{:s}c{:s}n{:s}v{:s}.fits'.format(prefix,
+           atmos.cval(am,digits=digits),atmos.cval(cm,digits=digits),atmos.cval(nm,digits=digits),atmos.cval(vt))

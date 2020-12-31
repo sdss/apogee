@@ -16,7 +16,8 @@ from apogee.plan import mkslurm
 import yaml
 
 if __name__ == '__main__' :
-
+    """ Setup for apstar run, creates directories, a[ps]Star.yml files and slurm scripts
+    """
     parser = argparse.ArgumentParser(
         prog=os.path.basename(sys.argv[0]),
         description='Creates apStar yaml files')
@@ -53,7 +54,7 @@ if __name__ == '__main__' :
 
     # make the SLURM file
     os.chdir(cfg['apstar_vers'])
-    cmd = 'rv --clobber --threads=32'
+    cmd = 'apstar --clobber --threads=32'
     mkslurm.write('"'+cmd+'" plan/a?Star*.yml' ,maxrun=1,idlthreads=16,queryport=1051,queryhost=os.uname()[1],pythreads=1)
 
     #sort=np.argsort(nstars)[::-1]

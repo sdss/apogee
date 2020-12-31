@@ -40,6 +40,8 @@ if __name__ == '__main__' :
     parser.add_argument("--incremental", help='use incremental PCA?',action="store_true")
     parser.add_argument("--piece",nargs='+',type=int)
     parser.add_argument("--pcas",nargs='+',type=int)
+    parser.add_argument("--digits",type=int,help='digits to use for file names',default=2)
+    parser.add_argument("--py2",action="store_true",help='use Python 2-style rounding for file names')
     parser.add_argument("--threads",type=int,default=4)
     parser.add_argument("--flag",default='11111')
     parser.add_argument("--done")
@@ -50,7 +52,8 @@ if __name__ == '__main__' :
     start = time.time()
     print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     pca.pca(args.planfile,pcas=tuple(args.pcas),dir=args.dir,test=args.test,writeraw=args.writeraw,
-            incremental=args.incremental,threads=args.threads,rawsynth=args.rawsynth,piece=args.piece)
+            incremental=args.incremental,threads=args.threads,rawsynth=args.rawsynth,piece=args.piece,
+            digits=args.digits,py2=args.py2)
     now = datetime.datetime.now()
     print ("End: ",now.strftime("%Y-%m-%d %H:%M:%S"))
     print("elapsed: ",time.time()-start)

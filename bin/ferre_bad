@@ -1,0 +1,24 @@
+#!/bin/csh
+set root = $1
+awk '{print $1}' $root.ipf | sort > a.ipf
+awk '{print $1}' $root.spm | sort > a.spm
+
+set stars = `diff a.ipf a.spm | grep '< ' | sed 's/< //'`
+
+foreach ext ( ipf obs err )
+  rm test.$ext
+  touch test.$ext
+end
+sed 's/'$root'/test/' $root.nml > test.nml
+
+foreach star ( $stars )
+  set n = `awk '$1=='\"$star\"' {print NR}' $root.ipf`
+  echo $star $n
+  foreach ext ( ipf obs err )
+    awk "NR==$n" $root.$ext >> test.$ext
+  end
+end
+   
+
+
+

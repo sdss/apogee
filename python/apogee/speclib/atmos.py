@@ -32,7 +32,7 @@ import argparse
 import pdb
 from astropy.io import fits
 
-def cval(x,digits=2) :
+def cval(x,digits=2,py2=False) :
     """ routine to convert value to "Kurucz-style" string, i.e. mXX or pXX
 
     Args:
@@ -45,7 +45,9 @@ def cval(x,digits=2) :
     else :
       prefix = 'p'
     formstr='{{:0{:d}d}}'.format(digits)
-    return prefix+formstr.format(int(round(abs(x)*10.**(digits-1))))
+    if py2 : eps=0.0001
+    else : eps=0.
+    return prefix+formstr.format(int(round((abs(x)+eps)*10.**(digits-1))))
 
 def filename(teff,logg,z,c,a,model='Unknown',vers='x3') :
     """Function to return atmosphere file name for either MARCS-style or KURUCZ-style 

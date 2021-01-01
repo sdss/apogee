@@ -162,7 +162,7 @@ for i=0,n_elements(ims)-1 do begin
   ;endif else begin
     openw,objhtml,/get_lun,htmldir+file+'.html'
     printf,objhtml,'<HTML>'
-    printf,objhtml,'<HEAD><script type=text/javascript src=../../../../html/sorttable.js></script></head>'
+    printf,objhtml,'<HEAD><script type=text/javascript src=../../../../../../html/sorttable.js></script></head>'
     printf,objhtml,'<BODY>'
     if ims[i] eq 0 then begin
       printf,objhtml,'<H2>'+file+'</H2>'
@@ -305,17 +305,18 @@ for i=0,n_elements(ims)-1 do begin
        if not keyword_set(noplot) then begin
         set_plot,'ps'
         !p.multi=[0,0,0]
-        device,file=outdir+file+'-'+string(format='(i3.3)',rows[j])+'.eps',/encap,xsize=48,ysize=6,/color,/in
+        device,file=outdir+file+'-'+string(format='(i3.3)',rows[j])+'.eps',/encap,xsize=48,ysize=12,/color,/in
         smcolor
         if n_elements(d[0].wave) gt 10 then begin
           ymin=2*min([obs[j,0],obs[j,1],obs[j,2],0.])
-          ymax=2*max([obs[j,0],obs[j,1],obs[j,2]])
+          ymin=0.5*min([obs[j,0],obs[j,1],obs[j,2]])
+          ymax=1.5*max([obs[j,0],obs[j,1],obs[j,2]])
           yr=[ymin,ymax]
           if fiber[j].objtype eq 'SKY' then yr=[-50,50]
           ;plot,d[0].wave[*,rows[j]],d[0].flux[*,rows[j]],xrange=[15000,17000],xstyle=1,yrange=[0,2*max([obs[j,0],obs[j,1],obs[j,2]])],color=2
-          plot,d[0].wave[*,rows[j]],d[0].flux[*,rows[j]],xrange=[15000,17000],xstyle=1,yrange=yr,color=2
-          oplot,d[1].wave[*,rows[j]],d[1].flux[*,rows[j]],color=3
-          oplot,d[2].wave[*,rows[j]],d[2].flux[*,rows[j]],color=4
+          plot,d[0].wave[*,rows[j]],d[0].flux[*,rows[j]],xrange=[15000,17000],xstyle=1,yrange=yr,color=0,/nodata
+          ;oplot,d[1].wave[*,rows[j]],d[1].flux[*,rows[j]],color=3
+          ;oplot,d[2].wave[*,rows[j]],d[2].flux[*,rows[j]],color=4
           oplot,d[0].wave[*,rows[j]],d[0].err[*,rows[j]]*10,color=0,linestyle=1
           oplot,d[1].wave[*,rows[j]],d[1].err[*,rows[j]]*10,color=0,linestyle=1
           oplot,d[2].wave[*,rows[j]],d[2].err[*,rows[j]]*10,color=0,linestyle=1
@@ -353,7 +354,7 @@ for i=0,n_elements(ims)-1 do begin
         infile=outdir+file+'-'+string(format='(i3.3)',rows[j])+'.eps'
         outfile=outdir+file+'-'+string(format='(i3.3)',rows[j])+'.jpg'
         printf,cfile,'echo '+infile
-        printf,cfile,'gs -sDEVICE=jpeg -sOutputFile='+outfile+' -r50 -dBATCH -dNOPAUSE -dDEVICEWIDTHPOINTS=3450 -dDEVICEHEIGHTPOINTS=431 '+infile+'  >& /dev/null'
+        printf,cfile,'gs -sDEVICE=jpeg -sOutputFile='+outfile+' -r50 -dBATCH -dNOPAUSE -dDEVICEWIDTHPOINTS=3450 -dDEVICEHEIGHTPOINTS=862 '+infile+'  >& /dev/null'
         printf,cfile,'''rm'' '+infile
         printf,cfile,'chmod 664 '+outfile
         jfile='../plots/'+file+'-'+string(format='(i3.3)',rows[j])+'.jpg'

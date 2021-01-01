@@ -158,7 +158,7 @@ if keyword_set(obj1m) then begin
   if status eq 0 and fiber[ifiber].ra gt 0 then begin
     fixobject,objects
     spherematch,objects.ra,objects.dec,fiber.ra,fiber.dec,10./3600.,match1,match2,dist,maxmatch=1
-    j=where(match2 eq ifiber,nj)
+    j=where(match2 eq ifiber[0],nj)
     if nj gt 0 then begin
       fiber[ifiber].alt_id = fiber[ifiber].object
       fiber[ifiber].tmass_style = objects[match1[j]].apogee_id

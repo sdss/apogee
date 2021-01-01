@@ -1,0 +1,185 @@
+
+defaults : &defaults
+    config :   'l33'
+    linelist : '20180901t20'
+    wrange :   [15100.,17000.]
+    continuum :    [4.00,1.00,0.00,0.00]
+    npart :     12
+    maskdir :   filters_CeNdYbC13
+    apred :     r12
+    telescope : apo25m
+    lsfid :     14600018
+    waveid :    13140000
+    synthcode : turbospec
+    atmos : marcs
+    nlte : False
+    r0 : 1
+    dw : 0.05
+    vmacrofit : 1
+    vmacro : [0.470794,0.,0.,-0.254120]
+    vmicrofit : 0
+    vmicro : [0.372160,-0.090531,-0.000802,0.001263,-0.027321]
+    elem : ['']
+    h2o : 0
+
+giant: &giant
+    <<: *defaults
+    mh0 : -2.5
+    dmh : 0.25
+    nmh : 15
+    am0 : -0.75
+    dam : 0.25
+    nam : 8
+    cm0 : -1.5
+    dcm : 0.25
+    ncm : 11
+    nm0 : -0.5
+    dnm : 0.5
+    nnm : 6
+    vt0 : -0.522878
+    dvt : 0.301030
+    nvt : 5
+    rot0 : 0.176091
+    drot : 0.301030
+    nrot : 1
+    kernel : gauss
+    npca : 75
+    solarisotopes : 2
+giantfine: &giantfine
+    <<: *defaults
+    mh0 : -2.5
+    dmh : 0.25
+    nmh : 15
+    am0 : -0.75
+    dam : 0.125
+    nam : 15
+    cmnear : True
+    cm0 : -0.775
+    dcm : 0.125
+    ncm : 15
+    nm0 : -0.5
+    dnm : 0.5
+    nnm : 6
+    vt0 : -0.522878
+    dvt : 0.301030
+    nvt : 5
+    rot0 : 0.176091
+    drot : 0.301030
+    nrot : 1
+    kernel : gauss
+    npca : 75
+    solarisotopes : 2
+dwarf: &dwarf
+    <<: *defaults
+    mh0 : -2.5
+    dmh : 0.25
+    nmh : 15
+    am0 : -0.75
+    dam : 0.25
+    nam : 8
+    cm0 : -0.5
+    dcm : 0.25
+    ncm : 5
+    nm0 : -0.5
+    dnm : 0.5
+    nnm : 5
+    vt0 : -0.522878
+    dvt : 0.301030
+    nvt : 5
+    rot0 : 0.176091
+    drot : 0.301030
+    nrot : 7
+    kernel : rot
+    npca : 75
+    solarisotopes : 1
+
+GKg : &GKg
+    <<: *giant
+    specdir : tgGK_180901_turbo20
+    teff0 : 3500
+    dteff : 250
+    nteff : 11
+    logg0 : 0
+    dlogg : 0.5
+    nlogg : 10
+Mg : &Mg
+    <<: *giantfine
+    specdir : tgM_180901_turbo20
+    teff0 : 3000
+    dteff : 100
+    nteff : 11
+    logg0 : -0.5
+    dlogg : 0.5
+    nlogg : 8
+Fd: &Fd
+    <<: *dwarf
+    specdir : tdF_180901_turbo20
+    npca : 25
+    r0 : 0.5
+    solarisotopes : 1
+    teff0 : 5500
+    dteff : 250
+    nteff : 11
+    logg0 : 2.5
+    dlogg : 0.5
+    nlogg : 7
+GKd: &GKd
+    <<: *dwarf
+    specdir : tdGK_180901_turbo20
+    solarisotopes : 1
+    teff0 : 3500
+    dteff : 250
+    nteff : 11
+    logg0 : 2.5
+    dlogg : 0.5
+    nlogg : 7
+Md: &Md
+    <<: *dwarf
+    specdir : tdM_180901_turbo20
+    teff0 : 3000
+    dteff : 100
+    nteff : 11
+    logg0 : 2.5
+    dlogg : 0.5
+    nlogg : 7
+AB: &AB
+    <<: *dwarf
+    specdir : tdAB_180901_turbo20
+    teff0 : 7000
+    dteff : 500
+    nteff : 27
+    logg0 : 2.5
+    dlogg : 0.5
+    nlogg : 7
+
+lsfcombo: &lsfcombo
+    smooth : lsfcombo5
+    suffix : turbo20
+    lsffiber : [50,100,150,200,250]
+lsfa: &lsfa
+    smooth : lsfa
+    suffix : turbo20
+    lsffiber : [266,272,280,288,296]
+lsfb: &lsfb
+    smooth : lsfb
+    suffix : turbo20
+    lsffiber : [160,183,206,228,250]
+lsfc: &lsfc
+    smooth : lsfc
+    suffix : turbo20
+    lsffiber : [60,80,100,119,140]
+lsfd: &lsfd
+    smooth : lsfd
+    suffix : turbo20
+    lsffiber : [5,15,25,35,45]
+GRID :
+  - <<: *GKg
+    <<: *lsfcombo 
+  - <<: *Mg
+    <<: *lsfcombo 
+  - <<: *Fd
+    <<: *lsfcombo 
+  - <<: *GKd
+    <<: *lsfcombo 
+  - <<: *Md
+    <<: *lsfcombo 

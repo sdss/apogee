@@ -156,6 +156,13 @@ lsfcombo: &lsfcombo
     smooth : lsfcombo5
     suffix : dr17
     lsffiber : [50,100,150,200,250]
+lsfcombos: &lsfcombos
+    telescope : lco25m
+    lsfid :   22940020
+    waveid :  22670000
+    smooth : lsfcombo5s
+    suffix : dr17
+    lsffiber : [50,100,150,200,250]
 lsfa: &lsfa
     smooth : lsfa
     suffix : dr17
@@ -173,13 +180,13 @@ lsfd: &lsfd
     suffix : dr17
     lsffiber : [5,15,25,35,45]
 GRID :
-  - <<: *GKg
-    <<: *lsfcombo 
+#  - <<: *GKg
+#    <<: *lsfcombo 
   - <<: *Mg
-    <<: *lsfcombo 
-  - <<: *Fd
-    <<: *lsfcombo 
-  - <<: *GKd
-    <<: *lsfcombo 
-  - <<: *Md
-    <<: *lsfcombo 
+    <<: *lsfcombos
+#  - <<: *Fd
+#    <<: *lsfcombo 
+#  - <<: *GKd
+#    <<: *lsfcombo 
+#  - <<: *Md
+#    <<: *lsfcombo 

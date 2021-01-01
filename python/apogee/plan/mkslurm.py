@@ -31,7 +31,7 @@ def write(cmd,outdir='slurm/',cwd=None,queryhost=None,queryport=None,maxrun=None
         f.write('#SBATCH --nodes=1\n')
     elif np :
         f.write('#SBATCH --account=sdss-np\n')
-        f.write('#SBATCH --partition=np\n')
+        f.write('#SBATCH --partition=sdss-np\n')
         f.write('#SBATCH --ntasks=64\n')
         f.write('#SBATCH --time='+time+'\n')
         f.write('#SBATCH --nodes=1\n')

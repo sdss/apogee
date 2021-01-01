@@ -50,7 +50,7 @@ from tools import html
 colors=['r','g','b','c','m','y']
 
 def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whiten=False,writeraw=False,test=False, 
-        incremental=False, threads=4, rawsynth=False, prefix='',piece=None) :
+        incremental=False, threads=4, rawsynth=False, prefix='',piece=None,digits=2,py2=False) :
     """ Read in grid of spectra and do PCA compression
 
     Args :
@@ -136,7 +136,7 @@ def pca(planfile,dir='kurucz/giantisotopes/tgGK_150714_lsfcombo5',pcas=None,whit
         w2=(ipiece+1)*nspec if ipiece < npiece -1 else nwave
         npix=w2-w1
         print(ipiece,w1,w2)
-        pars.append((ipiece,indata,[w1,w2]))
+        pars.append((ipiece,indata,[w1,w2],digits,py2))
 
     if threads == 0 :
         outputs=[]
@@ -228,6 +228,8 @@ def dopca(pars) :
     showtime('start piece: '+str(ipiece))
     p=pars[1]
     wrange=pars[2]
+    digits=pars[3]
+    py2=pars[4]
     w1=wrange[0]
     w2=wrange[1]
     npix=w2-w1
@@ -261,7 +263,7 @@ def dopca(pars) :
           for iam,am in enumerate(spectra.vector(p['am0'],p['dam'],p['nam'])) :
             if int(p['noa']) == 1 and int(p['nvt']) >= 1 :
               file=('a{:s}c{:s}n{:s}v{:s}.fits').format(
-                     atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(10**vm))
+                     atmos.cval(am,digits=digits,py2=py2),atmos.cval(cm,digits=digits,py2=py2),atmos.cval(nm,digits=digits,py2=py2),atmos.cval(10**vm))
             elif int(p['noa']) > 1 and int(p['nvt']) == 1 :
               file=('a{:s}c{:s}n{:s}o{:s}.fits').format(
                      atmos.cval(am),atmos.cval(cm),atmos.cval(nm),atmos.cval(oa))

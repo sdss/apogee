@@ -1077,6 +1077,7 @@ def logg(a,caldir='cal/') :
     # for stars that aren't bad, get cn and dt
     cn=a['FPARAM'][gd,4]-a['FPARAM'][gd,5]
     dt=a['FPARAM'][gd,0] - (rgbsep[0] + rgbsep[1]*(a['FPARAM'][gd,1]-2.5) +rgbsep[2]*a['FPARAM'][gd,3])
+    snr=clip(a['SNREV'][gd],0,200.)
 
     new=np.zeros(len(a))-9999.99
 
@@ -1087,6 +1088,8 @@ def logg(a,caldir='cal/') :
                 (a['FPARAM'][gd,0]<calteffmax)&(a['FPARAM'][gd,0]>calteffmin))[0]
     rccorr=rcfit2[0] + rcfit2[1]*a['FPARAM'][gd,1] + rcfit2[2]*a['FPARAM'][gd,1]**2
     new[gd[rc]]=a['FPARAM'][gd[rc],1]-rccorr[rc]
+    a['PARAM'][gd[rc],1]=a['FPARAM'][gd[rc],1]-rccorr[rc]
+    a['PARAM_COV'][gd[rc],1,1]=err.elemerr(cal['rcerrpar'][0],a['FPARAM'][gd[rc],0]-4500,snr[rc]-100,a['FPARAM'][gd[rc],3])**2
     #rcidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RC')) >0)[0]
 
     # select RGB
@@ -1101,6 +1104,8 @@ def logg(a,caldir='cal/') :
     rgbcorr=(rgbfit2[0] + rgbfit2[1]*logg + rgbfit2[2]*logg**2 +
                        rgbfit2[3]*logg**3 + rgbfit2[4]*mh )
     new[gd[rgb]]=a['FPARAM'][gd[rgb],1]-rgbcorr[rgb]
+    a['PARAM'][gd[rgb],1]=a['FPARAM'][gd[rgb],1]-rgbcorr[rgb]
+    a['PARAM_COV'][gd[rgb],1,1]=err.elemerr(cal['rgberrpar'][0],a['FPARAM'][gd[rgb],0]-4500,snr[rgb]-100,a['FPARAM'][gd[rgb],3])**2
     #rgbidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RGB')) >0)[0]
 
     cal=fits.open(caldir+'/dwarf_loggcal.fits')[1].data
@@ -1111,12 +1116,15 @@ def logg(a,caldir='cal/') :
     mscorr=msfit[0]+msfit[1]*teff+msfit[2]*mh
     ms=np.where(a['FPARAM'][gd,1] > cal['calloggmin'])[0]
     new[gd[ms]]=a['FPARAM'][gd[ms],1]-mscorr[ms]
+    a['PARAM'][gd[ms],1]=a['FPARAM'][gd[ms],1]-mscorr[ms]
+    a['PARAM_COV'][gd[ms],1,1]=err.elemerr(cal['errpar'][0],a['FPARAM'][gd[ms],0]-4500,snr[ms]-100,a['FPARAM'][gd[ms],3])**2
     #msidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_MS')) >0)[0]
 
     trans=np.where((a['FPARAM'][gd,1] < 4) & (a['FPARAM'][gd,1] > 3.5) &
                 (a['FPARAM'][gd,0] < calteffmax) )[0]
     ms_weight=(a['FPARAM'][gd[trans],1]-3.5)/0.5
     new[gd[trans]] = a['FPARAM'][gd[trans],1]-(mscorr[trans]*ms_weight+rgbcorr[trans]*(1-ms_weight))
+    a['PARAM'][gd[trans],1] = a['FPARAM'][gd[trans],1]-(mscorr[trans]*ms_weight+rgbcorr[trans]*(1-ms_weight))
 
     diff =a['PARAM'][:,1]-new
     bd = np.where (np.isclose(diff,0.,1.e-6,0.01) == False)[0]
@@ -1135,10 +1143,12 @@ def teff(a,caldir='cal/'):
     calteffmax=cal['caltemax']
     teff=clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
     mh=clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
+    snr=clip(a['SNREV'][gd],0,200.)
 
     new=np.zeros(len(a))-9999.99
     ok =np.where((a['FPARAM'][gd,0] >= calteffmin) & (a['FPARAM'][gd,0] <= calteffmax) )[0]
-    pdb.set_trace()
+    a['PARAM'][gd[ok],0] = a['FPARAM'][gd[ok],0] - (cal['par2d'][0]+cal['par2d'][1]*mh[ok]+cal['par2d'][2]*teff[ok])
+    a['PARAM_COV'][gd[ok],0,0] = err.elemerr(cal['errpar'],a['FPARAM'][gd[ok],0]-4500.,snr[ok]-100.,a['FPARAM'][gd[ok],3])**2
     new[gd[ok]] = a['FPARAM'][gd[ok],0] - (cal['par2d'][0]+cal['par2d'][1]*mh[ok]+cal['par2d'][2]*teff[ok])
     return new
 
@@ -1180,6 +1190,7 @@ def elem(a,caldir='cal/') :
 
             teff=clip(a['FPARAM'][ok[gdel],0],cal['temin'][iel],cal['temax'][iel])
             mh=clip(a['FPARAM'][ok[gdel],3],cal['femin'][iel],cal['femax'][iel])
+            snr=clip(a['SNREV'][ok[gdel]],0,200.)
             x = teff-cal['te0'][iel]
 
             # "internal" calibration
@@ -1193,16 +1204,27 @@ def elem(a,caldir='cal/') :
 
             if el == 'M' :
                 new_param[ok[gdel],3] = a['FPARAM'][ok[gdel],3]-fit
+                a['PARAM'][ok[gdel],3] = a['FPARAM'][ok[gdel],3]-fit
+                a['PARAM_COV'][ok[gdel],3,3] = err.elemerr(cal['errpar'][iel],
+                    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)**2
             elif el == 'alpha' :
                 new_param[ok[gdel],6] = a['FPARAM'][ok[gdel],6]-fit
+                a['PARAM'][ok[gdel],6] = a['FPARAM'][ok[gdel],6]-fit
+                a['PARAM_COV'][ok[gdel],6,6] = err.elemerr(cal['errpar'][iel],
+                    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)**2
             else :
                 jel = np.where(aspcap.elems()[0] == el)[0]
+                print(iel,jel,elemtoh[jel])
                 if elemtoh[jel] :
-                    new_x_h[ok[gdel]] = a['FELEM'][ok[gdel],6]-fit
-                    new_x_m[ok[gdel]] = a['FELEM'][ok[gdel],6]-fit-a['FPARAM'][ok[gdel],3]
+                    a['X_M'][ok[gdel],iel] = a['FELEM'][ok[gdel],iel]-fit-a['FPARAM'][ok[gdel],3]
                 else :
-                    new_x_m[ok[gdel]] = a['FELEM'][ok[gdel],6]-fit
-                    new_x_h[ok[gdel]] = a['FELEM'][ok[gdel],6]-fit+a['FPARAM'][ok[gdel],3]
+                    a['X_M'][ok[gdel],iel] = a['FELEM'][ok[gdel],iel]-fit
+                # [X/H] calculated with all calibrated parameters
+                a['X_H'][ok[gdel],iel] = a['X_M'][ok[gdel],iel]+a['PARAM'][ok[gdel],3]
+                a['X_H_ERR'][ok[gdel],iel] = err.elemerr(cal['errpar'][iel],
+                    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)
+                a['X_M_ERR'][ok[gdel],iel] = err.elemerr(cal['errpar'][iel],
+                    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)
 
     return new_param,new_x_h,new_x_m
 

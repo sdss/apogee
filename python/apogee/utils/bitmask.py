@@ -388,7 +388,7 @@ class RVMask(BitMask) :
     BitMask class for RVMask
     '''
     name = ([ 'RV_BCFIT','RV_BCFIT_FAIL','RV_FAINT_FIT','RV_WINDOW_MASK','RV_VALUE_ERROR','RV_RUNTIME_ERROR','RV_ERROR','',
-              '','','','','','','','',
+              'NO_GOOD_VISITS','ALL_VISITS_REJECTED','','','','','','',
               '','','','','','','','',
               '','','','','','','',''])
     descrip=([
@@ -400,8 +400,8 @@ class RVMask(BitMask) :
      'Jointfit failed with RuntimeError',
      'Jointfit failed with exception',
      '',
-     '',
-     '',
+     'No good visits for RV',
+     'All visits rejected',
      '',
      '',
      '',

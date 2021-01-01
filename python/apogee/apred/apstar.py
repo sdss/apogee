@@ -98,13 +98,15 @@ def allPlate(all) :
 
     # get unique PLATE-MJD
     gd = np.where(all['TELESCOPE'] != 'apo1m') [0]
-    plate_mjd = set(all['PLATE'][gd].strip()+'_'+all['MJD'][gd].astype(str))
+    plate_mjd = set(
+        np.core.defchararray.add(np.core.defchararray.add( np.core.defchararray.strip(all['PLATE'][gd]),'_'),
+                                 all['MJD'][gd].astype(str)))
 
     allplate = np.zeros(len(plate_mjd),dtype=platetype)
     plans = yanny.yanny(os.environ['PLATELIST_DIR']+'/platePlans.par')['PLATEPLANS']
     for i,p_m in enumerate(plate_mjd) :
-        print(i)
         plate,mjd = p_m.split('_')
+        print(i,plate,mjd)
         allplate['PLATE'][i] = int(plate)
         allplate['MJD'][i] = int(mjd)
         allplate['APRED_VERSION'][i] =  '?'
@@ -135,7 +137,8 @@ def allPlate(all) :
         fout.close()
         holes=yaml.safe_load(open('tmp.yml','r'))
         for key in ['standard','science','sky'] :
-            allplate['N'+key.upper()][i] = holes['napogee_'+key]
+            try: allplate['N'+key.upper()][i] = holes['napogee_'+key]
+            except: allplate['N'+key.upper()][i] = holes['napogee_south_'+key]
         allplate['PLATEDESIGN_VERSION'][i] = holes['platedesign_version']
         try: allplate['RADIUS'][i] = holes['tilerad']
         except: allplate['RADIUS'][i] = 1.49

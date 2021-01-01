@@ -1343,3 +1343,22 @@ def allmult() :
         name = 'class_Mg_{:s}_FPARAM/Mg_{:s}-cal_special_000_mult'.format(lsf,lsf)
         lib = 'class_Mg_{:s}_FPARAM/lib/turbospec/marcs/giantisotopes/tgM_180901_lsf{:s}_l33/p_apstgM_180901_lsf{:s}_l33_012_075.hdr'.format(lsf,lsf,lsf)
         plotmult(name,lib)
+
+def dr13dr12() :
+    '''
+    compare dr13 dr12 Teff
+    '''
+
+    dr12load=apload.ApLoad(dr='dr12')
+    dr12=dr12load.allStar()[1].data
+    dr13load=apload.ApLoad(dr='dr13')
+    dr13=dr13load.allStar()[1].data
+    i1,i2 = match.match(dr12['APOGEE_ID'],dr13['APOGEE_ID'])
+    dr12=dr12[i1]
+    dr13=dr13[i2]
+
+    fig,ax=plots.multi(1,2,hspace=0.001,wspace=0.001)
+    plots.plotc(ax[0],dr13['M_H'],dr13['TEFF']-dr12['TEFF'],dr13['TEFF'],xr=[-2.5,0.75],yr=[-300,300],zr=[3500,5000])
+
+    plots.plotc(ax[1],dr13['TEFF'],dr13['TEFF']-dr12['TEFF'],dr13['M_H'],xr=[6500,3000],yr=[-300,300],zr=[-2,0.5])
+

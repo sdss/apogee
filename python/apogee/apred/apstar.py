@@ -44,6 +44,7 @@ def allField(search=['apo*/*/a?Field-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?
     a=[]
     for file in allfiles :
         if 'Field-cal_' not in file :
+            print(file)
             dat=Table.read(file)
             a.append(dat)
     all =vstack(a)
@@ -70,6 +71,7 @@ def allFieldVisit(search=['apo*/*/a?FieldVisits-*.fits','apo*/*/a?FieldC-*.fits'
     a=[]
     for file in allfiles :
         if 'Field-cal_' not in file :
+            print(file)
             dat=Table.read(file)
             a.append(dat)
     all =vstack(a)

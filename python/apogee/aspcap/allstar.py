@@ -4,14 +4,48 @@ import astropy
 from astropy.table import Table, Column, vstack
 from astropy.io import fits
 from apogee.utils import bitmask
+from apogee.apred import apstar
 from apogee.aspcap import aspcap
 from tools import match
 import os
 import pdb
 import glob
+import yaml
+
+def all(planfile,dofix=False,suffix=None) :
+   """ Summary files after everything is run
+   """
+   plan=yaml.safe_load(open(planfile,'r'))
+   apred_vers=plan['apred_vers']
+   apstar_vers=plan['apstar_vers']
+   aspcap_vers=plan['aspcap_vers']
+   if suffix==None : suffix=plan['suffix']
+
+   # allStar file
+   apstar_dir=os.environ['APOGEE_REDUX']+'/'+apred_vers+'/'+apstar_vers+'/'
+   aspcap_dir=os.environ['APOGEE_ASPCAP']+'/'+apred_vers+'/'+aspcap_vers+'/'
+   print('Create allStar file')
+   allstar=allStar(search=[aspcap_dir+'apo*/*/aspcapField-*.fits',aspcap_dir+'lco*/*/aspcapField-*.fits'],
+                   out=aspcap_dir+'allStar-'+apred_vers+'-'+aspcap_vers+suffix+'.fits')
+
+   # allVisit file
+   print('Create allVisit file')
+   allvisit = apstar.allFieldVisit(search=[apstar_dir+'apo*/*/a?FieldVisits-*.fits',apstar_dir+'lco*/*/a?FieldVisits-*.fits'],
+              out=aspcap_dir+'allVisit-'+apred_vers+'-'+aspcap_vers+suffix+'.fits')
+
+   # fix up issues in allStar file?
+   if dofix :
+       print('fix allStar file')
+       fix(allstar,allvisit)
+       write
+
+   # allPlate file
+   print('Create allPlate file')
+   allvisit = apstar.allPlate(allvisit)
+
 
 def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out='allStar.fits',
-            skip=['Field-cal','Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.']) :
+            skip=['Field-cal_','Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.']) :
     '''
     Concatenate set of aspcapField files, and add named_tags, extratarg
     '''
@@ -82,7 +116,6 @@ def add_named_tags(tab) :
         try : tab.remove_column(name)
         except: pass
         tab.add_column(col)
-    pdb.set_trace()
     tab['TEFF'] = tab['PARAM'][:,0].astype(np.float32)
     tab['TEFF_ERR'] = np.sqrt(tab['PARAM_COV'][:,0,0]).astype(np.float32)
     tab['LOGG'] = tab['PARAM'][:,1].astype(np.float32)
@@ -109,15 +142,15 @@ def add_named_tags(tab) :
     newtags=[]
     for name in tagnames :
         col = Column(np.full([len(tab)],np.nan),name=name,dtype=np.float32)
-        try : tab.remove_column(tagname)
+        try : tab.remove_column(name)
         except: pass
         tab.add_column(col)
         col = Column(np.full([len(tab)],np.nan),name=name+'_ERR',dtype=np.float32)
-        try : tab.remove_column(tagname)
+        try : tab.remove_column(name+'_ERR')
         except: pass
         tab.add_column(col)
         col = Column(np.full([len(tab)],np.uint32(0)),name=name+'_FLAG',dtype=np.uint32)
-        try : tab.remove_column(tagname)
+        try : tab.remove_column(name+'_FLAG')
         except: pass
         tab.add_column(col)
     ife =np.where(elems == 'Fe')[0][0]
@@ -161,9 +194,10 @@ def add_extratarg(tab) :
 
     # apo1m
     j= np.where(tab['TELESCOPE'] == 'apo1m')[0]
-    tab['EXTRATARG'] |= 8
+    tab['EXTRATARG'][j] |= 8
     print('apo1m',len(j))
 
+    """
     names=['MIN_H','MAX_H','MIN_JK','MAX_JK']
     for name in names :
         col = Column(np.full([len(tab)],np.nan),name=name,dtype=np.float32)
@@ -195,6 +229,92 @@ def add_extratarg(tab) :
     j=np.where((np.core.defchararray.find(tab['SURVEY'],b'apogee2') >=0) &
                tab['APOGEE2_TARGET1'] & apogee2_targ1.getval('APOGEE2_ONEBIN_GT_0_3')  )[0]
     tab['MIN_JK'][j] = 0.3
+    """
+
+def fix(tab,visit) :
+    """ Fix up broken things
+    """
+    aspcapmask=bitmask.AspcapBitMask()
+    parammask=bitmask.ParamBitMask()
+    starmask=bitmask.StarBitMask()
+    rvmask=bitmask.RVMask()
+
+    # missing visits for RV
+    j=np.where(tab['NVISITS'] == 0)[0]
+    tab['STARFLAG'][j] |= starmask.getval('RV_FAIL')
+    tab['RV_FLAG'][j] |= rvmask.getval('NO_GOOD_VISITS')
+
+    # grid edge
+    tab['ASPCAPFLAG'] &= ~aspcapmask.getval('TEFF_BAD')
+    tab['ASPCAPFLAG'] &= ~aspcapmask.getval('LOGG_BAD')
+    tab['ASPCAPFLAG'] &= ~aspcapmask.getval('M_H_BAD')
+    tab['ASPCAPFLAG'] &= ~aspcapmask.getval('ALPHA_M_BAD')
+    tab['ASPCAPFLAG'] &= ~aspcapmask.getval('C_M_BAD')
+    tab['ASPCAPFLAG'] &= ~aspcapmask.getval('N_M_BAD')
+    
+    grids=['GKg','GKd','Mg','Md','Fd']
+    teff_pars=[[3500,6000,250],[3500,6000,250],[3000,4000,100],[3000,4000,100],[5500,8000,250]]
+    logg_pars=[[0.,4.5,0.5],[2.5,5.5,0.5],[-0.5,3,0.5],[2.5,5.5,0.5],[2.5,5.5,0.5]]
+    mh_pars=[[-2.5,1.0,0.25],[-2.5,1.0,0.25],[-2.5,1.0,0.25],[-2.5,1.0,0.25],[-2.5,1.0,0.25]]
+    cm_pars=[[-1.5,1.0,0.25],[-1.5,1.0,0.25],[-0.5,0.5,0.25],[-0.5,0.5,0.25],[-0.5,0.0,0.25]]
+    nm_pars=[[-0.5,2.0,0.50],[-0.5,2.0,0.50],[-0.5,1.5,0.5],[-0.5,1.5,0.5],[-0.5,1.5,0.25]]
+    am_pars=[[-0.75,1.0,0.25],[-0.75,1.0,0.25],[-0.75,1.0,0.25],[-0.75,1.0,0.25],[-0.75,1.0,0.25]]
+    
+    for grid,teff_par,logg_par,mh_par,cm_par,nm_par,am_par in zip(grids,teff_pars,logg_pars,mh_pars,cm_pars,nm_pars,am_pars) :
+        j=np.where((np.core.defchararray.find(tab['ASPCAP_CLASS'],grid) >= 0))[0]
+        print(grid,len(j))
+        j=np.where((np.core.defchararray.find(tab['ASPCAP_CLASS'],grid) >= 0) &
+            ((tab['FPARAM'][:,0] < teff_par[0]+teff_par[2]/8.) | 
+             (tab['FPARAM'][:,0] > teff_par[1]-teff_par[2]/8.) ) )[0]
+        tab['ASPCAPFLAG'][j] |= aspcapmask.getval('TEFF_BAD')
+        tab['PARAMFLAG'][j,0] |= parammask.getval('GRIDEDGE_BAD')
+        print('TEFF: ',len(j))
+
+        j=np.where((np.core.defchararray.find(tab['ASPCAP_CLASS'],grid) >= 0) &
+            ((tab['FPARAM'][:,1] < logg_par[0]+logg_par[2]/8.) | 
+             (tab['FPARAM'][:,1] > logg_par[1]+logg_par[2]/8.) ) )[0]
+        tab['ASPCAPFLAG'][j] |= aspcapmask.getval('LOGG_BAD')
+        tab['PARAMFLAG'][j,1] |= parammask.getval('GRIDEDGE_BAD')
+        print('LOGG: ',len(j))
+
+        j=np.where((np.core.defchararray.find(tab['ASPCAP_CLASS'],grid) >= 0) &
+            ((tab['FPARAM'][:,3] < mh_par[0]+mh_par[2]/8.) | 
+             (tab['FPARAM'][:,3] > mh_par[1]+mh_par[2]/8.) ) )[0]
+        tab['ASPCAPFLAG'][j] |= aspcapmask.getval('LOGG_BAD')
+        tab['ASPCAPFLAG'][j] |= aspcapmask.getval('LOGG_BAD')
+        tab['PARAMFLAG'][j,3] |= parammask.getval('GRIDEDGE_BAD')
+        print('MH: ',len(j))
+
+        j=np.where((np.core.defchararray.find(tab['ASPCAP_CLASS'],grid) >= 0) &
+            ((tab['FPARAM'][:,4] < cm_par[0]+cm_par[2]/8.) | 
+             (tab['FPARAM'][:,4] > cm_par[1]+cm_par[2]/8.) ) )[0]
+        tab['ASPCAPFLAG'][j] |= aspcapmask.getval('LOGG_BAD')
+        tab['PARAMFLAG'][j,4] |= parammask.getval('GRIDEDGE_BAD')
+        print('CM: ',len(j))
+
+        j=np.where((np.core.defchararray.find(tab['ASPCAP_CLASS'],grid) >= 0) &
+            ((tab['FPARAM'][:,5] < nm_par[0]+nm_par[2]/8.) | 
+             (tab['FPARAM'][:,5] > nm_par[1]+nm_par[2]/8.) ) )[0]
+        tab['ASPCAPFLAG'][j] |= aspcapmask.getval('LOGG_BAD')
+        tab['PARAMFLAG'][j,5] |= parammask.getval('GRIDEDGE_BAD')
+        print('NM: ',len(j))
+
+        j=np.where((np.core.defchararray.find(tab['ASPCAP_CLASS'],grid) >= 0) &
+            ((tab['FPARAM'][:,6] < am_par[0]+am_par[2]/8.) | 
+             (tab['FPARAM'][:,6] > am_par[1]+am_par[2]/8.) ) )[0]
+        tab['ASPCAPFLAG'][j] |= aspcapmask.getval('LOGG_BAD')
+        tab['PARAMFLAG'][j,6] |= parammask.getval('GRIDEDGE_BAD')
+        print('AM: ',len(j))
+
+    # SB2s
+    sb2 = np.where(tab['N_COMPONENTS'] > 1)[0]
+    for s in sb2 :
+        j=np.where(visit['APOGEE_ID'] == tab['APOGEE_ID'][s])[0]
+        n=np.where((visit['N_COMPONENTS']>1) & (visit['SNR']>20) )[0]
+        if len(n)/len(j) < 0.1 : 
+            print(tab['APOGEE_ID'][s])
+            tab['N_COMPONENTS'] *= -1
+
 
 # routines here used for DR16 only
 

@@ -132,15 +132,15 @@ class AspcapBitMask(BitMask):
           'TEFF_BAD','LOGG_BAD','VMICRO_BAD','M_H_BAD','ALPHA_M_BAD','C_M_BAD','N_M_BAD','STAR_BAD',
           'CHI2_BAD','COLORTE_BAD','ROTATION_BAD','SN_BAD','SPEC_HOLE_BAD','ATMOS_HOLE_BAD','VSINI_BAD','NO_ASPCAP_RESULT',
           'MISSING_APSTAR','NO_GRID','BAD_FRAC_LOWSNR','BAD_FRAC_BADPIX','','','','',
-          '','','','','','','','',
+          'PROBLEM_TARGET','','','','','','','',
           '','','','','','','','',
           '','','','','','','',''])
     level=([2,2,0,0,0,0,0,2,
             2,2,2,2,2,2,0,0,
             1,1,0,0,0,0,0,1,
             1,1,1,1,1,2,0,1,
-            1,2,1,0,0,0,0,0,
-            0,0,0,0,0,0,0,0,
+            1,1,1,1,0,0,0,0,
+            1,0,0,0,0,0,0,0,
             0,0,0,0,0,0,0,0,
             0,0,0,0,0,0,0,0])
 
@@ -177,7 +177,7 @@ class AspcapBitMask(BitMask):
      'Grid point within 1 grid steps of hole-filled atmosphere ',
      ' ',' ',
      'Missing apStar file','Not processed by any ASPCAP grid','Fraction low SNR pixels > 0.9','','','','','',
-     '','','','','','','','',
+     'Target extended or not suitable for standard star analysis','','','','','','','',
      '','','','','','','','',
      '','','','','','','',''
      ])

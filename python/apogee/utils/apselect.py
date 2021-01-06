@@ -207,6 +207,64 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
 
     return gd
 
+def dsphdata() :
+
+    obj=['DRACO','URMINOR','BOOTES1','SEXTANS','FORNAX','SCULPTOR','CARINA']
+
+    out = np.recarray(len(obj),dtype=[
+                       ('name','U24'),
+                       ('field','U24'),
+                       ('rv','f4'),
+                       ('drv','f4'),
+                       ('mh','f4'),
+                       ('dist','f4'),
+                       ('age','f4'),
+                       ('giant_mass','f4'),
+                       ('ra','f4'),
+                       ('dec','f4'),
+                       ('pmra','f4'),
+                       ('pmdec','f4'),
+                       ('rad','f4'),
+                        ('ebv','f4')
+                        ])
+    out['ebv']=[ 0.,0.,0.,0.,0.,0.,0.]
+
+    out['name']=obj
+    out['field']=['DRACO','URMINOR','BOOTES1','SEXTANS','FORNAX','SCULPTOR','CARINA']
+
+    # from McConaghie
+    out['rv']=[-291, -247, 99, 224, 55.3, 111.4, 222.9]
+    out['drv']=[50, 50, 50., 50., 50., 50., 50.]
+
+    # from Helmi
+    out['pmra'] = [-0.019, -0.182, -0.459, -0.496, 0.376, 0.082, 0.495]
+    out['pmdec'] = [-0.145, 0.074, -1.064, 0.077, -0.413, -0.131, 0.143]
+
+#Fnx 39.9971 -34.4492 -0.054 0.002 0.376 0.003 -0.413 0.003 0.16 -0.46 -0.09 7722 19.9
+#Dra 260.0517 57.9153 -0.052 0.005 -0.019 0.009 -0.145 0.010 -0.18 0.12 -0.08 422 19.5
+#Car 100.4029 -50.9661 -0.015 0.005 0.495 0.015 0.143 0.014 -0.00 0.02 -0.08 257 19.1
+#U Min 227.2854 67.2225 -0.039 0.006 -0.182 0.010 0.074 0.008 -0.01 -0.31 -0.34 925 19.8
+#Sext 153.2625 -1.6147 -0.102 0.023 -0.496 0.025 0.077 0.020 0.28 -0.10 -0.45 205 19.7
+#Leo I 152.1171 12.3064 -0.214 0.065 -0.097 0.056 -0.091 0.047 0.29 -0.30 -0.51 174 19.9
+#Leo II 168.3700 22.1517 -0.001 0.037 -0.064 0.057 -0.210 0.054 -0.18 -0.24 0.05 116 20.0
+#Sgr 283.8313 -30.5453 0.003 0.001 -2.692 0.001 -1.359 0.001 -0.17 0.21 0.09 23109 18.0
+#Scl 15.0392 -33.7092 -0.013 0.004 0.082 0.005 -0.131 0.004 0.17 0.15 0.23 1592 19.5
+#Boo I 210.025 14.500 -0.069 0.024 -0.459 0.041 -1.064 0.029 0.01 0.11 0.16 115 19.7
+
+    out['mh']=[ -1,-1,-1,-1,-1,-1,-1]
+
+    out['dist']=[ 76.0, 76.0, 66.0, 86.0, 147.,  86.0, 105. ]
+    out['age']=[ 12., 12., 12., 12., 12., 12., 12.]
+
+    out['giant_mass'] = [ 0.85, 0.85,0.85, 0.85, 0.85,0.85,0.85]
+
+    out['ra']=[ 260.05, 227.28333, 210.025,  153.2625, 39.9958, 15.220700, 100.835230]
+    out['dec']=[ 57.915, 67.2225, 14.5, -1.6147, -34.449, -33.688960, -51.099790]
+
+    out['rad']=[ 90.,90.,90.,90.,90.,90.,90.]
+
+    return out.view(np.recarray)
+    
 def clustdata(gals=True) :
     """
     Returns structure containing cluster data
@@ -366,9 +424,10 @@ def clustdata(gals=True) :
 
 def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=True,raw=False,firstgen=False,firstpos=True,
                 ratag='RA',dectag='DEC',rvtag='VHELIO',idtag='APOGEE_ID',btag='J',rtag='K',pmra=None,pmdec=None,
-                plot=False,hard=None,gals=True) :
+                plot=False,hard=None,gals=True,dsph=False) :
 
-    clust=clustdata(gals=gals)
+    if dsph : clust=dsphdata()
+    else : clust=clustdata(gals=gals)
     ic = np.where( np.core.defchararray.strip(clust.name) == cluster)[0]
     if len(ic) == 0 :
         print('no cluster found: ',cluster)
@@ -470,8 +529,7 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
       else : med_vra=4.74*pmra*clust[ic].dist
       if pmdec is None : med_vdec=np.ma.median(vdec[i2])
       else : med_vdec=4.74*pmdec*clust[ic].dist
-      j=np.where((vra[i2]-med_vra)**2+(vdec[i2]-med_vdec)**2 < 2*clust[ic].drv**2+vra_err[i2]**2+vdec_err[i2]**2)[0]
-  
+      j=np.where((vra[i2]-med_vra)**2+(vdec[i2]-med_vdec)**2 < 2*clust[ic].drv**2+9*vra_err[i2]**2+9*vdec_err[i2]**2)[0]
       if len(j) > 0 :
         if pm: 
             #jc=jc[i1[j]]
@@ -486,14 +544,25 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
       print('{:d} stars after PM criterion'.format(len(jc)))
       if plot :
         ax.cla() 
-        plots.plotp(ax,vra,vdec,color='k',
-                    xr=[med_vra-150,med_vra+150],xt='PMRA (km/sec at cluster dist)',
-                    yr=[med_vdec-150,med_vdec+150],yt='PMDEC (km/sec at cluster dist)')
-        plots.plotp(ax,vra[i2],vdec[i2],color='r',size=30)
-        plots.plotp(ax,vra[i2[j]],vdec[i2[j]],color='g',size=30)
-        fig.suptitle('{:s} PM (km/s): {:4.2f} +/- {:4.2f}  {:4.2f} +/ {:4.2f} Ngood: {:d}'.format(
+        #vrange=np.max([150.,5*clust[ic].drv])
+        #plots.plotp(ax,vra,vdec,color='k',
+        #            xr=[med_vra-vrange,med_vra+vrange],xt='PMRA (km/sec at cluster dist)',
+        #            yr=[med_vdec-vrange,med_vdec+vrange],yt='PMDEC (km/sec at cluster dist)')
+        #plots.plotp(ax,vra[i2],vdec[i2],color='r',size=30)
+        #plots.plotp(ax,vra[i2[j]],vdec[i2[j]],color='g',size=30)
+        vrange=np.max([150.,7*clust[ic].drv])
+        fig.suptitle('{:s} PM (mas/yr): {:4.2f} +/- {:4.2f}  {:4.2f} +/ {:4.2f} Ngood: {:d}'.format(
                       cluster,med_vra,clust[ic].drv, med_vdec,clust[ic].drv,len(jc)))
+        plots.plotp(ax,gaia['pmra'],gaia['pmdec'],color='k',
+                    xt='PMRA (mas/yr)',xr=np.array([med_vra-vrange,med_vra+vrange])/4.74/clust[ic].dist,
+                    yt='PMDEC (mas/yr)',yr=np.array([med_vdec-vrange,med_vdec+vrange])/4.74/clust[ic].dist)
+        plots.plotp(ax,gaia['pmra'][i2],gaia['pmdec'][i2],color='r',size=30)
+        plots.plotp(ax,gaia['pmra'][i2[j]],gaia['pmdec'][i2[j]],color='g',size=30)
+        fig.suptitle('{:s} PM (mas/yr): {:4.2f} +/- {:4.2f}  {:4.2f} +/ {:4.2f} Ngood: {:d}'.format(
+                      cluster,med_vra/4.74/clust[ic].dist,clust[ic].drv/4.73/clust[ic].dist, 
+                      med_vdec/4.74/clust[ic].dist,clust[ic].drv/4.74/clust[ic].dist,len(jc)))
         if hard is not None :
+            plt.draw()
             fig.savefig(hard+'/'+clust[ic].name+'_pm.png')
             plt.close()
         else :
@@ -619,6 +688,41 @@ def clusters(data,dir='clusters/',ratag='RA',dectag='DEC',rvtag='VHELIO',idtag='
     for ic in range(len(clust.name)) :
         print(clust[ic].name)
         j=clustmember(data,clust[ic].name,plot=True,hard=dir,ratag=ratag,dectag=dectag,rvtag=rvtag,idtag=idtag,btag=btag,rtag=rtag)
+        print(clust[ic].name,len(j))
+        # clusters to exclude here
+        if len(j) > 0 :
+            f.write('<TR><TD><A HREF='+clust[ic].name+'.txt>'+clust[ic].name+'</A><TD>{:12.6f}<TD>{:12.6f}<TD>{:8.2f}<TD>{:8.2f}<TD>{:8.2f}\n'.format(
+                    clust[ic].ra,clust[ic].dec,clust[ic].rad,clust[ic].rv,clust[ic].drv))
+            f.write('<TD><A HREF='+clust[ic].name+'_pos.png><IMG SRC='+clust[ic].name+'_pos.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_rv.png><IMG SRC='+clust[ic].name+'_rv.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_pm.png><IMG SRC='+clust[ic].name+'_pm.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_parallax.png><IMG SRC='+clust[ic].name+'_parallax.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_cmd.png><IMG SRC='+clust[ic].name+'_cmd.png width=300></A>\n')
+            f.write('<TD><A HREF='+clust[ic].name+'_kiel.png><IMG SRC='+clust[ic].name+'_kiel.png width=300></A>\n')
+            np.savetxt(dir+'/'+clust[ic].name+'.txt',data[j][idtag],fmt='%s')
+            for star in data[j][idtag] : fstars.write('{:s} {:s}\n'.format(star,clust[ic].name))
+    html.tail(f)
+    fstars.close()
+
+def dsph(data,dir='dsph/',ratag='RA',dectag='DEC',rvtag='VHELIO',idtag='APOGEE_ID',btag='J',rtag='K') :
+    """ Determine cluster members from input structure, make web pages with selection
+    """
+    try: os.mkdir(dir)
+    except: pass
+    # get the cluster data
+    clusts=dsphdata()
+    # master output text file
+    fstars=open(dir+'/alldsph.txt','w')
+    # HTML output
+    f=html.head(file=dir+'/dsph.html')
+    f.write('<A HREF=alldsph.txt> dSph stars list </a>')
+    f.write('<TABLE BORDER=2>\n')
+    f.write('<TR><TD>NAME<TD>RA<TD>DEC<TD>Radius<TD>RV<TD>Delta RV<TD>Position criterion<TD>RV criterion<TD>PM criterion<TD>Parallax criterion<TD> CMD')
+    clust=dsphdata()
+    for ic in range(len(clust.name)) :
+        print(clust[ic].name)
+        j=clustmember(data,clust[ic].name,plot=True,hard=dir,ratag=ratag,dectag=dectag,rvtag=rvtag,idtag=idtag,btag=btag,rtag=rtag,dsph=True,
+                      pmra=clust[ic].pmra,pmdec=clust[ic].pmdec, dist=False)
         print(clust[ic].name,len(j))
         # clusters to exclude here
         if len(j) > 0 :

@@ -131,7 +131,7 @@ class AspcapBitMask(BitMask):
           'CHI2_WARN','COLORTE_WARN','ROTATION_WARN','SN_WARN','SPEC_HOLE_WARN','ATMOS_HOLE_WARN','VSINI_WARN','',
           'TEFF_BAD','LOGG_BAD','VMICRO_BAD','M_H_BAD','ALPHA_M_BAD','C_M_BAD','N_M_BAD','STAR_BAD',
           'CHI2_BAD','COLORTE_BAD','ROTATION_BAD','SN_BAD','SPEC_HOLE_BAD','ATMOS_HOLE_BAD','VSINI_BAD','NO_ASPCAP_RESULT',
-          'MISSING_APSTAR','NO_GRID','BAD_FRAC_LOWSNR','BAD_FRAC_BADPIX','','','','',
+          'MISSING_APSTAR','NO_GRID','BAD_FRAC_LOWSNR','BAD_FRAC_BADPIX','FERRE_FAIL','','','',
           'PROBLEM_TARGET','','','','','','','',
           '','','','','','','','',
           '','','','','','','',''])
@@ -139,7 +139,7 @@ class AspcapBitMask(BitMask):
             2,2,2,2,2,2,0,0,
             1,1,0,0,0,0,0,1,
             1,1,1,1,1,2,0,1,
-            1,1,1,1,0,0,0,0,
+            1,1,1,1,1,0,0,0,
             1,0,0,0,0,0,0,0,
             0,0,0,0,0,0,0,0,
             0,0,0,0,0,0,0,0])
@@ -176,7 +176,8 @@ class AspcapBitMask(BitMask):
      'Grid point within 1 grid steps of hole-filled synthesis ',
      'Grid point within 1 grid steps of hole-filled atmosphere ',
      ' ',' ',
-     'Missing apStar file','Not processed by any ASPCAP grid','Fraction low SNR pixels > 0.9','','','','','',
+     'Missing apStar file','Not processed by any ASPCAP grid','Fraction low SNR pixels > 0.5',
+     'Fraction bad pixels > 0.5 or 0.33 in any chip','FERRE failure (bad input?)','','','',
      'Target extended or not suitable for standard star analysis','','','','','','','',
      '','','','','','','','',
      '','','','','','','',''
@@ -186,7 +187,7 @@ class ParamBitMask(BitMask):
     '''
     BitMask class for APOGEE ASPCAP bitmask (APOGEE_ASPCAPFLAG)
     '''
-    name =['GRIDEDGE_BAD','CALRANGE_BAD','OTHER_BAD','FERRE_BAD','PARAM_MISMATCH_BAD','','','',
+    name =['GRIDEDGE_BAD','CALRANGE_BAD','OTHER_BAD','FERRE_FAIL','PARAM_MISMATCH_BAD','','','',
            'GRIDEDGE_WARN','CALRANGE_WARN','OTHER_WARN','FERRE_WARN','PARAM_MISMATCH_WARN','OPTICAL_WARN','ERR_WARN','FAINT_WARN',
            'PARAM_FIXED','RV_WARN','','','','','','',
            'LOGG_CAL_RC','LOGG_CAL_RGB','LOGG_CAL_MS','LOGG_CAL_RGB_MS','','','','']

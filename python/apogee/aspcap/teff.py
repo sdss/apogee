@@ -329,6 +329,9 @@ def cal(a,caldir='cal/'):
     cal=fits.open(caldir+'/all_tecal.fits')[1].data[0]
     calteffmin=cal['caltemin']
     calteffmax=cal['caltemax']
+
+    a['PARAMFLAG'][gd,0] |= parammask.getval('CALRANGE_BAD')
+
     teff=clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
     mh=clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
     try: snr=clip(a['SNREV'][gd],0,200.)
@@ -340,6 +343,7 @@ def cal(a,caldir='cal/'):
     ok =np.where((a['FPARAM'][gd,0] >= calteffmin) & (a['FPARAM'][gd,0] <= calteffmax) )[0]
     a['PARAM'][gd[ok],0] = a['FPARAM'][gd[ok],0] - (cal['par2d'][0]+cal['par2d'][1]*mh[ok]+cal['par2d'][2]*teff[ok])
     a['PARAM_COV'][gd[ok],0,0] = err.elemerr(cal['errpar'],a['FPARAM'][gd[ok],0]-4500.,snr[ok]-100.,a['FPARAM'][gd[ok],3])**2
+    a['PARAMFLAG'][gd[ok],0] &= ~parammask.getval('CALRANGE_BAD')
 
     return 
 

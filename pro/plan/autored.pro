@@ -5,11 +5,13 @@
 ;      runs runapred if plate not already done
 ;      runs mkhtml,mkhtmlsum,mkmonitor when all plates for a given MJD are done
 ;-
-pro autored,mjds,vers=vers,norun=norun,apogees=apogees,override=override,aspcap=aspcap,suffix=suffix
+pro autored,mjds,vers=vers,norun=norun,apogees=apogees,override=override,aspcap=aspcap,suffix=suffix,maxplate=maxplate
+
 
 ; setup version and directories
 if keyword_set(vers) then apsetver,vers=vers else stop,'need to set vers'
 if ~keyword_set(aspcap) then aspcap='a'
+if ~keyword_set(maxplate) then maxplate=15000
 
 if keyword_set(apogees) then begin
   prefix='as' 
@@ -93,7 +95,7 @@ for i=0,n_elements(mjds)-1 do begin
         readcol,apogee_data+'/'+cmjd+'/'+cmjd+'.log',n,f,ptype,plateid,skip=3,format='(i,a,x,x,a,i)'
         complete=1
         for j=0,n_elements(f)-1 do begin
-         if plateid[j] lt 15000 then begin
+         if plateid[j] lt maxplate then begin
           if ~file_test(apogee_data+'/'+cmjd+'/'+f[j]) then complete=0 else begin
             ; check to see if plugmap is available
             h=headfits(apogee_data+'/'+cmjd+'/'+f[j],ext=1)
@@ -113,7 +115,7 @@ for i=0,n_elements(mjds)-1 do begin
           print,cmjd+' not done and transferred, creating plan files and running'
           undefine,planfiles
           ; make the automatic reduction file and copy to MJD5.pro if it doesn't exist
-          apmkplan,mjd,planfiles=planfiles,apogees=apogees,vers=vers
+          apmkplan,mjd,planfiles=planfiles,apogees=apogees,vers=vers,maxplate=maxplate
           if ~file_test(getenv('APOGEEREDUCEPLAN_DIR')+'/pro/'+telescope+'/'+telescope+'_'+cmjd+'.pro') then begin
             file_copy,getenv('APOGEEREDUCEPLAN_DIR')+'/pro/'+telescope+'/'+telescope+'_'+cmjd+'auto.pro',$
                       getenv('APOGEEREDUCEPLAN_DIR')+'/pro/'+telescope+'/'+telescope+'_'+cmjd+'.pro' 

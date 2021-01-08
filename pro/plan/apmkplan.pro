@@ -2,11 +2,13 @@
 ; apmkplan:  automatically make apPlan files for a given MJD
 ;-
 
-pro write_plateplan,out,plate,cmjd,exp,sky,dome,planfiles
+pro write_plateplan,out,plate,cmjd,exp,sky,dome,planfiles,maxplate=maxplate
+
+if ~keyword_set(maxplate) then maxplate=15000
 
  ; procedure to write out the information for a given plate, once the
  ;   variables have been loaded
- if plate ge 15000 then return
+ if plate ge maxplate then return
 
  cplate=strtrim(string(format='(i6.4)',plate),2)
  printf,out,'plate='+cplate
@@ -26,7 +28,7 @@ pro write_plateplan,out,plate,cmjd,exp,sky,dome,planfiles
 
 end
 
-pro apmkplan,mjd,planfiles=planfiles,apogees=apogees,vers=vers
+pro apmkplan,mjd,planfiles=planfiles,apogees=apogees,vers=vers,maxplate=maxplate
 
 if ~keyword_set(vers) then stop,'need to set vers'
 
@@ -77,7 +79,7 @@ for i=0,n_elements(files)-1 do begin
 
  ; if there has been a plate change, write the plan file from previous plate
  if plate ne oldplate and nexp gt 0 and n_elements(dome) gt 0 then begin
-   write_plateplan,out,oldplate,cmjd,exp,sky,dome,planfiles
+   write_plateplan,out,oldplate,cmjd,exp,sky,dome,planfiles,maxplate=maxplate
    nexp=0
    nsky=0
    undefine,sky
@@ -128,7 +130,7 @@ endfor
 
 ; write out the last plate if we haven't already
 if n_elements(dome) eq 0 then dome=0
-if nexp gt 0 then write_plateplan,out,plate,cmjd,exp,sky,dome,planfiles
+if nexp gt 0 then write_plateplan,out,plate,cmjd,exp,sky,dome,planfiles,maxplate=maxplate
 
 ; write out the dark/calibration frame information
 cplate='0000'

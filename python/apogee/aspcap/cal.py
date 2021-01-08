@@ -108,13 +108,15 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
     # HR
     fig,ax=plots.multi(1,len(all),hspace=0.001)
     ax=np.atleast_1d(ax)
-    for i,(a,j) in enumerate(zip(all,inds)) :
+    for i,(a,j,m) in enumerate(zip(all,inds,mult)) :
         ax[i].cla()
         plots.plotc(ax[i],a['FPARAM'][j,0],a['FPARAM'][j,1],a['FPARAM'][j,3],
                     xr=[6000,3000],yr=[6,-1],xt='Teff',yt='log g',zr=[-2,0.5])
+        plots.plotp(ax[i],a['FPARAM'][m,0],a['FPARAM'][m,1],color='k')
         fig.suptitle(cluster)
     if hard is not None:
         fig.savefig(hard+cluster+suffix+'_'+'hr'+'.png')
+        plt.close()
 
     # CHI2
     fig,ax=plots.multi(1,len(all),hspace=0.001)
@@ -123,6 +125,7 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
         ax[i].cla()
         plots.plotc(ax[i],a['FPARAM'][j,1],a['ASPCAP_CHI2'][j],a['FPARAM'][j,zindex],yt='CHI2',
                     xr=[0,5],yr=[0,30],xt='log g',zr=zr)
+        plots.plotp(ax[i],a['FPARAM'][m,1],a['ASPCAP_CHI2'][m],color='k')
         fig.suptitle(cluster)
     if hard is not None:
         fig.savefig(hard+cluster+suffix+'_'+'chi2'+'.png')
@@ -291,7 +294,10 @@ def allclust(all,clusters=['M67','N7789','N6819','N6791','M3','M15'],out='clust'
             row.append(fig)
         grid.append(row)
 
-    html.htmltab(grid,file='plots/'+out+'.html',xtitle=clusters)
+    xtit=[]
+    for c in clusters :
+        xtit.append('<A HREF={:s}.html> {:s} </A>'.format(c,c))
+    html.htmltab(grid,file='plots/'+out+'.html',xtitle=xtit)
     return allinds
 
     
@@ -599,8 +605,8 @@ def calsample(indata=None,root='stars.calsample',file='clust.html',plot=True,clu
         all.extend(jc)
    
     if solarneigh :
-        solar=np.where((data['gaia_parallax_error']/abs(data['gaia_parallax']) < 0.1) )[0]
-        distance = 1000./data['gaia_parallax'][solar]
+        solar=np.where((data['GAIA_PARALLAX_ERROR']/abs(data['GAIA_PARALLAX']) < 0.1) )[0]
+        distance = 1000./data['GAIA_PARALLAX'][solar]
         x,y,z,r=lbd2xyz(data['GLON'][solar],data['GLAT'][solar],distance/1000.)
         gd = np.where((abs(z) < 0.5) & (r>8) & (r<9) & (data['RV_TEFF'][solar]<5500) & (data['H'][solar] < 9) )[0]
         solar=solar[gd]
@@ -620,11 +626,11 @@ def calsample(indata=None,root='stars.calsample',file='clust.html',plot=True,clu
         apokasc = fits.open(os.environ['APOGEE_DIR']+'/data/apokasc/'+apokasc+'.fits')[1].data
         i1,i2=match.match(data['APOGEE_ID'],apokasc['2MASS_ID'])
         rgb=np.where(apokasc['CONS_EVSTATES'][i2] == 'RGB')[0]
-        print('Number of APOKASC RGB stars (every 4th): ',len(rgb[0:-1:3]))
-        jc.extend(i1[rgb][0:-1:4])
+        print('Number of APOKASC RGB stars (every 10th): ',len(rgb[::10]))
+        jc.extend(i1[rgb][::10])
         rc=np.where(apokasc['CONS_EVSTATES'][i2] == 'RC')[0]
-        print('Number of APOKASC RC stars (every 2nd): ',len(rc[0:-2:2]))
-        jc.extend(i1[rc][0:-1:2])
+        print('Number of APOKASC RC stars (every 10th): ',len(rc[::10]))
+        jc.extend(i1[rc][::10])
         rc=np.where(apokasc['CONS_EVSTATES'][i2] == '2CL')[0]
         print('Number of APOKASC 2CL stars: ',len(rc))
         jc.extend(i1[rc])
@@ -632,7 +638,7 @@ def calsample(indata=None,root='stars.calsample',file='clust.html',plot=True,clu
         print('Number of APOKASC RC/2CL stars: ',len(rc))
         jc.extend(i1[rc])
         logg = 'APOKASC2_LOGG'  # older version used LOGG_SYSD_SCALING
-        lowg=np.where((apokasc[logg][i2] < 2) & (apokasc[logg][i2] > 0.1))[0]
+        lowg=np.where((apokasc[logg][i2] < 1) & (apokasc[logg][i2] > 0.1))[0]
         print('Number of APOKASC low log g  stars: ',len(lowg))
         jc.extend(i1[lowg])
         highg=np.where((apokasc[logg][i2] > 3.8) & (apokasc[logg][i2] < 5.5))[0]
@@ -644,12 +650,14 @@ def calsample(indata=None,root='stars.calsample',file='clust.html',plot=True,clu
         lowz=np.where((apokasc['FE_H_ADOP_COR'][i2] < -1.) & (apokasc['FE_H_ADOP_COR'][i2] > -90.))[0]
         print('Number of APOKASC low [Fe/H] stars: ',len(lowz))
         jc.extend(i1[lowz])
+        jc=list(set(jc))
+        print('Total number of APOKASC stars: ',len(jc))
         if mkindiv: mklinks(data,jc,dir+'_apokasc',apred=apred,root=root)
         all.extend(jc)
     
     if coolstars :
         jc=[]
-        j=np.where((data['FIELD'] == 'GALCEN') or (data['FIELD'] == b'GALCEN'))[0]
+        j=np.where((data['FIELD'].astype(str) == 'GALCEN') )[0]
         print('Number of GALCEN stars: ',len(j))
         jc.extend(j)
         stars = ascii.read(os.environ['APOGEE_DIR']+'/data/calib/coolstars.txt',names=['id'],format='fixed_width_no_header')
@@ -660,7 +668,7 @@ def calsample(indata=None,root='stars.calsample',file='clust.html',plot=True,clu
         all.extend(jc)
 
     if cal1m :
-        j=np.where((data['FIELD'] == 'calibration') or (data['FIELD'] == b'calibration'))[0]
+        j=np.where((data['FIELD'].astype(str) == 'calibration'))[0]
         print('Number of 1m calibration stars: ',len(j))
         all.extend(j)
         j=np.where(data['FIELD'] == 'RCB')[0]
@@ -702,7 +710,7 @@ def calsample(indata=None,root='stars.calsample',file='clust.html',plot=True,clu
         i1,i2=match.match(data['APOGEE_ID'][jn],stars['id'])
         jc.extend(jn[i1])
         i1,i2=match.match(data['APOGEE_ID'][js],stars['id'])
-        jc.extend(js[i2])
+        jc.extend(js[i1])
         if mkindiv: mklinks(data,jc,dir+'_ns',apred=apred,root=root)
         print('Number of N/S overlap stars: ',len(jc))
         all.extend(jc)
@@ -718,7 +726,7 @@ def calsample(indata=None,root='stars.calsample',file='clust.html',plot=True,clu
         i1,i2=match.match(data['APOGEE_ID'][jn],stars['id'])
         jc=list(jn[i1])
         i1,i2=match.match(data['APOGEE_ID'][js],stars['id'])
-        jc.extend(js[i2])
+        jc.extend(js[i1])
         print('Number of '+special+' stars: ',len(i1))
         if mkindiv: mklinks(data,jc,dir+'_special',apred=apred,root=root)
         all.extend(jc)
@@ -1166,9 +1174,22 @@ def elem(a,caldir='cal/') :
     tmp[giant] = True
     dwarf = np.where(~tmp)[0]
 
-    new_param=np.zeros([len(a),9])-9999.99
-    new_x_h=np.zeros(len(a))-9999.99
-    new_x_m=np.zeros(len(a))-9999.99
+    # initialize calibrated arrays and flag
+    for i in [3,4,5,6] :
+        a['PARAM'][:,i] = np.nan
+        a['PARAMFLAG'][gd,i] |= parammask.getval('CALRANGE_BAD')
+
+    a['X_H'][:,:] = np.nan
+    a['X_H_ERR'][:,:] = np.nan
+    a['X_M'][:,:] = np.nan
+    a['X_M_ERR'][:,:] = np.nan
+
+    # [N/M] and [C/M] parameters
+    for i in [4,5] : 
+        a['PARAM'][gd,i] = a['FPARAM'][gd,i]
+        a['PARAMFLAG'][gd,i] &= ~parammask.getval('CALRANGE_BAD')
+
+    # calibrate [M/H], [alpha/M], and individual elemets
     els = ['M','alpha']
     els.extend(aspcap.elems()[0])
     elemtoh = aspcap.elems()[1]
@@ -1180,6 +1201,7 @@ def elem(a,caldir='cal/') :
             ok = gd[dwarf]
 
         for el in els :
+            print(el)
             iel = np.where(cal['elem'] == el)[0][0]
             calteffmin=cal['caltemin'][iel]
             calteffmax=cal['caltemax'][iel]
@@ -1190,7 +1212,12 @@ def elem(a,caldir='cal/') :
 
             teff=clip(a['FPARAM'][ok[gdel],0],cal['temin'][iel],cal['temax'][iel])
             mh=clip(a['FPARAM'][ok[gdel],3],cal['femin'][iel],cal['femax'][iel])
-            snr=clip(a['SNREV'][ok[gdel]],0,200.)
+            try: snr=clip(a['SNREV'][ok[gdel]],0,200.)
+            except:
+                print('No SNREV, continnue with SNR?')
+                pdb.set_trace()
+                snr=clip(a['SNR'][ok[gdel]],0,200.)
+
             x = teff-cal['te0'][iel]
 
             # "internal" calibration
@@ -1203,15 +1230,15 @@ def elem(a,caldir='cal/') :
                 fit+=cal['extpar'][iel,iorder] * x**(iorder)
 
             if el == 'M' :
-                new_param[ok[gdel],3] = a['FPARAM'][ok[gdel],3]-fit
                 a['PARAM'][ok[gdel],3] = a['FPARAM'][ok[gdel],3]-fit
                 a['PARAM_COV'][ok[gdel],3,3] = err.elemerr(cal['errpar'][iel],
                     a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)**2
+                a['PARAMFLAG'][ok[gdel],3] &= ~parammask.getval('CALRANGE_BAD')
             elif el == 'alpha' :
-                new_param[ok[gdel],6] = a['FPARAM'][ok[gdel],6]-fit
                 a['PARAM'][ok[gdel],6] = a['FPARAM'][ok[gdel],6]-fit
                 a['PARAM_COV'][ok[gdel],6,6] = err.elemerr(cal['errpar'][iel],
                     a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)**2
+                a['PARAMFLAG'][ok[gdel],6] &= ~parammask.getval('CALRANGE_BAD')
             else :
                 jel = np.where(aspcap.elems()[0] == el)[0]
                 print(iel,jel,elemtoh[jel])
@@ -1226,7 +1253,7 @@ def elem(a,caldir='cal/') :
                 a['X_M_ERR'][ok[gdel],iel] = err.elemerr(cal['errpar'][iel],
                     a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)
 
-    return new_param,new_x_h,new_x_m
+    return
 
 
 def clip(x,xmin,xmax) :
@@ -1253,6 +1280,8 @@ def lbd2xyz(l,b,d,R0=8.5) :
     return x, y, z, r
 
 def stats(a,subsets=None) :
+    """ Return standard deviation and mean absolute deviation
+    """
     med=np.median(a)
     out=[a.std(), np.median(np.abs(a-med))]
     if subsets is not None :

@@ -15,7 +15,7 @@ from apogee.speclib import atmos
 from apogee.utils import spectra
 from apogee.plan import mkslurm
 
-def mkgriddirs(configfile,nosynth=False,synthonly=False,writeraw=False,queryport=1052,digits=3,py2=False) :
+def mkgriddirs(configfile,nosynth=False,synthonly=False,writeraw=False,queryport=1052,digits=3,py2=False,np=True) :
     """ Script to create output directories and plan and batch queue files for all grids listed in master grid configuration file
     """
 
@@ -79,10 +79,12 @@ def mkgriddirs(configfile,nosynth=False,synthonly=False,writeraw=False,queryport
         else :
             if writeraw : raw = '--writeraw'
             else : raw = ''
-            mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.yml',queryhost=os.uname()[1],queryport=queryport,maxrun=12,time='24:00:00')
+            if np : maxrun=48
+            else : maxrun=12
+            mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.yml',queryhost=os.uname()[1],queryport=queryport,np=np,maxrun=maxrun,time='240:00:00')
             #mkslurm.write('bundle plan/'+name+'_??.yml',queryhost=os.uname()[1],queryport=queryport,maxrun=32)
-            mkslurm.write('"pca --pcas 12 75 --incremental --threads 0" '+raw+' plan/'+name+'.yml',maxrun=1,time='72:00:00',queryhost=os.uname()[1],queryport=queryport)
-            mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.yml',queryhost=os.uname()[1],queryport=queryport,maxrun=12,time='72:00:00',
+            mkslurm.write('"pca --pcas 12 75 --incremental --threads 0" '+raw+' plan/'+name+'.yml',maxrun=1,time='72:00:00',np=np,queryhost=os.uname()[1],queryport=queryport)
+            mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.yml',queryhost=os.uname()[1],queryport=queryport,np=np,maxrun=maxrun,time='240:00:00',
                           postcmd='pca --pcas 12 75 --incremental --threads 0 '+raw+' plan/'+name+'.yml',name='mkgridlsf_pca')
 
 def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,oasplit=True,vtsplit=True,el='',digits=3,py2=False) :

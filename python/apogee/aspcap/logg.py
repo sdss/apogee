@@ -319,6 +319,7 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
     # Do some 2D fits for RGB stars
     fig,ax=plots.multi(2,1,figsize=(12,6))
     # linear in logg and [M/H]
+    print('rgbfit', len(rgb))
     rgbfit = fit.fit2d(allstar['FPARAM'][i1[rgb],1],allstar['FPARAM'][i1[rgb],3],
         allstar[param][i1[rgb],1]-apokasc[logg][i2[rgb]],zr=[-1,0.5],gdrange=[-2,2],yr=[-3,1],xr=[1,4],degree=1,
         plot=ax[0],yt='[M/H]',xt='log g',zt='$\Delta log g$',reject=0.3)
@@ -332,6 +333,7 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
     params=fit.linear(data,design)[0]
     rgbrms=(allstar[param][i1[rgb],1]-rgbfit(allstar['FPARAM'][i1[rgb],1],allstar['FPARAM'][i1[rgb],3])-apokasc[logg][i2[rgb]]).std()
     ax[0].text(0.98,0.98,'rms: {:5.3f}'.format(rgbrms),transform=ax[0].transAxes,va='top',ha='right')
+    print('errfit')
     rgberrpar = err.errfit(allstar[param][i1[rgb],0],allstar['SNR'][i1[rgb]],allstar[param][i1[rgb],3],
                         allstar[param][i1[rgb],1]-rgbfit(allstar['FPARAM'][i1[rgb],1],allstar['FPARAM'][i1[rgb],3])-apokasc[logg][i2[rgb]],
                         out=out+'_rgb',title='log g',zr=[0,0.2])
@@ -340,10 +342,12 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
 
     # RC fits
     # linear in logg and [M/H]
+    print('rcfit',len(rc))
     rcfit = fit.fit2d(allstar['FPARAM'][i1[rc],1],allstar['FPARAM'][i1[rc],3],
         allstar[param][i1[rc],1]-apokasc[logg][i2[rc]],zr=[-1,0.5],gdrange=[-2,2],yr=[-3,1],xr=[1,4],degree=1,
         plot=ax[1],yt='[M/H]',xt='log g',zt='$\Delta log g$',reject=0.3)
     # quadratic in logg
+    print('rcfit 2')
     rcfit2 = fit.fit1d(allstar['FPARAM'][i1[rcall],1], allstar[param][i1[rcall],1]-apokasc[logg][i2[rcall]],zr=[-1,0.5],yr=[-3,1],xr=[1,4],degree=2,reject=0.3)
     rcrms=(allstar[param][i1[rc],1]-rcfit(allstar['FPARAM'][i1[rc],1],allstar['FPARAM'][i1[rc],3])-apokasc[logg][i2[rc]]).std()
     rcerrpar = err.errfit(allstar[param][i1[rc],0],allstar['SNR'][i1[rc]],allstar[param][i1[rc],3],
@@ -711,13 +715,14 @@ def kurucz_marcs(logg='LOGG_SYD_SCALING',apokasc='APOKASC_cat_v3.6.0.fits') :
 def cal(a,caldir='cal/') :
     """ apply log g calibration
     """
-    #a=fits.open('allStar-r12-l33.fits')[1].data
 
+    # get bitmask, and select stars without STAR_BAD
     aspcapmask=bitmask.AspcapBitMask()
     parammask=bitmask.ParamBitMask()
     starmask=bitmask.StarBitMask()
     gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
 
+    # get calibration data
     cal=fits.open(caldir+'/giant_loggcal.fits')[1].data
     rgbsep=cal['rgbsep'][0]
     cnsep=cal['cnsep'][0]
@@ -729,6 +734,9 @@ def cal(a,caldir='cal/') :
     calteffmin=cal['calteffmin']
     calteffmax=cal['calteffmax']
 
+    # start with CALRANGE_BAD
+    a['PARAMFLAG'][gd,1] |= parammask.getval('CALRANGE_BAD')
+
     # for stars that aren't bad, get cn and dt
     cn=a['FPARAM'][gd,4]-a['FPARAM'][gd,5]
     dt=a['FPARAM'][gd,0] - (rgbsep[0] + rgbsep[1]*(a['FPARAM'][gd,1]-2.5) +rgbsep[2]*a['FPARAM'][gd,3])
@@ -738,7 +746,6 @@ def cal(a,caldir='cal/') :
         pdb.set_trace()
         snr=clip(a['SNR'][gd],0,200.)
 
-
     # select RC
     rc=np.where((a['FPARAM'][gd,1]<rclim[1])&(a['FPARAM'][gd,1]>rclim[0])&
                 (cn>cnsep[0]+cnsep[1]*a['FPARAM'][gd,3] + cnsep[2]*dt)&
@@ -747,7 +754,8 @@ def cal(a,caldir='cal/') :
     rccorr=rcfit2[0] + rcfit2[1]*a['FPARAM'][gd,1] + rcfit2[2]*a['FPARAM'][gd,1]**2
     a['PARAM'][gd[rc],1]=a['FPARAM'][gd[rc],1]-rccorr[rc]
     a['PARAM_COV'][gd[rc],1,1]=err.elemerr(cal['rcerrpar'][0],a['FPARAM'][gd[rc],0]-4500,snr[rc]-100,a['FPARAM'][gd[rc],3])**2
-    #rcidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RC')) >0)[0]
+    a['PARAMFLAG'][gd[rc],1] &= ~parammask.getval('CALRANGE_BAD')
+    a['PARAMFLAG'][gd[rc],1] |= parammask.getval('LOGG_CAL_RC')
 
     # select RGB
     rgb=np.where(((a['FPARAM'][gd,1]>rclim[1])|(a['FPARAM'][gd,1]<rclim[0])|
@@ -762,8 +770,10 @@ def cal(a,caldir='cal/') :
                        rgbfit2[3]*logg**3 + rgbfit2[4]*mh )
     a['PARAM'][gd[rgb],1]=a['FPARAM'][gd[rgb],1]-rgbcorr[rgb]
     a['PARAM_COV'][gd[rgb],1,1]=err.elemerr(cal['rgberrpar'][0],a['FPARAM'][gd[rgb],0]-4500,snr[rgb]-100,a['FPARAM'][gd[rgb],3])**2
-    #rgbidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RGB')) >0)[0]
+    a['PARAMFLAG'][gd[rgb],1] &= ~parammask.getval('CALRANGE_BAD')
+    a['PARAMFLAG'][gd[rc],1] |= parammask.getval('LOGG_CAL_RGB')
 
+    # dwarfs
     cal=fits.open(caldir+'/dwarf_loggcal.fits')[1].data
     teff=clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
     logg=clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
@@ -773,12 +783,19 @@ def cal(a,caldir='cal/') :
     ms=np.where(a['FPARAM'][gd,1] > cal['calloggmin'])[0]
     a['PARAM'][gd[ms],1]=a['FPARAM'][gd[ms],1]-mscorr[ms]
     a['PARAM_COV'][gd[ms],1,1]=err.elemerr(cal['errpar'][0],a['FPARAM'][gd[ms],0]-4500,snr[ms]-100,a['FPARAM'][gd[ms],3])**2
-    #msidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_MS')) >0)[0]
+    a['PARAMFLAG'][gd[ms],1] &= ~parammask.getval('CALRANGE_BAD')
+    a['PARAMFLAG'][gd[rc],1] |= parammask.getval('LOGG_CAL_MS')
 
+    # dwrarf-RGB transition
     trans=np.where((a['FPARAM'][gd,1] < 4) & (a['FPARAM'][gd,1] > 3.5) &
                 (a['FPARAM'][gd,0] < calteffmax) )[0]
     ms_weight=(a['FPARAM'][gd[trans],1]-3.5)/0.5
     a['PARAM'][gd[trans],1] = a['FPARAM'][gd[trans],1]-(mscorr[trans]*ms_weight+rgbcorr[trans]*(1-ms_weight))
+    a['PARAMFLAG'][gd[trans],1] &= ~parammask.getval('CALRANGE_BAD')
+    a['PARAMFLAG'][gd[rc],1] |= parammask.getval('LOGG_CAL_RGB_MS')
+    a['PARAMFLAG'][gd[trans],1] &= ~parammask.getval('LOGG_CAL_RC')
+    a['PARAMFLAG'][gd[trans],1] &= ~parammask.getval('LOGG_CAL_RGB')
+    a['PARAMFLAG'][gd[trans],1] &= ~parammask.getval('LOGG_CAL_MS')
 
     return 
 

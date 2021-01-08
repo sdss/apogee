@@ -70,9 +70,9 @@ def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=Non
             else :
                zfit=pfit(x)
             plots.plotc(plot,xdata,ydata,zplot,xr=xr,yr=yr,zr=zr,
-                   xt=xt,yt=xt,zt=yt,colorbar=True,size=15)
+                   xt=xt,yt=xt,zt=yt,colorbar=True,size=15,cmap='rainbow')
             plot.imshow(zfit,extent=[xr[1],xr[0],yr[1],yr[0]],
-                aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower')
+                aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower',cmap='rainbow')
         else :
             # 1D plot color-coded by auxiliary variable
             x = np.linspace(xr[0],xr[1],200)
@@ -147,10 +147,10 @@ def fit2d(xdata,ydata,zdata,degree=1,reject=0,plot=None,xr=None,yr=None,zr=None,
         y, x = np.mgrid[yr[1]:yr[0]:200j, xr[1]:xr[0]:200j]
         if log :
             plot.imshow(10.**pfit(x,y),extent=[xr[1],xr[0],yr[1],yr[0]],
-                aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower')
+                aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower',cmap='rainbow')
         else :
             plot.imshow(pfit(x,y),extent=[xr[1],xr[0],yr[1],yr[0]],
-                aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower')
+                aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower',cmap='rainbow')
         #plt.show()
 
     return pfit

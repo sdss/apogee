@@ -103,8 +103,8 @@ def clip(x,lim,eps=None) :
     tmp=np.max([lim[0],np.min([lim[1],x])])
     # move off limit if requested
     if eps is not None :
-        if np.isclose(tmp,lim[0]) : tmp+=eps
-        if np.isclose(tmp,lim[1]) : tmp-=eps
+        if np.isclose(tmp,lim[0],atol=0.001) : tmp+=eps
+        if np.isclose(tmp,lim[1],atol=0.001) : tmp-=eps
     return tmp
 
 
@@ -202,10 +202,6 @@ def read(name,libfile) :
             a['FPARAM_COV'][:,index,jindex]=covar[:,i,j]
 
         # check for grid edge and flag
-        warn = np.where((val < libhead0['LLIMITS'][i]+libhead0['STEPS'][i]/2.) |
-                        (val > libhead0['LLIMITS'][i]+libhead0['STEPS'][i]*(libhead0['N_P'][i]-1-1./2)) )[0]
-        a['PARAMFLAG'][warn,index] |= parammask.getval('GRIDEDGE_WARN')
-        a['ASPCAPFLAG'][warn] |= aspcapmask.getval(flagnames[index]+'_WARN')
         bad = np.where((val < libhead0['LLIMITS'][i]+libhead0['STEPS'][i]/8.) )[0]
         if pname != 'N' and pname !='LOG10VDOP' and pname != 'LGVSINI' :
             a['PARAMFLAG'][bad,index] |= parammask.getval('GRIDEDGE_BAD')
@@ -214,6 +210,16 @@ def read(name,libfile) :
         if pname != 'N' :
             a['PARAMFLAG'][bad,index] |= parammask.getval('GRIDEDGE_BAD')
             a['ASPCAPFLAG'][bad] |= aspcapmask.getval(flagnames[index]+'_BAD')
+        warn = np.where((a['PARAMFLAG'][:,index]&parammask.getval('GRIDEDGE_BAD') ==0) &
+                        (val < libhead0['LLIMITS'][i]+libhead0['STEPS'][i]/2.) |
+                        (val > libhead0['LLIMITS'][i]+libhead0['STEPS'][i]*(libhead0['N_P'][i]-1-1./2)) )[0]
+        a['PARAMFLAG'][warn,index] |= parammask.getval('GRIDEDGE_WARN')
+        a['ASPCAPFLAG'][warn] |= aspcapmask.getval(flagnames[index]+'_WARN')
+        bad = np.where(val < -999)[0]
+        a['PARAMFLAG'][bad,index] |= parammask.getval('FERRE_FAIL')
+        a['ASPCAPFLAG'][bad] |= aspcapmask.getval(flagnames[index]+'_BAD')
+        a['ASPCAPFLAG'][bad] |= aspcapmask.getval('FERRE_FAIL')
+
 
     # put spectral data into a structured array
     form='{:d}f4'.format(nwave)

@@ -7,9 +7,6 @@ defaults : &defaults
     npart :     12
     maskdir :   filters_CeNdYbC13
     apred :     r12
-    telescope : apo25m
-    lsfid :     14600018
-    waveid :    13140000
     synthcode : turbospec
     atmos : marcs
     nlte : False
@@ -21,6 +18,17 @@ defaults : &defaults
     vmicro : [0.372160,-0.090531,-0.000802,0.001263,-0.027321]
     elem : ['']
     h2o : 0
+
+apogee-n: &apogee-n
+    telescope : apo25m
+    lsfid :     14600018
+    waveid :    13140000
+
+apogee-s: &apogee-s
+    telescope : lco25m
+    lsfid :   22940020
+    waveid :  22670000
+
 
 giant: &giant
     <<: *defaults
@@ -172,6 +180,27 @@ lsfd: &lsfd
     smooth : lsfd
     suffix : turbo20
     lsffiber : [5,15,25,35,45]
+lsfcombos: &lsfcombos
+    <<: *apogee-s
+    smooth : lsfcombo5s
+    lsffiber : [50,100,150,200,250]
+lsfas: &lsfas
+    <<: *apogee-s
+    smooth : lsfas
+    lsffiber : [166,196,226,256,286]
+lsfbs: &lsfbs
+    <<: *apogee-s
+    smooth : lsfbs
+    lsffiber : [95,107,120,132,144]
+lsfcs: &lsfcs
+    <<: *apogee-s
+    smooth : lsfcs
+    lsffiber : [37,49,60,71,83]
+lsfds: &lsfds
+    <<: *apogee-s
+    smooth : lsfds
+    lsffiber : [4,10,16,22,28]
+
 GRID :
   - <<: *GKg
     <<: *lsfcombo 
@@ -183,3 +212,13 @@ GRID :
     <<: *lsfcombo 
   - <<: *Md
     <<: *lsfcombo 
+  - <<: *GKg
+    <<: *lsfcombos
+  - <<: *Mg
+    <<: *lsfcombos
+  - <<: *Fd
+    <<: *lsfcombos
+  - <<: *GKd
+    <<: *lsfcombos
+  - <<: *Md
+    <<: *lsfcombos

@@ -7,9 +7,6 @@ defaults : &defaults
     npart :     12
     maskdir :   filters_CeNdYbC13
     apred :     r12
-    telescope : apo25m
-    lsfid :     14600018
-    waveid :    13140000
     synthcode : synspec
     atmos : marcs
     nlte : False
@@ -22,6 +19,16 @@ defaults : &defaults
     elem : ['']
     h2o : 0
 
+apogee-n: &apogee-n
+    telescope : apo25m
+    lsfid :     14600018
+    waveid :    13140000
+
+apogee-s: &apogee-s
+    telescope : lco25m
+    lsfid :   22940020
+    waveid :  22670000
+
 giant: &giant
     <<: *defaults
     mh0 : -2.5
@@ -33,6 +40,30 @@ giant: &giant
     cm0 : -1.5
     dcm : 0.25
     ncm : 11
+    nm0 : -0.5
+    dnm : 0.5
+    nnm : 6
+    vt0 : -0.522878
+    dvt : 0.301030
+    nvt : 5
+    rot0 : 0.176091
+    drot : 0.301030
+    nrot : 1
+    kernel : gauss
+    npca : 75
+    solarisotopes : 2
+giantfine: &giantfine
+    <<: *defaults
+    mh0 : -2.5
+    dmh : 0.25
+    nmh : 15
+    am0 : -0.75
+    dam : 0.125
+    nam : 15
+    cmnear : True
+    cm0 : -0.775
+    dcm : 0.125
+    ncm : 15
     nm0 : -0.5
     dnm : 0.5
     nnm : 6
@@ -71,16 +102,25 @@ dwarf: &dwarf
 
 GKg : &GKg
     <<: *giant
-    specdir : sgGK_200921
+    specdir : sgGK_200921lte
     teff0 : 3500
     dteff : 250
     nteff : 11
     logg0 : 0
     dlogg : 0.5
     nlogg : 10
+Mg : &Mgfine
+    <<: *giant
+    specdir : sgMfine_200921lte
+    teff0 : 3000
+    dteff : 100
+    nteff : 11
+    logg0 : -0.5
+    dlogg : 0.5
+    nlogg : 8
 Mg : &Mg
     <<: *giant
-    specdir : sgM_200921
+    specdir : sgM_200921lte
     teff0 : 3000
     dteff : 100
     nteff : 11
@@ -89,7 +129,7 @@ Mg : &Mg
     nlogg : 8
 Fd: &Fd
     <<: *dwarf
-    specdir : sdF_200921
+    specdir : sdF_200921lte
     npca : 25
     r0 : 0.5
     solarisotopes : 1
@@ -101,7 +141,7 @@ Fd: &Fd
     nlogg : 7
 GKd: &GKd
     <<: *dwarf
-    specdir : sdGK_200921
+    specdir : sdGK_200921lte
     solarisotopes : 1
     teff0 : 3500
     dteff : 250
@@ -111,7 +151,7 @@ GKd: &GKd
     nlogg : 7
 Md: &Md
     <<: *dwarf
-    specdir : sdM_200921
+    specdir : sdM_200921lte
     teff0 : 3000
     dteff : 100
     nteff : 11
@@ -120,7 +160,7 @@ Md: &Md
     nlogg : 7
 AB: &AB
     <<: *dwarf
-    specdir : sdAB_200921
+    specdir : sdAB_200921lte
     teff0 : 7000
     dteff : 500
     nteff : 27
@@ -129,33 +169,144 @@ AB: &AB
     nlogg : 7
 
 lsfcombo: &lsfcombo
-    smooth : lsfcombo5_dr17
-    suffix : dr17
+    <<: *apogee-n
+    smooth : lsfcombo5
     lsffiber : [50,100,150,200,250]
 lsfa: &lsfa
-    smooth : lsfa_dr17
-    suffix : dr17
+    <<: *apogee-n
+    smooth : lsfa
     lsffiber : [266,272,280,288,296]
 lsfb: &lsfb
-    smooth : lsfb_dr17
-    suffix : dr17
+    <<: *apogee-n
+    smooth : lsfb
     lsffiber : [160,183,206,228,250]
 lsfc: &lsfc
-    smooth : lsfc_dr17
-    suffix : dr17
+    <<: *apogee-n
+    smooth : lsfc
     lsffiber : [60,80,100,119,140]
 lsfd: &lsfd
-    smooth : lsfd_dr17
-    suffix : dr17
+    <<: *apogee-n
+    smooth : lsfd
     lsffiber : [5,15,25,35,45]
+lsfcombos: &lsfcombos
+    <<: *apogee-s
+    smooth : lsfcombo5s
+    lsffiber : [50,100,150,200,250]
+lsfas: &lsfas
+    <<: *apogee-s
+    smooth : lsfas
+    lsffiber : [166,196,226,256,286]
+lsfbs: &lsfbs
+    <<: *apogee-s
+    smooth : lsfbs
+    lsffiber : [95,107,120,132,144]
+lsfcs: &lsfcs
+    <<: *apogee-s
+    smooth : lsfcs
+    lsffiber : [37,49,60,71,83]
+lsfds: &lsfds
+    <<: *apogee-s
+    smooth : lsfds
+    lsffiber : [4,10,16,22,28]
 GRID :
   - <<: *GKg
     <<: *lsfcombo 
+  - <<: *GKg
+    <<: *lsfa
+  - <<: *GKg
+    <<: *lsfb
+  - <<: *GKg
+    <<: *lsfc
+  - <<: *GKg
+    <<: *lsfd
   - <<: *Mg
     <<: *lsfcombo 
+  - <<: *Mg
+    <<: *lsfa 
+  - <<: *Mg
+    <<: *lsfb 
+  - <<: *Mg
+    <<: *lsfc 
+  - <<: *Mg
+    <<: *lsfd 
   - <<: *Fd
     <<: *lsfcombo 
+  - <<: *Fd
+    <<: *lsfa 
+  - <<: *Fd
+    <<: *lsfb 
+  - <<: *Fd
+    <<: *lsfc 
+  - <<: *Fd
+    <<: *lsfd 
   - <<: *GKd
     <<: *lsfcombo 
+  - <<: *GKd
+    <<: *lsfa 
+  - <<: *GKd
+    <<: *lsfb 
+  - <<: *GKd
+    <<: *lsfc 
+  - <<: *GKd
+    <<: *lsfd 
   - <<: *Md
     <<: *lsfcombo 
+  - <<: *Md
+    <<: *lsfa 
+  - <<: *Md
+    <<: *lsfb 
+  - <<: *Md
+    <<: *lsfc 
+  - <<: *Md
+    <<: *lsfd 
+# apogee-s
+  - <<: *GKg
+    <<: *lsfcombos
+  - <<: *GKg
+    <<: *lsfas
+  - <<: *GKg
+    <<: *lsfbs
+  - <<: *GKg
+    <<: *lsfcs
+  - <<: *GKg
+    <<: *lsfds
+  - <<: *Mg
+    <<: *lsfcombos
+  - <<: *Mg
+    <<: *lsfas
+  - <<: *Mg
+    <<: *lsfbs 
+  - <<: *Mg
+    <<: *lsfcs 
+  - <<: *Mg
+    <<: *lsfds 
+  - <<: *Fd
+    <<: *lsfcombos
+  - <<: *Fd
+    <<: *lsfas 
+  - <<: *Fd
+    <<: *lsfbs 
+  - <<: *Fd
+    <<: *lsfcs 
+  - <<: *Fd
+    <<: *lsfds 
+  - <<: *GKd
+    <<: *lsfcombos
+  - <<: *GKd
+    <<: *lsfas 
+  - <<: *GKd
+    <<: *lsfbs 
+  - <<: *GKd
+    <<: *lsfcs 
+  - <<: *GKd
+    <<: *lsfds 
+  - <<: *Md
+    <<: *lsfcombos
+  - <<: *Md
+    <<: *lsfas 
+  - <<: *Md
+    <<: *lsfbs 
+  - <<: *Md
+    <<: *lsfcs 
+  - <<: *Md
+    <<: *lsfds 

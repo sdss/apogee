@@ -6,8 +6,8 @@ Loader  = ifort
 include1 = ../$(SOURCE)/spectrum.inc
 include2 = ../$(SOURCE)/tsuji.par
 
-OPT1     = -convert big_endian -fp-model precise   -O3 -fpe3 -ftz -traceback -fp-speculationoff   -save  -mcmodel=large
-LINKOPT        = -convert big_endian -fp-model precise   -O3 -fpe3 -ftz -traceback -fp-speculationoff -save -mcmodel=medium
+OPT1     = -convert big_endian -fp-model precise   -O3 -fpe3 -ftz -traceback -fp-speculationoff   -save  -mcmodel=medium
+LINKOPT        = -convert big_endian -fp-model precise   -O3 -fpe3 -ftz -traceback -fp-speculationoff -save  -mcmodel=medium
 #OPT1     = -convert big_endian -O0 -g -C  -traceback -save 
 #LINKOPT     = -convert big_endian -O0 -g -C  -traceback -save 
 

@@ -120,23 +120,23 @@ Fd : &Fd
 
 grids :
   - name : GKg
-    lib : synspec/marcs/giantisotopes/sgGK_200921nlte_lsfcombo5_dr17/p_apssgGK_200921nlte_lsfcombo5_dr17_012_075
+    lib : synspec/marcs/giantisotopes/sgGK_200921lte_lsfcombo5/p_apssgGK_200921lte_lsfcombo5_012_075
     <<: *GKg
     <<: *lsfcombo5
   - name : GKd
-    lib : synspec/marcs/solarisotopes/sdGK_200921nlte_lsfcombo5_dr17/p_apssdGK_200921nlte_lsfcombo5_dr17_012_075
+    lib : synspec/marcs/solarisotopes/sdGK_200921lte_lsfcombo5/p_apssdGK_200921lte_lsfcombo5_012_075
     <<: *GKd
     <<: *lsfcombo5
   - name : Mg
-    lib : synspec/marcs/giantisotopes/sgM_200921nlte_lsfcombo5_dr17/p_apssgM_200921nlte_lsfcombo5_dr17_012_075
+    lib : synspec/marcs/giantisotopes/sgM_200921lte_lsfcombo5/p_apssgM_200921lte_lsfcombo5_012_075
     <<: *Mg
     <<: *lsfcombo5
   - name : Md
-    lib : synspec/marcs/solarisotopes/sdM_200921nlte_lsfcombo5_dr17/p_apssdM_200921nlte_lsfcombo5_dr17_012_075
+    lib : synspec/marcs/solarisotopes/sdM_200921lte_lsfcombo5/p_apssdM_200921lte_lsfcombo5_012_075
     <<: *Md
     <<: *lsfcombo5
   - name : Fd
-    lib : synspec/marcs/solarisotopes/sdF_200921nlte_lsfcombo5_dr17/p_apssdF_200921nlte_lsfcombo5_dr17_012_075
+    lib : synspec/marcs/solarisotopes/sdF_200921lte_lsfcombo5/p_apssdF_200921lte_lsfcombo5_012_075
     <<: *Fd
     <<: *lsfcombo5
 #  - name : GKg_a 

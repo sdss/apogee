@@ -136,7 +136,7 @@ grids :
     <<: *Md
     <<: *lsfcombo5
   - name : Fd
-    lib : synspec/marcs/solarisotopes/sdF_200921nlte_lsfcombo5s_dr17/p_apssdF_200921nlte_lsfcombo5s_dr17_012_025
+    lib : synspec/marcs/solarisotopes/sdF_200921nlte_lsfcombo5s_dr17/p_apssdF_200921nlte_lsfcombo5s_dr17_012_075
     <<: *Fd
     <<: *lsfcombo5
 #  - name : GKg_a 

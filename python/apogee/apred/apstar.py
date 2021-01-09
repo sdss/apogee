@@ -85,7 +85,7 @@ def allFieldVisit(search=['apo*/*/a?FieldVisits-*.fits','apo*/*/a?FieldC-*.fits'
 
     return all
 
-def allPlate(all) :
+def allPlate(all,out=None) :
     """ Create allPlate file from allFieldVisit
     """
 
@@ -144,10 +144,15 @@ def allPlate(all) :
         except: allplate['RADIUS'][i] = 1.49
         os.remove('tmp.yml')
 
+    if out is not None : 
+        hdulist = fits.HDUList()
+        hdulist.append(fits.BinTableHDU(allplate))
+        hdulist.writeto(out)
+
     return allplate 
 
 def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_vers=None,obj=None,
-               nobj=0,threads=8,maxvisit=500,snmin=3,nres=[5,4.25,3.5],
+               nobj=0,threads=8,maxvisit=500,snmin=3,nres=[5,4.25,3.5],rv_reject=10,vmedian=False,
                save=False,clobber=False,rvclobber=False,vcclobber=False,verbose=False,tweak=False,plot=False,windows=None) :
     """ Run DOPPLER RVs for a field
     """ 
@@ -162,6 +167,9 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
 
     telescope=plan['telescope']
     field=plan['field']
+    rv_reject = plan['rv_reject'] if plan.get('rv_reject') else rv_reject
+    snmin = plan['snmin'] if plan.get('snmin') else snmin
+    vmedian = plan['vmedian'] if plan.get('vmedian') else vmedian
 
     if clobber :
         rvclobber= True 
@@ -334,6 +342,12 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
             visits=[]
             ncomponents=0
             mask = out[2]
+            # for special targets, set all velocities to average
+            if vmedian :
+                vmed=np.median(out[0][1]['vhelio'])
+                out[0][1]['vhelio'] = vmed
+                out[0][1]['vrel'] = vmed-out[0][1]['bc']
+
             for i,(v,g) in enumerate(zip(out[0][1],out[1])) :
                 # match by filename components in case there was an error reading in doppler
                 name=os.path.basename(v['filename']).replace('.fits','').split('-')
@@ -373,8 +387,8 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                     allvisits[visit]['RV_COMPONENTS'][0:n_rv_comp] = rv_comp[0:n_rv_comp]
                 allvisits[visit]['RVTAB'] = v
                 # flag visits with suspect RVs
-                if allvisits[visit]['RV_TEFF'] < 6000 : bd_diff = 10
-                else : bd_diff = 50.
+                if allvisits[visit]['RV_TEFF'] < 6000 : bd_diff = rv_reject
+                else : bd_diff = 5*rv_reject
                 if (np.abs(allvisits[visit]['VHELIO']-allvisits[visit]['XCORR_VHELIO']) > bd_diff) :
                     allvisits[visit]['STARFLAG'] |= starmask.getval('RV_REJECT')
                 elif not np.isclose(allvisits[visit]['VHELIO'],allvisits[visit]['XCORR_VHELIO']) :
@@ -726,6 +740,13 @@ def gauss_decomp(out,phase='one',alpha1=0.5,alpha2=1.5,thresh=[4,4],plot=None,fi
             # remove components if they are within width of brighter component, or <0.25 peak ,
             #   or more than twice as wide, or if primary component is wide
             print('n: ', n)
+            for j in range(1,n) :
+                # decompose can return component with 0 amplitude, need to remove these first
+                # also remove narrow peaks 
+                pars_j = decomp['best_fit_parameters'][j::n]
+                if np.isclose(pars_j[0],0.) or np.abs(pars_j[1])< 1.:
+                    decomp['best_fit_parameters'][j] = 0.
+                    decomp['N_components'] -= 1
             for j in range(1,n) :
                 pars_j = decomp['best_fit_parameters'][j::n]
                 for k in range(j) :

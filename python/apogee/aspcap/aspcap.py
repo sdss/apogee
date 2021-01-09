@@ -220,7 +220,7 @@ def elemmask(el,maskdir='filters_26112015',plot=None,yr=[0,1]) :
         plots.plotl(plot,wave,mask,yr=yr)
     return wave,mask
 
-def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visits=0) :
+def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visits=0,addgaia=True) :
     """ create initial aspcapField file from apField file
     """
 
@@ -243,16 +243,14 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
         apfieldname=load.filename('Field',field=f)
         if apstar_vers != 'stars' :
             apfieldname=apfieldname.replace('/stars/','/'+apstar_vers+'/')
-            #apfield.append(fits.open(apfieldname)[1].data)
             apfield.append(Table.read(apfieldname))
         else :
-            #apfield.append(load.apField(f)[1].data)
             apfield.append(Table(load.apField(f)[1].data))
         print('apField file: ', apfieldname)
     apfield=vstack(apfield)
 
     # add GAIA data
-    apfield=gaia.add_gaia(apfield)
+    if addgaia: apfield=gaia.add_gaia(apfield)
 
     # create out output table
     aspcapfield=Table(apfield)
@@ -279,32 +277,39 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
     config = yaml.safe_load(open(os.environ['APOGEE_DIR']+'/config/aspcap/'+aspcap_config+'/'+instrument+'.yml','r'))
  
     # add new columns
+    for col in ['ASPCAP_GRID','FPARAM_GRID','CHI2_GRID','FPARAM','FPARAM_COV','ASPCAP_CHI2',
+                'PARAM','PARAM_COV','PARAMFLAG','ASPCAPFLAG','ASPCAPFLAGS','FRAC_BADPIX','FRAC_LOWSNR','FRAC_SIGSKY',
+                'FELEM','FELEM_ERR','X_H','X_H_ERR','X_M','X_M_ERR','ELEM_CHI2','ELEMFLAG'] :
+        try : aspcapfield.remove_column(col)
+        except KeyError: pass
+
     nparam = len(params()[0])
     # add tags to structure
     ngrids=len(config['grids'])
-    aspcapfield.add_column(Column(name='CLASS',dtype='S8',length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='FPARAM_CLASS',dtype=np.float32,shape=(ngrids,nparam),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='CHI2_CLASS',dtype=np.float32,shape=(ngrids,),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='FPARAM',dtype=np.float32,shape=(nparam,),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='FPARAM_COV',dtype=np.float32,shape=(nparam,nparam),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='ASPCAP_CHI2',dtype=np.float32,length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='PARAM',dtype=np.float32,shape=(nparam,),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='PARAM_COV',dtype=np.float32,shape=(nparam,nparam),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='PARAMFLAG',dtype=np.uint64,shape=(nparam,),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='ASPCAPFLAG',dtype=np.uint64,length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='ASPCAPFLAGS',dtype='S132',length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='FRAC_BADPIX',dtype=np.float32,length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='FRAC_LOWSNR',dtype=float,length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='FRAC_SIGSKY',dtype=np.float32,length=len(aspcapfield)))
+    n=len(aspcapfield)
+    aspcapfield.add_column(Column(name='ASPCAP_GRID',dtype='S8',data=np.full([n],'None')))
+    aspcapfield.add_column(Column(name='FPARAM_GRID',dtype=np.float32,data=np.full([n,ngrids,nparam],np.nan)))
+    aspcapfield.add_column(Column(name='CHI2_GRID',dtype=np.float32,data=np.full([n,ngrids],np.nan)))
+    aspcapfield.add_column(Column(name='FPARAM',dtype=np.float32,data=np.full([n,nparam],np.nan)))
+    aspcapfield.add_column(Column(name='FPARAM_COV',dtype=np.float32,data=np.full([n,nparam,nparam],np.nan)))
+    aspcapfield.add_column(Column(name='ASPCAP_CHI2',dtype=np.float32,data=np.full([n],np.nan)))
+    aspcapfield.add_column(Column(name='PARAM',dtype=np.float32,data=np.full([n,nparam],np.nan)))
+    aspcapfield.add_column(Column(name='PARAM_COV',dtype=np.float32,data=np.full([n,nparam,nparam],np.nan)))
+    aspcapfield.add_column(Column(name='PARAMFLAG',dtype=np.uint64,data=np.full([n,nparam],0)))
+    aspcapfield.add_column(Column(name='ASPCAPFLAG',dtype=np.uint64,data=np.full([n],0)))
+    aspcapfield.add_column(Column(name='ASPCAPFLAGS',dtype='S256',data=np.full([n],'')))
+    aspcapfield.add_column(Column(name='FRAC_BADPIX',dtype=np.float32,data=np.full([n],np.nan)))
+    aspcapfield.add_column(Column(name='FRAC_LOWSNR',dtype=np.float32,data=np.full([n],np.nan)))
+    aspcapfield.add_column(Column(name='FRAC_SIGSKY',dtype=np.float32,data=np.full([n],np.nan)))
     nelem = len(elems()[0])
-    aspcapfield.add_column(Column(name='FELEM',dtype=np.float32,shape=(nelem,),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='FELEM_ERR',dtype=float,shape=(nelem,),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='X_H',dtype=np.float32,shape=(nelem,),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='X_H_ERR',dtype=np.float32,shape=(nelem,),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='X_M',dtype=np.float32,shape=(nelem,),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='X_M_ERR',dtype=np.float32,shape=(nelem,),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='ELEM_CHI2',dtype=np.float32,shape=(nelem,),length=len(aspcapfield)))
-    aspcapfield.add_column(Column(name='ELEMFLAG',dtype=np.uint64,shape=(nelem,),length=len(aspcapfield)))
+    aspcapfield.add_column(Column(name='FELEM',dtype=np.float32,data=np.full([n,nelem],np.nan)))
+    aspcapfield.add_column(Column(name='FELEM_ERR',dtype=float,data=np.full([n,nelem],np.nan)))
+    aspcapfield.add_column(Column(name='X_H',dtype=np.float32,data=np.full([n,nelem],np.nan)))
+    aspcapfield.add_column(Column(name='X_H_ERR',dtype=np.float32,data=np.full([n,nelem],np.nan)))
+    aspcapfield.add_column(Column(name='X_M',dtype=np.float32,data=np.full([n,nelem],np.nan)))
+    aspcapfield.add_column(Column(name='X_M_ERR',dtype=np.float32,data=np.full([n,nelem],np.nan)))
+    aspcapfield.add_column(Column(name='ELEM_CHI2',dtype=np.float32,data=np.full([n,nelem],np.nan)))
+    aspcapfield.add_column(Column(name='ELEMFLAG',dtype=np.uint64,data=np.full([n,nelem],np.nan)))
 
     # load spectra
     # create table for output spectral data
@@ -321,6 +326,7 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
     pixelmask=bitmask.PixelBitMask()
     badval=pixelmask.badval()|pixelmask.getval('SIG_SKYLINE')
     aspcapmask=bitmask.AspcapBitMask()
+    #skip=open('skip.txt','a+')
     for istar,star in enumerate(aspcapfield) :
 
         apstarfile=load.filename('Star',field=star['FIELD'],obj=star['APOGEE_ID'])
@@ -370,9 +376,15 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
         ind = np.where(tmp/np.abs(apStar2aspcap(apstar.flux[row,:])) < minerr)[0]
         tmp[ind] = minerr*np.abs(apStar2aspcap(apstar.flux[row,:]))[ind]
         aspcapspec['ERR'][istar] = tmp/norm
+
         # fraction of low S/N pixels 
         fracerr = aspcapspec['ERR'][istar]/aspcapspec['OBS'][istar] 
-        aspcapfield['FRAC_LOWSNR'][istar] = len(np.where(fracerr > 0.1)[0]) / len(aspcapspec['OBS'][istar])
+        aspcapfield['FRAC_LOWSNR'][istar] = len(np.where(fracerr > 0.2)[0]) / len(aspcapspec['OBS'][istar])
+        # skip if lowsnr fraction > 0.5 
+        if aspcapfield['FRAC_LOWSNR'][istar] > 0.5 :
+            aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('BAD_FRAC_BADPIX')
+            aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('NO_ASPCAP_RESULT')
+            #skip.write('{:s} {:s} FRAC_LOWSNR: {:8.2f}\n'.format(aspcapfield['APOGEE_ID'][istar],aspcapfield['FIELD'][istar],aspcapfield['FRAC_LOWSNR'][istar]))
 
         # make sure bad pixels are not included
         bd=np.where(~np.isfinite(aspcapspec['ERR'][istar]) | 
@@ -383,19 +395,22 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
         if len(bd) > 0 : 
             aspcapspec['OBS'][istar,bd] = 0.0001
             aspcapspec['ERR'][istar,bd] = 1.e10
-        # fraction of bad
+        # fraction of bad pixels
         aspcapfield['FRAC_BADPIX'][istar] = len(bd) / len(aspcapspec['OBS'][istar])
+        # skip if bad pixel fraction > 0.5 or > 0.33 in any individual chip
         if aspcapfield['FRAC_BADPIX'][istar] > 0.5 :
             aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('BAD_FRAC_BADPIX')
             aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('NO_ASPCAP_RESULT')
+        p0=0
+        for pix in nw_chip :
+            badfrac = len(np.where((bd>=p0)&(bd<p0+pix))[0]) / pix
+            if badfrac > 0.33 :
+                #skip.write('{:s} {:s} FRAC_BADPIX: {:d} {:8.2f}\n'.format(aspcapfield['APOGEE_ID'][istar],aspcapfield['FIELD'][istar],p0,badfrac))
+                aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('BAD_FRAC_LOWSNR')
+                aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('NO_ASPCAP_RESULT')
+                p0+=pix
 
-
-        #p0=0
-        #for pix in nw_chip :
-        #    if len(np.where(fracerr[p0:pix]) < 0.1)[0] < 100 : 
-        #        aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('BAD_FRAC_LOWSNR')
-        #        aspcapfield['ASPCAPFLAG'][istar] |= aspcapmask.getval('NO_ASPCAP_RESULT')
-        #        p0+=pix
+    #skip.close()
 
     return aspcapfield, aspcapspec
 
@@ -440,6 +455,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
 
     # set NOGRID bit until we have a grid
     aspcapmask=bitmask.AspcapBitMask()
+    parammask=bitmask.ParamBitMask()
     aspcapfield['ASPCAPFLAG'] |= aspcapmask.getval('NO_GRID')
 
     # reset CHI2 if we are iterating on a previous solution
@@ -490,7 +506,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                           (aspcapfield['MEANFIB'] >= grid['fibermin']) &
                           (aspcapfield['MEANFIB'] < grid['fibermax']) ) [0]
         else :
-            gd = np.where(aspcapfield['CLASS'] == grid['name'])[0]
+            gd = np.where(aspcapfield['ASPCAP_GRID'] == grid['name'])[0]
 
         if dostar is not None :
             gdstar=np.where(aspcapfield['APOGEE_ID'][gd] == dostar)[0]
@@ -512,40 +528,44 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
 
             # append field in case we have duplicates
             stars.append(star['APOGEE_ID']+'__'+star['FIELD'])
-            if init == 'RV' :
-                vmicro=np.array([0.372160,-0.090531,-0.000802,0.001263,-0.027321])
-                logg=star['RV_LOGG']
-                vm = vmicro[0]+vmicro[1]*logg+vmicro[2]*logg**2+vmicro[3]*logg**3
-                inpars.append([star['RV_TEFF'],star['RV_LOGG'],vm,star['RV_FEH'],0.,0.,0.,1.,0.])
-            elif init == 'FPARAM' :
-                inpars.append(list(star['FPARAM']))
-            elif init == 'PARAM' :
-                inpars.append(list(star['PARAM']))
-            if renorm :
-                flux.append(spec['OBS']/spec['NORM'])
-                err.append(spec['ERR']/spec['NORM'])
-            else :
-                flux.append(spec['OBS'])
-                err.append(spec['ERR'])
-            if mult :
-                imult=0
-                for dlogg in np.linspace(-0.2,0.2,3) :
-                    for dam in np.linspace(-0.2,0.2,3) :
-                        for dcm in np.linspace(-0.2,0.2,3) :
-                            stars.append(star['APOGEE_ID']+'.{:d}'.format(imult))
-                            cent=copy.copy(star['FPARAM'])
-                            cent[1]+=dlogg
-                            cent[6]+=dam
-                            cent[4]+=dcm
-                            inpars.append(list(cent))
-                            flux.append(spec['OBS']/spec['NORM'])
-                            err.append(spec['ERR']/spec['NORM'])
-                            imult+=1
-        #if mult: pdb.set_trace()
+
       
         # write FERRE files and run FERRE
         if clobber or not os.path.exists(out+'.spm') or \
                (os.path.exists(out+'.spm') and len(open(out+'.spm').readlines()) < len(stars) ) :
+
+            # load up start parameters, fluxes, and errors
+            for star,spec in zip(aspcapfield[gd],aspcapspec[gd]) :
+                if star['ASPCAPFLAG'] & aspcapmask.getval('NO_ASPCAP_RESULT') : continue
+                if init == 'RV' :
+                    vmicro=np.array([0.372160,-0.090531,-0.000802,0.001263,-0.027321])
+                    logg=star['RV_LOGG']
+                    vm = vmicro[0]+vmicro[1]*logg+vmicro[2]*logg**2+vmicro[3]*logg**3
+                    inpars.append([star['RV_TEFF'],star['RV_LOGG'],vm,star['RV_FEH'],0.,0.,0.,1.,0.])
+                elif init == 'FPARAM' :
+                    inpars.append(list(star['FPARAM']))
+                elif init == 'PARAM' :
+                    inpars.append(list(star['PARAM']))
+                if renorm :
+                    flux.append(spec['OBS']/spec['NORM'])
+                    err.append(spec['ERR']/spec['NORM'])
+                else :
+                    flux.append(spec['OBS'])
+                    err.append(spec['ERR'])
+                if mult :
+                    imult=0
+                    for dlogg in np.linspace(-0.2,0.2,3) :
+                        for dam in np.linspace(-0.2,0.2,3) :
+                            for dcm in np.linspace(-0.2,0.2,3) :
+                                stars.append(star['APOGEE_ID']+'.{:d}'.format(imult))
+                                cent=copy.copy(star['FPARAM'])
+                                cent[1]+=dlogg
+                                cent[6]+=dam
+                                cent[4]+=dcm
+                                inpars.append(list(cent))
+                                flux.append(spec['OBS']/spec['NORM'])
+                                err.append(spec['ERR']/spec['NORM'])
+                                imult+=1
             if fix is not None :
                 indv=[]
                 for i,par in enumerate(libhead0['LABEL']) :
@@ -570,6 +590,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
             ferr.close()
 
         # read FERRE output
+        print('reading FERRE output...')
         param,spec,wave=ferre.read(out,os.path.dirname(out)+'/'+libfile)
         # fill in locked parameters
         fill_plock(param,grid['PLOCK'])
@@ -577,24 +598,29 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
         spec_class.append(spec) 
 
         # load into apcapField
+        print('loading FERRE output...')
         for istar,star in enumerate(aspcapfield[gd]) :
             i = np.where(param['APOGEE_ID'] == (star['APOGEE_ID']+'__'+star['FIELD']).encode())[0]
             if len(i) == 0 : continue
-            aspcapfield['FPARAM_CLASS'][gd[istar],igrid,:] = param['FPARAM'][i]
-            aspcapfield['CHI2_CLASS'][gd[istar],igrid] = param['ASPCAP_CHI2'][i]
+            aspcapfield['FPARAM_GRID'][gd[istar],igrid,:] = param['FPARAM'][i]
+            aspcapfield['CHI2_GRID'][gd[istar],igrid] = param['ASPCAP_CHI2'][i]
             # if this is the lowest CHI2, store in FPARAM and ASPCAP_CHI2
             # penalize GK grid in favor of finer M grid
             chi2 = param['ASPCAP_CHI2'][i]
-            if ('GK' in grid['name']) and (param['FPARAM'][i,0] < 3985) : 
+            if ('GK' in grid['name']) and (param['FPARAM'][i,0] < 3900) : 
                 print('penalizing GK')
                 chi2 *= 10
+            #penalize stars within 1/2 spacing of grid edge in TEFF or LOGG
+            if (param['PARAMFLAG'][i,0] & parammask.getval('GRIDEDGE_WARN')) > 0 : chi2*=5
+            if (param['PARAMFLAG'][i,1] & parammask.getval('GRIDEDGE_WARN')) > 0 : chi2*=5
+
+            # load star for this grid if its the best fit
             if chi2 < aspcapfield['ASPCAP_CHI2'][gd[istar]] or aspcapfield['ASPCAP_CHI2'][gd[istar]]<=0 :
-                aspcapfield['CLASS'][gd[istar]] = grid['name']
+                aspcapfield['ASPCAP_GRID'][gd[istar]] = grid['name']
                 aspcapfield['ASPCAP_CHI2'][gd[istar]] = chi2
                 aspcapfield['FPARAM'][gd[istar]] = param['FPARAM'][i]
                 aspcapfield['FPARAM_COV'][gd[istar]] = param['FPARAM_COV'][i]
-                aspcapfield['ASPCAPFLAG'][gd[istar]] |= param['ASPCAPFLAG'][i]
-                aspcapfield['ASPCAPFLAGS'][gd[istar]] = aspcapmask.getname(aspcapfield['ASPCAPFLAG'][gd[istar]])
+                aspcapfield['PARAMFLAG'][gd[istar]] = param['PARAMFLAG'][i]
                 aspcapspec['SPEC'][gd[istar]] = spec['frd'][i]
                 aspcapspec['SPEC_BESTFIT'][gd[istar]] =  spec['mdl'][i]
                 # continuum correct
@@ -650,9 +676,6 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                     aspcapspec['SPEC_BESTFIT_MULT'][gd[istar],imult,:] =  spec['mdl'][i]
 
 
-    if mult : 
-        suffix='_mult'
-        #pdb.set_trace()
 
     # Results in astropy tables
     aspcapfield=Table(aspcapfield)
@@ -663,7 +686,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                           ('ELEM_SYMBOL','S5',len(elems()[0])),
                           ('ELEMTOH','i4',len(elems()[0])),
                           ('ELEM_VALUE','S12',len(elems()[2])),
-                          ('CLASSES','S5',len(config['grids']))])
+                          ('GRIDS','S5',len(config['grids']))])
     aspcapkey['WAVE'] = wave
     aspcapkey['PARAM_SYMBOL'] = params()[1]
     aspcapkey['ELEM_SYMBOL'] = elems()[0]
@@ -671,18 +694,21 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
     aspcapkey['ELEM_VALUE'] = elems()[2]
     grids=[]
     for grid in config['grids'] : grids.append(grid['name'])
-    aspcapkey['CLASSES'] = grids
+    aspcapkey['GRIDS'] = grids
     aspcapkey=Table(aspcapkey)
 
     if write :
+        if mult : suffix='_mult'
+        print('writing master aspcapField...')
         writefiles(load,outfield,aspcapfield,aspcapspec,aspcapkey,suffix=suffix,aspcapstar=False)
         for f in field :
+            print('writing aspcapField...',f)
             gd = np.where(aspcapfield['FIELD'] == f)[0]
             if len(gd) > 0 : writefiles(load,f,aspcapfield[gd],aspcapspec[gd],aspcapkey,suffix=suffix)
 
     if html :
         # create output HTML page
-        mkhtml(outfield,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
+        #mkhtml(outfield,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
         for f in field :
             gd = np.where(aspcapfield['FIELD'] == f)[0]
             if len(gd) > 0 : mkhtml(f,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
@@ -745,7 +771,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
         libhead0['FILE'] = libfile
 
         # get stars for which best fit was in this grid
-        gd = np.where(aspcapfield['CLASS'] == grid['name'])[0]
+        gd = np.where(aspcapfield['ASPCAP_GRID'] == grid['name'])[0]
         print('Grid: ',grid['name'],len(gd))
         if len(gd) == 0 : continue
 
@@ -860,7 +886,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
 
     if html :
         # create output HTML page
-        mkhtml(outfield,suffix=suffix,apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
+        #mkhtml(outfield,suffix=suffix,apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
         for f in field :
             gd = np.where(aspcapfield['FIELD'] == f)[0]
             if len(gd) > 0 : mkhtml(f,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
@@ -885,8 +911,11 @@ def writefiles(load,field,aspcapfield,aspcapspec,aspcapkey,suffix='',aspcapstar=
     hdulist.writeto(outfile,overwrite=True)
 
     #output aspcapStar
+    aspcapmask=bitmask.AspcapBitMask()
     if aspcapstar :
         for star,spec in zip(aspcapfield,aspcapspec) :
+          # don't write aspcapStar if no ASPCAP result
+          if not (star['ASPCAPFLAG'] & aspcapmask.getval('NO_ASPCAP_RESULT')) :
             outfile=load.filename('aspcapStar',field=field,obj=star['APOGEE_ID'])
             hdulist=fits.HDUList()
             hdulist.append(fits.PrimaryHDU())
@@ -1033,7 +1062,7 @@ def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
         fp.write('<FONT COLOR=blue> TARGFLAGS </FONT>: {:s}<BR>\n'.format(aspcapfield['TARGFLAGS'][istar]))
         fp.write('<FONT COLOR=blue> STARFLAGS </FONT>: {:s}<BR>\n'.format(aspcapfield['STARFLAGS'][istar]))
         fp.write('<FONT COLOR=blue> ASPCAPFLAGS </FONT>: {:s}<BR>\n'.format(aspcapfield['ASPCAPFLAGS'][istar]))
-        fp.write('<TD>{:s}\n'.format(aspcapfield['CLASS'][istar]))
+        fp.write('<TD>{:s}\n'.format(aspcapfield['ASPCAP_GRID'][istar]))
         fp.write('<TD>{:6.1f}\n'.format(aspcapfield['ASPCAP_CHI2'][istar]))
         for ipar in range(8) :
             p = aspcapfield['FPARAM'][istar,ipar]

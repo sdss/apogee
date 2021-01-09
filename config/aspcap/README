@@ -1,0 +1,24 @@
+control.yml : DR16 libraries but using lsfcombo only
+---
+apogee_ver : trunk
+apred_vers : dr17
+apstar_vers : stars
+aspcap_vers : control
+aspcap_config : dr17_control
+
+dr17_synspec.yml : synspec librararies but using lsfcomb only
+---
+apogee_ver : trunk
+apred_vers : dr17
+apstar_vers : stars
+aspcap_vers : synspec
+aspcap_config : dr17_synspec
+
+dr17.yml : l33 (DR16) libraries
+---
+apogee_ver : 0.17.10
+apred_vers : dr17
+apstar_vers : stars
+aspcap_vers : l33
+aspcap_config : dr17
+

@@ -42,7 +42,6 @@ def all(planfile,dofix=False,suffix=None,allvisit=True,allplate=True, calsample=
        # write it out
        hdulist=fits.HDUList()
        hdulist.append(fits.BinTableHDU(tab))
-       dat=Table.read(file,hdu=3)
        hdulist.append(fits.BinTableHDU(dat))
        hdulist.append(fits.BinTableHDU(dat))
        hdulist.writeto(aspcap_dir+'allStar-'+apred_vers+'-'+aspcap_vers+suffix+'.fits',overwrite=True)

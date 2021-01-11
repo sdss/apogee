@@ -331,8 +331,8 @@ def fix(tab,visit=None) :
     # replace 0. with NaN    
     j=np.where(np.isclose(tab['FPARAM'][:,0],0.))[0]
     tab['FPARAM'][j,:] = np.nan
-    tab['FPARAM_COV'][j,:] = np.nan
-    tab['ASCPAP_CHI2'][j,:] = np.nan
+    tab['FPARAM_COV'][j,:,:] = np.nan
+    tab['ASPCAP_CHI2'][j] = np.nan
 
     # flags for no good visits for RV
     j=np.where(tab['NVISITS'] == 0)[0]

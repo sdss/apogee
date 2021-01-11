@@ -1158,6 +1158,10 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
                     stack.bitmask[i,gd[j]] |= 2**ibit
                     iout+=1
 
+        # ignore bad pixels
+        bd = np.where((stack.bitmask[i,:]&pixelmask.badval()) > 0)[0]
+        if len(bd) > 0 : stack.err[i,bd] = 1.e10
+
         # increase uncertainties for persistence pixels
         bd = np.where((stack.bitmask[i,:]&pixelmask.getval('PERSIST_HIGH')) > 0)[0]
         if len(bd) > 0 : stack.err[i,bd] *= np.sqrt(5)
@@ -1438,7 +1442,6 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
   #sxaddpar,header,'RVFEH'+num,visitstr[i].rv_feh,' metallicity [Fe/H] from visit mini-grid xcorr'
   #sxaddpar,header,'RVALPH'+num,visitstr[i].rv_alpha,' alpha abundance from visit mini-grid xcorr'
   #sxaddpar,header,'RVCARB'+num,visitstr[i].rv_carb,' carbon abundance from visit mini-grid xcorr'
-
 
     # Do a RV fit just to get a template and normalized spectrum, for plotting, and FWHM and AUTOFWHM
     if dorvfit :

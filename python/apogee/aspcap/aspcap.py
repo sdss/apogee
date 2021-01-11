@@ -908,6 +908,7 @@ def writefiles(load,field,aspcapfield,aspcapspec,aspcapkey,suffix='',aspcapstar=
     try: os.makedirs(os.path.dirname(outfield))
     except: pass
     outfile=os.path.dirname(outfield)+'/'+os.path.splitext(os.path.basename(outfield))[0]+suffix+'.fits'
+    hdulist[0].header['VERSION'] = (os.environ['APOGEE_VER'],'APOGEE software version APOGEE_VER')
     hdulist.writeto(outfile,overwrite=True)
 
     #output aspcapStar
@@ -929,6 +930,7 @@ def writefiles(load,field,aspcapfield,aspcapspec,aspcapkey,suffix='',aspcapstar=
             add_header(hdu)
             hdulist.append(hdu)
             hdulist.append(fits.table_to_hdu(Table(star)))
+            hdulist[0].header['VERSION'] = (os.environ['APOGEE_VER'],'APOGEE software version APOGEE_VER')
             hdulist.writeto(outfile,overwrite=True)
 
     return

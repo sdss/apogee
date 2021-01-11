@@ -1116,7 +1116,7 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
             pix=wave.wave2pix(w,apvisit.wave[chip,:])
             gd=np.where(np.isfinite(pix))[0]
 
-            # get a smoothed, filtered spectrum to use as replacement for bad values
+            # get a smoothed, filtered spectrum to use as replacement for bad values when we do the sinc interpolation
             cont = gaussian_filter(median_filter(apvisit.flux[chip,:],[501],mode='reflect'),100)
             errcont = gaussian_filter(median_filter(apvisit.flux[chip,:],[501],mode='reflect'),100)
             bd = np.where(apvisit.bitmask[chip,:]&pixelmask.badval())[0]
@@ -1314,7 +1314,7 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
     apstar.header['DC-FLAG'] = 1
 
     # pixel-by-pixel weighted average
-    cont = np.median(stack.cont,axis=0)
+    cont = np.sum(stack.cont/stack.err**2,axis=0)/np.sum(1./stack.err**2,axis=0)
     apstar.flux[0,:] = np.sum(stack.flux/stack.err**2,axis=0)/np.sum(1./stack.err**2,axis=0) * cont
     apstar.err[0,:] =  np.sqrt(1./np.sum(1./stack.err**2,axis=0)) * cont
     apstar.bitmask[0,:] = np.bitwise_and.reduce(stack.bitmask,0)

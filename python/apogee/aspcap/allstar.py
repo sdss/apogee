@@ -53,7 +53,8 @@ def all(planfile,dofix=False,suffix=None,allvisit=True,allplate=True, calsample=
                   out=aspcap_dir+'allPlate-'+apred_vers+'-'+aspcap_vers+suffix+'.fits')
 
 def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out='allStar.fits',
-            skip=['Field-cal_','Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.'], dofix=False) :
+            skip=['Field-cal_','Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.'], 
+            caldir=None,dofix=False) :
     '''
     Concatenate set of aspcapField files, and add named_tags, extratarg
     '''
@@ -88,7 +89,7 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
     add_extratarg(tab)
 
     # set ASPCAPFLAG bits and ASPCAPFLAGS
-    allcal(tab)
+    if caldir is not None : allcal(tab,caldir=caldir)
     aspcapflag(tab)
 
     # construct HDUList
@@ -100,7 +101,7 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
     # write out the file
     if out is not None:
         print('writing',out)
-        hdulist[0].header['APOGEE_VER'] = os.environ['APOGEE_VER']
+        hdulist[0].header['VERSION'] = (os.environ['APOGEE_VER'],'APOGEE software version APOGEE_VER')
         hdulist.writeto(out,overwrite=True)
 
     return tab, dat
@@ -210,12 +211,12 @@ def add_extratarg(tab) :
     tab['EXTRATARG'][j] |= 8
     print('apo1m',len(j))
 
-def allcal(aspcapfield) :
+def allcal(aspcapfield,caldir='cal/') :
     """ Apply the calibrations
     """
-    teff.cal(aspcapfield)
-    logg.cal(aspcapfield)
-    cal.elem(aspcapfield)
+    teff.cal(aspcapfield,caldir=caldir)
+    logg.cal(aspcapfield,caldir=caldir)
+    cal.elem(aspcapfield,caldir=caldir)
 
 def aspcapflag(aspcapfield) :
     """ Set bits in ASPCAPFLAG

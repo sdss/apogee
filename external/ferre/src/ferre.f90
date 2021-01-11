@@ -1113,10 +1113,10 @@ do j=1,nobj
 	        if (nov > 0) then
 	            if (covprint .eq. 1) then 
 			write(3,'(1x,a150,100(1x,ES12.4))')fname,opf,ospf,cphot,   &
-        		medsnr,lchi,ocov
+                        medsnr,lchi,ocov
 	            else 
 			write(3,'(1x,a150,100(1x,F9.3))')fname,opf,ospf,cphot,   &
-        		medsnr,lchi
+                        medsnr,lchi
 	            endif
                 endif 
                 !$omp end critical

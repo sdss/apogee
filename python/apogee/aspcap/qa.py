@@ -842,7 +842,7 @@ def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=None, alpha=0.3,ha
             param : tag to use (default='FPARAM')
             colorbar : show colorbar? (default= False)
     """
-    fig,ax = plots.multi(1,2,figsize=(8,12),hspace=0.001)
+    fig,ax = plots.multi(1,2,figsize=(8,12),hspace=0.001,sharex=True)
     if gridclass is None :
         teff=a[param][:,0]
         logg=a[param][:,1]

@@ -506,13 +506,13 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     #output apField and apFieldVisits
     hdulist=fits.HDUList()
     hdulist.append(fits.table_to_hdu(Table(allfield)))
-    hdulist[0].header['V_APRED'] = os.environ['APOGEE_VER']
+    hdulist[0].header['VERSION'] = (os.environ['APOGEE_VER'],'APOGEE software version APOGEE_VER')
     hdulist.writeto(outfield,overwrite=True)
 
     hdulist=fits.HDUList()
     allvisits.remove_column('RVTAB')
     hdulist.append(fits.table_to_hdu(allvisits))
-    hdulist[0].header['V_APRED'] = os.environ['APOGEE_VER']
+    hdulist[0].header['VERSION'] = (os.environ['APOGEE_VER'],'APOGEE software version APOGEE_VER')
     hdulist.writeto(outfieldvisits,overwrite=True)
 
     # make web page

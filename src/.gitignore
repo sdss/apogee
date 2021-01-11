@@ -2,3 +2,6 @@ turbospec/DATA
 turbospec/EXPORT-15.1/exec-v15.1/babsma_lu
 turbospec/EXPORT-15.1/exec-v15.1/bsyn_lu
 turbospec/EXPORT-15.1/exec-v15.1/eqwidt_lu
+turbospec/Turbospectrum2020/exec/babsma_lu
+turbospec/Turbospectrum2020/exec/bsyn_lu
+turbospec/Turbospectrum2020/exec/eqwidt_lu

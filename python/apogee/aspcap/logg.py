@@ -11,7 +11,6 @@ from tools import fit
 from apogee.utils import bitmask
 try: from apogee.aspcap import cal
 except: pass
-from apogee.aspcap.cal import clip
 from apogee.aspcap import err
 from apogee.speclib import isochrones
 import pdb
@@ -722,6 +721,10 @@ def cal(a,caldir='cal/') :
     starmask=bitmask.StarBitMask()
     gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
 
+    # start with CALRANGE_BAD
+    a['PARAM'][:,1] = np.nan
+    a['PARAMFLAG'][gd,1] |= parammask.getval('CALRANGE_BAD')
+
     # get calibration data
     cal=fits.open(caldir+'/giant_loggcal.fits')[1].data
     rgbsep=cal['rgbsep'][0]
@@ -734,17 +737,15 @@ def cal(a,caldir='cal/') :
     calteffmin=cal['calteffmin']
     calteffmax=cal['calteffmax']
 
-    # start with CALRANGE_BAD
-    a['PARAMFLAG'][gd,1] |= parammask.getval('CALRANGE_BAD')
 
     # for stars that aren't bad, get cn and dt
     cn=a['FPARAM'][gd,4]-a['FPARAM'][gd,5]
     dt=a['FPARAM'][gd,0] - (rgbsep[0] + rgbsep[1]*(a['FPARAM'][gd,1]-2.5) +rgbsep[2]*a['FPARAM'][gd,3])
-    try: snr=clip(a['SNREV'][gd],0,200.)
+    try: snr=cal.clip(a['SNREV'][gd],0,200.)
     except:
         print('No SNREV, continnue with SNR?')
         pdb.set_trace()
-        snr=clip(a['SNR'][gd],0,200.)
+        snr=cal.clip(a['SNR'][gd],0,200.)
 
     # select RC
     rc=np.where((a['FPARAM'][gd,1]<rclim[1])&(a['FPARAM'][gd,1]>rclim[0])&
@@ -763,8 +764,8 @@ def cal(a,caldir='cal/') :
                 (a['FPARAM'][gd,1]<calloggmax)&(a['FPARAM'][gd,1]>calloggmin) &
                 (a['FPARAM'][gd,0]<calteffmax)&(a['FPARAM'][gd,0]>calteffmin))[0]
     #clip logg at loggmin and loggmax
-    logg=clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
-    mh=clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
+    logg=cal.clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
+    mh=cal.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
     # get correction
     rgbcorr=(rgbfit2[0] + rgbfit2[1]*logg + rgbfit2[2]*logg**2 +
                        rgbfit2[3]*logg**3 + rgbfit2[4]*mh )
@@ -775,9 +776,9 @@ def cal(a,caldir='cal/') :
 
     # dwarfs
     cal=fits.open(caldir+'/dwarf_loggcal.fits')[1].data
-    teff=clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
-    logg=clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
-    mh=clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
+    teff=cal.clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
+    logg=cal.clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
+    mh=cal.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
     msfit=cal['msfit'][0]
     mscorr=msfit[0]+msfit[1]*teff+msfit[2]*mh
     ms=np.where(a['FPARAM'][gd,1] > cal['calloggmin'])[0]

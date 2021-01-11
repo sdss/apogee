@@ -9,7 +9,6 @@ from tools import plots
 from tools import fit
 from apogee.utils import bitmask
 from apogee.aspcap import err
-from apogee.aspcap.cal import clip
 import pdb
 import matplotlib.pyplot as plt
 import numpy as np
@@ -330,15 +329,17 @@ def cal(a,caldir='cal/'):
     calteffmin=cal['caltemin']
     calteffmax=cal['caltemax']
 
+    #initial values
+    a['PARAM'][:,0] = np.nan
     a['PARAMFLAG'][gd,0] |= parammask.getval('CALRANGE_BAD')
 
-    teff=clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
-    mh=clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
-    try: snr=clip(a['SNREV'][gd],0,200.)
+    teff=cal.clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
+    mh=cal.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
+    try: snr=cal.clip(a['SNREV'][gd],0,200.)
     except: 
         print('No SNREV, continnue with SNR?')
         pdb.set_trace()
-        snr=clip(a['SNR'][gd],0,200.)
+        snr=cal.clip(a['SNR'][gd],0,200.)
 
     ok =np.where((a['FPARAM'][gd,0] >= calteffmin) & (a['FPARAM'][gd,0] <= calteffmax) )[0]
     a['PARAM'][gd[ok],0] = a['FPARAM'][gd[ok],0] - (cal['par2d'][0]+cal['par2d'][1]*mh[ok]+cal['par2d'][2]*teff[ok])

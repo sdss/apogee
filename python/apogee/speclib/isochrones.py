@@ -59,9 +59,12 @@ def plot(ax,iso,x,y,xr=None,yr=None,color=None,dx=0.,dy=0.,isoadj=False,alpha=No
             b=155.
             c=-22.
             dx = a + b*iso['feh'][0:j] + c*iso['logg'][0:j]
-        line = plots.plotl(ax,iso[x][0:j]+dx,iso[y][0:j]+dy,xr=xr,yr=yr,color=color,alpha=alpha)
-        plots.plotl(ax,iso[x][j+1:],iso[y][j+1:],color=line[0].get_color(),alpha=alpha)
+        if x == 'te' : line = plots.plotl(ax,10.**(iso['logte'][0:j]+dx),iso[y][0:j]+dy,xr=xr,yr=yr,color=color,alpha=alpha)
+        else : line = plots.plotl(ax,iso[x][0:j]+dx,iso[y][0:j]+dy,xr=xr,yr=yr,color=color,alpha=alpha)
+        if x == 'te' : plots.plotl(ax,10.**iso['logte'][j+1:],iso[y][j+1:],color=line[0].get_color(),alpha=alpha)
+        else : plots.plotl(ax,iso[x][j+1:],iso[y][j+1:],color=line[0].get_color(),alpha=alpha)
     else :
-        line = plots.plotl(ax,iso[x]+dx,iso[y]+dy,xr=xr,yr=yr,color=color,alpha=alpha)
+        if x == 'te' : line = plots.plotl(ax,10.**(iso['logte']+dx),iso[y]+dy,xr=xr,yr=yr,color=color,alpha=alpha)
+        else : line = plots.plotl(ax,iso[x]+dx,iso[y]+dy,xr=xr,yr=yr,color=color,alpha=alpha)
     plt.draw()
 

@@ -270,6 +270,7 @@ def aspcapflag(aspcapfield) :
     #color-Teff
     jk0=(aspcapfield['J']-aspcapfield['K'])-1.5*np.clip(aspcapfield['AK_TARG'],0.,None)
     j = np.where( (aspcapfield['H'][gd] < 90) & (aspcapfield['AK_TARG'][gd] != 0.) &
+                  (aspcapfield['AK_TARG'][gd] > -1) &
                   (np.abs(aspcapfield['FPARAM'][gd,0]-teff.cte_ghb(jk0[gd],aspcapfield['FPARAM'][gd,3])[0]) > 1000) )[0]
     aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('COLORTE_BAD')
     print('COLORTE_BAD',len(j))
@@ -326,14 +327,20 @@ def fix(tab,visit=None) :
     except KeyError: print('ASPCAP_GRID already exists')
     try: tab.rename_column('ASPCAP_CLASS','ASPCAP_GRID')
     except KeyError: print('ASPCAP_GRID already exists')
-    
+
+    # replace 0. with NaN    
+    j=np.where(np.isclose(tab['FPARAM'][:,0],0.))[0]
+    tab['FPARAM'][j,:] = np.nan
+    tab['FPARAM_COV'][j,:] = np.nan
+    tab['ASCPAP_CHI2'][j,:] = np.nan
+
     # flags for no good visits for RV
     j=np.where(tab['NVISITS'] == 0)[0]
     tab['STARFLAG'][j] |= starmask.getval('RV_FAIL')
     for jj in j : tab['STARFLAGS'][jj] = starmask.getname(tab['STARFLAG'][jj])
     tab['RV_FLAG'][j] |= rvmask.getval('NO_GOOD_VISITS')
 
-    # FERRE_FAIL (mostly fixed with edge issues?
+    # FERRE_FAIL (mostly fixed with edge issues?)
     j=np.where(tab['FPARAM'][:,0]<-999)[0]
     tab['ASPCAPFLAG'][j] |= aspcapmask.getval('FERRE_FAIL')
     tab['FPARAM'][j,:] = np.nan

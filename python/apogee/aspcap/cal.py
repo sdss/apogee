@@ -1,17 +1,7 @@
-from apogee.utils import apload
-from apogee.utils import apselect
-from apogee.utils import bitmask
-from apogee.aspcap import elem
-from apogee.aspcap import teffcomp
-from apogee.aspcap import loggcomp
-from apogee.aspcap import aspcap
-from apogee.aspcap import err
-from apogee.aspcap import qa
-from tools import html
-from tools import match
-from tools import struct
-from tools import plots
-from tools import fit
+from apogee.utils import apload, apselect, bitmask
+from apogee.aspcap import elem, teff, logg, aspcap, err, qa
+from apogee.speclib import isochrones
+from tools import html, match, struct, plots, fit
 try: from tools import vfit
 except: pass
 import copy
@@ -24,10 +14,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
-from astropy.io import fits
-from astropy.io import ascii
-from astropy.table import Table, vstack
-from astropy.table import Column
+from astropy.io import fits, ascii
+from astropy.table import Table, vstack, Column
 from astropy.coordinates import SkyCoord
 import astropy.units as units
 
@@ -74,12 +62,12 @@ def allField(search=['apo*/*/a?Field-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?
     return all
 
 
-def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) :
+def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) :
     """ Create set of plots for input cluster with CHI2/parameters/abundances as
         a function of log g, for multiple input data sets
     """
 
-    if zindex == 0 : zr=[3500,5000]
+    if zindex == 0 : zr=[3500,5500]
     elif zindex == 3 : zr=[-1, 0.5]
     else : zr=None
 
@@ -96,6 +84,10 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
             gd = np.where((abs(z) < 0.5) & (r>8) & (r<9) ) [0]
             j=j[gd]
         else :
+            #pdb.set_trace()
+            #stars=list(set(ascii.read(os.environ['APOGEE_REDUX']+'/dr17/stars/clusters/'+cluster+'.txt',names=['ID'])['ID']))
+            #apogee_id = np.array(np.core.defchararray.split(a['APOGEE_ID'],'.').tolist())[:,0]
+            #j,j2=match.match(apogee_id.astype(str),stars)
             j=np.array(apselect.clustmember(a,cluster,raw=True,logg=[-1,6],te=[3000,6000]))
         if len(j) == 0 : return None, None
         gd=apselect.select(a[j],sn=[75,100000],field=field,mh=mh,raw=True)
@@ -106,14 +98,22 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
         mult.append(j[gd[bd]])
 
     # HR
-    fig,ax=plots.multi(1,len(all),hspace=0.001)
+    fig,ax=plots.multi(len(all),1,wspace=0.001)
     ax=np.atleast_1d(ax)
-    for i,(a,j,m) in enumerate(zip(all,inds,mult)) :
+    clust=apselect.clustdata()
+    for i,(a,n,j,m) in enumerate(zip(all,names,inds,mult)) :
         ax[i].cla()
         plots.plotc(ax[i],a['FPARAM'][j,0],a['FPARAM'][j,1],a['FPARAM'][j,3],
-                    xr=[6000,3000],yr=[6,-1],xt='Teff',yt='log g',zr=[-2,0.5])
-        plots.plotp(ax[i],a['FPARAM'][m,0],a['FPARAM'][m,1],color='k')
-        fig.suptitle(cluster)
+                    xr=[6000,3000],yr=[6,-1],xt='Teff',yt='log g',zr=[-2,0.5],size=25,label=(0.05,0.9,n))
+        plots.plotp(ax[i],a['FPARAM'][m,0],a['FPARAM'][m,1],color='k',size=25)
+        jc=np.where(clust.name == cluster)[0][0]
+        if clust.mh[jc] <-0.1 : isofile= 'zm{:02d}.dat'.format(round(np.abs(np.max([-2.1,clust.mh[jc]])*10)))
+        else :isofile= 'zp{:02d}.dat'.format(round(np.abs(clust.mh[jc]*10)))
+        age=np.round(np.log10(clust.age[jc]*1.e9)*10)/10.
+        print(cluster,clust.mh[jc],clust.age[jc],isofile,age)
+        iso=isochrones.read(isofile,agerange=[age,age])
+        isochrones.plot(ax[i],iso,'te','logg')
+        fig.suptitle('{:s}, isochrone [M/H]: {:.1f}  age: {:.1f}'.format(cluster,clust.mh[jc], clust.age[jc]))
     if hard is not None:
         fig.savefig(hard+cluster+suffix+'_'+'hr'+'.png')
         plt.close()
@@ -121,11 +121,11 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
     # CHI2
     fig,ax=plots.multi(1,len(all),hspace=0.001)
     ax=np.atleast_1d(ax)
-    for i,(a,j) in enumerate(zip(all,inds)) :
+    for i,(a,n,j,m) in enumerate(zip(all,names,inds,mult)) :
         ax[i].cla()
         plots.plotc(ax[i],a['FPARAM'][j,1],a['ASPCAP_CHI2'][j],a['FPARAM'][j,zindex],yt='CHI2',
-                    xr=[0,5],yr=[0,30],xt='log g',zr=zr)
-        plots.plotp(ax[i],a['FPARAM'][m,1],a['ASPCAP_CHI2'][m],color='k')
+                    xr=[0,5],yr=[0,30],xt='log g',zr=zr,size=25,label=(0.05,0.9,n))
+        plots.plotp(ax[i],a['FPARAM'][m,1],a['ASPCAP_CHI2'][m],color='k',size=25)
         fig.suptitle(cluster)
     if hard is not None:
         fig.savefig(hard+cluster+suffix+'_'+'chi2'+'.png')
@@ -136,15 +136,15 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
     rms=np.zeros([len(all),6+len(els),3])
     irms=0
     for iparam,param in zip([3,4,5,6],['M','Cpar','Npar','alpha']) :
-        for i,(a,j,m) in enumerate(zip(all,inds,mult)) :
+        for i,(a,n,j,m) in enumerate(zip(all,names,inds,mult)) :
             giants=np.where(a['FPARAM'][j,1] < 3.8)[0]
             dwarfs=np.where(a['FPARAM'][j,1] > 3.8)[0]
             ax[i].cla()
             ymed=np.median(a['FPARAM'][j,iparam])
             print(param,ymed)
             plots.plotc(ax[i],a['FPARAM'][j,1],a['FPARAM'][j,iparam],a['FPARAM'][j,zindex],yt=param,
-                        xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr)
-            plots.plotp(ax[i],a['FPARAM'][m,1],a['FPARAM'][m,iparam],color='k')
+                        xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr,size=25,label=(0.05,0.9,n))
+            plots.plotp(ax[i],a['FPARAM'][m,1],a['FPARAM'][m,iparam],color='k',size=25)
             out=stats(a['FPARAM'][j,iparam],subsets=[giants,dwarfs])
             ax[i].text(0.99,0.8,'{:8.3f}, {:8.3f}'.format(out[0][0],out[0][1]),transform=ax[i].transAxes,ha='right')
             ax[i].text(0.99,0.7,'{:8.3f}, {:8.3f}'.format(out[1][0],out[1][1]),transform=ax[i].transAxes,ha='right',color='r')
@@ -161,15 +161,15 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
         else : pdb.set_trace()    
 
     # parameter [C/N]
-    for i,(a,j,m) in enumerate(zip(all,inds,mult)) :
+    for i,(a,n,j,m) in enumerate(zip(all,names,inds,mult)) :
         giants=np.where(a['FPARAM'][j,1] < 3.8)[0]
         dwarfs=np.where(a['FPARAM'][j,1] > 3.8)[0]
         ax[i].cla()
         cn=a['FPARAM'][:,4]-a['FPARAM'][:,5]
         ymed=np.median(a['FPARAM'][j,4]-a['FPARAM'][j,5])
         plots.plotc(ax[i],a['FPARAM'][j,1],a['FPARAM'][j,4]-a['FPARAM'][j,5],a['FPARAM'][j,zindex],yt='[Cpar/Npar]',
-                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr)
-        plots.plotp(ax[i],a['FPARAM'][m,1],a['FPARAM'][m,4]-a['FPARAM'][m,5],color='k')
+                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr,size=25,label=(0.05,0.9,n))
+        plots.plotp(ax[i],a['FPARAM'][m,1],a['FPARAM'][m,4]-a['FPARAM'][m,5],color='k',size=25)
         ax[i].text(0.9,0.8,'{:8.3f}'.format(cn[j].std()),transform=ax[i].transAxes)
         ax[i].text(0.9,0.7,'{:8.3f}'.format(cn[j[giants]].std()),transform=ax[i].transAxes,color='r')
         ax[i].text(0.9,0.6,'{:8.3f}'.format(cn[j[dwarfs]].std()),transform=ax[i].transAxes,color='g')
@@ -185,7 +185,7 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
     else : pdb.set_trace()    
 
     # element [C/N]
-    for i,(a,j,m) in enumerate(zip(all,inds,mult)) :
+    for i,(a,n,j,m) in enumerate(zip(all,names,inds,mult)) :
         giants=np.where(a['FPARAM'][j,1] < 3.8)[0]
         dwarfs=np.where(a['FPARAM'][j,1] > 3.8)[0]
         ax[i].cla()
@@ -196,8 +196,8 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
 
         ymed=np.median(a['FELEM'][j,0]-a['FELEM'][j,2])
         plots.plotc(ax[i],a['FPARAM'][j,1],cn[j],a['FPARAM'][j,zindex],yt='[C/N]',
-                xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr)
-        plots.plotp(ax[i],a['FPARAM'][m,1],a['FELEM'][m,0]-a['FELEM'][m,2],color='k')
+                xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr,size=25,label=(0.05,0.9,n))
+        plots.plotp(ax[i],a['FPARAM'][m,1],a['FELEM'][m,0]-a['FELEM'][m,2],color='k',size=25)
         ax[i].text(0.9,0.8,'{:8.3f}'.format(cn[j].std()),transform=ax[i].transAxes)
         ax[i].text(0.9,0.7,'{:8.3f}'.format(cn[j[giants]].std()),transform=ax[i].transAxes,color='r')
         ax[i].text(0.9,0.6,'{:8.3f}'.format(cn[j[dwarfs]].std()),transform=ax[i].transAxes,color='g')
@@ -215,26 +215,29 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
     # elements
     els = aspcap.elems()[0]
     for iel,el in enumerate(els) :
-        for i,(a,j,m) in enumerate(zip(all,inds,mult)) :
-            giants=np.where(a['FPARAM'][j,1] < 3.8)[0]
-            dwarfs=np.where(a['FPARAM'][j,1] > 3.8)[0]
+        for i,(a,n,j,m) in enumerate(zip(all,names,inds,mult)) :
             ax[i].cla()
             try:
-                ymed=np.median(a['FELEM'][j,iel])
-                plots.plotc(ax[i],a['FPARAM'][j,1],a['FELEM'][j,iel],a['FPARAM'][j,zindex],yt=el,
-                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr)
-                plots.plotp(ax[i],a['FPARAM'][m,1],a['FELEM'][m,iel],color='k')
+                gd=np.where(a['FELEM'][j,iel]>-999)[0]
+                if len(gd) == 0 : continue
+                ymed=np.median(a['FELEM'][j[gd],iel])
+                plots.plotc(ax[i],a['FPARAM'][j[gd],1],a['FELEM'][j[gd],iel],a['FPARAM'][j[gd],zindex],yt=el,
+                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr,size=25,label=(0.05,0.9,n))
+                plots.plotp(ax[i],a['FPARAM'][m,1],a['FELEM'][m,iel],color='k',size=25)
             except:
+                gd=np.where(a['FELEM'][j,0,iel]>-999)[0]
                 ymed=np.median(a['FELEM'][j,0,iel])
-                plots.plotc(ax[i],a['FPARAM'][j,1],a['FELEM'][j,0,iel],a['FPARAM'][j,zindex],yt=el,
-                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr)
-            out=stats(a['FELEM'][j,iel],subsets=[giants,dwarfs])
+                plots.plotc(ax[i],a['FPARAM'][j[gd],1],a['FELEM'][j[gd],0,iel],a['FPARAM'][j[gd],zindex],yt=el,
+                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr,size=25)
+            giants=np.where(a['FPARAM'][j[gd],1] < 3.8)[0]
+            dwarfs=np.where(a['FPARAM'][j[gd],1] > 3.8)[0]
+            out=stats(a['FELEM'][j[gd],iel],subsets=[giants,dwarfs])
             ax[i].text(0.99,0.8,'{:8.3f}, {:8.3f}'.format(out[0][0],out[0][1]),transform=ax[i].transAxes,ha='right')
             ax[i].text(0.99,0.7,'{:8.3f}, {:8.3f}'.format(out[1][0],out[1][1]),transform=ax[i].transAxes,ha='right',color='r')
             ax[i].text(0.99,0.6,'{:8.3f}, {:8.3f}'.format(out[2][0],out[2][1]),transform=ax[i].transAxes,ha='right',color='g')
-            rms[i,irms,0] = a['FELEM'][j,iel].std()
-            rms[i,irms,1] = a['FELEM'][j[giants],iel].std()
-            rms[i,irms,2] = a['FELEM'][j[dwarfs],iel].std()
+            rms[i,irms,0] = a['FELEM'][j[gd],iel].std()
+            rms[i,irms,1] = a['FELEM'][j[gd[giants]],iel].std()
+            rms[i,irms,2] = a['FELEM'][j[gd[dwarfs]],iel].std()
             if i == 0 : y0=ymed
             ax[i].plot([0,5],[y0,y0],ls=':')
             fig.suptitle(cluster)
@@ -244,10 +247,11 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
         else : pdb.set_trace()    
     plt.close()
     fig,ax=plots.multi(1,3,hspace=0.001)
+    colors=['r','g','b']
     for i in range(rms.shape[0]) :
-        ax[0].plot(rms[i,:,0],label='all {:d}'.format(i))
-        ax[1].plot(rms[i,:,1],label='rgb {:d}'.format(i))
-        ax[2].plot(rms[i,:,2],label='ms {:d}'.format(i))
+        ax[0].plot(rms[i,:,0],colors[i]+'o-',label='all {:d}'.format(i))
+        ax[1].plot(rms[i,:,1],colors[i]+'o-',label='rgb {:d}'.format(i))
+        ax[2].plot(rms[i,:,2],colors[i]+'o-',label='ms {:d}'.format(i))
     for i in range(3) :
         ax[i].legend()
         ax[i].set_ylim(0,0.2)
@@ -257,7 +261,10 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
     ax[2].set_xlim(ax[0].get_xlim())
     ax[2].set_xticks(np.arange(rms.shape[1]))
     ax[2].set_xticklabels(labs)
-    fig.savefig(hard+cluster+suffix+'_rms.png')
+    if hard is not None :
+        fig.savefig(hard+cluster+suffix+'_rms.png')
+        plt.close()
+    else: pdb.set_trace()
     plt.close()
 
     grid=[[cluster+suffix+'_rms.png']]
@@ -267,25 +274,27 @@ def plotlogg(all,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) 
     for el in aspcap.elems()[0] :
         fig=cluster+suffix+'_'+el+'.png'
         grid.append([fig])
-    html.htmltab(grid,file=hard+cluster+suffix+'.html')
+    if hard is not None: html.htmltab(grid,file=hard+cluster+suffix+'.html')
 
     return inds, rms
 
-def allclust(all,clusters=['M67','N7789','N6819','N6791','M3','M15'],out='clust') :
+def allclust(all,names,clusters=['M67','N7789','N6819','N6791','M3','M15'],out='clust') :
     """ Create cluster plots for multiple clusters and make summary web page
     """
     allinds=[]
     for cluster in clusters :
-        inds=plotlogg(all,cluster=cluster,hard='plots/')
+        inds=plotlogg(all,names,cluster=cluster,hard='plots/')
         allinds.append(inds)
 
     grid=[]
+    yt=[]
     for param in ['hr','rms','chi2','M','Cpar','Npar','alpha','Cpar_Npar','C_N'] :
         row=[]
         for clust in clusters :
             fig=clust+'_'+param+'.png'
             row.append(fig)
         grid.append(row)
+        yt.append(param)
 
     for el in aspcap.elems()[0] :
         row=[]
@@ -293,11 +302,12 @@ def allclust(all,clusters=['M67','N7789','N6819','N6791','M3','M15'],out='clust'
             fig=clust+'_'+el+'.png'
             row.append(fig)
         grid.append(row)
+        yt.append(el)
 
     xtit=[]
     for c in clusters :
         xtit.append('<A HREF={:s}.html> {:s} </A>'.format(c,c))
-    html.htmltab(grid,file='plots/'+out+'.html',xtitle=xtit)
+    html.htmltab(grid,file='plots/'+out+'.html',xtitle=xtit,ytitle=yt)
     return allinds
 
     

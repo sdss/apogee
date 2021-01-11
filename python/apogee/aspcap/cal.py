@@ -249,9 +249,9 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
     fig,ax=plots.multi(1,3,hspace=0.001)
     colors=['r','g','b']
     for i in range(rms.shape[0]) :
-        ax[0].plot(rms[i,:,0],colors[i]+'o-',label='all {:d}'.format(i))
-        ax[1].plot(rms[i,:,1],colors[i]+'o-',label='rgb {:d}'.format(i))
-        ax[2].plot(rms[i,:,2],colors[i]+'o-',label='ms {:d}'.format(i))
+        ax[0].plot(rms[i,:,0],colors[i]+'o-',label='all {:s}'.format(names[i]))
+        ax[1].plot(rms[i,:,1],colors[i]+'o-',label='rgb {:s}'.format(names[i]))
+        ax[2].plot(rms[i,:,2],colors[i]+'o-',label='ms {:s}'.format(names[i]))
     for i in range(3) :
         ax[i].legend()
         ax[i].set_ylim(0,0.2)

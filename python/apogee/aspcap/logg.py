@@ -11,7 +11,7 @@ from tools import fit
 from apogee.utils import bitmask
 try: from apogee.aspcap import cal
 except: pass
-from apogee.aspcap import err
+from apogee.aspcap import err, teff
 from apogee.speclib import isochrones
 import pdb
 import matplotlib.pyplot as plt
@@ -515,12 +515,17 @@ def isochrone(allstar,snrbd=300) :
     return outdata
             
 
-def clusters(allstar,xr=[-2.75,0.5],yr=[-1.,1.],zr=[3500,5500],apokasc='APOKASC_cat_v3.6.0.fits',firstgen=False) :
+def clusters(allstar,xr=[-2.75,0.5],yr=[-1.,1.],zr=[3500,5500],apokasc='APOKASC_cat_v3.6.0.fits',firstgen=False,
+             clusters=['M92','M15','M53','M2','M13','M3','M5','N2420','M67','N6819','N6791'],calib=True,title=None,
+             out='cluster_logg') :
     '''
     Compare ASPCAP gravities in clusters to physical gravities
     '''
-    fig,ax=plots.multi(1,2,hspace=0.001)
+    if calib : fig,ax=plots.multi(1,2,hspace=0.001)
+    else : fig,ax=plots.multi(1,1,hspace=0.001)
+    ax=np.atleast_1d(ax)
 
+    """
     # put APOKASC underneath
     apokasc=fits.open(os.environ['APOGEE_DIR']+'/data/apokasc/'+apokasc)[1].data
     # strip off .XXXX if we have it, e.g. from calibration fields where we have added .FIELD
@@ -528,12 +533,13 @@ def clusters(allstar,xr=[-2.75,0.5],yr=[-1.,1.],zr=[3500,5500],apokasc='APOKASC_
     i1,i2=match.match(apogee_id,apokasc['2MASS_ID'])
     plots.plotc(ax[0],allstar['FPARAM'][i1,3],allstar['FPARAM'][i1,1]-apokasc['LOGG_SYD_SCALING'][i2],allstar['FPARAM'][i1,0],zr=zr)
     plots.plotc(ax[1],allstar['PARAM'][i1,3],allstar['PARAM'][i1,1]-apokasc['LOGG_SYD_SCALING'][i2],allstar['PARAM'][i1,0],zr=zr)
+    """
 
     # physical gravities
     clust=apselect.clustdata()
     itext=0
-    out=open('clust.txt','w')
-    for cluster in ['M92','M15','M53','M2','M13','M3','M5','N2420','M67','N6819','N6791'] :
+    txt=open('clust.txt','w')
+    for cluster in clusters :
         i=np.where(clust.name == cluster)
         dist=clust[i].dist*1000.
         mh=clust[i].mh
@@ -550,33 +556,38 @@ def clusters(allstar,xr=[-2.75,0.5],yr=[-1.,1.],zr=[3500,5500],apokasc='APOKASC_
             # calculate physical gravities
             lum=10.**(-0.4*(allstar['H'][j]-ah+isochrones.bc(allstar['FPARAM'][j,0],filt='h',agerange=[age-0.05,age+0.05])-(5*np.log10(dist)-5)-4.74))*astropy.constants.L_sun.cgs.value
             logg=np.log10(4*np.pi*astropy.constants.G.cgs.value*mass*astropy.constants.M_sun.cgs.value*astropy.constants.sigma_sb.cgs.value*allstar['FPARAM'][j,0]**4/lum)
-            plots.plotc(ax[0],allstar['FPARAM'][j,3]*0+mh,allstar['FPARAM'][j,1]-logg,allstar['FPARAM'][j,0],xr=xr,yr=yr,zr=zr,yt='ASPCAP-physical log g')
+            axim=plots.plotc(ax[0],allstar['FPARAM'][j,3]*0+mh,allstar['FPARAM'][j,1]-logg,allstar['FPARAM'][j,0],xr=xr,yr=yr,zr=zr,yt='ASPCAP-physical log g')
             ax[0].text(0.9,0.1,'raw',transform=ax[0].transAxes,ha='right')
 
-            plots.plotp(ax[0],allstar['FPARAM'][j,3]*0+mh,allstar['FPARAM'][j,1]-logg,color='k')
-            plots.plotp(ax[0],mh[0],np.median(allstar['FPARAM'][j,1]-logg),size=40,color='r')
+            #plots.plotp(ax[0],allstar['FPARAM'][j,3]*0+mh,allstar['FPARAM'][j,1]-logg,color='k')
+            plots.plotp(ax[0],mh[0],np.median(allstar['FPARAM'][j,1]-logg),size=50,color='k')
             ax[0].text(mh[0],ytext,name[0],ha='center')
+            ax[0].grid()
 
-            out.write('{:<20s}{:8.3f}{:8.3f}{:8.3f}\n'.format(clust[i].name[0],clust[i].dist[0],clust[i].ebv[0],mass[0]))
+            txt.write('{:<20s}{:8.3f}{:8.3f}{:8.3f}\n'.format(clust[i].name[0],clust[i].dist[0],clust[i].ebv[0],mass[0]))
 
-            gd=np.where((allstar['PARAM'][j,3]>-9)&(allstar['PARAM'][j,1]>-9))[0]
-            axim=plots.plotc(ax[1],allstar['PARAM'][j[gd],3]*0+mh,allstar['PARAM'][j[gd],1]-logg[gd],allstar['PARAM'][j[gd],0],xr=xr,yr=yr,zr=zr,xt='[M/H]',yt='ASPCAP-physical log g')
-            ax[1].text(0.9,0.1,'calibrated',transform=ax[1].transAxes,ha='right')
+            if calib :
+                gd=np.where((allstar['PARAM'][j,3]>-9)&(allstar['PARAM'][j,1]>-9))[0]
+                axim=plots.plotc(ax[1],allstar['PARAM'][j[gd],3]*0+mh,allstar['PARAM'][j[gd],1]-logg[gd],allstar['PARAM'][j[gd],0],xr=xr,yr=yr,zr=zr,xt='[M/H]',yt='ASPCAP-physical log g')
+                ax[1].text(0.9,0.1,'calibrated',transform=ax[1].transAxes,ha='right')
 
-            plots.plotp(ax[1],mh[0],np.median(allstar['PARAM'][j[gd],1]-logg[gd]),size=40)
-            # apply a temperature correction for the physical gravities
-            logg_new=np.log10(4*np.pi*astropy.constants.G.cgs.value*mass*astropy.constants.M_sun.cgs.value*astropy.constants.sigma_sb.cgs.value*(allstar['FPARAM'][j,0]-100.*allstar['FPARAM'][j,3])**4/lum)
-            plots.plotp(ax[1],mh[0],np.median(allstar['PARAM'][j,1]-logg_new),size=40,color='b')
-            # use a photometric temperature
-            logg_phot=np.log10(4*np.pi*astropy.constants.G.cgs.value*mass*astropy.constants.M_sun.cgs.value*astropy.constants.sigma_sb.cgs.value*stars.ghb(allstar['J'][j]-allstar['K'][j]-ejk,allstar['FPARAM'][j,3])[0]**4/lum)
-            plots.plotp(ax[1],mh[0],np.median(allstar['PARAM'][j,1]-logg_phot),size=40,color='g')
-            ax[1].text(mh[0],ytext,name[0],ha='center')
+                plots.plotp(ax[1],mh[0],np.median(allstar['PARAM'][j[gd],1]-logg[gd]),size=40)
+                # apply a temperature correction for the physical gravities
+                logg_new=np.log10(4*np.pi*astropy.constants.G.cgs.value*mass*astropy.constants.M_sun.cgs.value*astropy.constants.sigma_sb.cgs.value*(allstar['FPARAM'][j,0]-100.*allstar['FPARAM'][j,3])**4/lum)
+                plots.plotp(ax[1],mh[0],np.median(allstar['PARAM'][j,1]-logg_new),size=40,color='b')
+                # use a photometric temperature
+                logg_phot=np.log10(4*np.pi*astropy.constants.G.cgs.value*mass*astropy.constants.M_sun.cgs.value*astropy.constants.sigma_sb.cgs.value*teff.cte_ghb(allstar['J'][j]-allstar['K'][j]-ejk,allstar['FPARAM'][j,3])[0]**4/lum)
+                plots.plotp(ax[1],mh[0],np.median(allstar['PARAM'][j,1]-logg_phot),size=40,color='g')
+                ax[1].text(mh[0],ytext,name[0],ha='center')
             itext+=1
+
+    if title is not None : fig.suptitle(title)
 
     # Now adding the colorbar
     cbaxes = fig.add_axes([0.9, 0.1, 0.03, 0.8]) 
     cb = plt.colorbar(axim, cax = cbaxes)  
-    out.close()
+    txt.close()
+    if out is not None : fig.savefig(out+'.png')
 
 
 def dr13dr12() :

@@ -211,8 +211,8 @@ def read(name,libfile) :
             a['PARAMFLAG'][bad,index] |= parammask.getval('GRIDEDGE_BAD')
             a['ASPCAPFLAG'][bad] |= aspcapmask.getval(flagnames[index]+'_BAD')
         warn = np.where((a['PARAMFLAG'][:,index]&parammask.getval('GRIDEDGE_BAD') ==0) &
-                        (val < libhead0['LLIMITS'][i]+libhead0['STEPS'][i]/2.) |
-                        (val > libhead0['LLIMITS'][i]+libhead0['STEPS'][i]*(libhead0['N_P'][i]-1-1./2)) )[0]
+                        (val < libhead0['LLIMITS'][i]+libhead0['STEPS'][i]) |
+                        (val > libhead0['LLIMITS'][i]+libhead0['STEPS'][i]*(libhead0['N_P'][i]-1-1.)) )[0]
         a['PARAMFLAG'][warn,index] |= parammask.getval('GRIDEDGE_WARN')
         a['ASPCAPFLAG'][warn] |= aspcapmask.getval(flagnames[index]+'_WARN')
         bad = np.where(val < -999)[0]

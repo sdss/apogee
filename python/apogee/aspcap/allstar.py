@@ -96,6 +96,11 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
     # add named tags
     add_named_tags(tab)
 
+    # add unique identifiers for database
+    tab['APSTAR_ID'] = apstar_id(tab)
+    tab['ASPCAP_ID'] = aspcap_id(tab)
+    tab['TARGET_ID'] = target_id(tab)
+    
     # construct HDUList
     hdulist=fits.HDUList()
     hdulist.append(fits.BinTableHDU(tab))
@@ -331,6 +336,10 @@ def fix(tab,visit=None) :
     except KeyError: print('ASPCAP_GRID already exists')
     try: tab.rename_column('ASPCAP_CLASS','ASPCAP_GRID')
     except KeyError: print('ASPCAP_GRID already exists')
+    try: tab.rename_column('FPARAM_CLASS','FPARAM_GRID')
+    except KeyError: print('FPARAM_GRID already exists')
+    try: tab.rename_column('CHI2_CLASS','FPARAM_GRID')
+    except KeyError: print('CHI2_GRID already exists')
 
     # replace 0. with NaN    
     j=np.where(np.isclose(tab['FPARAM'][:,0],0.))[0]
@@ -459,6 +468,38 @@ def fix(tab,visit=None) :
                 nbd+=1
         print('SB2s turned off: ', nbd)
 
+def apstar_id(data,apstar_vers='stars') :
+    """ Unique APSTAR identifier
+    """
+    id = np.core.defchararray.add('apogee.',data['TELESCOPE'].astype(str))
+    id = np.core.defchararray.add(id,'.')
+    id = np.core.defchararray.add(id,apstar_vers)
+    id = np.core.defchararray.add(id,'.')
+    id = np.core.defchararray.add(id,data['FIELD'].astype(str))
+    id = np.core.defchararray.add(id,'.')
+    id = np.core.defchararray.add(id,data['APOGEE_ID'].astype(str))
+    return id
+
+def target_id(data) :
+    """ Unique target identifier
+    """
+    id = np.core.defchararray.add(data['TELESCOPE'].astype(str),'.')
+    id = np.core.defchararray.add(id,data['FIELD'].astype(str))
+    id = np.core.defchararray.add(id,'.')
+    id = np.core.defchararray.add(id,data['APOGEE_ID'].astype(str))
+    return id
+
+def aspcap_id(data,aspcap_vers='l33') :
+    """ Unique ASPCAP identifier
+    """
+    id = np.core.defchararray.add('apogee.',data['TELESCOPE'].astype(str))
+    id = np.core.defchararray.add(id,'.')
+    id = np.core.defchararray.add(id,aspcap_vers)
+    id = np.core.defchararray.add(id,'.')
+    id = np.core.defchararray.add(id,data['FIELD'].astype(str))
+    id = np.core.defchararray.add(id,'.')
+    id = np.core.defchararray.add(id,data['APOGEE_ID'].astype(str))
+    return id
 
 # routines here used for DR16 only
 

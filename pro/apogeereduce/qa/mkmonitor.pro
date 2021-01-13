@@ -1,4 +1,6 @@
-pro mkmonitor, term=term, read=read, nofiber=nofiber
+pro mkmonitor, term=term, read=read, nofiber=nofiber, vers=vers
+
+apsetver,vers=vers
 
 ; Get long term trends from internal cals, using compiled apQAcal.fits files, make plots
 ;  and web page

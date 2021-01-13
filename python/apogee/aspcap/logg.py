@@ -726,26 +726,26 @@ def cal(a,caldir='cal/') :
     a['PARAMFLAG'][gd,1] |= parammask.getval('CALRANGE_BAD')
 
     # get calibration data
-    cal=fits.open(caldir+'/giant_loggcal.fits')[1].data
-    rgbsep=cal['rgbsep'][0]
-    cnsep=cal['cnsep'][0]
-    rclim=cal['rclim'][0]
-    rcfit2=cal['rcfit2'][0]
-    rgbfit2=cal['rgbfit2'][0]
-    calloggmin=cal['calloggmin']
-    calloggmax=cal['calloggmax']
-    calteffmin=cal['calteffmin']
-    calteffmax=cal['calteffmax']
+    calpars=fits.open(caldir+'/giant_loggcal.fits')[1].data
+    rgbsep=calpars['rgbsep'][0]
+    cnsep=calpars['cnsep'][0]
+    rclim=calpars['rclim'][0]
+    rcfit2=calpars['rcfit2'][0]
+    rgbfit2=calpars['rgbfit2'][0]
+    calloggmin=calpars['calloggmin']
+    calloggmax=calpars['calloggmax']
+    calteffmin=calpars['calteffmin']
+    calteffmax=calpars['calteffmax']
 
 
     # for stars that aren't bad, get cn and dt
     cn=a['FPARAM'][gd,4]-a['FPARAM'][gd,5]
     dt=a['FPARAM'][gd,0] - (rgbsep[0] + rgbsep[1]*(a['FPARAM'][gd,1]-2.5) +rgbsep[2]*a['FPARAM'][gd,3])
-    try: snr=cal.clip(a['SNREV'][gd],0,200.)
+    try: snr=np.clip(a['SNREV'][gd],0,200.)
     except:
         print('No SNREV, continnue with SNR?')
         pdb.set_trace()
-        snr=cal.clip(a['SNR'][gd],0,200.)
+        snr=np.clip(a['SNR'][gd],0,200.)
 
     # select RC
     rc=np.where((a['FPARAM'][gd,1]<rclim[1])&(a['FPARAM'][gd,1]>rclim[0])&
@@ -754,7 +754,7 @@ def cal(a,caldir='cal/') :
                 (a['FPARAM'][gd,0]<calteffmax)&(a['FPARAM'][gd,0]>calteffmin))[0]
     rccorr=rcfit2[0] + rcfit2[1]*a['FPARAM'][gd,1] + rcfit2[2]*a['FPARAM'][gd,1]**2
     a['PARAM'][gd[rc],1]=a['FPARAM'][gd[rc],1]-rccorr[rc]
-    a['PARAM_COV'][gd[rc],1,1]=err.elemerr(cal['rcerrpar'][0],a['FPARAM'][gd[rc],0]-4500,snr[rc]-100,a['FPARAM'][gd[rc],3])**2
+    a['PARAM_COV'][gd[rc],1,1]=err.elemerr(calpars['rcerrpar'][0],a['FPARAM'][gd[rc],0]-4500,snr[rc]-100,a['FPARAM'][gd[rc],3])**2
     a['PARAMFLAG'][gd[rc],1] &= ~parammask.getval('CALRANGE_BAD')
     a['PARAMFLAG'][gd[rc],1] |= parammask.getval('LOGG_CAL_RC')
 
@@ -764,26 +764,26 @@ def cal(a,caldir='cal/') :
                 (a['FPARAM'][gd,1]<calloggmax)&(a['FPARAM'][gd,1]>calloggmin) &
                 (a['FPARAM'][gd,0]<calteffmax)&(a['FPARAM'][gd,0]>calteffmin))[0]
     #clip logg at loggmin and loggmax
-    logg=cal.clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
-    mh=cal.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
+    logg=np.clip(a['FPARAM'][gd,1],calpars['loggmin'],calpars['loggmax'])
+    mh=np.clip(a['FPARAM'][gd,3],calpars['mhmin'],calpars['mhmax'])
     # get correction
     rgbcorr=(rgbfit2[0] + rgbfit2[1]*logg + rgbfit2[2]*logg**2 +
                        rgbfit2[3]*logg**3 + rgbfit2[4]*mh )
     a['PARAM'][gd[rgb],1]=a['FPARAM'][gd[rgb],1]-rgbcorr[rgb]
-    a['PARAM_COV'][gd[rgb],1,1]=err.elemerr(cal['rgberrpar'][0],a['FPARAM'][gd[rgb],0]-4500,snr[rgb]-100,a['FPARAM'][gd[rgb],3])**2
+    a['PARAM_COV'][gd[rgb],1,1]=err.elemerr(calpars['rgberrpar'][0],a['FPARAM'][gd[rgb],0]-4500,snr[rgb]-100,a['FPARAM'][gd[rgb],3])**2
     a['PARAMFLAG'][gd[rgb],1] &= ~parammask.getval('CALRANGE_BAD')
     a['PARAMFLAG'][gd[rc],1] |= parammask.getval('LOGG_CAL_RGB')
 
     # dwarfs
-    cal=fits.open(caldir+'/dwarf_loggcal.fits')[1].data
-    teff=cal.clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
-    logg=cal.clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
-    mh=cal.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
-    msfit=cal['msfit'][0]
+    calpars=fits.open(caldir+'/dwarf_loggcal.fits')[1].data
+    teff=np.clip(a['FPARAM'][gd,0],calpars['temin'],calpars['temax'])
+    logg=np.clip(a['FPARAM'][gd,1],calpars['loggmin'],calpars['loggmax'])
+    mh=np.clip(a['FPARAM'][gd,3],calpars['mhmin'],calpars['mhmax'])
+    msfit=calpars['msfit'][0]
     mscorr=msfit[0]+msfit[1]*teff+msfit[2]*mh
-    ms=np.where(a['FPARAM'][gd,1] > cal['calloggmin'])[0]
+    ms=np.where(a['FPARAM'][gd,1] > calpars['calloggmin'])[0]
     a['PARAM'][gd[ms],1]=a['FPARAM'][gd[ms],1]-mscorr[ms]
-    a['PARAM_COV'][gd[ms],1,1]=err.elemerr(cal['errpar'][0],a['FPARAM'][gd[ms],0]-4500,snr[ms]-100,a['FPARAM'][gd[ms],3])**2
+    a['PARAM_COV'][gd[ms],1,1]=err.elemerr(calpars['errpar'][0],a['FPARAM'][gd[ms],0]-4500,snr[ms]-100,a['FPARAM'][gd[ms],3])**2
     a['PARAMFLAG'][gd[ms],1] &= ~parammask.getval('CALRANGE_BAD')
     a['PARAMFLAG'][gd[rc],1] |= parammask.getval('LOGG_CAL_MS')
 

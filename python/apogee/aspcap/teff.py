@@ -325,25 +325,25 @@ def cal(a,caldir='cal/'):
     starmask=bitmask.StarBitMask()
     gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
 
-    cal=fits.open(caldir+'/all_tecal.fits')[1].data[0]
-    calteffmin=cal['caltemin']
-    calteffmax=cal['caltemax']
+    calpars=fits.open(caldir+'/all_tecal.fits')[1].data[0]
+    calteffmin=calpars['caltemin']
+    calteffmax=calpars['caltemax']
 
     #initial values
     a['PARAM'][:,0] = np.nan
     a['PARAMFLAG'][gd,0] |= parammask.getval('CALRANGE_BAD')
 
-    teff=cal.clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
-    mh=cal.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
-    try: snr=cal.clip(a['SNREV'][gd],0,200.)
+    teff=np.clip(a['FPARAM'][gd,0],calpars['temin'],calpars['temax'])
+    mh=np.clip(a['FPARAM'][gd,3],calpars['mhmin'],calpars['mhmax'])
+    try: snr=np.clip(a['SNREV'][gd],0,200.)
     except: 
         print('No SNREV, continnue with SNR?')
         pdb.set_trace()
-        snr=cal.clip(a['SNR'][gd],0,200.)
+        snr=np.clip(a['SNR'][gd],0,200.)
 
     ok =np.where((a['FPARAM'][gd,0] >= calteffmin) & (a['FPARAM'][gd,0] <= calteffmax) )[0]
-    a['PARAM'][gd[ok],0] = a['FPARAM'][gd[ok],0] - (cal['par2d'][0]+cal['par2d'][1]*mh[ok]+cal['par2d'][2]*teff[ok])
-    a['PARAM_COV'][gd[ok],0,0] = err.elemerr(cal['errpar'],a['FPARAM'][gd[ok],0]-4500.,snr[ok]-100.,a['FPARAM'][gd[ok],3])**2
+    a['PARAM'][gd[ok],0] = a['FPARAM'][gd[ok],0] - (calpars['par2d'][0]+calpars['par2d'][1]*mh[ok]+calpars['par2d'][2]*teff[ok])
+    a['PARAM_COV'][gd[ok],0,0] = err.elemerr(calpars['errpar'],a['FPARAM'][gd[ok],0]-4500.,snr[ok]-100.,a['FPARAM'][gd[ok],3])**2
     a['PARAMFLAG'][gd[ok],0] &= ~parammask.getval('CALRANGE_BAD')
 
     return 

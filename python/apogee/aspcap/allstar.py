@@ -12,7 +12,7 @@ import pdb
 import glob
 import yaml
 
-def all(planfile,dofix=False,suffix=None,allvisit=True,allplate=True, calsample=False) :
+def all(planfile,dofix=False,suffix=None,allvisit=True,allplate=True, calsample=False, caldir=None) :
    """ Summary files after everything is run
    """
    plan=yaml.safe_load(open(planfile,'r'))
@@ -25,9 +25,11 @@ def all(planfile,dofix=False,suffix=None,allvisit=True,allplate=True, calsample=
    apstar_dir=os.environ['APOGEE_REDUX']+'/'+apred_vers+'/'+apstar_vers+'/'
    aspcap_dir=os.environ['APOGEE_ASPCAP']+'/'+apred_vers+'/'+aspcap_vers+'/'
    print('Create allStar file')
-   if calsample : skip=['Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.']
-   else : skip = None
-   tab,dat=allStar(search=[aspcap_dir+'apo*/*/aspcapField-*.fits',aspcap_dir+'lco*/*/aspcapField-*.fits'],skip=skip,out=None,dofix=dofix)
+   if calsample : 
+       tab,dat=allStar(search=[aspcap_dir+'apo*/*/aspcapField-*.fits',aspcap_dir+'lco*/*/aspcapField-*.fits'],
+               skip=['Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.'],out=None,dofix=dofix,caldir=caldir)
+   else : 
+       tab,dat=allStar(search=[aspcap_dir+'apo*/*/aspcapField-*.fits',aspcap_dir+'lco*/*/aspcapField-*.fits'],out=None,dofix=dofix,caldir=caldir)
 
    # allVisit file
    if allvisit :
@@ -82,15 +84,17 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
 
     if dofix : fix(tab)
 
-    # add named tags
-    add_named_tags(tab)
+    # calibrated quantitites
+    if caldir is not None : allcal(tab,caldir=caldir)
 
     # add EXTRATARG, H_MIN, H_MAX, JKMIN, JKMAX
     add_extratarg(tab)
 
     # set ASPCAPFLAG bits and ASPCAPFLAGS
-    if caldir is not None : allcal(tab,caldir=caldir)
     aspcapflag(tab)
+
+    # add named tags
+    add_named_tags(tab)
 
     # construct HDUList
     hdulist=fits.HDUList()
@@ -141,14 +145,14 @@ def add_named_tags(tab) :
     tab['TEFF_SPEC'] = tab['FPARAM'][:,0].astype(np.float32)
     tab['LOGG_SPEC'] = tab['FPARAM'][:,1].astype(np.float32)
     tab['VMICRO'] = 10.**tab['FPARAM'][:,2].astype(np.float32)
-    dw=np.where(np.core.defchararray.find(tab['ASPCAP_GRID'],b'BA') |
-                np.core.defchararray.find(tab['ASPCAP_GRID'],b'GKd') |
-                np.core.defchararray.find(tab['ASPCAP_GRID'],b'Fd') |
-                np.core.defchararray.find(tab['ASPCAP_GRID'],b'Md') ) [0]
+    dw=np.where(np.core.defchararray.find(tab['ASPCAP_GRID'].astype(str),'BA') |
+                np.core.defchararray.find(tab['ASPCAP_GRID'].astype(str),'GKd') |
+                np.core.defchararray.find(tab['ASPCAP_GRID'].astype(str),'Fd') |
+                np.core.defchararray.find(tab['ASPCAP_GRID'].astype(str),'Md') ) [0]
     tab['VMACRO'][dw] = 0.
     tab['VSINI'][dw] = 10.**tab['FPARAM'][:,7].astype(np.float32)
-    giant=np.where(np.core.defchararray.find(tab['ASPCAP_GRID'],b'GKg') |
-                np.core.defchararray.find(tab['ASPCAP_GRID'],b'Mg') ) [0]
+    giant=np.where(np.core.defchararray.find(tab['ASPCAP_GRID'].astype(str),'GKg') |
+                np.core.defchararray.find(tab['ASPCAP_GRID'].astype(str),'Mg') ) [0]
     tab['VMACRO'][giant] = 10.**tab['FPARAM'][:,7].astype(np.float32)
 
     # named element flags

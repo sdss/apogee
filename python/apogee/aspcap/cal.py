@@ -1095,7 +1095,7 @@ def logg(a,caldir='cal/') :
     # for stars that aren't bad, get cn and dt
     cn=a['FPARAM'][gd,4]-a['FPARAM'][gd,5]
     dt=a['FPARAM'][gd,0] - (rgbsep[0] + rgbsep[1]*(a['FPARAM'][gd,1]-2.5) +rgbsep[2]*a['FPARAM'][gd,3])
-    snr=clip(a['SNREV'][gd],0,200.)
+    snr=np.clip(a['SNREV'][gd],0,200.)
 
     new=np.zeros(len(a))-9999.99
 
@@ -1116,8 +1116,8 @@ def logg(a,caldir='cal/') :
                 (a['FPARAM'][gd,1]<calloggmax)&(a['FPARAM'][gd,1]>calloggmin) &
                 (a['FPARAM'][gd,0]<calteffmax)&(a['FPARAM'][gd,0]>calteffmin))[0]
     #clip logg at loggmin and loggmax
-    logg=clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
-    mh=clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
+    logg=np.clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
+    mh=np.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
     # get correction
     rgbcorr=(rgbfit2[0] + rgbfit2[1]*logg + rgbfit2[2]*logg**2 +
                        rgbfit2[3]*logg**3 + rgbfit2[4]*mh )
@@ -1127,9 +1127,9 @@ def logg(a,caldir='cal/') :
     #rgbidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RGB')) >0)[0]
 
     cal=fits.open(caldir+'/dwarf_loggcal.fits')[1].data
-    teff=clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
-    logg=clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
-    mh=clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
+    teff=np.clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
+    logg=np.clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
+    mh=np.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
     msfit=cal['msfit'][0]
     mscorr=msfit[0]+msfit[1]*teff+msfit[2]*mh
     ms=np.where(a['FPARAM'][gd,1] > cal['calloggmin'])[0]
@@ -1159,9 +1159,9 @@ def teff(a,caldir='cal/'):
     cal=fits.open(caldir+'/all_tecal.fits')[1].data[0]
     calteffmin=cal['caltemin']
     calteffmax=cal['caltemax']
-    teff=clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
-    mh=clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
-    snr=clip(a['SNREV'][gd],0,200.)
+    teff=np.clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
+    mh=np.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
+    snr=np.clip(a['SNREV'][gd],0,200.)
 
     new=np.zeros(len(a))-9999.99
     ok =np.where((a['FPARAM'][gd,0] >= calteffmin) & (a['FPARAM'][gd,0] <= calteffmax) )[0]
@@ -1220,13 +1220,13 @@ def elem(a,caldir='cal/') :
             gdel=np.where( (a['FPARAM'][ok,0] >= calteffmin)  &
                            (a['FPARAM'][ok,0] <= calteffmax) ) [0]
 
-            teff=clip(a['FPARAM'][ok[gdel],0],cal['temin'][iel],cal['temax'][iel])
-            mh=clip(a['FPARAM'][ok[gdel],3],cal['femin'][iel],cal['femax'][iel])
-            try: snr=clip(a['SNREV'][ok[gdel]],0,200.)
+            teff=np.clip(a['FPARAM'][ok[gdel],0],cal['temin'][iel],cal['temax'][iel])
+            mh=np.clip(a['FPARAM'][ok[gdel],3],cal['femin'][iel],cal['femax'][iel])
+            try: snr=np.clip(a['SNREV'][ok[gdel]],0,200.)
             except:
                 print('No SNREV, continnue with SNR?')
                 pdb.set_trace()
-                snr=clip(a['SNR'][ok[gdel]],0,200.)
+                snr=np.clip(a['SNR'][ok[gdel]],0,200.)
 
             x = teff-cal['te0'][iel]
 
@@ -1264,17 +1264,6 @@ def elem(a,caldir='cal/') :
                     a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)
 
     return
-
-
-def clip(x,xmin,xmax) :
-    """ clip input array so that x<xmin becomes xmin, x>xmax becomes xmax, return clipped array
-    """
-    new=copy.copy(x)
-    bd=np.where(x<xmin)[0]
-    new[bd]=xmin
-    bd=np.where(x>xmax)[0]
-    new[bd]=xmax
-    return new
 
 
 def lbd2xyz(l,b,d,R0=8.5) :

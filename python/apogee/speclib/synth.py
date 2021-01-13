@@ -305,7 +305,7 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
             linelists.append(linelistdir+'/turbospec.'+linelist+msuffix+'.molec')
             tfactor=1
             if h2o == 0 :
-              if teff < 4000 :
+              if teff <= 4000 :
                 # DR16
                 #if mh+am < -1.5 or teff > 3250 :
                 #    linelists.append(linelistdir+'/turbospec.h2o-BC8.5V'+'.molec')

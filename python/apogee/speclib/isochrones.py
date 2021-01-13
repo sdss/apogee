@@ -2,6 +2,7 @@ import os
 import pdb
 import numpy as np
 from astropy.io import ascii
+from astropy.modeling import models, fitting
 import astropy.table as table
 from tools import plots
 import matplotlib.pyplot as plt
@@ -67,4 +68,22 @@ def plot(ax,iso,x,y,xr=None,yr=None,color=None,dx=0.,dy=0.,isoadj=False,alpha=No
         if x == 'te' : line = plots.plotl(ax,10.**(iso['logte']+dx),iso[y]+dy,xr=xr,yr=yr,color=color,alpha=alpha)
         else : line = plots.plotl(ax,iso[x]+dx,iso[y]+dy,xr=xr,yr=yr,color=color,alpha=alpha)
     plt.draw()
+
+def bc(t,feh=0.,filt='h',giants=True,degree=2,agerange=None) :
+    iso = read(isoname(feh)+'.dat',agerange=agerange)
+    fit=fitting.LinearLSQFitter()
+    mod=models.Polynomial1D(degree=degree)
+    if giants :
+        gd = np.where((iso['logg'] < 3.5) & (iso['logte'] < 4))[0]
+    else :
+        gd = np.where((iso['logg'] > 4) )[0]
+    p=fit(mod,iso['logte'][gd],iso['mbol'][gd]-iso[filt][gd])
+    return p(np.log10(t))
+
+def isoname(feh) :
+    if feh < -1.e-3 :
+        file = 'zm{:02d}'.format(int(round(-feh*10)))
+    else :
+        file = 'zp{:02d}'.format(int(round(feh*10)))
+    return file
 

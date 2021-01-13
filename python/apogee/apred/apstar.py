@@ -147,7 +147,8 @@ def allPlate(all,out=None) :
     if out is not None : 
         hdulist = fits.HDUList()
         hdulist.append(fits.BinTableHDU(allplate))
-        hdulist.writeto(out)
+        hdulist[0].header['VERSION'] = (os.environ['APOGEE_VER'],'APOGEE software version APOGEE_VER')
+        hdulist.writeto(out,overwrite=True)
 
     return allplate 
 
@@ -739,7 +740,6 @@ def gauss_decomp(out,phase='one',alpha1=0.5,alpha2=1.5,thresh=[4,4],plot=None,fi
         if filt and n>0 :
             # remove components if they are within width of brighter component, or <0.25 peak ,
             #   or more than twice as wide, or if primary component is wide
-            print('n: ', n)
             for j in range(1,n) :
                 # decompose can return component with 0 amplitude, need to remove these first
                 # also remove narrow peaks 
@@ -751,9 +751,6 @@ def gauss_decomp(out,phase='one',alpha1=0.5,alpha2=1.5,thresh=[4,4],plot=None,fi
                 pars_j = decomp['best_fit_parameters'][j::n]
                 for k in range(j) :
                     pars_k = decomp['best_fit_parameters'][k::n]
-                    print(plot,j,k,decomp['N_components'])
-                    print(pars_j)
-                    print(pars_k)
                     if (pars_j[0]>pars_k[0] and pars_k[0]>0 and 
                                 (abs(pars_j[2]-pars_k[2])<abs(pars_j[1])  or 
                                  pars_k[0]<0.25*pars_j[0] or 
@@ -769,9 +766,6 @@ def gauss_decomp(out,phase='one',alpha1=0.5,alpha2=1.5,thresh=[4,4],plot=None,fi
                         decomp['best_fit_parameters'][j] = 0
                         pars_j = decomp['best_fit_parameters'][j::n]
                         decomp['N_components'] -= 1
-                    print(plot,j,k,decomp['N_components'])
-                    print(pars_j)
-                    print(pars_k)
                   
         gout.append(decomp)
         if plot is not None:

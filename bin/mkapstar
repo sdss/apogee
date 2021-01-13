@@ -24,6 +24,7 @@ if __name__ == '__main__' :
 
     parser.add_argument("config",type=str, help='configfile')
     parser.add_argument("--fields",type=str,nargs='+',help='list of fields',default=[])
+    parser.add_argument("--np",help='notchpeak setup',action="store_true")
     args=parser.parse_args()
 
     # load configuration file
@@ -53,9 +54,10 @@ if __name__ == '__main__' :
         fp.close()
 
     # make the SLURM file
-    os.chdir(cfg['apstar_vers'])
-    cmd = 'apstar --clobber --threads=32'
-    mkslurm.write('"'+cmd+'" plan/a?Star*.yml' ,maxrun=1,idlthreads=16,queryport=1051,queryhost=os.uname()[1],pythreads=1)
+    os.chdir(os.environ['APOGEE_REDUX']+'/'+cfg['apred_vers']+'/'+cfg['apstar_vers'])
+    if args.np : cmd = 'apstar --clobber --threads=128'
+    else : cmd = 'apstar --clobber --threads=32'
+    mkslurm.write('"'+cmd+'" plan/a?Star*.yml' ,maxrun=1,idlthreads=16,queryport=1051,queryhost=os.uname()[1],pythreads=1,np=args.np)
 
     #sort=np.argsort(nstars)[::-1]
     #fp=open(topdir+'/slurm/fields.sort','w')

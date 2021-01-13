@@ -207,7 +207,7 @@ class ParamBitMask(BitMask):
      ' ',
      ' ',
      ' ',
-     'Parameter within 1/2 grid spacing of grid edge ',
+     'Parameter within 1 grid spacing of grid edge ',
      'Parameter in possibly unreliable range of calibration determination ',
      'Other warning condition ',
      'FERRE warning (not implemented?) ',

@@ -1,0 +1,5 @@
+see dr16/README for some explanation
+
+global_mask_dr17 refers to construction of masks based
+on synspec syntheses, but these have not been adopted
+for DR17 in this directory.

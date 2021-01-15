@@ -3,7 +3,7 @@ from esutil import htm
 import astropy
 from astropy.table import Table, Column, vstack
 from astropy.io import fits
-from apogee.utils import bitmask
+from apogee.utils import bitmask, apselect
 from apogee.apred import apstar
 from apogee.aspcap import aspcap, teff, logg, cal
 from tools import match
@@ -89,6 +89,9 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
 
     # add EXTRATARG, H_MIN, H_MAX, JKMIN, JKMAX
     add_extratarg(tab)
+
+    # add MEMBERS
+    add_members(tab)
 
     # set ASPCAPFLAG bits and ASPCAPFLAGS
     aspcapflag(tab)
@@ -189,10 +192,10 @@ def add_extratarg(tab) :
     """ add EXTRATARG, MIN_H, MAX_H, MIN_JK, MAX_JK
     """
     if not isinstance(tab,astropy.table.table.Table) : tab=Table(tab)
-    col = Column(np.full([len(tab)],np.uint32(0)),name='EXTRATARG',dtype=np.uint32)
+    # start with OTHER set
+    col = Column(np.full([len(tab)],np.uint32(1)),name='EXTRATARG',dtype=np.uint32)
     try : tab.remove_column('EXTRATARG')
     except: pass
-    # start with OTHER set
     tab.add_column(col)
     apogee_targ1 = bitmask.ApogeeTarget1()
     apogee_targ2 = bitmask.ApogeeTarget2()
@@ -319,6 +322,32 @@ def aspcapflag(aspcapfield) :
     print('maxlen: ', maxlen)
 
 
+def add_members(tab) :
+    """ Add membership bitmask
+    """
+    col = Column(np.full([len(tab)],np.uint32(0)),name='MEMBERFLAG',dtype=np.uint32)
+    try : tab.remove_column('MEMBERFLAG')
+    except: pass
+    tab.add_column(col)
+    col = Column(np.full([len(tab)],''),name='MEMBER',dtype='S10')
+    try : tab.remove_column('MEMBER')
+    except: pass
+    tab.add_column(col)
+
+    membermask=bitmask.MembersBitMask()
+    for name in membermask.name :
+        j=apselect.clustmember(tab,name)
+        for jj in j :
+            tab['MEMBERFLAG'][jj] |= membermask.getval(name)
+        j=apselect.clustmember(tab,name,dsph=True)
+        for jj in j :
+            tab['MEMBERFLAG'][jj] |= membermask.getval(name)
+
+    # populate text MEMBER
+    j=np.where(tab['MEMBERFLAG'] != 0)[0]
+    for jj in j :
+        tab['MEMBER'][jj] = membermask.getname(tab['MEMBERFLAG'][jj])
+   
 def fix(tab,visit=None) :
     """ Fix up broken things
     """

@@ -427,6 +427,20 @@ class RVMask(BitMask) :
      ''
     ])
 
+class MembersBitMask(BitMask) :
+    ''' Membership '''
+    name=['M92','M15','M53','N5466','N4147',
+        'M2','M13','M3','M5','M12','M107',
+        'M71','N2243','Be29', 'N2158','M35','N2420',
+        'N188','M67','N7789','Pleiades','N6819',
+        'ComaBer','N6791',
+        'N5053','M68','N6397','M55','N5634','M22','M79','N3201','M10',
+        'N6752','Omegacen','M54','N6229','Pal5','N6544','N6522','N288','N362','N1851',
+        'M4','N2808','Pal6','47TUC','Pal1','N6539','N6388','Terzan12','N6441','N6316',
+        'N6760','Terzan5','N6553','N6528',
+        'DRACO','URMINOR','BOOTES1','SEXTANS','FORNAX','SCULPTOR','CARINA']
+
+
 def targflags(targ1,targ2,targ3,targ4,survey='apogee2') :
 
     if 'apogee2' in survey :

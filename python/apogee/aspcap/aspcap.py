@@ -24,7 +24,7 @@ import time
 import yaml
 from shutil import copyfile
 import subprocess
-import scipy.ndimage.filters
+from scipy.ndimage.filters import median_filter, gaussian_filter
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy.io import ascii
@@ -152,7 +152,7 @@ def elemsens(els=None,plot=None,ylim=[0.1,-0.3],teff=4750,logg=2.,feh=-1.,smooth
                 ife=int(round((feh-elem[i].header['CRVAL4'])/elem[i].header['CDELT4']))
                 diff=elem[i].data[ife,ig,it,:]
                 if smooth is not None:
-                    diff=scipy.ndimage.filters.gaussian_filter(diff,smooth)
+                    diff=gaussian_filter(diff,smooth)
                 wave=elem[i].header['CRVAL1']+np.arange(elem[i].header['NAXIS1'])*elem[i].header['CDELT1']
                 if plot is not None:
                     #plot.plot(wave,diff,color='g')
@@ -309,6 +309,7 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
     aspcapfield.add_column(Column(name='X_M',dtype=np.float32,data=np.full([n,nelem],np.nan)))
     aspcapfield.add_column(Column(name='X_M_ERR',dtype=np.float32,data=np.full([n,nelem],np.nan)))
     aspcapfield.add_column(Column(name='ELEM_CHI2',dtype=np.float32,data=np.full([n,nelem],np.nan)))
+    aspcapfield.add_column(Column(name='ELEMFRAC',dtype=np.float32,data=np.full([n,nelem],np.nan)))
     aspcapfield.add_column(Column(name='ELEMFLAG',dtype=np.uint64,data=np.full([n,nelem],np.nan)))
 
     # load spectra
@@ -374,9 +375,15 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
 
         # set uncertainty floor to minerr (fractional): check for negative fluxes!
         ind = np.where(tmp/np.abs(apStar2aspcap(apstar.flux[row,:])) < minerr)[0]
-        tmp[ind] = minerr*np.abs(apStar2aspcap(apstar.flux[row,:]))[ind]
-        aspcapspec['ERR'][istar] = tmp/norm
-
+        #cont = gaussian_filter(median_filter(apstar.flux[row,:],[501],mode='reflect'),100)
+        ##tmp[ind] = minerr*np.abs(apStar2aspcap(apstar.flux[row,:]))[ind]
+        #tmp[ind] = minerr*np.abs(cont)[ind]
+        #aspcapspec['ERR'][istar] = tmp/norm
+        tmp /= norm
+        ind = np.where(tmp < minerr)[0]
+        tmp[ind] = minerr
+        aspcapspec['ERR'][istar] = tmp
+  
         # fraction of low S/N pixels 
         fracerr = aspcapspec['ERR'][istar]/aspcapspec['OBS'][istar] 
         aspcapfield['FRAC_LOWSNR'][istar] = len(np.where(fracerr > 0.2)[0]) / len(aspcapspec['OBS'][istar])
@@ -393,6 +400,7 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
                     (aspcapspec['OBS'][istar] < 0.) |
                     (aspcapspec['ERR'][istar] < 0.) )[0]
         if len(bd) > 0 : 
+            # make sure there are no NaNs input to FERRE
             aspcapspec['OBS'][istar,bd] = 0.0001
             aspcapspec['ERR'][istar,bd] = 1.e10
         # fraction of bad pixels
@@ -411,6 +419,10 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
                 p0+=pix
 
     #skip.close()
+
+    # add element window pixel fractions
+    for iel,el in enumerate(elems()[0]) :
+        aspcapfield['ELEMFRAC'][:,iel] = elemfrac(aspcapspec,el)
 
     return aspcapfield, aspcapspec
 
@@ -610,9 +622,9 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
             if ('GK' in grid['name']) and (param['FPARAM'][i,0] < 3900) : 
                 print('penalizing GK')
                 chi2 *= 10
-            #penalize stars within 1/2 spacing of grid edge in TEFF or LOGG
-            if (param['PARAMFLAG'][i,0] & parammask.getval('GRIDEDGE_WARN')) > 0 : chi2*=5
-            if (param['PARAMFLAG'][i,1] & parammask.getval('GRIDEDGE_WARN')) > 0 : chi2*=5
+            #penalize stars within 1 step of grid edge in TEFF or LOGG
+            if param['PARAMFLAG'][i,0] & (parammask.getval('GRIDEDGE_WARN')|parammask.getval('GRIDEDGE_BAD')) > 0 : chi2*=5
+            if param['PARAMFLAG'][i,1] & (parammask.getval('GRIDEDGE_WARN')|parammask.getval('GRIDEDGE_BAD')) > 0 : chi2*=5
 
             # load star for this grid if its the best fit
             if chi2 < aspcapfield['ASPCAP_CHI2'][gd[istar]] or aspcapfield['ASPCAP_CHI2'][gd[istar]]<=0 :
@@ -630,7 +642,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                     npix=libhead[ichip]['NPIX']
                     obs=spec['frd'][i,p1:p1+npix].flatten()
                     # replace bad pixels with median filtered value
-                    med=scipy.ndimage.filters.median_filter(obs,[5*width],mode='nearest')
+                    med=median_filter(obs,[5*width],mode='nearest')
                     bd=np.where(obs < 0.01)[0]
                     obs[bd] = med[bd]
                     # populate SPEC_ERR with FERRE-normalized error
@@ -642,7 +654,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                     # get ratio of observed / model, make sure edge is reasonable number
                     mdl=spec['mdl'][i,p1:p1+npix].flatten()
                     ratio=obs/mdl
-                    corr=scipy.ndimage.filters.median_filter(ratio,[width],mode='nearest')
+                    corr=median_filter(ratio,[width],mode='nearest')
                     bd=np.where(~np.isfinite(corr) | (corr < 0.1) | (corr > 10.) )[0]
                     corr[bd] = 1.
                     if not renorm: 
@@ -1273,3 +1285,19 @@ def comp(a,b,terange=[4500,5000],loggrange=[2.5,3.5],mhrange=[-2.5,1.0],amrange=
         fp.write(html.table([['spec.png']]))
 
     html.tail(fp)
+
+def elemfrac(spec,el) :
+    """ calculate fractional contribution of good pixels
+    """
+    print('elemfrac: ',el)
+    mask=np.loadtxt(os.environ['APOGEE_DIR']+'/data/windows/dr17/'+el+'.filt')
+    rat=[]
+    pixmask=bitmask.PixelBitMask()
+    for i in range(len(spec)) :
+        gd=np.where((spec['MASK'][i] & (pixmask.badval()|pixmask.getval('SIG_SKYLINE'))) == 0)[0]
+        rat.append(mask[gd].sum() / mask.sum())
+        #err=np.median(spec['ERR'][i,:])
+        #rat.append((mask/spec['ERR'][i,:]**2).sum()/(mask/spec['RAWERR']**2).sum())
+    rat=np.array(rat)
+
+    return rat

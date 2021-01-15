@@ -539,7 +539,8 @@ def clusters(allstar,xr=[-2.75,0.5],yr=[-1.,1.],zr=[3500,5500],apokasc='APOKASC_
     clust=apselect.clustdata()
     itext=0
     txt=open('clust.txt','w')
-    for cluster in clusters :
+    cfig,cax=plots.multi(1,len(clusters),hspace=0.001,figsize=(8,12))
+    for iclust,cluster in enumerate(clusters) :
         i=np.where(clust.name == cluster)
         dist=clust[i].dist*1000.
         mh=clust[i].mh
@@ -557,13 +558,16 @@ def clusters(allstar,xr=[-2.75,0.5],yr=[-1.,1.],zr=[3500,5500],apokasc='APOKASC_
             lum=10.**(-0.4*(allstar['H'][j]-ah+isochrones.bc(allstar['FPARAM'][j,0],filt='h',agerange=[age-0.05,age+0.05])-(5*np.log10(dist)-5)-4.74))*astropy.constants.L_sun.cgs.value
             logg=np.log10(4*np.pi*astropy.constants.G.cgs.value*mass*astropy.constants.M_sun.cgs.value*astropy.constants.sigma_sb.cgs.value*allstar['FPARAM'][j,0]**4/lum)
             axim=plots.plotc(ax[0],allstar['FPARAM'][j,3]*0+mh,allstar['FPARAM'][j,1]-logg,allstar['FPARAM'][j,0],xr=xr,yr=yr,zr=zr,yt='ASPCAP-physical log g')
+            #axim=plots.plotc(ax[0],allstar['FPARAM'][j,3],allstar['FPARAM'][j,1]-logg,allstar['FELEM'][j,6]-allstar['FPARAM'][j,3],zr=[-0.25,0.5],yt='ASPCAP-physical log g')
             ax[0].text(0.9,0.1,'raw',transform=ax[0].transAxes,ha='right')
 
-            #plots.plotp(ax[0],allstar['FPARAM'][j,3]*0+mh,allstar['FPARAM'][j,1]-logg,color='k')
             plots.plotp(ax[0],mh[0],np.median(allstar['FPARAM'][j,1]-logg),size=50,color='k')
             ax[0].text(mh[0],ytext,name[0],ha='center')
             ax[0].grid()
 
+            plots.plotc(cax[iclust],allstar['FPARAM'][j,1],allstar['FPARAM'][j,1]-logg,allstar['FPARAM'][j,0],xr=[0,4],yr=[-0.49,0.49],zr=zr,yt='ASPCAP-physical log g',xt='ASPCAP log g',size=40)
+            cax[iclust].grid()
+            cax[iclust].text(0.1,0.9,cluster,transform=cax[iclust].transAxes)
             txt.write('{:<20s}{:8.3f}{:8.3f}{:8.3f}\n'.format(clust[i].name[0],clust[i].dist[0],clust[i].ebv[0],mass[0]))
 
             if calib :
@@ -581,13 +585,19 @@ def clusters(allstar,xr=[-2.75,0.5],yr=[-1.,1.],zr=[3500,5500],apokasc='APOKASC_
                 ax[1].text(mh[0],ytext,name[0],ha='center')
             itext+=1
 
-    if title is not None : fig.suptitle(title)
+    if title is not None : 
+        fig.suptitle(title)
+        cfig.suptitle(title)
 
     # Now adding the colorbar
     cbaxes = fig.add_axes([0.9, 0.1, 0.03, 0.8]) 
     cb = plt.colorbar(axim, cax = cbaxes)  
     txt.close()
-    if out is not None : fig.savefig(out+'.png')
+    if out is not None : 
+        fig.savefig(out+'.png')
+        cfig.savefig(out+'_indiv.png')
+        plt.close()
+        plt.close()
 
 
 def dr13dr12() :

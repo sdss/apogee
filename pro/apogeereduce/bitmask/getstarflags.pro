@@ -1,7 +1,7 @@
 pro getstarflags,flag,badflag,descrip
 
 flag=['BAD_PIXELS','COMMISSIONING','BRIGHT_NEIGHBOR','VERY_BRIGHT_NEIGHBOR','LOW_SNR','','','',$
-      '','PERSIST_HIGH','PERSIST_MED','PERSIST_LOW','PERSIST_JUMP_POS','PERSIST_JUMP_NEG','','',$
+      'LOW_MTPFLUX','PERSIST_HIGH','PERSIST_MED','PERSIST_LOW','PERSIST_JUMP_POS','PERSIST_JUMP_NEG','','',$
       'SUSPECT_RV_COMBINATION','SUSPECT_BROAD_LINES','BAD_RV_COMBINATION','','','','','',$
       '','','','','','','','']
 badflag=[1,0,0,1,0,0,0,0,$   ;0-7
@@ -18,7 +18,7 @@ descrip=[$
  '',$
  '',$
  '',$
- '',$
+ 'Spectrum falls on fiber in MTP block with low (<0.5) relative flux',$
  'Spectrum has significant number (>20%) of pixels in high persistence region: WARN',$                          ;9
  'Spectrum has significant number (>20%) of pixels in medium persistence region: WARN',$
  'Spectrum has significant number (>20%) of pixels in low persistence region: WARN',$

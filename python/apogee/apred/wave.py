@@ -643,9 +643,6 @@ def skycal(planfile,out=None,inst=None,waveid=None,group=-1,skyfile='airglow',ve
     if vers is None : vers = p['apred_vers'].strip("'") if p.get('apred_vers') else 'current'
     if waveid is None : waveid = int(p['waveid'].strip("'")) if p.get('waveid') else None
 
-    # set up file reader
-    load=apload.ApLoad(apred=vers,instrument=inst,verbose=False)
-
     # open output line data?
     if out is not None : f=open(out,'a') 
     else : f=None
@@ -677,6 +674,9 @@ def skycal(planfile,out=None,inst=None,waveid=None,group=-1,skyfile='airglow',ve
         skyrows = np.sort(300-skyfibers)
     if not nosky :
         skylines=ascii.read(os.environ['APOGEE_DIR']+'/data/skylines/'+skyfile+'.txt')
+
+    # set up file reader
+    load=apload.ApLoad(apred=vers,instrument=inst,verbose=False)
 
     # if we have a wavecal, get the wavelength array
     if waveid > 0 :

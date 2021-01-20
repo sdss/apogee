@@ -111,7 +111,7 @@ GKg : &GKg
     dlogg : 0.5
     nlogg : 10
 Mg : &Mg
-    <<: *giantfine
+    <<: *giant
     specdir : tgM_180901_turbo20
     teff0 : 3000
     dteff : 100
@@ -200,25 +200,105 @@ lsfds: &lsfds
     <<: *apogee-s
     smooth : lsfds
     lsffiber : [4,10,16,22,28]
-
 GRID :
   - <<: *GKg
     <<: *lsfcombo 
+  - <<: *GKg
+    <<: *lsfa
+  - <<: *GKg
+    <<: *lsfb
+  - <<: *GKg
+    <<: *lsfc
+  - <<: *GKg
+    <<: *lsfd
   - <<: *Mg
     <<: *lsfcombo 
+  - <<: *Mg
+    <<: *lsfa 
+  - <<: *Mg
+    <<: *lsfb 
+  - <<: *Mg
+    <<: *lsfc 
+  - <<: *Mg
+    <<: *lsfd 
   - <<: *Fd
     <<: *lsfcombo 
+  - <<: *Fd
+    <<: *lsfa 
+  - <<: *Fd
+    <<: *lsfb 
+  - <<: *Fd
+    <<: *lsfc 
+  - <<: *Fd
+    <<: *lsfd 
   - <<: *GKd
     <<: *lsfcombo 
+  - <<: *GKd
+    <<: *lsfa 
+  - <<: *GKd
+    <<: *lsfb 
+  - <<: *GKd
+    <<: *lsfc 
+  - <<: *GKd
+    <<: *lsfd 
   - <<: *Md
     <<: *lsfcombo 
+  - <<: *Md
+    <<: *lsfa 
+  - <<: *Md
+    <<: *lsfb 
+  - <<: *Md
+    <<: *lsfc 
+  - <<: *Md
+    <<: *lsfd 
+# apogee-s
   - <<: *GKg
     <<: *lsfcombos
+  - <<: *GKg
+    <<: *lsfas
+  - <<: *GKg
+    <<: *lsfbs
+  - <<: *GKg
+    <<: *lsfcs
+  - <<: *GKg
+    <<: *lsfds
   - <<: *Mg
     <<: *lsfcombos
+  - <<: *Mg
+    <<: *lsfas
+  - <<: *Mg
+    <<: *lsfbs 
+  - <<: *Mg
+    <<: *lsfcs 
+  - <<: *Mg
+    <<: *lsfds 
   - <<: *Fd
     <<: *lsfcombos
+  - <<: *Fd
+    <<: *lsfas 
+  - <<: *Fd
+    <<: *lsfbs 
+  - <<: *Fd
+    <<: *lsfcs 
+  - <<: *Fd
+    <<: *lsfds 
   - <<: *GKd
     <<: *lsfcombos
+  - <<: *GKd
+    <<: *lsfas 
+  - <<: *GKd
+    <<: *lsfbs 
+  - <<: *GKd
+    <<: *lsfcs 
+  - <<: *GKd
+    <<: *lsfds 
   - <<: *Md
     <<: *lsfcombos
+  - <<: *Md
+    <<: *lsfas 
+  - <<: *Md
+    <<: *lsfbs 
+  - <<: *Md
+    <<: *lsfcs 
+  - <<: *Md
+    <<: *lsfds 

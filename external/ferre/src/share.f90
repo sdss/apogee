@@ -259,5 +259,6 @@ real(dp), allocatable	:: waveline(:)	!iq-formatted wavelengths line
 integer         	:: nthreads = 1 !OMP_NUM_THREADS is used unless
 					!specified in control file
 					!0= uses all available
+integer                 :: f_sort = 1
 
 end module share

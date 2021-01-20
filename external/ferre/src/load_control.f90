@@ -22,7 +22,7 @@ namelist / lista / f_format,f_access,fformat
 namelist / lista / snr,only_object,ycutoff,wphot,balance
 namelist / lista / optimize,impact,mforce,chiout,trkout,nfilter,init
 namelist / lista / nruns,errbar,covprint,indi,winter,twinter
-namelist / lista / inter,mono,algor,scope,stopcr,simp,nthreads
+namelist / lista / inter,mono,algor,scope,stopcr,simp,nthreads,f_sort
 namelist / lista / pcaproject,pcachi,lsf,nlsf
 namelist / lista / cont,ncont,obscont,rejectcont
 namelist / lista / ext_chain_filename,ext_gr_filename
@@ -273,6 +273,7 @@ write(*,*)'load_control -> snr =',snr
 write(*,*)'load_control -> nruns=',nruns
 write(*,*)'load_control -> lsf=',lsf
 write(*,*)'load_control -> nthreads=',nthreads
+write(*,*)'load_control -> f_sort=',f_sort
 
 if (algor == 5) then
  write(*,*)'load_control -> gen_num=',gen_num

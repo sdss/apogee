@@ -51,7 +51,9 @@ if __name__ == '__main__' :
     now = datetime.datetime.now()
     start = time.time()
     print ("Start: ",now.strftime("%Y-%m-%d %H:%M:%S"))
-    pca.pca(args.planfile,pcas=tuple(args.pcas),dir=args.dir,test=args.test,writeraw=args.writeraw,
+    if args.pcas is not None : pcas = tuple(args.pcas)
+    else : pcas = None
+    pca.pca(args.planfile,pcas=pcas,dir=args.dir,test=args.test,writeraw=args.writeraw,
             incremental=args.incremental,threads=args.threads,rawsynth=args.rawsynth,piece=args.piece,
             digits=args.digits,py2=args.py2)
     now = datetime.datetime.now()

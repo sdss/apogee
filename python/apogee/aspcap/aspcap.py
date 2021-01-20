@@ -220,7 +220,7 @@ def elemmask(el,maskdir='filters_26112015',plot=None,yr=[0,1]) :
         plots.plotl(plot,wave,mask,yr=yr)
     return wave,mask
 
-def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visits=0,addgaia=True) :
+def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visits=0,addgaia=False) :
     """ create initial aspcapField file from apField file
     """
 
@@ -427,7 +427,7 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
     return aspcapfield, aspcapspec
 
 def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,minerr=0.005,apstar_vers=None,plot=False,
-               init='RV',fix=None,renorm=False,suffix='',html=True,mult=False,dostar=None) :
+               init='RV',coarse=False,fix=None,renorm=False,suffix='',html=True,mult=False,dostar=None) :
     """ run ASPCAP on a field to get parameters
     """
     # read configuration file
@@ -559,11 +559,17 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                 elif init == 'PARAM' :
                     inpars.append(list(star['PARAM']))
                 if renorm :
-                    flux.append(spec['OBS']/spec['NORM'])
-                    err.append(spec['ERR']/spec['NORM'])
+                    normflux=spec['OBS']/spec['NORM']
+                    normerr=spec['ERR']/spec['NORM']
+                    bd=np.where(spec['ERR']>0.99e10)[0]
+                    if len(bd) > 0 : 
+                        normflux[bd] = 0.0001
+                        normerr[bd] = 1.e10
                 else :
-                    flux.append(spec['OBS'])
-                    err.append(spec['ERR'])
+                    normflux=spec['OBS']
+                    normerr=spec['ERR']
+                flux.append(normflux)
+                err.append(normerr)
                 if mult :
                     imult=0
                     for dlogg in np.linspace(-0.2,0.2,3) :
@@ -575,14 +581,20 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
                                 cent[6]+=dam
                                 cent[4]+=dcm
                                 inpars.append(list(cent))
-                                flux.append(spec['OBS']/spec['NORM'])
-                                err.append(spec['ERR']/spec['NORM'])
+                                flux.append(normflux)
+                                err.append(normerr)
                                 imult+=1
-            if fix is not None :
+            #exclude dimensions if coarse run or fixed parameters specified
+            exclude=[]
+            if coarse : exclude.extend(grid['fix_coarse'])
+            if fix is not None : exclude.extend(fix)
+            if len(exclude) > 0 :    
                 indv=[]
                 for i,par in enumerate(libhead0['LABEL']) :
-                    if par.decode() not in fix : indv.append(i+1)
+                    if par.decode() not in exclude : indv.append(i+1)
             else : indv=None
+
+            # write ferre files and run ferre
             ferre.writeipf(out,os.path.dirname(out)+'/'+libfile,stars,param=np.array(inpars))
             ferre.writespec(out+'.obs',flux)
             ferre.writespec(out+'.err',err)
@@ -797,11 +809,17 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
             inpars.append(star[useparam])
             print(star['APOGEE_ID'])
             if renorm :
-                flux.append(spec['OBS']/spec['NORM'])
-                err.append(spec['ERR']/spec['NORM'])
+                normflux=spec['OBS']/spec['NORM']
+                normerr=spec['ERR']/spec['NORM']
+                bd=np.where(spec['ERR']>0.99e10)[0]
+                if len(bd) > 0 : 
+                    normflux[bd] = 0.0001
+                    normerr[bd] = 1.e10
             else :
-                flux.append(spec['OBS'])
-                err.append(spec['ERR'])
+                normflux=spec['OBS']
+                normerr=spec['ERR']
+            flux.append(normflux)
+            err.append(normerr)
 
         if clobber or not os.path.exists(outspec+'.obs') :
 

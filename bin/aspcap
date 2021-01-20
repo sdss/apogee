@@ -57,7 +57,8 @@ if __name__ == '__main__' :
             # initial fit with vmicro relation
             print('Initial parameters from initial RV parameters, fixed vmicro')
             #out=aspcap.fit_params(args.planfile,clobber=args.clobber,fix=['LOG10VDOP'],renorm=False,html=False)
-            out=aspcap.fit_params(args.planfile,clobber=args.clobber,fix=['C','N'],renorm=False,html=False,nobj=args.nobj,write=False)
+            #out=aspcap.fit_params(args.planfile,clobber=args.clobber,fix=['C','N'],renorm=False,html=False,nobj=args.nobj,write=False)
+            out=aspcap.fit_params(args.planfile,clobber=args.clobber,coarse=True,renorm=False,html=False,nobj=args.nobj,write=False)
             #refit with renomalization and with all paramters fit
             print('Refit with renomalization, initial fit parameters, all parameters fit')
             out_renorm=aspcap.fit_params(args.planfile,aspcapdata=out,clobber=args.clobber,

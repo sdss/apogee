@@ -28,7 +28,7 @@ if __name__ == '__main__' :
     parser.add_argument('--nosynth', help='Skip synthesis directory file creation',action="store_true")
     parser.add_argument('--writeraw', help='Create raw FERRE files',action="store_true")
     parser.add_argument('--queryport', type=int, help='queryhost port to use',default=1052)
-    parser.add_argument("--digits", type=int, default=3, help='number of digits in atmos coding')
+    parser.add_argument("--digits", type=int, default=2, help='number of digits in atmos coding')
     parser.add_argument("--py2",  help='emulate python 2 rounding for name',action="store_true")
     parser.add_argument("--np",  help='notchpeak',action="store_true")
     args=parser.parse_args()

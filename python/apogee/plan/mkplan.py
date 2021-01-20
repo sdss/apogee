@@ -83,9 +83,9 @@ def mkgriddirs(configfile,nosynth=False,synthonly=False,writeraw=False,queryport
             else : maxrun=12
             mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.yml',queryhost=os.uname()[1],queryport=queryport,np=np,maxrun=maxrun,time='240:00:00',pythreads=1)
             #mkslurm.write('bundle plan/'+name+'_??.yml',queryhost=os.uname()[1],queryport=queryport,maxrun=32)
-            mkslurm.write('"pca --pcas 12 75 --incremental --threads 0" '+raw+' plan/'+name+'.yml',maxrun=1,time='72:00:00',np=np,queryhost=os.uname()[1],queryport=queryport,pythreads=1)
+            mkslurm.write('"pca --incremental --threads 0" '+raw+' plan/'+name+'.yml',maxrun=1,time='72:00:00',np=np,queryhost=os.uname()[1],queryport=queryport,pythreads=1)
             mkslurm.write('mkgridlsf plan/'+name+'_a[mp]*vp??.yml',queryhost=os.uname()[1],queryport=queryport,np=np,maxrun=maxrun,time='240:00:00',
-                          postcmd='pca --pcas 12 75 --incremental --threads 0 '+raw+' plan/'+name+'.yml',name='mkgridlsf_pca')
+                          postcmd='pca --incremental --threads 0 '+raw+' plan/'+name+'.yml',name='mkgridlsf_pca')
 
 def speclib_split(planfile,amsplit=True,cmsplit=True,nmsplit=True,oasplit=True,vtsplit=True,el='',digits=3,py2=False) :
     """ Make a bunch of individual plan files from master, splitting [alpha/M],[C/M],[N/M],vt

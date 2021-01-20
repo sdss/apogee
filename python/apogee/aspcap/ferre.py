@@ -32,7 +32,7 @@ def writespec(name,data) :
     return 
 
 
-def writenml(outfile,file,libhead,ncpus=2,nruns=1,inter=3,direct=1,pca=1,errbar=1,indi=None,indv=None,filterfile=None,f_format=1,f_access=0,
+def writenml(outfile,file,libhead,ncpus=2,nruns=1,inter=3,direct=1,pca=1,errbar=1,indi=None,indv=None,filterfile=None,f_format=1,f_access=0,f_sort=None,
                init=None,indini=None,renorm=None,obscont=0,rejectcont=0,algor=1,nov=None,stopcr=None,ttie=None) :
     """ Writes FERRE control file
     """
@@ -91,6 +91,7 @@ def writenml(outfile,file,libhead,ncpus=2,nruns=1,inter=3,direct=1,pca=1,errbar=
     f.write(' INTER = {:d}\n'.format(inter))
     f.write(' F_FORMAT = {:d}\n'.format(f_format))
     f.write(' F_ACCESS = {:d}\n'.format(f_access))
+    if f_sort is not None : f.write(' F_SORT = {:d}\n'.format(f_sort))
     f.write(' /\n')
     f.close()
 
@@ -170,10 +171,10 @@ def read(name,libfile) :
     spmobj,spm=readferredata(name+'.spm')
     i1,i2=match.match(ipfobj,spmobj)
     nobj=len(ipfobj)
-    param=spm[:,0:nparam]
-    paramerr=spm[:,nparam:2*nparam]
-    chi2=10.**spm[:,2*nparam+2]
-    covar=spm[:,2*nparam+3:2*nparam+3+nparam**2]
+    param=spm[i2,0:nparam]
+    paramerr=spm[i2,nparam:2*nparam]
+    chi2=10.**spm[i2,2*nparam+2]
+    covar=spm[i2,2*nparam+3:2*nparam+3+nparam**2]
     covar=np.reshape(covar,(nobj,nparam,nparam))
 
     # load param array
@@ -227,9 +228,9 @@ def read(name,libfile) :
     out=np.empty(nobj, dtype=[('obj','S24'),('spm',sform),('obs',form),('frd',form),('err',form),('mdl',form),('chi2',form)])
     out['obj']=ipfobj
     out['spm'][i1,:]=spm[i2,:]
-    out['obs'][i1,:]=readspec(name+'.obs')[i2,:]
+    out['obs'][i1,:]=readspec(name+'.obs')[i1,:]
     out['frd'][i1,:]=readspec(name+'.frd')[i2,:]
-    out['err'][i1,:]=readspec(name+'.err')[i2,:]
+    out['err'][i1,:]=readspec(name+'.err')[i1,:]
     out['mdl'][i1,:]=readspec(name+'.mdl')[i2,:]
     out['chi2'][i1,:]=(out['obs']-out['mdl'])**2/out['err']**2
 

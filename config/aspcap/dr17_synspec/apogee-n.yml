@@ -213,15 +213,15 @@ grids :
     <<: *Fd
     <<: *lsfa
   - name : Fd_b  
-    lib : synspec/marcs/solarisotopes/sdF_200921nlte_lsfb/p_apssdF_200921nlte_lsfb_012_075
+    lib : synspec/marcs/solarisotopes/sdF_200921nlte_lsfb/p_apssdF_200921nlte_lsfb_012_025
     <<: *Fd
     <<: *lsfb
   - name : Fd_c  
-    lib : synspec/marcs/solarisotopes/sdF_200921nlte_lsfc/p_apssdF_200921nlte_lsfc_012_075
+    lib : synspec/marcs/solarisotopes/sdF_200921nlte_lsfc/p_apssdF_200921nlte_lsfc_012_025
     <<: *Fd
     <<: *lsfc
   - name : Fd_d  
-    lib : synspec/marcs/solarisotopes/sdF_200921nlte_lsfd/p_apssdF_200921nlte_lsfd_012_075
+    lib : synspec/marcs/solarisotopes/sdF_200921nlte_lsfd/p_apssdF_200921nlte_lsfd_012_025
     <<: *Fd
     <<: *lsfd
 

@@ -725,17 +725,20 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
         if mult : suffix='_mult'
         print('writing master aspcapField...')
         writefiles(load,outfield,aspcapfield,aspcapspec,aspcapkey,suffix=suffix,aspcapstar=False)
-        for f in field :
-            print('writing aspcapField...',f)
-            gd = np.where(aspcapfield['FIELD'] == f)[0]
-            if len(gd) > 0 : writefiles(load,f,aspcapfield[gd],aspcapspec[gd],aspcapkey,suffix=suffix)
+        if isinstance(field,list) :
+            for f in field :
+                print('writing aspcapField...',f)
+                gd = np.where(aspcapfield['FIELD'] == f)[0]
+                if len(gd) > 0 : writefiles(load,f,aspcapfield[gd],aspcapspec[gd],aspcapkey,suffix=suffix)
 
     if html :
         # create output HTML page
-        #mkhtml(outfield,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
-        for f in field :
-            gd = np.where(aspcapfield['FIELD'] == f)[0]
-            if len(gd) > 0 : mkhtml(f,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
+        if isinstance(field,list) :
+            for f in field :
+                gd = np.where(aspcapfield['FIELD'] == f)[0]
+                if len(gd) > 0 : mkhtml(f,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
+        else :
+            mkhtml(outfield,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
 
     return aspcapfield,aspcapspec,aspcapkey
 

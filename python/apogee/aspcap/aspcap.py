@@ -598,7 +598,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
             ferre.writeipf(out,os.path.dirname(out)+'/'+libfile,stars,param=np.array(inpars))
             ferre.writespec(out+'.obs',flux)
             ferre.writespec(out+'.err',err)
-            ferre.writenml(out+'.nml',os.path.basename(out),libhead0,init=0,indv=indv,
+            ferre.writenml(out+'.nml',os.path.basename(out),libhead0,init=0,indv=indv,f_sort=0,
                        algor=grid['algor'],ncpus=plan['ncpus'],
                        obscont=grid['obscont'],rejectcont=grid['rejectcont'],
                        renorm=abs(grid['renorm']),
@@ -863,7 +863,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
                         if len(j) > 0 : ttie.append(j[0]+1)
                         else : ttie.append(-1)
                 else : ttie=[-1,-1,-1]
-                ferre.writenml(out+'.nml',dirname+'/'+os.path.basename(out),libhead0,init=0,
+                ferre.writenml(out+'.nml',dirname+'/'+os.path.basename(out),libhead0,init=0,f_sort=0,
                            nov=1,indv=[index],ttie=ttie,
                            algor=grid['algor'],ncpus=plan['ncpus'],
                            obscont=grid['obscont'],rejectcont=grid['rejectcont'],

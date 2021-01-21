@@ -129,7 +129,7 @@ if keyword_set(obj1m) then begin
   endelse
   ;fiber=replicate(tmp,9)
   fiber=replicate(tmp,n_elements(fiberid))
-  platedata={plate: platenum, mjd: mjd, plateid: cplate, locationid: 1L, field: ' ', programname: '', $
+  platedata={plate: platenum, mjd: mjd, plateid: cplate, cartid: 0, locationid: 1L, field: ' ', programname: '', $
              cmjd: cmjd, ha: [-99.,-99.,-99.], fiberdata: fiber, guidedata: guide}
   platedata.field = cplate
   fiber.fiberid=fiberid
@@ -175,7 +175,7 @@ if keyword_set(obj1m) then begin
 endif
 if keyword_set(twilight) then begin
   fiber=replicate(tmp,300)
-  platedata={plate: platenum, mjd: mjd, plateid: cplate, locationid: 1L, field: ' ', programname: '', cmjd: cmjd, ha: [-99.,-99.,-99.], fiberdata: fiber, guidedata: guide}
+  platedata={plate: platenum, mjd: mjd, plateid: cplate, cartid: 0, locationid: 1L, field: ' ', programname: '', cmjd: cmjd, ha: [-99.,-99.,-99.], fiberdata: fiber, guidedata: guide}
   platedata.field = cplate
   ;j=where(indgen(300) mod 10 eq 0)
   ;fiber[j].target2 = 2L^4
@@ -189,7 +189,7 @@ if keyword_set(twilight) then begin
 endif
 fiber=replicate(tmp,300)
 reads,cplate,platenum
-platedata={plate: platenum, mjd: mjd, plateid: cplate, locationid: 0L, field: ' ', programname: '', cmjd: cmjd, ha: [-99.,-99.,-99.], fiberdata: fiber, guidedata: guide}
+platedata={plate: platenum, mjd: mjd, plateid: cplate, cartid: 0, locationid: 0L, field: ' ', programname: '', cmjd: cmjd, ha: [-99.,-99.,-99.], fiberdata: fiber, guidedata: guide}
 platedata.field = apogee_field(loc,platenum,survey,programname)
 platedata.locationid = loc
 platedata.programname = programname
@@ -216,6 +216,7 @@ if file_test(plugdir+'/'+plugfile) then aploadplugmap,plugdir+'/'+plugfile,plugm
    if keyword_set(skip) then return,0 else stop,'halt: cannot find plugmap file '+plugdir+'/'+plugfile
 
 platedata.locationid = plugmap.locationid
+platedata.cartid = plugmap.cartridgeid
 platedata.ha[0] = plugmap.ha[0]
 platedata.ha[1] = plugmap.ha_observable_min[0]
 platedata.ha[2] = plugmap.ha_observable_max[0]
@@ -336,6 +337,13 @@ for i=0,299 do begin
             fiber[i].target2 = p[match].apogee_target2
             apogee2=0
           endelse
+          if platenum ge 15000 then begin
+            ; kludge for SDSS-V
+            if is_bit_set(p[match].sdssv_apogee_target0,0) then fiber[i].target2 = 2^4
+            if is_bit_set(p[match].sdssv_apogee_target0,1) then fiber[i].target2 = 2^9
+            p[match].targetids = p[match].tmass_id
+            noobject=1
+          endif
           if is_bit_set(fiber[i].target2,9) eq 1 then fiber[i].objtype='HOT_STD'
           if is_bit_set(fiber[i].target2,4) eq 1 then begin
             object='SKY' 

@@ -118,7 +118,11 @@ FOR i=0L,nplanfiles-1 do begin
     if planstr.platetype eq 'single' then obj=where(plugmap.fiberdata.objtype ne 'SKY' and plugmap.fiberdata.spectrographid eq 2) else $
     obj=where(plugmap.fiberdata.objtype ne 'SKY' and plugmap.fiberdata.spectrographid eq 2 and plugmap.fiberdata.mag[1] gt 7.5)
 
-  endif
+    if planstr.fluxid ne 0 then begin
+      fluxfile = apogee_filename('Flux',chip='b',num=planstr.fluxid)
+      relflux=mrdfits(fluxfile,2)
+    endif else relflux=fltarr(300)+1
+ endif
 
   ; Check if the calibration files exist
   ;--------------------------------------
@@ -560,7 +564,7 @@ FOR i=0L,nplanfiles-1 do begin
   if tag_exist(planstr,'mjdfrac') then if planstr.mjdfrac eq 1 then $
     mjdfrac=sxpar(finalframe.(0).header,'JD-MID')-2400000.5 
   APVISIT_OUTPUT,finalframe,plugmap,shiftstr,pairstr,planstr,$
-    /silent,single=single,iter=iter,mjdfrac=mjdfrac,survey=survey
+    /silent,single=single,iter=iter,mjdfrac=mjdfrac,survey=survey,relflux=relflux
   writelog,logfile,' output '+file_basename(planfile)+string(format='(f8.2)',systime(1)-t1)+string(format='(f8.2)',systime(1)-t0)
 
   ;---------------
@@ -625,9 +629,10 @@ FOR i=0L,nplanfiles-1 do begin
       visitfile=s[0]+cmjd+s[1]+string(format='(f8.2)',mjdfrac)+s[2]
     endif
 
-    visitstr = {apogee_id:'',target_id:'',file:'',fiberid:0,plate:'0',mjd:0L,telescope:'',$
+    visitstr = {apogee_id:'',target_id:'',file:'',fiberid:0,cartid:0,plate:'0',mjd:0L,telescope:'',$
            survey:'',field:'',programname:'',alt_id:'',$
            location_id:0,ra:0.0d0,dec:0.0d0,glon:0.0d0,glat:0.0d0,$
+           relflux:0.,mtpflux:0.,$
            j:0.0,j_err:0.0,h:0.0,h_err:0.0,k:0.0,k_err:0.0,$
            src_h : '',$
            wash_m:0.0,wash_m_err:0.0,wash_t2:0.0,wash_t2_err:0.0,ddo51:0.0,ddo51_err:0.0,$
@@ -648,6 +653,7 @@ FOR i=0L,nplanfiles-1 do begin
     visitstr.target_id=targid[istar]
     visitstr.fiberid=objdata[istar].fiberid
     visitstr.plate=planstr.plateid
+    visitstr.cartid=plugmap.cartid
     visitstr.mjd=planstr.mjd
     visitstr.location_id=locid
     visitstr.telescope=dirs.telescope
@@ -711,6 +717,8 @@ FOR i=0L,nplanfiles-1 do begin
     if tag_exist(str,'JDMID') then visitstr.jd=str.jdmid else visitstr.jd=str.jd
     if tag_exist(str,'JDMID') then aprvjd=str.jdmid else aprvjd=str.jd
     visitstr.snr = str.snr
+    visitstr.relflux = str.relflux
+    visitstr.mtpflux = str.mtpflux
     visitstr.starflag = str.starflag
     visitstr.starflags = starflag(str.starflag)
 

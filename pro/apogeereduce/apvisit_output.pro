@@ -1,4 +1,4 @@
-pro apvisit_output,frame,plugmap,shiftstr,pairstr,planstr,silent=silent,stp=stp,single=single,iter=iter,mjdfrac=mjdfrac,survey=survey
+pro apvisit_output,frame,plugmap,shiftstr,pairstr,planstr,silent=silent,stp=stp,single=single,iter=iter,mjdfrac=mjdfrac,survey=survey,relflux=relflux
 
 ;+
 ;
@@ -63,6 +63,7 @@ plate = plugmap.plateid
 mjd = plugmap.mjd
 platemjd5 = strtrim(plate,2)+'-'+strtrim(mjd,2)
 locid = plugmap.locationid
+cartid = plugmap.cartid
 
 sz = size(frame.chipa.flux)
 npix = sz[1]
@@ -154,6 +155,7 @@ For i=0,2 do begin
   sxaddpar,header,'PLATE',plate,'Plate iD'
   sxaddpar,header,'MJD5',mjd,'MJD of observation'
   sxaddpar,header,'LOCID',locid,'Location ID of field'
+  sxaddpar,header,'CARTID',cartid,'Cartridge ID'
   if keyword_set(single) then $
     sxaddpar,header,'TELESCOP','apo1m','Telescope' else $
     sxaddpar,header,'TELESCOP','apo25m','Telescope'
@@ -362,8 +364,13 @@ endif
 ;##############################################################
 ;  OUTPUT THE INDIVIDUAL VISIT SPECTRA
 ;##############################################################
+if n_elements(relflux) gt 0 then begin
+  mtpflux=relflux
+  for i=0,9 do mtpflux[i*30:i*30+29] = median(relflux[i*30:i*30+29])
+  relflux=relflux/max(relflux)
+  mtpflux=mtpflux/max(mtpflux)
+endif
 
-; Fiber Loop
 For i=0,nfibers-1 do begin
 
   ifiber = i
@@ -454,6 +461,7 @@ For i=0,nfibers-1 do begin
 
     ; Add plate/observation information
     sxaddpar,header,'LOCID',locid,'Location ID of field'
+    sxaddpar,header,'CARTID',cartid,'Cartridge ID'
     sxaddpar,header,'PLATE',plate,'Plate ID'
     if keyword_set(single) then $
       sxaddpar,header,'TELESCOP','apo1m','Telescope' else $
@@ -516,6 +524,12 @@ For i=0,nfibers-1 do begin
     sxaddpar,header,'HPLUS',hplus,' Delta H (neigh-obj) mag of neighboring (+1) fiber'
     sxaddpar,header,'HMINUS',hminus,' Delta H (neigh-obj) mag of neighboring (-1) fiber'
 
+    ; add keywords for relative fluxes from dome flat if given
+    if n_elements(relflux) gt 0 then begin
+      sxaddpar,header,'RELFLUX',relflux[ifiber],' Relative flux of fiber in flat to max'
+      sxaddpar,header,'MTPFLUX',mtpflux[ifiber],' Relative flux of MTP in flat to max'
+    endif
+
     ; Start a FLAG for this object
     flag=0L
     ; is this low S/N?
@@ -527,6 +541,9 @@ For i=0,nfibers-1 do begin
     ; does star have a bright neighbor?
     if hplus lt -5 or hminus lt -5 then flag=flag or starflagval('VERY_BRIGHT_NEIGHBOR') else $
     if hplus lt -2.5 or hminus lt -2.5 then flag=flag or starflagval('BRIGHT_NEIGHBOR')
+
+    ; MTP low throughput?
+    if mtpflux[ifiber] lt 0.5 then flag=flag or starflagval('LOW_MTPFLUX')
 
     ; get the pixel mask
     mask = intarr(npix,3)

@@ -109,7 +109,7 @@ if keyword_set(fluxid) then begin
   printf,html,'<TD> <A HREF='+'../plots/'+blockfile+'.jpg><IMG SRC=../plots/'+blockfile+'.jpg WIDTH=400></A>'
   printf,html,'</TABLE>'
 endif
-gfile='guider-'+cplate+'-'+cmjd+'.jpg'
+gfile='guider-'+cplate+'-'+cmjd+'.gif'
 printf,html,'<A HREF='+'../plots/'+gfile+'><IMG SRC=../plots/'+gfile+' WIDTH=400></A>'
 
 ; table of exposure plots

@@ -673,10 +673,10 @@ if ims[0] gt 0 then begin
     if size(gcam,/type) eq 8 then begin
       jcam=where(gcam.mjd gt mjd0 and gcam.mjd lt mjd1,nj) 
       file='guider-'+name
-      device,file=outdir+file+'guider.eps',/encap
+      device,file=outdir+file+'.eps',/encap
       plot,gcam[jcam].mjd,gcam[jcam].gdrms
       device,/close
-      ps2gif,outdir+file+'guider.eps',/eps,chmod='664'o,/delete
+      ps2gif,outdir+file+'.eps',/eps,chmod='664'o,/delete
     endif
   endif
   ; make plot of sky levels for this plate

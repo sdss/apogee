@@ -543,7 +543,8 @@ For i=0,nfibers-1 do begin
     if hplus lt -2.5 or hminus lt -2.5 then flag=flag or starflagval('BRIGHT_NEIGHBOR')
 
     ; MTP low throughput?
-    if mtpflux[ifiber] lt 0.5 then flag=flag or starflagval('LOW_MTPFLUX')
+    if mtpflux[ifiber] lt 0.75 then flag=flag or starflagval('MTPFLUX_LT_75')
+    if mtpflux[ifiber] lt 0.5 then flag=flag or starflagval('MTPFLUX_LT_50')
 
     ; get the pixel mask
     mask = intarr(npix,3)

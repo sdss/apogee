@@ -176,7 +176,7 @@ for i=0,n_elements(ims)-1 do begin
       endif
     endelse
     printf,objhtml,'<TABLE BORDER=2 CLASS=sortable>'
-    printf, objhtml,'<TR><TD>Fiber<TD>Star<TD>H mag<TD>Diff<TD>S/N<TD>S/N (cframe)<TD>Target flags'
+    printf, objhtml,'<TR><TD>Fiber<TD>Star<TD>H mag<TD>Diff<TD>S/N<TD>S/N (cframe)<TD>Target flags<TD>MTPFLUX'
   ;endelse
   stars=reverse(indgen(300))
   ;if not keyword_set(starfiber) then $
@@ -294,7 +294,8 @@ for i=0,n_elements(ims)-1 do begin
         if file_test(vfile) then begin
           h=headfits(vfile)
           if size(h,/type) eq 7 then printf,objhtml,'<BR>'+starflag(sxpar(h,'STARFLAG'))
-        endif
+          printf,objhtml,'<TD>'+string(format='(f8.2)',sxpar(h,'MTPFLUX'))
+        endif else printf,objhtml,'<TD>'
       endif
     ;endif
  

@@ -1,9 +1,9 @@
 pro getstarflags,flag,badflag,descrip
 
 flag=['BAD_PIXELS','COMMISSIONING','BRIGHT_NEIGHBOR','VERY_BRIGHT_NEIGHBOR','LOW_SNR','','','',$
-      'LOW_MTPFLUX','PERSIST_HIGH','PERSIST_MED','PERSIST_LOW','PERSIST_JUMP_POS','PERSIST_JUMP_NEG','','',$
+      '','PERSIST_HIGH','PERSIST_MED','PERSIST_LOW','PERSIST_JUMP_POS','PERSIST_JUMP_NEG','','',$
       'SUSPECT_RV_COMBINATION','SUSPECT_BROAD_LINES','BAD_RV_COMBINATION','','','','','',$
-      '','','','','','','','']
+      'MTPFLUX_LT_75','MTPFLUX_LT_50','','','','','','']
 badflag=[1,0,0,1,0,0,0,0,$   ;0-7
          0,0,0,0,0,0,0,0,$   ;8-15
          0,0,1,0,0,0,0,0,$   ;16-23
@@ -18,7 +18,7 @@ descrip=[$
  '',$
  '',$
  '',$
- 'Spectrum falls on fiber in MTP block with low (<0.5) relative flux',$
+ '',$
  'Spectrum has significant number (>20%) of pixels in high persistence region: WARN',$                          ;9
  'Spectrum has significant number (>20%) of pixels in medium persistence region: WARN',$
  'Spectrum has significant number (>20%) of pixels in low persistence region: WARN',$
@@ -34,8 +34,8 @@ descrip=[$
  '',$
  '',$
  '',$
- '',$
- '',$
+ 'Spectrum falls on fiber in MTP block with relative flux < 0.75',$
+ 'Spectrum falls on fiber in MTP block with relative flux < 0.5',$
  '',$
  '',$
  '',$

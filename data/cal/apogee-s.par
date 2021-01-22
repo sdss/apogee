@@ -57,6 +57,7 @@ lsf        99999 99999 32690044 32690044 32690045
 
 # intflats
 # 57828
+# 56236 (3674)
 
 #linearity frames/long intflats 57828
 
@@ -81,7 +82,8 @@ lsf        99999 99999 32690044 32690044 32690045
 # 4/25/18 (58233)  : darks and flats
 #         (58311)   : darks and flats?
 # 4/xx/20  (58926) : darks and flats before instrument is warmed
-# 10/19/10 (59142) : darks after instrument is cooled
+# 10/19/20 (59142) : darks after instrument is cooled
+# 1/22/21 (56236) : flats after survey completion
 #
 # year 1: 57926 2267   (6/22/2017)
 # year 2: 57966 2404   (8/1/2017)

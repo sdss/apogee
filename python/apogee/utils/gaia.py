@@ -109,8 +109,9 @@ def add_gaia(data,vers='edr3') :
     elif vers == 'edr3' :
         in_names=('source_id','parallax','parallax_error','pmra','pmra_error','pmdec','pmdec_error',
                   'phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag',
-                  'dr2_radial_velocity','dr2_radial_velocity_error', 'r_med_geo','r_lo_geo','r_hi_geo')
-        dtypes=('i8','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4')
+                  'dr2_radial_velocity','dr2_radial_velocity_error', 'r_med_geo','r_lo_geo','r_hi_geo',
+                  'r_med_photogeo','r_lo_photogeo','r_hi_photogeo')
+        dtypes=('i8','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4','f4')
     out_names=[]
     root = 'GAIA'+vers.upper()+'_'
     for name in in_names: out_names.append((root+name).upper())

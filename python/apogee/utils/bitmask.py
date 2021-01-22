@@ -74,9 +74,9 @@ class StarBitMask(BitMask):
     '''
 
     name=(['BAD_PIXELS','COMMISSIONING','BRIGHT_NEIGHBOR','VERY_BRIGHT_NEIGHBOR','LOW_SNR','','','',
-          'LOW_MTPFLUX','PERSIST_HIGH','PERSIST_MED','PERSIST_LOW','PERSIST_JUMP_POS','PERSIST_JUMP_NEG','','',
+          '','PERSIST_HIGH','PERSIST_MED','PERSIST_LOW','PERSIST_JUMP_POS','PERSIST_JUMP_NEG','','',
           'SUSPECT_RV_COMBINATION','SUSPECT_BROAD_LINES','BAD_RV_COMBINATION','RV_REJECT','RV_SUSPECT','MULTIPLE_SUSPECT','RV_FAIL','',
-          '','','','','','','',''])
+          'MTPFLUX_LT_75','MTPFLUX_LT_50','','','','','',''])
     level=([1,0,0,1,0,0,0,0,
              0,0,0,0,0,0,0,0,
              0,0,1,0,0,0,1,0,
@@ -91,7 +91,7 @@ class StarBitMask(BitMask):
      '',
      '',
      '',
-     'Spectrum falls on fiber in MTP block with low (<0.5) relative flux',
+     '',
      'Spectrum has significant number (>20%) of pixels in high persistence region: WARN',               
      'Spectrum has significant number (>20%) of pixels in medium persistence region: WARN',
      'Spectrum has significant number (>20%) of pixels in low persistence region: WARN',
@@ -107,8 +107,8 @@ class StarBitMask(BitMask):
      'Suspect multiple components from Gaussian decomposition of cross-correlation',
      'RV failure',
      '',
-     '',
-     '',
+     'Spectrum falls on fiber in MTP block with relative flux < 0.75',
+     'Spectrum falls on fiber in MTP block with relative flux < 0.5',
      '',
      '',
      '',
@@ -384,9 +384,9 @@ class ApogeeTarget4(BitMask) :
               '','','','','','','','',
               '','','','','','','',''])
 
-class RVMask(BitMask) :
+class RVBitMask(BitMask) :
     '''
-    BitMask class for RVMask
+    BitMask class for RVBitMask
     '''
     name = ([ 'RV_BCFIT','RV_BCFIT_FAIL','RV_FAINT_FIT','RV_WINDOW_MASK','RV_VALUE_ERROR','RV_RUNTIME_ERROR','RV_ERROR','',
               'NO_GOOD_VISITS','ALL_VISITS_REJECTED','','','','','','',

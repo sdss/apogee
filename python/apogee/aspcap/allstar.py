@@ -354,7 +354,7 @@ def fix(tab,visit=None) :
     aspcapmask=bitmask.AspcapBitMask()
     parammask=bitmask.ParamBitMask()
     starmask=bitmask.StarBitMask()
-    rvmask=bitmask.RVMask()
+    rvmask=bitmask.RVBitMask()
 
     # add in SNREV
     try: tab.add_column(Column(tab['SNR'],name='SNREV'))

@@ -261,7 +261,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     nobj=0
     nvisit=0
     pixelmask=bitmask.PixelBitMask()
-    rvmask=bitmask.RVMask()
+    rvmask=bitmask.RVBitMask()
 
     # loop over requested objects, building up allfiles list of 
     #  [(field,obj,clobber,verbose,tweak,plot,windows),filenames....] to pass to dorv()
@@ -562,7 +562,7 @@ def dorv(visitfiles) :
     speclist=[]
     pixelmask=bitmask.PixelBitMask()
     badval=pixelmask.badval()|pixelmask.getval('SIG_SKYLINE')|pixelmask.getval('LITTROW_GHOST')
-    rvmask=bitmask.RVMask()
+    rvmask=bitmask.RVBitMask()
     rvmaskval=np.uint64(0)
    
     # if we have a significant number of low S/N visits, combine first using
@@ -857,7 +857,7 @@ def mkhtml(field,suffix='',apred='r13',telescope='apo25m',apstar_vers='stars') :
     """
 
     starmask=bitmask.StarBitMask()
-    rvmask=bitmask.RVMask()
+    rvmask=bitmask.RVBitMask()
     # get new RV results
     load=apload.ApLoad(apred=apred,telescope=telescope)
     #apf=load.apField(field)[1].data

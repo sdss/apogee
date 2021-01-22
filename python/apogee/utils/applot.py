@@ -53,7 +53,7 @@ def elem(data,inds,els=['all'],out=None,apred_vers='dr17',aspcap_vers='l33') :
     grid=[]
     for iel,el in enumerate(els) :
         if el == 'all' :
-            wplot=[(15150,17000)]
+            wplot=[(15150,15800),(15865,16425),(16480,16950)]
             filt=np.loadtxt(os.environ['APOGEE_DIR']+'/data/windows/dr17/global_mask_v02.txt')
             index=-1
         else :

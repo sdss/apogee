@@ -674,7 +674,7 @@ if ims[0] gt 0 then begin
       jcam=where(gcam.mjd gt mjd0 and gcam.mjd lt mjd1,nj) 
       file='guider-'+name
       device,file=outdir+file+'.eps',/encap
-      plot,gcam[jcam].mjd,gcam[jcam].gdrms
+      plot,gcam[jcam].mjd,gcam[jcam].gdrms,xtitle='MJD',ytitle='Guider rms'
       device,/close
       ps2gif,outdir+file+'.eps',/eps,chmod='664'o,/delete
     endif

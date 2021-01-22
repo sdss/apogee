@@ -291,7 +291,7 @@ def ax(subplot=111) :
     fig=plt.figure()
     return fig.add_subplot(subplot)
 
-def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False,squeeze=True,xtickrot=None) :
+def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False,squeeze=True,xtickrot=None,brokenx=False) :
     '''
     Returns figure and axes array for grid of nx by ny plots, suppressing appropriate axes if requested by hspace and wspace
 
@@ -332,6 +332,21 @@ def multi(nx,ny,figsize=None,hspace=1,wspace=1,sharex=False,sharey=False,squeeze
                 for j in range(ny) : 
                     ticklabels = ticklabels + ax[j,i].get_yticklabels()
         plt.setp(ticklabels, visible=False)
+    if brokenx & (nx>1) :
+        for i in range(0,nx) :
+          for j in range(0,ny) :
+            if i > 0 : 
+                ax[j,i].spines['left'].set_visible(False)
+                ax[j,i].tick_params(labelleft=False,left=False)  # don't put tick labels at the top
+            ax[j,i].spines['right'].set_visible(False)
+            ax[j,i].spines['top'].set_visible(False)
+            ax[j,i].tick_params(labeltop=False)  # don't put tick labels at the top
+            d=0.02
+            if i < nx-1 :
+                ax[j,i].plot([1-d,1+d],[-d,d],transform=ax[j,i].transAxes,color='k',clip_on=False)
+            if i > 0 :
+                ax[j,i].plot([-d,+d],[-d,d],transform=ax[j,i].transAxes,color='k',clip_on=False)
+
     if xtickrot is not None :
       for i in range(nx) :
         for j in range(0,ny) : 

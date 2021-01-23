@@ -1,7 +1,7 @@
 ---
-apogee_ver : 0.17.12
+apogee_ver : 0.17.14
 apred_vers : dr17
 apstar_vers : stars
 aspcap_vers : l33
 aspcap_config : dr17
-suffix : alpha
+#suffix : alpha

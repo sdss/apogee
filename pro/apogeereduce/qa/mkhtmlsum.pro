@@ -359,7 +359,7 @@ print,'doing plate: ',plates[i]
   cid=strtrim(string(format='(i)',location_id[iplate[i]]),2)
   if name[iplate[i]] eq oldname then  $
   printf,html,'<TR bgcolor='+color+'><TD>',outname $
-  else printf,html,'<TR bgcolor='+color+'><TD><A HREF='+apstar_vers+'/'+tele+'/'+outname+'/html/'+outname+'.html>',outname,'</A>'
+  else printf,html,'<TR bgcolor='+color+'><TD><A HREF='+apstar_vers+'/'+tele+'/'+outname+'/'+outname+'.html>',outname,'</A>'
   printf,html,'<TD>',plans[iplate[i]].programname
   printf,html,'<TD>',outresults
   ;printf,html,'<A HREF='+aspcap_vers+platedir+'>apVisit</A>'

@@ -329,6 +329,7 @@ print,'doing plate: ',plates[i]
   cplate=strtrim(string(format='(i6.4)',plate),2)
   cmjd=string(format='(i5.5)',mjd)
   platedir=spectrodir+'/plates/'+cplate+'/'+cmjd+'/'
+  platedir=spectrodir+'/visit/'+tele+'/'+name[iplate[i]]+'/'+cplate+'/'+cmjd+'/'
   ; make RV histogram if we don't have one
   if not file_test(platedir+'/plots/rv.gif') then begin
 ;  if not tag_exist(rv,'objid') then begin
@@ -336,6 +337,7 @@ print,'doing plate: ',plates[i]
 ;    printf,2,'rm log/apPlan-',cplate,'-',cmjd,'.par.done'  
 ;  endif
    platedir='/plates/'+cplate+'/'+cmjd+'/'
+   platedir='/visit/'+tele+'/'+name[iplate[i]]+'/'+cplate+'/'+cmjd+'/'
    if status eq 0 then begin
     if size(rv,/type) eq 8 then begin
      radvel=rv.vrel
@@ -353,6 +355,7 @@ print,'doing plate: ',plates[i]
   endif
 
   platedir='plates/'+cplate+'/'+cmjd+'/'
+  platedir='visit/'+tele+'/'+name[iplate[i]]+'/'+cplate+'/'+cmjd+'/'
   cid=strtrim(string(format='(i)',location_id[iplate[i]]),2)
   if name[iplate[i]] eq oldname then  $
   printf,html,'<TR bgcolor='+color+'><TD>',outname $
@@ -360,7 +363,7 @@ print,'doing plate: ',plates[i]
   printf,html,'<TD>',plans[iplate[i]].programname
   printf,html,'<TD>',outresults
   ;printf,html,'<A HREF='+aspcap_vers+platedir+'>apVisit</A>'
-  printf,html,'<TD><A href='+platedir+'/html/'+dirs.prefix+'QA-'+cplate+'-'+cmjd+'.html>',plate,'</a>'
+  printf,html,'<TD><A href='+platedir+'html/'+dirs.prefix+'QA-'+cplate+'-'+cmjd+'.html>',plate,'</a>'
  ; printf,html,'<TD><A href='+platedir+'/html/'+dirs.prefix+'QA-'+cplate+'-'+cmjd+'.html>',mjd,'</a>'
   printf,html,'<TD><center><A HREF=exposures/'+dirs.instrument+'/'+cmjd+'/html/'+cmjd+'.html> '+cmjd+' </a></center>' 
   printf,html,'<TD>',location_id[iplate[i]],'<TD>',center_ra[iplate[i]],'<TD>',center_dec[iplate[i]],$

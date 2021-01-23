@@ -19,6 +19,9 @@ from apogee.utils import bitmask
 import glob
 try: import corner
 except: pass
+import os
+import subprocess
+import tempfile
 
 def writespec(name,data) :
     """ Writes FERRE 'spectrum' file with input data, one line per star
@@ -32,7 +35,7 @@ def writespec(name,data) :
     return 
 
 
-def writenml(outfile,file,libhead,ncpus=2,nruns=1,inter=3,direct=1,pca=1,errbar=1,indi=None,indv=None,filterfile=None,f_format=1,f_access=0,f_sort=None,
+def writenml(outfile,file,libhead,ncpus=2,nruns=1,inter=3,pca=1,errbar=1,indi=None,indv=None,filterfile=None,f_format=1,f_access=0,f_sort=None,
                init=None,indini=None,renorm=None,obscont=0,rejectcont=0,algor=1,nov=None,stopcr=None,ttie=None) :
     """ Writes FERRE control file
     """
@@ -434,13 +437,16 @@ def wrhead(planstr,file,npca=None,npix=None,wchip=None,cont=None) :
             fp.write(" /\n")
     fp.close()
 
+def interp(libfile,params) :
+    """ Use FERRE to get an interpolated spectrum
+    """
+    tmpname = tempfile.NamedTemporaryFile().name
+    libhead0,libhead=rdlibhead(libfile)
+    writenml(tmpname+'.nml',tmpname,libhead0,ncpus=1,nruns=1,inter=3,pca=1,errbar=1,indi=None,indv=None,filterfile=None,f_format=1,f_access=1,f_sort=None,
+               init=None,indini=None,renorm=None,obscont=0,rejectcont=0,algor=1,nov=0,stopcr=None,ttie=None) 
+    writeipf(tmpname,libfile,['dummy'],param=[params]) 
+    ret = subprocess.call(['ferre.x',tmpname+'.nml'],shell=False)
+    mdl = readspec(tmpname+'.mdl')
+    for ext in ['nml','ipf','mdl'] : os.remove(tmpname+'.'+ext)
 
-#def plotspec(w,spec,n=0) :
-#    fig,ax=plots.multi(1,2)
-#    plots.plotl(ax[0],w,spec['obs'][n,:],yr=[0,1.3]) 
-#    plots.plotl(ax[0],w,spec['err'][n,:]) 
-#    plots.plotl(ax[0],w,spec['mdl'][n,:]) 
-#    plots.plotl(ax[1],w,spec['chi2'][n,:])
-
-
-
+    return mdl

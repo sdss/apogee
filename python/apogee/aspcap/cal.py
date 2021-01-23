@@ -1262,6 +1262,12 @@ def elem(a,caldir='cal/') :
                     a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)
                 a['X_M_ERR'][ok[gdel],iel] = err.elemerr(cal['errpar'][iel],
                     a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)
+                # use FERRE uncertainty if larger
+                tmp=ok[gdel]
+                j=np.where(a['FELEM_ERR'][tmp,iel] > a['X_H_ERR'][tmp,iel])[0]
+                a['X_H_ERR'][tmp[j],iel] = a['FELEM_ERR'][tmp[j],iel]
+                a['ELEMFLAG'][tmp[j],iel] |= parammask.getval('FERRE_ERR_USED')
+                print(el,'FERRE ERR used: ',len(j))
 
     return
 

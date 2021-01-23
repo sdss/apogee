@@ -187,7 +187,7 @@ class ParamBitMask(BitMask):
     '''
     BitMask class for APOGEE ASPCAP bitmask (APOGEE_ASPCAPFLAG)
     '''
-    name =['GRIDEDGE_BAD','CALRANGE_BAD','OTHER_BAD','FERRE_FAIL','PARAM_MISMATCH_BAD','','','',
+    name =['GRIDEDGE_BAD','CALRANGE_BAD','OTHER_BAD','FERRE_FAIL','PARAM_MISMATCH_BAD','FERRE_ERR_USED','','',
            'GRIDEDGE_WARN','CALRANGE_WARN','OTHER_WARN','FERRE_WARN','PARAM_MISMATCH_WARN','OPTICAL_WARN','ERR_WARN','FAINT_WARN',
            'PARAM_FIXED','RV_WARN','','','','','','',
            'LOGG_CAL_RC','LOGG_CAL_RGB','LOGG_CAL_MS','LOGG_CAL_RGB_MS','','','','']
@@ -204,7 +204,7 @@ class ParamBitMask(BitMask):
      'Other error condition ',
      'Failed solution in FERRE ',
      'Elemental abundance from window differs significantly from parameter abundance ',
-     ' ',
+     'FERRE uncertainty used (larger than parametric uncertainty) ',
      ' ',
      ' ',
      'Parameter within 1 grid spacing of grid edge ',

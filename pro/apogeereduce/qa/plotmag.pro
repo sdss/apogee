@@ -167,7 +167,7 @@ for i=0,n_elements(ims)-1 do begin
     if ims[i] eq 0 then begin
       printf,objhtml,'<H2>'+file+'</H2>'
       platefile=apogee_filename('Plate',plate=cplate,mjd=cmjd,chip=['a','b','c'],/file)
-      for ichip=0,2 do printf,objhtml,'<A HREF=../'+platefile[ichip]+'>'+platefile[ichip]+'</A>'
+      for ichip=0,2 do printf,objhtml,'<A HREF=../'+platefile[ichip]+'>'+platefile[ichip]+'</A><BR>'
     endif else begin
       printf,objhtml,'<H2>'+string(ims[i])+'</H2>'
       if ~keyword_set(noplot) then begin
@@ -315,7 +315,7 @@ for i=0,n_elements(ims)-1 do begin
           yr=[ymin,ymax]
           if fiber[j].objtype eq 'SKY' then yr=[-50,50]
           ;plot,d[0].wave[*,rows[j]],d[0].flux[*,rows[j]],xrange=[15000,17000],xstyle=1,yrange=[0,2*max([obs[j,0],obs[j,1],obs[j,2]])],color=2
-          plot,d[0].wave[*,rows[j]],d[0].flux[*,rows[j]],xrange=[15000,17000],xstyle=1,yrange=yr,color=0,/nodata
+          plot,d[0].wave[*,rows[j]],d[0].flux[*,rows[j]],xrange=[15000,17000],xstyle=1,yrange=yr,color=0,/nodata,charsize=2
           ;oplot,d[1].wave[*,rows[j]],d[1].flux[*,rows[j]],color=3
           ;oplot,d[2].wave[*,rows[j]],d[2].flux[*,rows[j]],color=4
           oplot,d[0].wave[*,rows[j]],d[0].err[*,rows[j]]*10,color=0,linestyle=1

@@ -19,8 +19,8 @@ mkslurm 'apred visit/*/*/*/*/a?Plan*.par visit/*/*/*/a?Plan*.par cal/*/*/*Plan*.
 mkslurm 'apred visit/*/*/*/*/a?Plan*.par visit/*/*/*/a?Plan*.par cal/*/*/*Plan*.par' --maxrun=32 --idlthreads=1 --name='ap1dvisit' --queryport 1062 --flag 1100
 mkslurm 'apred exposures/apogee-?/*/plan/a?MJD*.par' --maxrun=32 --idlthreads=1 --name='apmjd' --queryport 1062 --flag 1100 --postcmd "idl -e mkhtmlsum,/nocheck,vers=dr17"
 
-mkslurm "mkcal $apred_vers apo25m" --name mkcal-n --norunplans --idlthreads 4
-mkslurm "mkcal $apred_vers lco25m" --name mkcal-s --norunplans --idlthreads 4
+mkslurm "mkcal $apred_vers apo25m" --name mkcal-n --norunplans --idlthreads 8 --pythreads 8
+mkslurm "mkcal $apred_vers lco25m" --name mkcal-s --norunplans --idlthreads 8 --pythreads 8
 
 #idl  << endidl
 #  apmkallplan,$mjdstart,$mjdend,vers='$apred_vers'

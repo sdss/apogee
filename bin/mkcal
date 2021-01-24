@@ -25,13 +25,18 @@ idl -e "makecal,littrow=1,vers='$vers',telescope='$telescope'" >& log/mklittrow-
 
 # make wavecals in parallel
 set n = 0
-while ( $n < 10 ) 
+while ( $n < 4 ) 
   idl -e "makecal,multiwave=1,vers='$vers',telescope='$telescope'" >& log/mkwave-$telescope"$n".$host.log &
   sleep 20
   @ n = $n + 1
 end
 wait
-while ( $n < 20 ) 
+while ( $n < 8 ) 
+  idl -e "makecal,multiwave=1,vers='$vers',telescope='$telescope'" >& log/mkwave-$telescope"$n".$host.log &
+  sleep 20
+  @ n = $n + 1
+end
+while ( $n < 12 ) 
   idl -e "makecal,multiwave=1,vers='$vers',telescope='$telescope'" >& log/mkwave-$telescope"$n".$host.log &
   sleep 20
   @ n = $n + 1

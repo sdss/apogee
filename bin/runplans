@@ -88,7 +88,7 @@ foreach plan ( $plans )
      echo running $cmd $plan --host $host --done log/$base
 
      if ( $?UUFSCELL & ( $maxrun == 2 | $maxrun == 4 | $maxrun == 8 ) ) then
-       if ( $UUFSCELL == 'kingspeak.peak' ) then
+       if ( $UUFSCELL == 'kingspeak.peaks' ) then
          if ( $maxrun == 2 ) set nodes = "00ff00ff ff00ff00"
          if ( $maxrun == 4 ) set nodes = "000000ff 0000ff00 00ff0000 ff000000" 
          if ( $maxrun == 8 ) set nodes = "f0000000 0f000000 00f00000 000f0000 0000f000 00000f00 000000f0 0000000f"

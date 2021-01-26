@@ -279,14 +279,15 @@ def aspcapflag(aspcapfield) :
     aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('SN_WARN')
     print('SNR_WARN',len(j))
 
-    #color-Teff
+    #color-Teff, but only make this a warning, and only for stars with AK_TARG<1
     jk0=(aspcapfield['J']-aspcapfield['K'])-1.5*np.clip(aspcapfield['AK_TARG'],0.,None)
     j = np.where( (aspcapfield['H'][gd] < 90) & (aspcapfield['AK_TARG'][gd] != 0.) &
-                  (aspcapfield['AK_TARG'][gd] > -1) &
+                  (aspcapfield['AK_TARG'][gd] > -1) & (aspcapfield['AK_TARG'][gd] < 1) &
                   (np.abs(aspcapfield['FPARAM'][gd,0]-teff.cte_ghb(jk0[gd],aspcapfield['FPARAM'][gd,3])[0]) > 1000) )[0]
-    aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('COLORTE_BAD')
-    print('COLORTE_BAD',len(j))
+    #aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('COLORTE_BAD')
+    #print('COLORTE_BAD',len(j))
     j = np.where( (aspcapfield['H'][gd] < 90) & (aspcapfield['AK_TARG'][gd] != 0.) &
+                  (aspcapfield['AK_TARG'][gd] > -1) & (aspcapfield['AK_TARG'][gd] < 1) &
                   (np.abs(aspcapfield['FPARAM'][gd,0]-teff.cte_ghb(jk0[gd],aspcapfield['FPARAM'][gd,3])[0]) > 500) &
                   (aspcapfield['ASPCAPFLAG'][gd] & aspcapbitmask.getval('COLORTE_BAD')==0) )[0]
     aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('COLORTE_WARN')

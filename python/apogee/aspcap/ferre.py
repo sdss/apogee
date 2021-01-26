@@ -190,7 +190,7 @@ def read(name,libfile) :
                               ('ASPCAP_CHI2','f4'),
                               ('PARAMFLAG','i4',(ntotparams)),
                               ('ASPCAPFLAG','i4')])
-    a['APOGEE_ID']=ipfobj
+    a['APOGEE_ID']=ipfobj[i1]
     a['ASPCAP_CHI2']=chi2
 
     parammask=bitmask.ParamBitMask()
@@ -437,13 +437,13 @@ def wrhead(planstr,file,npca=None,npix=None,wchip=None,cont=None) :
             fp.write(" /\n")
     fp.close()
 
-def interp(libfile,params) :
+def interp(libfile,params,renorm=4,obscont=0,rejectcont=0.3) :
     """ Use FERRE to get an interpolated spectrum
     """
     tmpname = tempfile.NamedTemporaryFile().name
     libhead0,libhead=rdlibhead(libfile)
     writenml(tmpname+'.nml',tmpname,libhead0,ncpus=1,nruns=1,inter=3,pca=1,errbar=1,indi=None,indv=None,filterfile=None,f_format=1,f_access=1,f_sort=None,
-               init=None,indini=None,renorm=None,obscont=0,rejectcont=0,algor=1,nov=0,stopcr=None,ttie=None) 
+               init=None,indini=None,renorm=renorm,obscont=obscont,rejectcont=rejectcont,algor=1,nov=0,stopcr=None,ttie=None) 
     writeipf(tmpname,libfile,['dummy'],param=[params]) 
     ret = subprocess.call(['ferre.x',tmpname+'.nml'],shell=False)
     mdl = readspec(tmpname+'.mdl')

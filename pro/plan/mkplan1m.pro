@@ -28,7 +28,8 @@ month=months[imonth-1]
 day=fix(strmid(date,4,2))
 datestring=string(format='(i2.2,"-",a,"-",i4.4)',day,month,year)
 print,'datestring: ',datestring
-mjd = long(date_conv(datestring,'M'))
+; with updated astrolib date_conv, need time string or else MJD is off by 1!
+mjd = long(date_conv(datestring+' 00:00:00','M'))
 
 ; get APOGEE dayno
 day=getnum(mjd)*10000

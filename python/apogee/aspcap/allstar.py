@@ -37,16 +37,20 @@ def all(planfile,dofix=False,suffix=None,allvisit=True,allplate=True, calsample=
        allvisit = apstar.allFieldVisit(search=[apstar_dir+'apo*/*/a?FieldVisits-*.fits',apstar_dir+'lco*/*/a?FieldVisits-*.fits'],
                   out=aspcap_dir+'allVisit-'+apred_vers+'-'+aspcap_vers+suffix+'.fits')
 
+   # add VISIT_PK
+   add_visitpk(tab,allvisit)
+
    # fix up issues in allStar file that require allVisit (SB2s)
    if dofix :
        print('fix allStar file')
        fix(tab,allvisit)
-       # write it out
-       hdulist=fits.HDUList()
-       hdulist.append(fits.BinTableHDU(tab))
-       hdulist.append(fits.BinTableHDU(dat))
-       hdulist.append(fits.BinTableHDU(dat))
-       hdulist.writeto(aspcap_dir+'allStar-'+apred_vers+'-'+aspcap_vers+suffix+'.fits',overwrite=True)
+
+   # write allStar out
+   hdulist=fits.HDUList()
+   hdulist.append(fits.BinTableHDU(tab))
+   hdulist.append(fits.BinTableHDU(dat))
+   hdulist.append(fits.BinTableHDU(dat))
+   hdulist.writeto(aspcap_dir+'allStar-'+apred_vers+'-'+aspcap_vers+suffix+'.fits',overwrite=True)
  
    # allPlate file
    if allplate :
@@ -348,9 +352,42 @@ def add_members(tab) :
     j=np.where(tab['MEMBERFLAG'] != 0)[0]
     for jj in j :
         tab['MEMBER'][jj] = membermask.getname(tab['MEMBERFLAG'][jj])
-   
+  
+def add_visitpk(allstar, allvisit ) :
+    """ Add reference indices from allStar into allVisit file
+    """
+
+    # add VISIT_PK column, initialize with out of range indices
+    if not isinstance(allstar,astropy.table.table.Table) : allstar=Table(allstar)
+    col = Column(np.full([len(allstar),75],len(v)),name='VISIT_PK',dtype=np.int)
+    try : allstar.remove_column('VISIT_PK')
+    except: pass
+    allstar.add_column(col)
+
+    # get indices in allVisit file for each degree of RA, to shorten search
+    ind = np.zeros(360,dtype=int)
+    for i in range(1,360) : 
+        ind[i] = np.where(allvisit['RA']>i)[0][0] 
+        print(i,ind[i])
+
+    # loop over all stars and get corresponding visits
+    nvisits=[]
+    nmax=0
+    for i,star in enumerate(allstar) :
+        ira=int(star['RA'])
+        i1 = ind[ira]
+        if ira < 359 : i2 = ind[ira+1 ]
+        else : i2 = len(allvisit)
+        j = np.where(allvisit['APOGEE_ID'][i1:i2] == star['APOGEE_ID'])[0]
+        allstar['VISIT_PK'][i,0:len(j)] = i1+j
+        print(i,len(j))
+        nvisits.append(len(j))
+        if len(j) > nmax : nmax = len(j)
+    print('nmax: ', nmax)
+    return nvisits
+
 def fix(tab,visit=None) :
-    """ Fix up broken things
+    """ Fix up broken things in pre-releases, e.g. dr17alpha
     """
     aspcapmask=bitmask.AspcapBitMask()
     parammask=bitmask.ParamBitMask()

@@ -557,7 +557,7 @@ CASE suboption of
 
         ; find and set bit for locations where (smoothed) sky line is significant contributor
         ;  to spectrum
-        width=[5,4,3]
+        width=[3,3,1]
         if not issky(ptarg,starg) then begin
           highsky=skylinemask(outframe.(j).flux[*,i],outframe.(j).sky[*,i],nhigh,width=width[j],thresh=2)
           if nhigh gt 0 then outframe.(j).mask[highsky,i] = $

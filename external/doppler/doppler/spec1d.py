@@ -505,12 +505,16 @@ class Spec1D:
             ra = self.head.get('ra')
             dec = self.head.get('dec')  
             if (ra is None) | (dec is None):
-                print('No RA/DEC information in header.  Cannot calculate barycentric correction.')
+                print('No RA/DEC information in header.  Cannot calculate barycentric correction. Using zero.')
                 return 0.0                
-            sc = SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
+            try :
+                sc = SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
+            except :
+                print('Error with  RA/DEC information in header.  Cannot calculate barycentric correction. Using zero.')
+                return 0.0
             dateobs = self.head.get('date-obs')
             if (dateobs is None):
-                print('No DATE information in header.  Cannot calculate barycentric correction.')
+                print('No DATE information in header.  Cannot calculate barycentric correction. Using zero.')
                 return 0.0
             t = Time(dateobs, format='isot', scale='utc')
             exptime = self.head.get('exptime')

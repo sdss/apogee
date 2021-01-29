@@ -200,7 +200,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                  (allvisits['SNR'] > snmin) )[0]
     print(len(allvisits),len(gd))
     # change datatype of STARFLAG to 64-bit
-    allvisits['STARFLAG'] = allvisits['STARFLAG'].astype(np.uint64)
+    allvisits['STARFLAG'] = allvisits['STARFLAG'].astype(np.int64)
     #for filt in ['J','H','K'] :
     #    allvisits[filt] = allvisits[filt+'MAG']
     #    allvisits[filt+'_ERR'] = allvisits[filt+'ERR']
@@ -242,10 +242,10 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                           ('TARGFLAGS','S132'),('SURVEY','S32'),('PROGRAMNAME','S32'),
                           ('NINST',int),('NVISITS',int),('COMBTYPE',int),('COMMISS',int),
                           ('SNR',np.float32),('SNREV',np.float32),
-                          ('STARFLAG',np.uint64),('STARFLAGS','S132'),('ANDFLAG',np.uint64),('ANDFLAGS','S132'),
+                          ('STARFLAG',np.int64),('STARFLAGS','S132'),('ANDFLAG',np.int64),('ANDFLAGS','S132'),
                           ('VHELIO_AVG',np.float32),('VSCATTER',np.float32),('VERR',np.float32),
                           ('RV_TEFF',np.float32),('RV_LOGG',np.float32),('RV_FEH',np.float32),('RV_ALPHA',np.float32),('RV_CARB',np.float32),
-                          ('RV_CCFWHM',np.float32),('RV_AUTOFWHM',np.float32),('RV_FLAG',np.uint64),
+                          ('RV_CCFWHM',np.float32),('RV_AUTOFWHM',np.float32),('RV_FLAG',np.int),
                           ('N_COMPONENTS',int),('MEANFIB',np.float32),('SIGFIB',np.float32),
                           ('MIN_H',np.float32),('MAX_H',np.float32),('MIN_JK',np.float32),('MAX_JK',np.float32)
                          ])
@@ -333,7 +333,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     allvisits.add_column(rv_components)
     rvtab = Column(name='RVTAB',dtype=Table,length=len(allvisits))
     allvisits.add_column(rvtab)
-    allvisits['RV_FLAG'] = np.uint64(0)
+    allvisits['RV_FLAG'] = 0
 
     # now load the new ones with the dorv() output
     allv=[]
@@ -415,7 +415,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         else :
             bdvisits = np.where(allvisits['APOGEE_ID'] == apogee_id.encode())[0]
             if len(bdvisits) > 0 : 
-                starflag,andflag,rvflag = np.uint64(0),np.uint64(0),np.uint64(0)
+                starflag,andflag,rvflag = np.int64(0),np.int64(0),0
                 andflag = allvisits['STARFLAG'][bdvisits[0]]
                 for bd in bdvisits :
                     allvisits['STARFLAG'][bd] |= starmask.getval('RV_FAIL') 
@@ -563,7 +563,7 @@ def dorv(visitfiles) :
     pixelmask=bitmask.PixelBitMask()
     badval=pixelmask.badval()|pixelmask.getval('SIG_SKYLINE')|pixelmask.getval('LITTROW_GHOST')
     rvmask=bitmask.RVBitMask()
-    rvmaskval=np.uint64(0)
+    rvmaskval=0
    
     # if we have a significant number of low S/N visits, combine first using
     #    barycentric correction only, use that to get an estimate of systemic
@@ -1071,7 +1071,7 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
 
     apogee_target1, apogee_target2, apogee_target3 = 0, 0, 0
     apogee2_target1, apogee2_target2, apogee2_target3, apogee2_target4 = 0, 0, 0, 0
-    starflag,andflag = np.uint64(0),np.uint64(0)
+    starflag,andflag = np.int64(0),np.int64(0)
     andflag = allvisit['STARFLAG'][0]
     starmask=bitmask.StarBitMask()
 

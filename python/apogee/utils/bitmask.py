@@ -25,7 +25,7 @@ class BitMask():
         strflag=''
         for ibit,name in enumerate(self.name) :
             try:
-                if ( np.uint64(val) & np.uint64(2**ibit) ) > 0 and ( level == 0 or self.level == level ) :
+                if ( np.int64(val) & np.int64(2**ibit) ) > 0 and ( level == 0 or self.level == level ) :
                   strflag = strflag + name +','
             except: pdb.set_trace()
         if strip : return strflag.strip(',')
@@ -37,11 +37,11 @@ class BitMask():
         """
         if type(name) is str :
             name = [name]
-        bitval = np.uint64(0)
+        bitval = np.int64(0)
         for n in name :
             try:
                 j=self.name.index(n.strip())
-                bitval|=np.uint64(2**j)
+                bitval|=np.int64(2**j)
             except :
                 print('WARNING: undefined name: ',n)
         return bitval
@@ -51,10 +51,10 @@ class BitMask():
         """
         Return bitmask value of all bits that indicate BAD in input bitmask
         """
-        val=np.uint64(0)
+        val=np.int64(0)
         for i,level in enumerate(self.level) :
             if level == 1 :
-                try: val=val | np.uint64(2**i)
+                try: val=val | np.int64(2**i)
                 except: pdb.set_trace()
         return val
 
@@ -62,10 +62,10 @@ class BitMask():
         """
         Return bitmask value of all bits that indicate BAD in input bitmask
         """
-        val=np.uint64(0)
+        val=np.int64(0)
         for i,level in enumerate(self.level) :
             if level == 2 :
-                val=val | np.uint64(2**i)
+                val=val | np.int64(2**i)
         return val
 
 class StarBitMask(BitMask):

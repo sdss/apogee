@@ -11,7 +11,7 @@ import pdb
 from astroquery.gaia import Gaia
 import pyvo
 
-def getdata(data,vers='dr2',posn_match=20,verbose=True) :
+def getdata(data,vers='dr2',posn_match=30,verbose=True) :
     """ Given input structure, get GAIA information from 2MASS matches
         and positional match
         Returns two tables
@@ -34,8 +34,9 @@ def getdata(data,vers='dr2',posn_match=20,verbose=True) :
     #tab.add_column(Column(data['DEC'][ind],name='apogee_dec'))
     xmlfilename= tempfile.mktemp('.xml',dir=os.getcwd())
     tab.write(xmlfilename,format='votable',overwrite=True)
-    try :
-        job= Gaia.launch_job_async(
+    if vers == 'dr2' :
+        try :
+            job= Gaia.launch_job_async(
                 """SELECT tmass_match.original_ext_source_id, g.source_id, g.ra, g.dec, g.parallax, g.parallax_error, 
                            g.pmra, g.pmra_error, g.pmdec, g.pmdec_error, g.ref_epoch,
                            g.phot_g_mean_mag, g.phot_bp_mean_mag, g.phot_rp_mean_mag, 
@@ -46,10 +47,11 @@ def getdata(data,vers='dr2',posn_match=20,verbose=True) :
                    INNER JOIN tap_upload.my_table as ids on ids.twomass = tmass_match.original_ext_source_id
                    LEFT OUTER JOIN external.gaiadr2_geometric_distance as dist ON  g.source_id = dist.source_id""",
                    upload_resource=xmlfilename,upload_table_name='my_table',verbose=verbose)
-        twomass_gaia = job.get_results()
-    except:
-        print("error with gaia 2mass search")
-        twomass_gaia = None
+            twomass_gaia = job.get_results()
+        except:
+            print("error with gaia 2mass search")
+            twomass_gaia = None
+    else : twomass_gaia = None
 
     try: 
         if vers == 'dr2' :
@@ -74,13 +76,24 @@ def getdata(data,vers='dr2',posn_match=20,verbose=True) :
             print('returned ', len(posn_gaia))
         elif vers == 'edr3' :
             service = pyvo.dal.TAPService("https://dc.zah.uni-heidelberg.de/tap")
+            # this used to work but stopped
+            #posn_gaia = service.search(
+            #    """SELECT * FROM gedr3dist.litewithdist as g
+            #       JOIN TAP_UPLOAD.coords as coords 
+            #       ON contains(POINT('ICRS', g.ra, g.dec),CIRCLE('ICRS',coords.apogee_ra, coords.apogee_dec,{:f})) = 1""".format(posn_match/3600.),
+            #       uploads={'coords' : tab})
+            # Markus at GAVO recommended:
             posn_gaia = service.search(
-                #"""SELECT * FROM gaia.dr2light as g
-                """SELECT * FROM gedr3dist.litewithdist as g
-                   JOIN TAP_UPLOAD.coords as coords 
-                   ON contains(POINT('ICRS', g.ra, g.dec),CIRCLE('ICRS',coords.apogee_ra, coords.apogee_dec,{:f})) = 1""".format(posn_match/3600.),
-                   uploads={'coords' : tab})
+                """WITH withpar AS (
+                     SELECT *
+                         FROM gaia.edr3lite AS db
+                         JOIN TAP_UPLOAD.coords AS coords
+                         ON distance(db.ra, db.dec, coords.apogee_ra, coords.apogee_dec)< {:f}) 
+                     SELECT * from withpar
+                     JOIN gedr3dist.main as dist using (source_id)
+                """.format(posn_match/3600.), uploads={'coords' : tab})
             print('pyvo returned: ',len(posn_gaia))
+
             #m1,m2=match.match(posn_gaia_archive['source_id'],posn_gaia['source_id'])
             #print(len(m1),len(m2))
 

@@ -44,6 +44,7 @@ GKg: &GKg
     <<: *GK
     <<: *giant
     logg_range :    [-10.,4.0]
+    fix_coarse : ['C','N']
     PLOCK :
       - name : LGVSINI 
         const : 0.4708
@@ -60,6 +61,7 @@ GKd: &GKd
     <<: *GK
     <<: *dwarf
     logg_range :    [3.5,10]
+    fix_coarse : ['C','N']
     PLOCK :
       - name : O
         const : 0.000
@@ -76,6 +78,7 @@ Mg : &Mg
     << :  *M
     << : *giant
     logg_range :    [-10.,4.0]
+    fix_coarse : ['C','N']
     PLOCK :
       - name : LGVSINI 
         const : 0.4708
@@ -92,6 +95,7 @@ Md : &Md
     << : *M
     << : *dwarf
     logg_range :    [3.5,10]
+    fix_coarse : ['C','N']
     PLOCK :
       - name : O
         const : 0.000
@@ -107,6 +111,7 @@ F : &F
 Fd : &Fd
     << : *F
     << : *dwarf
+    fix_coarse : ['C','N','O Mg Si S Ca Ti']
     logg_range :    [-10.,10.]
     PLOCK :
       - name : O

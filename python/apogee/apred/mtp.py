@@ -152,5 +152,15 @@ def param(field='120-08-RV') :
                 plots.plotp(ax[i],a[1].data['SNR'][j[1:]],a[1].data['ASPCAP_CHI2'][j[1:]],xt='SNR',yt='CHI2',size=10)
         fig.savefig(star+'_param.png')
         plt.close()
-        grid.append([star+'.png',star+'_param.png'])
+
+        fig,ax=plots.multi(1,26,hspace=0.001,figsize=(8,18))
+        for i,par in enumerate(aspcap.elems()[0]) :
+            ref=a[1].data['FELEM'][j[0],i]
+            plots.plotp(ax[i],a[1].data['SNR'][j[1:]],a[1].data['FELEM'][j[1:],i]-ref,xt='SNR',yt=par,size=10)
+            ax[i].plot(ax[i].get_xlim(),[0,0],ls=':')
+        fig.savefig(star+'_elem.png')
+        plt.close()
+
+        grid.append([star+'.png',star+'_param.png',star+'_elem.png'])
+
     html.htmltab(grid,file='mtp.html')

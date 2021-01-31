@@ -1512,7 +1512,7 @@ def mkspec(input) :
     return pars,specnorm
     
 
-def mksynth(file,fits=False,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',telescope='apo25m',
+def mksynth(file,havefits=False,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',telescope='apo25m',
             fiber='combo',linelist='20180901',linelistdir=None,kurucz=False,h2o=0,atoms=True,plot=False,lines=None,ls=None) :
     """ Make a series of spectra from parameters in an input file, with parallel processing for turbospec
         Outputs to FITS file {file}.fits
@@ -1528,7 +1528,7 @@ def mksynth(file,fits=False,threads=8,highres=9,waveid=2420038,lsfid=5440020,apr
         plot (bool) : plot each spectrum (default=False)
         lines (list) : specify limited range of input lines to calculate (default=None, i.e. all lines)
     """
-    if fits :
+    if havefits :
         # have model parameters in a FITS table
         tab = Table.read(file)
         names = pars.colnames
@@ -1668,7 +1668,12 @@ def elemsens(files=None,outfile='elemsens',highres=9,waveid=13140000,lsfid=14600
              calc=False,plot=True,ls=None,htmlfile='elemsens.html',filt=None,filtdir=None,linelist='20180901') :
     """ Create spectra at a range of parameters with individual abundances varied independently
     """
-    if files==None : files=sample.elemsens()
+    # get ref.dat and {el}.dat with 0.1 adjustment
+    files=sample.elemsens()
+    # get ref.dat and {el}_0.dat with -8 adjustment
+    files_0=sample.elemsens(delta=-8,suffix='_0')
+    # get ref.dat and {el}_comp.dat with "complement" of abundances from elements in same group
+    files_comp=sample.elemsens(suffix='_comp',complement=True)
     hdu=fits.HDUList()
     hdumask=fits.HDUList()
     if ls is None :
@@ -1678,20 +1683,38 @@ def elemsens(files=None,outfile='elemsens',highres=9,waveid=13140000,lsfid=14600
         ls = ls[1]
     grid=[]
     ytit=[]
-    for i,name in enumerate(files[3:]) :
+    fp=html.head('elem.html')
+    for i,(name,name0,name_comp) in enumerate(zip(files[3:],files_0[3:],files_comp[3:])) :
         elem=name.replace('.dat','')
         print(name)
         if name == 'C.dat' or name == 'N.dat' : continue
         if calc : 
-            #out=mksynth(name,threads=16,ls=(x,ls))
-            mini_linelist(elem,linelist,only=True)
-            out0=mksynth('ref.dat',threads=16,ls=(xls,ls),linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'_only',h2o=None)
-            os.rename('ref.dat.fits',elem+'_ref.fits')
-            out1=mksynth(name,threads=16,ls=(xls,ls),linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'_only',h2o=None)
-            os.rename(name+'.fits',elem+'.fits')
+            mini_linelist(elem,linelist,only=True,clobber=True)
+            ## default abundance, lines of element only
+            #out0=mksynth('ref.dat',threads=16,ls=(xls,ls),linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'_only',linelist=linelist,h2o=None)
+            #os.rename('ref.dat.fits',elem+'_ref.fits')
+            ## enhanced abundance, lines of element only
+            #out1=mksynth(name,threads=16,ls=(xls,ls),linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'_only',linelist=linelist,h2o=None)
+            #os.rename(name+'.fits',elem+'.fits')
+            ## default abundance, all lines
+            #out2=mksynth('ref.dat',threads=16,ls=(xls,ls),linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/',linelist=linelist,h2o=None)
+            #os.rename('ref.dat.fits',elem+'_ref_full.fits')
+            ## enhanced abundance, all lines
+            #out3=mksynth(name,threads=16,ls=(xls,ls),linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/',linelist=linelist,h2o=None)
+            #os.rename(name+'.fits',elem+'_full.fits')
+            ## "zero" abundance, all lines
+            #out4=mksynth(name0,threads=16,ls=(xls,ls),linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/',linelist=linelist,h2o=None)
+            #os.rename(name0+'.fits',elem+'_0_full.fits')
+            # "complement" abundance, all lines
+            out5=mksynth(name_comp,threads=16,ls=(xls,ls),linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/',linelist=linelist,h2o=None)
+            os.rename(name_comp+'.fits',elem+'_comp_full.fits')
         #ehdu=fits.open(out)[2]
         ehdu=fits.open(elem+'.fits')[2]
         ref=fits.open(elem+'_ref.fits')[2].data
+        ref_full=fits.open(elem+'_ref_full.fits')[2].data
+        full=fits.open(elem+'_full.fits')[2].data
+        full0=fits.open(elem+'_0_full.fits')[2].data
+        comp=fits.open(elem+'_comp_full.fits')[2].data
         ehdu.header['ELEM'] = elem
         ehdu.header['CRVAL1'] = aspcap.logw0
         ehdu.header['CDELT1'] = aspcap.dlogw
@@ -1701,23 +1724,70 @@ def elemsens(files=None,outfile='elemsens',highres=9,waveid=13140000,lsfid=14600
                 ref=ehdu.data
             else :
                 if filtdir is not None: 
-                    filt=aspcap.aspcap2apStar(ascii.read(filtdir+ehdu.header['ELEM']+'.mask',format='fixed_width_no_header')['col1'])
+                    filt=aspcap.aspcap2apStar(ascii.read(filtdir+ehdu.header['ELEM']+'.filt',format='fixed_width_no_header')['col1'])
+                    mask=aspcap.aspcap2apStar(ascii.read(filtdir+ehdu.header['ELEM']+'.mask',format='fixed_width_no_header')['col1'])
+                    if elem == 'Ti' :
+                        filt2=aspcap.aspcap2apStar(ascii.read(filtdir+ehdu.header['ELEM']+'II.filt',format='fixed_width_no_header')['col1'])
+                        mask2=aspcap.aspcap2apStar(ascii.read(filtdir+ehdu.header['ELEM']+'II.mask',format='fixed_width_no_header')['col1'])
+                    wind=ascii.read(filtdir+ehdu.header['ELEM']+'.wind')
+                    j=np.where(wind['col3'] > -1)[0]
+                    nwind=len(j)
+                    wrange=[]
+                    for jj in j : wrange.append((wind['col1'][jj],wind['col2'][jj]))
                 fig,ax=plots.multi(3,3,hspace=0.001,wspace=0.001,xtickrot=60,figsize=(12,8))
                 nspec = ehdu.data.shape[0]
                 ispec=0
                 gd=[]
+                wgrid=[]
+                xt=[]
                 for ix in range(3) :
                     te=3500+ix*1000
+                    xt.append('Teff {:6.0f}'.format(te))
+                    row=[]
+                    yt=[]
                     for iy in range(3) :
                         logg=1.+iy*2.
+                        yt.append('log g: {:5.1f}'.format(logg))
                         x=10.**spectra.fits2vector(ehdu.header,1)
                         y=ehdu.data[ispec,:]/ref[ispec,:]
-                        plots.plotl(ax[iy,ix],x,y,yr=[0.9,1.1],xr=[15100,16950])
+                        z=ref_full[ispec,:]
+                        w=full[ispec,:]
+                        plots.plotl(ax[iy,ix],x,y,yr=[0.9,1.2],xr=[15100,16950],color='b')
+                        plots.plotl(ax[iy,ix],x,z,yr=[0.9,1.2],xr=[15100,16950],color='orange')
+                        plots.plotl(ax[iy,ix],x,w,yr=[0.9,1.2],xr=[15100,16950],color='g')
+                        plots.plotl(ax[iy,ix],x,full0[ispec,:],yr=[0.9,1.2],xr=[15100,16950],color='y')
+                        plots.plotl(ax[iy,ix],x,comp[ispec,:]/ref_full[ispec,:],yr=[0.9,1.2],xr=[15100,16950],color='c')
                         ax[iy,ix].text(0.05,0.9,'Teff:{:6.0f} logg:{:6.1f}'.format(te,logg),transform=ax[iy,ix].transAxes)
-                        if filt is not None: plots.plotl(ax[iy,ix],x,filt*0.1+1.005)
+                        if mask is not None: plots.plotl(ax[iy,ix],x,mask*0.2+1.005)
                         j=np.where(y < 0.99)[0]
                         gd.extend(j)
+                        if nwind < 12 :
+                            wfig,wax=plots.multi(nwind,1,brokenx=True,wspace=0.1,figsize=(8,4),xtickrot=45)
+                            if nwind == 1 : wax=np.array([wax])
+                            for iw in range(nwind) :
+                                plots.plotl(wax[iw],x,y,xr=wrange[iw],yr=[0.5,1.2],color='b')
+                                plots.plotl(wax[iw],x,z,color='orange')   # reference abun
+                                plots.plotl(wax[iw],x,w,color='g')        # with 0.1 enhanced element
+                                plots.plotl(wax[iw],x,full0[ispec,:],color='y') # without any element
+                                plots.plotl(wax[iw],x,comp[ispec,:]/ref_full[ispec,:],color='c')  # with 0.1 ennhanced other elements
+                                if mask is not None: plots.plotl(wax[iw],x,mask*0.2+1.005,color='r')
+                                if filt is not None: plots.plotl(wax[iw],x,filt*0.2+1.005,ls=':',color='r')
+                                if elem == 'Ti' and iw == nwind - 1 :
+                                  plots.plotl(wax[iw],x,mask2*0.2+1.005,color='r')
+                                  plots.plotl(wax[iw],x,filt2*0.2+1.005,ls=':',color='r')
+                                wax[iw].ticklabel_format(style='plain',useOffset=False)
+                            figname='{:s}_{:d}.png'.format(ehdu.header['ELEM'].strip(),ispec)
+                            wfig.savefig(figname)
+                            plt.close()
+                            row.append(figname)
                         ispec+=1
+                    wgrid.append(row)
+                html.htmltab(wgrid,file=elem+'.html',xtitle=xt,ytitle=yt)
+                fp.write('<h2>{:s}</h2>'.format(elem))
+                if nwind < 12 :
+                    fp.write(html.table(wgrid,xtitle=xt,ytitle=yt))
+                else : fp.write('<br> Number of windows: {:d}'.format(nwind))
+
                 mask=np.zeros(ehdu.data.shape[-1])
                 mask[list(set(gd))] = 1.
                 figname = ehdu.header['ELEM'].strip()+'.png'
@@ -1737,10 +1807,12 @@ def elemsens(files=None,outfile='elemsens',highres=9,waveid=13140000,lsfid=14600
     if outfile is not None: 
         hdu.writeto(outfile+'.fits',overwrite=True)
         hdumask.writeto(outfile+'_mask.fits',overwrite=True)
-    html.htmltab(grid,ytitle=ytit,file=htmlfile)
+    #html.htmltab(grid,ytitle=ytit,file=htmlfile)
+    html.tail(fp)
 
 def mkmask(file='elemsens')  :
-
+    """ Routine to suggest possible masks
+    """
     mask=fits.open(file+'.fits')
     els=[]
     for i in range(len(mask)) : els.append(mask[i].header['ELEM'])
@@ -1914,6 +1986,7 @@ def mini_linelist(elem,linelist,maskdir=None,only=False,clobber=False) :
                     fout.write("'"+head.split("'")[1]+"'   "+j+'{:10d}\n'.format(n))
                     fout.write(out)
         fout.close()
+
 
     # write .done file and remove .lock
     fp = open(outdir+elem+'.done','w')

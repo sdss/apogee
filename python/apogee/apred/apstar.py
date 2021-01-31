@@ -259,9 +259,6 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     for tag in ['VHELIO_AVG', 'RV_TEFF', 'RV_LOGG', 'RV_FEH' ] : allfield[tag] = np.nan
     allfield['N_COMPONENTS'] = -1
 
-    # add GAIA information
-    allfield=gaia.add_gaia(allfield)
-
     allfiles=[]
     allv=[]
     nobj=0
@@ -306,6 +303,8 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
             allfield['RV_FLAG'][iobj] = rvmask.getval('NO_GOOD_VISITS')
     print('total objects: ', nobj, ' total visits: ', nvisit) 
 
+    # add GAIA information
+    allfield=gaia.add_gaia(allfield)
 
     # now do the RVs, in parallel if requested
     if threads == 0 :
@@ -577,13 +576,13 @@ def dorv(visitfiles) :
     lowsnr_visits=np.where(allvisit['SNR']<10)[0]
     if (len(lowsnr_visits) > 1) & (len(lowsnr_visits)/len(allvisit) > 0.1) :
         try :
+            print('running BC combination and jointfit for :',obj)
             apstar_bc=visitcomb(allvisit,bconly=True,load=load,write=False,dorvfit=False,apstar_vers=apstar_vers) 
             apstar_bc.setmask(badval)
             spec=doppler.Spec1D(apstar_bc.flux[0,:],err=apstar_bc.err[0,:],bitmask=apstar_bc.bitmask[0,:],
                  mask=apstar_bc.mask[0,:],wave=apstar_bc.wave,lsfpars=np.array([0]),
                  lsfsigma=apstar_bc.wave/22500/2.354,instrument='APOGEE',
                  filename=apstar_bc.filename)
-            print('running BC jointfit for :',obj)
             out= doppler.rv.jointfit([spec],verbose=verbose,plot=plot,tweak=tweak,maxvel=[-500,500])
             rvrange=[out[1][0]['vrel']-50,out[1][0]['vrel']+50]
             rvmaskval |= rvmask.getval('RV_BCFIT' )

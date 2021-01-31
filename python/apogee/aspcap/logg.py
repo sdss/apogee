@@ -14,15 +14,20 @@ except: pass
 from apogee.aspcap import err, teff
 from apogee.speclib import isochrones
 import pdb
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import astropy
 from scipy import interpolate
 
-def rcrgb(allstar,apokasc='APOKASC_cat_v3.6.0.fits',logg='LOGG_SYD_SCALING',rclim=np.array([2.38,3.5]),out='rcrgbsep') :
+def rcrgb(allstar,apokasc='APOKASC_cat_v6.6.5.fits.gz',logg='APOKASC3P_LOGG',evstates='APOKASC3_CONS_EVSTATES',
+          rclim=np.array([2.38,3.5]),out='rcrgbsep') :
     '''
     asteroseismic log g comparisons for input allStar structure
+ 
+    logg : column for log g, dr16 LOGG_SYD_SCALING
+    evstates : DR16 used CONS_EVSTATES
     '''
 
     gd=apselect.select(allstar,badval=['STAR_BAD'],logg=[0,3.8],teff=[3500,5500],raw=True)
@@ -33,11 +38,15 @@ def rcrgb(allstar,apokasc='APOKASC_cat_v3.6.0.fits',logg='LOGG_SYD_SCALING',rcli
     # strip off .XXXX if we have it, e.g. from calibration fields where we have added .FIELD
     apogee_id = np.array(np.core.defchararray.split(allstar['APOGEE_ID'],'.').tolist())[:,0]
     i1,i2=match.match(apogee_id,apokasc['2MASS_ID'])
-    rgb=np.where(apokasc['CONS_EVSTATES'][i2] == 'RGB')[0]
-    rc=np.where(apokasc['CONS_EVSTATES'][i2] == 'RC')[0]
-    notrc=np.where(apokasc['CONS_EVSTATES'][i2] != 'RC')[0]
-    rc2=np.where((apokasc['CONS_EVSTATES'][i2] == '2CL') & (apokasc[logg][i2] > -1))[0]
-    rc2cl=np.where((apokasc['CONS_EVSTATES'][i2] == 'RC/2CL') & (apokasc[logg][i2] > -1))[0]
+    rgbstate=1 #'RGB'
+    rcstate=2  #'RC'
+    rc_2clstate=5   #'2CL'
+    rc_rc2clstate=6   #'RC/2CL
+    rgb=np.where(apokasc[evstates][i2] == rgbstate)[0]
+    rc=np.where(apokasc[evstates][i2] == rcstate)[0]
+    notrc=np.where(apokasc[evstates][i2] != rcstate)[0]
+    rc2=np.where((apokasc[evstates][i2] == rc_2clstate) & (apokasc[logg][i2] > -1))[0]
+    rc2cl=np.where((apokasc[evstates][i2] == rc_rc2clstate) & (apokasc[logg][i2] > -1))[0]
     rcall=np.append(rc,rc2)
     rcall=np.append(rcall,rc2cl)
     rc=i1[rc]
@@ -95,8 +104,11 @@ def rcrgb(allstar,apokasc='APOKASC_cat_v3.6.0.fits',logg='LOGG_SYD_SCALING',rcli
     # plot dt vs C/N 
     #plots.plotc(ax[0,2],dt[rc[rclogg]],cn[rc[rclogg]],allstar['FPARAM'][rc[rclogg],1],marker='s',xr=[-500,500],yr=[-1.0,0.5],zr=[2,4],size=20,xt='dt',yt='[C/N]',zt='log g',colorbar=True)
     #plots.plotc(ax[1,2],dt[rgb[rgblogg]],cn[rgb[rgblogg]],allstar['FPARAM'][rgb[rgblogg],1],marker='o',xr=[-500,500],yr=[-1.0,0.5],zr=[2,4],size=20,xt='dt',yt='[C/N]',zt='log g',colorbar=True)
-    plots.plotc(ax[0,2],dt[rc[rclogg]],cn[rc[rclogg]],allstar['FPARAM'][rc[rclogg],3],marker='s',xr=[-500,500],yr=[-1.0,0.5],zr=[-1.5,0.5],size=20,xt='dt',yt='[C/N]',zt='[M/H]',colorbar=True)
-    plots.plotc(ax[1,2],dt[rgb[rgblogg]],cn[rgb[rgblogg]],allstar['FPARAM'][rgb[rgblogg],3],marker='o',xr=[-500,500],yr=[-1.0,0.5],zr=[-1.5,0.5],size=20,xt='dt',yt='[C/N]',zt='[M/H]',colorbar=True)
+    zr=[-1.5,0.5]
+    plots.plotc(ax[0,2],dt[rc[rclogg]],cn[rc[rclogg]],allstar['FPARAM'][rc[rclogg],3],marker='s',xr=[-500,500],yr=[-1.0,0.5],zr=zr,size=20,xt='dt',yt='[C/N]',zt='[M/H]',colorbar=True)
+    plots.plotc(ax[1,2],dt[rgb[rgblogg]],cn[rgb[rgblogg]],allstar['FPARAM'][rgb[rgblogg],3],marker='o',xr=[-500,500],yr=[-1.0,0.5],zr=zr,size=20,xt='dt',yt='[C/N]',zt='[M/H]',colorbar=True)
+    cmap = matplotlib.cm.get_cmap()
+
 
     cnslopebest=-0.2/100.
     cnintbest=0.
@@ -120,9 +132,9 @@ def rcrgb(allstar,apokasc='APOKASC_cat_v3.6.0.fits',logg='LOGG_SYD_SCALING',rcli
     x=np.array([-200,400])
     for i in [0,1] :
       for j in [2] :
-        ax[i,j].plot(x,cnfit[0]+cnfit[1]*0.+x*cnfit[2])
-        ax[i,j].plot(x,cnfit[0]+cnfit[1]*(-0.5)+x*cnfit[2])
-        ax[i,j].plot(x,cnfit[0]+cnfit[1]*0.5+x*cnfit[2])
+        ax[i,j].plot(x,cnfit[0]+cnfit[1]*0.+x*cnfit[2],color=cmap((0.-zr[0])/(zr[1]-zr[0])))
+        ax[i,j].plot(x,cnfit[0]+cnfit[1]*(-0.5)+x*cnfit[2],color=cmap((-0.5-zr[0])/(zr[1]-zr[0])))
+        ax[i,j].plot(x,cnfit[0]+cnfit[1]*0.5+x*cnfit[2],color=cmap((0.5-zr[0])/(zr[1]-zr[0])))
 
     rcbd = np.where((cn[rc[rclogg]] < cnfit[0]+cnfit[1]*allstar['FPARAM'][rc[rclogg],3]+cnfit[2]*dt[rc[rclogg]]))[0]
     rgbbd = np.where((cn[rgb[rgblogg]] > cnfit[0]+cnfit[1]*allstar['FPARAM'][rgb[rgblogg],3]+cnfit[2]*dt[rgb[rgblogg]]))[0]
@@ -174,7 +186,7 @@ def rcrgb_plot(a,out=None) :
         plt.close()
 
 
-def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3000,7500],apokasc_cat='APOKASC_cat_v4.4.2.fits',out='logg',calib=False) :
+def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3000,7500],apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',out='logg',calib=False) :
     """ logg calibration for dwarfs, from asteroseismic and isochrones
     """
     if calib :
@@ -273,9 +285,14 @@ def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3000,7500],a
             'msfit' : msfit.parameters, 'errpar' : mserrpar }
 
  
-def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False,out='loggcomp',calloggrange=[-1.,3.8],loggrange=[-1.,3.8],mhrange=[-2.5,0.5],teffrange=[3500,5500],calteffrange=[3000,6000],calib=False) :
+def apokasc(allstar,apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',raw=True,plotcal=False,out='loggcomp',
+            calloggrange=[-1.,3.8],loggrange=[-1.,3.8],mhrange=[-2.5,0.5],teffrange=[3500,5500],calteffrange=[3000,6000],calib=False,
+            logg='APOKASC3P_LOGG',evstates='APOKASC3_CONS_EVSTATES') :
     '''
     asteroseismic log g comparisons for input allStar structure
+
+    log g: tag to use: DR16 used APOKASC2_LOGG, DR14 used LOGG_SYD_SCALING
+    evstates : DR16 used CONS_EVSTATES
     '''
 
     if calib :
@@ -291,27 +308,22 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
     # strip off .XXXX if we have it, e.g. from calibration fields where we have added .FIELD
     apogee_id = np.array(np.core.defchararray.split(allstar['APOGEE_ID'],'.').tolist())[:,0]
     i1,i2=match.match(apogee_id,apokasc['2MASS_ID'])
-    try:
-        print('trying APOKASC2 catalog tags...')
-        logg='APOKASC2_LOGG'
-        rgb=np.where((apokasc['CONS_EVSTATES'][i2] == 'RGB') & (apokasc[logg][i2] > -1))[0]
-        rc=np.where((apokasc['CONS_EVSTATES'][i2] == 'RC') & (apokasc[logg][i2] > -1))[0]
-        notrc=np.where(apokasc['CONS_EVSTATES'][i2] != 'RC')[0]
-        rc2=np.where((apokasc['CONS_EVSTATES'][i2] == '2CL') & (apokasc[logg][i2] > -1))[0]
-        rc2cl=np.where((apokasc['CONS_EVSTATES'][i2] == 'RC/2CL') & (apokasc[logg][i2] > -1))[0]
-        # use LOGG_DW if we have it
-        dw=np.where((apokasc[logg][i2] < -99) & (apokasc['LOGG_DW'][i2] >-99) )[0]
-        apokasc[logg][i2[dw]] = apokasc['LOGG_DW'][i2[dw]]
-        rgb=np.append(rgb,dw)
-    except :
-        # DR14 used APOKASC_cat_v3.6.0
-        print('trying older APOKASC catalog tags...')
-        logg='LOGG_SYD_SCALING'
-        rgb=np.where((apokasc['CONS_EVSTATES'][i2] == 'RGB') & (apokasc[logg][i2] > -1))[0]
-        rc=np.where((apokasc['CONS_EVSTATES'][i2] == 'RC') & (apokasc[logg][i2] > -1))[0]
-        notrc=np.where(apokasc['CONS_EVSTATES'][i2] != 'RC')[0]
-        rc2=np.where((apokasc['CONS_EVSTATES'][i2] == '2CL') & (apokasc[logg][i2] > -1))[0]
-        rc2cl=np.where((apokasc['CONS_EVSTATES'][i2] == 'RC/2CL') & (apokasc[logg][i2] > -1))[0]
+
+    rgbstate=1 #'RGB'
+    rcstate=2  #'RC'
+    rc_2clstate=5   #'2CL'
+    rc_rc2clstate=6   #'RC/2CL
+
+    rgb=np.where((apokasc[evstates][i2] == rgbstate) & (apokasc[logg][i2] > -1))[0]
+    rc=np.where((apokasc[evstates][i2] == rcstate) & (apokasc[logg][i2] > -1))[0]
+    notrc=np.where(apokasc[evstates][i2] != rcstate)[0]
+    rc2=np.where((apokasc[evstates][i2] == rc_2clstate) & (apokasc[logg][i2] > -1))[0]
+    rc2cl=np.where((apokasc[evstates][i2] == rc_rc2clstate) & (apokasc[logg][i2] > -1))[0]
+    # use LOGG_DW if we have it
+    dw=np.where((apokasc[logg][i2] < -99) & (apokasc['LOGG_DW'][i2] >-99) )[0]
+    apokasc[logg][i2[dw]] = apokasc['LOGG_DW'][i2[dw]]
+    rgb=np.append(rgb,dw)
+
     rcall=np.append(rc,rc2)
     rcall=np.append(rcall,rc2cl)
 
@@ -333,9 +345,11 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
     rgbrms=(allstar[param][i1[rgb],1]-rgbfit(allstar['FPARAM'][i1[rgb],1],allstar['FPARAM'][i1[rgb],3])-apokasc[logg][i2[rgb]]).std()
     ax[0].text(0.98,0.98,'rms: {:5.3f}'.format(rgbrms),transform=ax[0].transAxes,va='top',ha='right')
     print('errfit')
+    if out is not None : outfile=out+'_rgb'
+    else : outfile = None
     rgberrpar = err.errfit(allstar[param][i1[rgb],0],allstar['SNR'][i1[rgb]],allstar[param][i1[rgb],3],
                         allstar[param][i1[rgb],1]-rgbfit(allstar['FPARAM'][i1[rgb],1],allstar['FPARAM'][i1[rgb],3])-apokasc[logg][i2[rgb]],
-                        out=out+'_rgb',title='log g',zr=[0,0.2])
+                        out=outfile,title='log g',zr=[0,0.2])
     loggmin=allstar['FPARAM'][i1[rgb],1].min()
     loggmax=allstar['FPARAM'][i1[rgb],1].max()
 
@@ -349,9 +363,11 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v4.4.2.fits',raw=True,plotcal=False
     print('rcfit 2')
     rcfit2 = fit.fit1d(allstar['FPARAM'][i1[rcall],1], allstar[param][i1[rcall],1]-apokasc[logg][i2[rcall]],zr=[-1,0.5],yr=[-3,1],xr=[1,4],degree=2,reject=0.3)
     rcrms=(allstar[param][i1[rc],1]-rcfit(allstar['FPARAM'][i1[rc],1],allstar['FPARAM'][i1[rc],3])-apokasc[logg][i2[rc]]).std()
+    if out is not None : outfile=out+'_rc'
+    else : outfile = None
     rcerrpar = err.errfit(allstar[param][i1[rc],0],allstar['SNR'][i1[rc]],allstar[param][i1[rc],3],
                         allstar[param][i1[rc],1]-rcfit(allstar['FPARAM'][i1[rc],1],allstar['FPARAM'][i1[rc],3])-apokasc[logg][i2[rc]],
-                        out=out+'_rc',title='log g',zr=[0,0.2])
+                        out=outfile,title='log g',zr=[0,0.2])
     ax[1].text(0.98,0.98,'rms: {:5.3f}'.format(rcrms),transform=ax[1].transAxes,va='top',ha='right')
     fig.tight_layout()
     if out is not None :

@@ -153,7 +153,7 @@ def allPlate(all,out=None) :
     return allplate 
 
 def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_vers=None,obj=None,
-               nobj=0,threads=8,maxvisit=500,snmin=3,nres=[5,4.25,3.5],rv_reject=10,vmedian=False,
+               nobj=0,threads=8,maxvisit=500,snmin=3,mtpfluxmin=0.,nres=[5,4.25,3.5],rv_reject=10,vmedian=False,
                save=False,clobber=False,rvclobber=False,vcclobber=False,verbose=False,tweak=False,plot=False,windows=None) :
     """ Run DOPPLER RVs for a field
     """ 
@@ -170,6 +170,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     field=plan['field']
     rv_reject = plan['rv_reject'] if plan.get('rv_reject') else rv_reject
     snmin = plan['snmin'] if plan.get('snmin') else snmin
+    mtpfluxmin = plan['mtpfluxmin'] if plan.get('mtpfluxmin') else mtpfluxmin
     vmedian = plan['vmedian'] if plan.get('vmedian') else vmedian
 
     if clobber :
@@ -197,6 +198,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     starmask=bitmask.StarBitMask()
     gd=np.where(((allvisits['STARFLAG'] & starmask.badval()) == 0) & 
                  (allvisits['APOGEE_ID'] != b'') &
+                 (allvisits['MTPFLUX'] > mtpfluxmin) &
                  (allvisits['SNR'] > snmin) )[0]
     print(len(allvisits),len(gd))
     # change datatype of STARFLAG to 64-bit
@@ -249,11 +251,12 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                           ('N_COMPONENTS',int),('MEANFIB',np.float32),('SIGFIB',np.float32),
                           ('MIN_H',np.float32),('MAX_H',np.float32),('MIN_JK',np.float32),('MAX_JK',np.float32)
                          ])
+    #default initialize to 0/blank
     allfield = np.zeros(len(allobj),dtype=fieldtype)
     allfield['TELESCOPE'] = telescope
     allfield['FIELD'] = field
-    #initialize VHELIO_AVG in case RV fails
-    allfield['VHELIO_AVG'] = np.nan
+    #initialize some tags to NaN in case RV fails
+    for tag in ['VHELIO_AVG', 'RV_TEFF', 'RV_LOGG', 'RV_FEH' ] : allfield[tag] = np.nan
     allfield['N_COMPONENTS'] = -1
 
     allfiles=[]
@@ -503,7 +506,10 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                              bitmask.targflags(star['APOGEE2_TARGET1'],star['APOGEE2_TARGET2'],star['APOGEE2_TARGET3'],star['APOGEE2_TARGET4'],survey='apogee2'))
     
     # add GAIA information
-    allfield=gaia.add_gaia(allfield)
+    try:allfield=gaia.add_gaia(allfield)
+    except: 
+        print('GAIA failed')
+
     #output apField and apFieldVisits
     hdulist=fits.HDUList()
     hdulist.append(fits.table_to_hdu(Table(allfield)))
@@ -1424,7 +1430,10 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
         apstar.header['VRAD{:d}'.format(i)] = (visit['VREL'],'Radial velocity (km/s) of visit {:d}'.format(i))
         apstar.header['VERR{:d}'.format(i)] =  (visit['VRELERR'],'Uncertainty in radial velocity (km/s)')
         apstar.header['VHELIO{:d}'.format(i)] = (visit['VHELIO'],'Barycentric velocity (km/s), visit {:d}'.format(i))
-        apstar.header['SNRVIS{:d}'.format(i)] = (visit['SNR'],'Signal/Noise ratio, visit {:d}'.format(i))
+        #apstar.header['SNRVIS{:d}'.format(i)] = (visit['SNR'],'Signal/Noise ratio, visit {:d}'.format(i))
+        try :apstar.header['SNRVIS{:d}'.format(i)] = (np.nanmedian(apstar.flux[i0+2,:]/apstar.err[i0+2,:]), 
+                                                      'Median S/N per apStar pixel,, visit {:d}'.format(i))
+        except :apstar.header['SNRVIS{:d}'.format(i)] = (0., 'Median S/N per apStar pixel, visit {:d}'.format(i))
         apstar.header['FLAG{:d}'.format(i)] = (visit['STARFLAG'],'STARFLAG for visit {:d}'.format(i))
         apstar.header.insert('SFILE{:d}'.format(i),('COMMENT','VISIT {:d} INFORMATION'.format(i)))
 

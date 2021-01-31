@@ -172,11 +172,17 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
                    try: rmselem.append(np.abs(a['FELEM'][j[i],0,:]-a['FELEM'][j[i+1],0,:])*np.sqrt(np.pi)/2.)
                    except: rmselem.append(np.abs(a['FELEM'][j[i],:]-a['FELEM'][j[i+1],:])*np.sqrt(np.pi)/2.)
                    for iel in range(len(els)) :
+                       try : 
+                           felem=a['FELEM'][j[i],0,iel]
+                           felem1=a['FELEM'][j[i+1],0,iel]
+                       except : 
+                           felem=a['FELEM'][j[i],iel]
+                           felem1=a['FELEM'][j[i+1],iel]
                        of[iel].write(fmt.format(star,a['FPARAM'][j[i],0],a['FPARAM'][j[i+1],0],
                                                 a['SNR'][j[i]],a['SNR'][j[i+1]],
                                                 a['FPARAM'][j[i],3],a['FPARAM'][j[i+1],3],
-                                                a['FELEM'][j[i],0,iel],a['FELEM'][j[i+1],0,iel],
-                                                np.abs(a['FELEM'][j[i],0,iel]-a['FELEM'][j[i+1],0,iel])))
+                                                felem,felem1,
+                                                np.abs(felem-felem1)))
                    i+=2
                 else :
                    i+=1

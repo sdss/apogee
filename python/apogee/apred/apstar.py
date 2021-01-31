@@ -177,35 +177,39 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         rvclobber= True 
         vcclobber= True 
 
-    # get all the VisitSum files for this field and concatenate them
+    # get all the VisitSum files for this field and concatenate them using astropy Table
     files=glob.glob(os.environ['APOGEE_REDUX']+'/'+apred+'/visit/'+telescope+'/'+field+'/apVisitSum*')
     if len(files) == 0 :
         print('no apVisitSum files found for {:s}'.format(field))
         return
-    else :
-        #allvisits=struct.concat(files)
-        visitsum=[]
-        for file in files :
-            visittab=Table.read(file)
-            target.add_design(visittab)
-            visitsum.append(visittab)
+    visitsum=[]
+    for file in files :
+        visittab=Table.read(file)
+        target.add_design(visittab)
+        visitsum.append(visittab)
+    allvisits=vstack(visitsum)
 
-        allvisits=vstack(visitsum)
-        allvisits.sort('JD')
-        # strip spaces from APOGEE_ID
-        for visit in allvisits : visit['APOGEE_ID'] = visit['APOGEE_ID'].strip()
+    # sort by JD
+    allvisits.sort('JD')
 
+    # strip spaces from APOGEE_ID
+    for visit in allvisits : visit['APOGEE_ID'] = visit['APOGEE_ID'].strip()
+
+    # change datatype of STARFLAG to 64-bit
+    allvisits['STARFLAG'] = allvisits['STARFLAG'].astype(np.int64)
+
+    # SDSS-V convention
+    #for filt in ['J','H','K'] :
+    #    allvisits[filt] = allvisits[filt+'MAG']
+    #    allvisits[filt+'_ERR'] = allvisits[filt+'ERR']
+
+    # select out gd visits to process
     starmask=bitmask.StarBitMask()
     gd=np.where(((allvisits['STARFLAG'] & starmask.badval()) == 0) & 
                  (allvisits['APOGEE_ID'] != b'') &
                  (allvisits['MTPFLUX'] > mtpfluxmin) &
                  (allvisits['SNR'] > snmin) )[0]
     print(len(allvisits),len(gd))
-    # change datatype of STARFLAG to 64-bit
-    allvisits['STARFLAG'] = allvisits['STARFLAG'].astype(np.int64)
-    #for filt in ['J','H','K'] :
-    #    allvisits[filt] = allvisits[filt+'MAG']
-    #    allvisits[filt+'_ERR'] = allvisits[filt+'ERR']
 
     # output directory
     load=apload.ApLoad(apred=apred,telescope=telescope)
@@ -253,6 +257,9 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                          ])
     #default initialize to 0/blank
     allfield = np.zeros(len(allobj),dtype=fieldtype)
+    # numpy structured arrays use encoded byte strings. Convert to astropy table allows these to be referenced as strings
+    allfield = Table(allfield)
+
     allfield['TELESCOPE'] = telescope
     allfield['FIELD'] = field
     #initialize some tags to NaN in case RV fails
@@ -269,7 +276,6 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     # loop over requested objects, building up allfiles list of 
     #  [(field,obj,clobber,verbose,tweak,plot,windows),filenames....] to pass to dorv()
     for iobj,star in enumerate(sorted(allobj)) :
-        if type(star) is str : star=star.encode()
         allfield['APOGEE_ID'][iobj] = star
 
         # copy basic information from first visit in case star fails
@@ -343,7 +349,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     # now load the new ones with the dorv() output
     allv=[]
     for out,files in zip(output,allfiles) :
-        apogee_id=files[-1][1].decode() 
+        apogee_id=files[-1][1]
         if len(out) == 3 :
             visits=[]
             ncomponents=0
@@ -409,7 +415,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                 if len(gdrv) > 0 : 
                     allv.append([allvisits[visits[gdrv]],load,(field,apogee_id,vcclobber,apstar_vers,nres,save)])
                 else :
-                    bd = np.where(allfield['APOGEE_ID'] == apogee_id.encode())[0]
+                    bd = np.where(allfield['APOGEE_ID'] == apogee_id)[0]
                     if len(bd) > 0 : 
                         allfield['STARFLAG'][bd] |= starmask.getval('RV_FAIL') 
                         allfield['ANDFLAG'][bd] |= starmask.getval('RV_FAIL') 
@@ -418,7 +424,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                         allfield['RV_FLAG'][bd] |= mask
                         allfield['RV_FLAG'][bd] |= rvmask.getval('ALL_VISITS_REJECTED')
         else :
-            bdvisits = np.where(allvisits['APOGEE_ID'] == apogee_id.encode())[0]
+            bdvisits = np.where(allvisits['APOGEE_ID'] == apogee_id)[0]
             if len(bdvisits) > 0 : 
                 starflag,andflag,rvflag = np.int64(0),np.int64(0),0
                 andflag = allvisits['STARFLAG'][bdvisits[0]]
@@ -428,7 +434,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                     starflag |= allvisits['STARFLAG'][bd]
                     andflag &= allvisits['STARFLAG'][bd]
                     rvflag |= allvisits['RV_FLAG'][bd]
-            bd = np.where(allfield['APOGEE_ID'] == apogee_id.encode())[0]
+            bd = np.where(allfield['APOGEE_ID'] == apogee_id)[0]
             if len(bd) > 0 : 
                 allfield['ANDFLAG'][bd] = andflag 
                 allfield['STARFLAG'][bd] = starflag 
@@ -452,10 +458,10 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     # Some of these are renamed in allField structure to use different
     # (longer, more clear) names
     for apstar,v in zip(output,allv) :
-        j = np.where(allfield['APOGEE_ID'] == v[-1][1].encode())[0]
+        j = np.where(allfield['APOGEE_ID'] == v[-1][1])[0]
         # basic target information loaded above for all targets
-        if allfield['APOGEE_ID'][j[0]].decode() != apstar.header['OBJID'] or \
-           allfield['APOGEE_ID'][j[0]].decode() != v[-1][1] :
+        if allfield['APOGEE_ID'][j[0]] != apstar.header['OBJID'] or \
+           allfield['APOGEE_ID'][j[0]] != v[-1][1] :
             print("IDs don't match: ",allfield['APOGEE_ID'][j],apstar.header['OBJID'],v[-1][1])
             pdb.set_trace()
         #try: allfield['APOGEE_ID'][j] = apstar.header['OBJID']
@@ -536,7 +542,7 @@ def dorv(visitfiles) :
     allvisit = visitfiles[0]
     load = visitfiles[1]
     field=visitfiles[-1][0]
-    obj=visitfiles[-1][1].decode('UTF-8')
+    obj=visitfiles[-1][1]
     clobber=visitfiles[-1][2]
     verbose=visitfiles[-1][3]
     tweak=visitfiles[-1][4]

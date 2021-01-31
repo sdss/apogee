@@ -220,7 +220,7 @@ def elemmask(el,maskdir='filters_26112015',plot=None,yr=[0,1]) :
         plots.plotl(plot,wave,mask,yr=yr)
     return wave,mask
 
-def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visits=0,addgaia=False) :
+def apField2aspcapField(planfile,minerr=0.005,apstar_vers='stars',addgaia=False) :
     """ create initial aspcapField file from apField file
     """
 
@@ -233,6 +233,9 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
     telescope=plan['telescope']
     field=plan['field']
     if type(field) is str : field=[field]
+    visits = plan['visits'] if plan.get('visits') else 0
+    nobj = plan['nobj'] if plan.get('nobj') else None
+    obj = plan['obj'] if plan.get('obj') else None
 
     # setup reader and load apField file
     load = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope=telescope)
@@ -254,9 +257,15 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
 
     # create out output table
     aspcapfield=Table(apfield)
+
+    # limited or single object specified?
     if nobj is not None : aspcapfield=aspcapfield[0:nobj]
-    try : test = aspcapfield['MEANFIB']
-    except : aspcapfield['MEANFIB'] = 150
+    if obj is not None :
+        if isinstance(obj,str) : obj=[obj]
+        j=[]
+        for o in obj :
+            j.append(np.where(aspcapfield['APOGEE_ID'] == o)[0][0])
+        aspcapfield=aspcapfield[j]
 
     #if we want individual visits, need to add rows to table
     if visits > 0 :
@@ -295,8 +304,8 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
     aspcapfield.add_column(Column(name='ASPCAP_CHI2',dtype=np.float32,data=np.full([n],np.nan)))
     aspcapfield.add_column(Column(name='PARAM',dtype=np.float32,data=np.full([n,nparam],np.nan)))
     aspcapfield.add_column(Column(name='PARAM_COV',dtype=np.float32,data=np.full([n,nparam,nparam],np.nan)))
-    aspcapfield.add_column(Column(name='PARAMFLAG',dtype=np.uint64,data=np.full([n,nparam],0)))
-    aspcapfield.add_column(Column(name='ASPCAPFLAG',dtype=np.uint64,data=np.full([n],0)))
+    aspcapfield.add_column(Column(name='PARAMFLAG',dtype=np.int,data=np.full([n,nparam],0)))
+    aspcapfield.add_column(Column(name='ASPCAPFLAG',dtype=np.int64,data=np.full([n],0)))
     aspcapfield.add_column(Column(name='ASPCAPFLAGS',dtype='S256',data=np.full([n],'')))
     aspcapfield.add_column(Column(name='FRAC_BADPIX',dtype=np.float32,data=np.full([n],np.nan)))
     aspcapfield.add_column(Column(name='FRAC_LOWSNR',dtype=np.float32,data=np.full([n],np.nan)))
@@ -310,7 +319,7 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
     aspcapfield.add_column(Column(name='X_M_ERR',dtype=np.float32,data=np.full([n,nelem],np.nan)))
     aspcapfield.add_column(Column(name='ELEM_CHI2',dtype=np.float32,data=np.full([n,nelem],np.nan)))
     aspcapfield.add_column(Column(name='ELEMFRAC',dtype=np.float32,data=np.full([n,nelem],np.nan)))
-    aspcapfield.add_column(Column(name='ELEMFLAG',dtype=np.uint64,data=np.full([n,nelem],np.nan)))
+    aspcapfield.add_column(Column(name='ELEMFLAG',dtype=np.int,data=np.full([n,nelem],np.nan)))
 
     # load spectra
     # create table for output spectral data
@@ -318,7 +327,7 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
     nwave = nw_chip.sum()
     aspcapspec.add_column(Column(name='SPEC',dtype=np.float32,shape=(nwave,),length=len(aspcapfield)))
     aspcapspec.add_column(Column(name='SPEC_ERR',dtype=np.float32,shape=(nwave,),length=len(aspcapfield)))
-    aspcapspec.add_column(Column(name='MASK',dtype=np.uint64,shape=(nwave,),length=len(aspcapfield)))
+    aspcapspec.add_column(Column(name='MASK',dtype=np.int,shape=(nwave,),length=len(aspcapfield)))
     aspcapspec.add_column(Column(name='SPEC_BESTFIT',dtype=np.float32,shape=(nwave,),length=len(aspcapfield)))
     aspcapspec.add_column(Column(name='OBS',dtype=np.float32,shape=(nwave,),length=len(aspcapfield)))
     aspcapspec.add_column(Column(name='ERR',dtype=np.float32,shape=(nwave,),length=len(aspcapfield)))
@@ -426,7 +435,7 @@ def apField2aspcapField(planfile,nobj=None,minerr=0.005,apstar_vers='stars',visi
 
     return aspcapfield, aspcapspec
 
-def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,minerr=0.005,apstar_vers=None,plot=False,
+def fit_params(planfile,aspcapdata=None,clobber=False,write=True,minerr=0.005,apstar_vers=None,plot=False,
                init='RV',coarse=False,fix=None,renorm=False,suffix='',html=True,mult=False,dostar=None) :
     """ run ASPCAP on a field to get parameters
     """
@@ -442,14 +451,13 @@ def fit_params(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,miner
     aspcap_config=plan['aspcap_config']
     instrument=plan['instrument']
     telescope=plan['telescope']
-    visits = plan['visits'] if plan.get('visits') else 0
     field=plan['field']
     if 'outfield' not in plan.keys() : outfield = field
     else : outfield = plan['outfield']
 
     # get initial aspcapField if not provided
     if aspcapdata is None : 
-        aspcapfield,aspcapspec=apField2aspcapField(planfile,nobj=nobj,minerr=minerr,apstar_vers=apstar_vers,visits=visits)
+        aspcapfield,aspcapspec=apField2aspcapField(planfile,minerr=minerr,apstar_vers=apstar_vers)
     else :
         aspcapfield = copy.deepcopy(aspcapdata[0])
         aspcapspec = copy.deepcopy(aspcapdata[1])

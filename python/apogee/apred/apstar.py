@@ -259,6 +259,9 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     for tag in ['VHELIO_AVG', 'RV_TEFF', 'RV_LOGG', 'RV_FEH' ] : allfield[tag] = np.nan
     allfield['N_COMPONENTS'] = -1
 
+    # add GAIA information
+    allfield=gaia.add_gaia(allfield)
+
     allfiles=[]
     allv=[]
     nobj=0
@@ -505,10 +508,6 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         star['TARGFLAGS'] = (bitmask.targflags(star['APOGEE_TARGET1'],star['APOGEE_TARGET2'],0,0,survey='apogee')+
                              bitmask.targflags(star['APOGEE2_TARGET1'],star['APOGEE2_TARGET2'],star['APOGEE2_TARGET3'],star['APOGEE2_TARGET4'],survey='apogee2'))
     
-    # add GAIA information
-    try:allfield=gaia.add_gaia(allfield)
-    except: 
-        print('GAIA failed')
 
     #output apField and apFieldVisits
     hdulist=fits.HDUList()
@@ -1174,6 +1173,10 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
         if len(bd) > 0 : stack.err[i,bd] *= np.sqrt(3)
         bd = np.where((stack.bitmask[i,:]&pixelmask.getval('SIG_SKYLINE')) > 0)[0]
         if len(bd) > 0 : stack.err[i,bd] *= np.sqrt(100)
+
+        # downweight spectrum if MTPFLUX_LT_50 bit set
+        if visit['STARFLAG'] & starmask.getval('MTPFLUX_LT_50') :
+            stack.err[i,:] *= 3.
 
         if plot :
             ax[0].plot(aspcap.apStarWave(),stack.flux[i,:])

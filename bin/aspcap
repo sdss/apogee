@@ -34,7 +34,6 @@ if __name__ == '__main__' :
     parser.add_argument("--done")
     parser.add_argument("--host")
     parser.add_argument("--cal", type=str, help='calibration dir (and calibrate only')
-    parser.add_argument('--nobj', type=int, help='Maximum objects',default=None)
     parser.add_argument('--mult', help='multiple starting guesses?',action="store_true")
     parser.add_argument('--noparam', help='Skip parameter determination?',action="store_true")
     parser.add_argument('--calparam', help='Skip redo parameter determination with calibrated logg?',action="store_true")
@@ -57,30 +56,29 @@ if __name__ == '__main__' :
             # initial fit with vmicro relation
             print('Initial parameters from initial RV parameters, fixed vmicro')
             #out=aspcap.fit_params(args.planfile,clobber=args.clobber,fix=['LOG10VDOP'],renorm=False,html=False)
-            #out=aspcap.fit_params(args.planfile,clobber=args.clobber,fix=['C','N'],renorm=False,html=False,nobj=args.nobj,write=False)
-            out=aspcap.fit_params(args.planfile,clobber=args.clobber,coarse=True,renorm=False,html=False,nobj=args.nobj,write=False)
+            #out=aspcap.fit_params(args.planfile,clobber=args.clobber,fix=['C','N'],renorm=False,html=False,write=False)
+            out=aspcap.fit_params(args.planfile,clobber=args.clobber,coarse=True,renorm=False,html=False,write=False)
             #refit with renomalization and with all paramters fit
             print('Refit with renomalization, initial fit parameters, all parameters fit')
             out_renorm=aspcap.fit_params(args.planfile,aspcapdata=out,clobber=args.clobber,
-                                         init='FPARAM',renorm=True,html=False,nobj=args.nobj,mult=args.mult)
+                                         init='FPARAM',renorm=True,html=False,mult=args.mult)
         if args.calparam :
             #calibrate log g
             out_renorm[0]['PARAM'] = out_renorm[0]['FPARAM'] 
             out_renorm[0]['PARAM'][:,1] = cal.logg(out_renorm[0])
             print('Refit with fixed calibrated log g')
             out_calib=aspcap.fit_params(args.planfile,aspcapdata=out_renorm,clobber=args.clobber,
-                                        init='PARAM',fix=['LOGG'],renorm=True,suffix='_cal',html=False,nobj=args.nobj)
+                                        init='PARAM',fix=['LOGG'],renorm=True,suffix='_cal',html=False)
             out_calib[0]['PARAM'] = out_calib[0]['FPARAM'] 
 
         if not args.noelem :
             print('Abundances with uncalibrated fit parameters')
-            out_elem=aspcap.fit_elems(args.planfile,clobber=args.clobber,renorm=True,nobj=args.nobj)
+            out_elem=aspcap.fit_elems(args.planfile,clobber=args.clobber,renorm=True)
 
         if args.calelem :
             print('Abundances with refit parameters using calibrated log g')
-            out_elem_calib=aspcap.fit_elems(args.planfile,aspcapdata=out_calib,clobber=args.clobber,renorm=True,suffix='_cal',calib=True,nobj=args.nobj)
+            out_elem_calib=aspcap.fit_elems(args.planfile,aspcapdata=out_calib,clobber=args.clobber,renorm=True,suffix='_cal',calib=True)
 
- 
       else :
         if args.clobber: clobber='1'
         else : clobber='0'

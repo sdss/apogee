@@ -26,11 +26,11 @@ from tools import match
 from apogee.speclib import isochrones
 from astropy.io import ascii
 
-def elemsens(teffs=[3500,4500,5500],loggs=[1.0,3.0,5.0],mhs=[0.0]) :
+def elemsens(teffs=[3500,4500,5500],loggs=[1.0,3.0,5.0],mhs=[0.0],delta=0.1,suffix='',complement=False) :
     """ create sample with small delta of each element at grid of [teff,logg,mh] to see sensitivities
     """
     els = np.array(['O','Na','Mg','Al','Si','P','S','K','Ca','Ti','V','Cr','Mn','Co','Fe','Ni','Cu','Ge','Rb','Ce','Nd'])
-    els_alpha = np.where((els == 'O') | (els == 'Mg') | (els == 'Si') | (els == 'S') | (els == 'Ca') | (els == 'Ti'))[0]
+    els_alpha = els[np.where((els == 'O') | (els == 'Mg') | (els == 'Si') | (els == 'S') | (els == 'Ca') | (els == 'Ti'))[0]]
 
     cm=0.
     nm=0.
@@ -39,7 +39,7 @@ def elemsens(teffs=[3500,4500,5500],loggs=[1.0,3.0,5.0],mhs=[0.0]) :
     files=[]
     for el in np.append(['','C','N'],els):
         if el == '' : name='ref.dat'
-        else : name=el+'.dat'
+        else : name=el+suffix+'.dat'
         files.append(name)
         f=open(name,'w')
         f.write("#   Teff   logg    [M/H] [alpha/M] [C/M]   [N/M]  vmicro  vrot")
@@ -56,8 +56,20 @@ def elemsens(teffs=[3500,4500,5500],loggs=[1.0,3.0,5.0],mhs=[0.0]) :
                     else : dnm=0.
                     out = '{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}{:8.2f}'.format(teff,logg,mh,am,cm+dcm,nm+dnm,vmicro,vrot)      
                     for e in els : 
-                      if e == el : ab=0.1 
-                      else: ab=0.0
+                      if complement :
+                        # vary everything else in the same group
+                        if el in els_alpha :
+                          if (e in els_alpha) & (e != el) : ab=delta
+                          else : ab=0.0
+                        elif el == 'C' or el == 'N' :
+                          ab = 0.
+                        else :
+                          if (e in els_alpha) | (e=='C') | (e=='N') | (e==el) : ab=0
+                          else : ab=delta
+                
+                      else :
+                        if e == el : ab=delta
+                        else: ab=0.0
                       out = out + '{:7.2f}'.format(ab)      # other elements
                     f.write(out+'\n')
     return files

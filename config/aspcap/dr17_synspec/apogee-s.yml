@@ -272,3 +272,6 @@ elems :
       griddim : 'METALS'
     - name : Nd
       griddim : 'METALS'
+    - name : C13
+      griddim : 'C'
+

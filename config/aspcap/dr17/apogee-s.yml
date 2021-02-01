@@ -249,6 +249,9 @@ elems :
       griddim : 'METALS'
     - name : Nd
       griddim : 'METALS'
+    - name : C13
+      griddim : 'C'
+
 
 #CLASS coarse       0 100000 -10  10 -10  10 -1 301  turbospec/marcs/giantisotopes/tFGKM_180901_lsfcombo5_l33/p_apstFGKM_180901_lsfcombo5_l33_012_0
 #75 None 1 { 0.470794 0. 0. -0.254120 } { 1 1 1 1 1 1 1 1 } -4 3 0.  0.

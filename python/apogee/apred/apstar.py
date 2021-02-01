@@ -153,7 +153,7 @@ def allPlate(all,out=None) :
     return allplate 
 
 def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_vers=None,obj=None,
-               nobj=0,threads=8,maxvisit=500,snmin=3,mtpfluxmin=0.,nres=[5,4.25,3.5],rv_reject=10,vmedian=False,
+               nobj=0,threads=8,maxvisit=500,snmin=3,nres=[5,4.25,3.5],rv_reject=10,vmedian=False,
                save=False,clobber=False,rvclobber=False,vcclobber=False,verbose=False,tweak=False,plot=False,windows=None) :
     """ Run DOPPLER RVs for a field
     """ 
@@ -170,7 +170,6 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     field=plan['field']
     rv_reject = plan['rv_reject'] if plan.get('rv_reject') else rv_reject
     snmin = plan['snmin'] if plan.get('snmin') else snmin
-    mtpfluxmin = plan['mtpfluxmin'] if plan.get('mtpfluxmin') else mtpfluxmin
     vmedian = plan['vmedian'] if plan.get('vmedian') else vmedian
 
     if clobber :
@@ -207,7 +206,6 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     starmask=bitmask.StarBitMask()
     gd=np.where(((allvisits['STARFLAG'] & starmask.badval()) == 0) & 
                  (allvisits['APOGEE_ID'] != b'') &
-                 (allvisits['MTPFLUX'] > mtpfluxmin) &
                  (allvisits['SNR'] > snmin) )[0]
     print(len(allvisits),len(gd))
 

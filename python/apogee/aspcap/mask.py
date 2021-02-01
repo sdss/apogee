@@ -52,11 +52,19 @@ def mkmask(el,globalmask=None) :
     filt=ascii.read(el+'.filt',format='no_header')['col1']
     wind=ascii.read(el+'.wind',format='no_header')
     fp=open(el+'.mask','w')
+    # start with weights from .filt file, remove "turned off" windows
     bd=np.where(wind['col3'] == 0)[0]
     for w in bd :
         j=np.where( (wave>wind['col1'][w]) & (wave<wind['col2'][w]) )[0]
         filt[j] = 0.
-    # add in bad pixelsl from global mask if we have one 
+
+    # add in previously unidentified windows, with unit weight
+    gd=np.where(wind['col3'] == 2)[0]
+    for w in gd :
+        j=np.where( (wave>wind['col1'][w]) & (wave<wind['col2'][w]) )[0]
+        filt[j] = 1.
+
+    # add in bad pixels from global mask if we have one 
     if globalmask is not None :
         g=ascii.read(globalmask,format='no_header')['col1']
         bd=np.where(g == 0)[0]

@@ -161,22 +161,27 @@ AB: &AB
     nlogg : 7
 
 lsfcombo: &lsfcombo
+    <<: *apogee-n
     smooth : lsfcombo5
     suffix : turbo20
     lsffiber : [50,100,150,200,250]
 lsfa: &lsfa
+    <<: *apogee-n
     smooth : lsfa
     suffix : turbo20
     lsffiber : [266,272,280,288,296]
 lsfb: &lsfb
+    <<: *apogee-n
     smooth : lsfb
     suffix : turbo20
     lsffiber : [160,183,206,228,250]
 lsfc: &lsfc
+    <<: *apogee-n
     smooth : lsfc
     suffix : turbo20
     lsffiber : [60,80,100,119,140]
 lsfd: &lsfd
+    <<: *apogee-n
     smooth : lsfd
     suffix : turbo20
     lsffiber : [5,15,25,35,45]

@@ -30,7 +30,7 @@ from apogee.apred import bc, target
 colors=['r','g','b','c','m','y','k']
 chips=['a','b','c']
 
-def vscat(a,fig=None,ls=None,marker='o',nmin=2,mhmin=-3,density=False,out=None) :
+def vscat(a,fig=None,ls=None,marker='o',nmin=2,mhmin=-3,density=False,out=None,teff='RV_TEFF') :
     """ Make histograms of VSCATTER for different bins of Teff H], given min NVISITS, and min [M/H]
     """
     if fig == None : fig,ax=plots.multi(4,6,hspace=0.001,wspace=0.4,figsize=(12,8))
@@ -42,10 +42,10 @@ def vscat(a,fig=None,ls=None,marker='o',nmin=2,mhmin=-3,density=False,out=None) 
     j=np.where(snr > 300) [0]
     snr[j] = 300
     for i in range(len(tbins)-1) :
-        ax[i,0].text(0.9,0.9,'{:d}<=RV_TEFF<{:d}'.format(tbins[i],tbins[i+1]),ha='right',transform=ax[i,0].transAxes,fontsize=8)
+        ax[i,0].text(0.9,0.9,'{:d}<={:s}<{:d}'.format(tbins[i],teff, tbins[i+1]),ha='right',transform=ax[i,0].transAxes,fontsize=8)
         for j in range(len(hbins)-1) :
             ax[0,j].set_title('{:d}<=H<{:d}'.format(hbins[j],hbins[j+1]))
-            gd = np.where((a['RV_TEFF']>=tbins[i]) & (a['RV_TEFF']<tbins[i+1]) &
+            gd = np.where((a[teff]>=tbins[i]) & (a[teff]<tbins[i+1]) &
                           (a['H']>=hbins[j]) & (a['H']<hbins[j+1]) &
                            (a['NVISITS']>nmin) & (a['RV_FEH']>mhmin) & (a['VSCATTER'] > 0)) [0]
             print(tbins[i],tbins[i+1],hbins[j],hbins[j+1],nmin,len(gd))
@@ -573,3 +573,57 @@ def comp_apstar(field,apred='r13',telescope='apo25m') :
         ax[1].cla()    
         ax[2].cla()    
 
+def star(apfv, objs) :
+    """ Make web page with RV info for specified stars
+    """
+
+    fp = open('rv.html','w')
+    fp.write('<HTML><BODY>')
+    fp.write('<TABLE BORDER=2>')
+    # individual visit velocities
+    starmask = bitmask.StarBitMask()
+    for obj in objs :
+        fp.write('<TR bgcolor=lightblue><TD colspan=5>'+obj)
+        j = np.where(apfv['APOGEE_ID'] == obj)[0]
+        fields = set(apfv['FIELD'][j])
+        for field in fields :
+          j = np.where((apfv['APOGEE_ID'] == obj) & (apfv['FIELD'] == field))[0]
+          fp.write('<TR><TD>')
+          fp.write('APOGEE_ID: {:s}<BR>'.format(obj))
+          fp.write('FIELD: {:s}<BR>'.format(field))
+          star=apfv[j[0]]
+          fp.write('H: {:8.2f}<BR>'.format(star['H']))
+          fp.write('RV_TEFF: {:8.2f}<BR>'.format(star['RV_TEFF']))
+          fp.write('<TABLE BORDER=2>')
+          fp.write('<TR><TD>JD<TD>PLATE<TD>MJD<TD>FIBER<TD>S/N<TD>Doppler xcorr<TD> xcorr_err<TD>Doppler<TD>VERR<TD>BC<TD>N_COMPONENTS\n')
+          for i in j : 
+            if np.isfinite(apfv['VHELIO'][i]) == False :
+                bgcolor='bgcolor=red'
+            elif apfv['STARFLAG'][i] & starmask.getval('RV_REJECT') > 0 :
+                bgcolor='bgcolor=lightpink'
+            elif apfv['STARFLAG'][i] & starmask.getval('RV_SUSPECT') > 0 :
+                bgcolor='bgcolor=#F4DEDE'
+            else : bgcolor=''
+            fp.write(('<TR {:s}> <TD> <A HREF={:s} TARGET="_obj"> {:12.3f}</A> <TD> {:s} <TD> {:5d} <TD> {:5d}'+
+                     '<TD> {:8.1f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} ' +
+                     '<TD> {:8.2f} <TD>{:8.2f} <TD>{:d}\n').format(
+                      bgcolor,
+                      apfv['FILE'][i].replace('.fits','_dopfit.png').replace('-r12-','-r13-'),
+                      apfv['JD'][i],apfv['PLATE'][i],apfv['MJD'][i],apfv['FIBERID'][i],
+                      apfv['SNR'][i],
+                      apfv['XCORR_VHELIO'][i],apfv['XCORR_VRELERR'][i],
+                      apfv['VHELIO'][i],apfv['VRELERR'][i],apfv['BC'][i],apfv['N_COMPONENTS'][i]))
+          fp.write('</TABLE>\n')
+
+
+          telescope=apfv['TELESCOPE'][j[0]]
+          plotdir = 'stars/{:s}/{:s}/plots/'.format(telescope,field)
+          fp.write('<TD><a HREF={:s}/{:s}.png TARGET="_obj"> <IMG SRC={:s}/{:s}.png WIDTH=600></A>\n'.format(plotdir,obj,plotdir,obj))
+          fp.write('<TD><IMG SRC={:s}/{:s}_rv.png TARGET="_obj">\n'.format(plotdir,obj))
+          fp.write('<TD><A HREF={:s}/{:s}_ccf.png TARGET="_obj"> <IMG SRC={:s}/{:s}_ccf.png></A>\n'.format(plotdir,obj,plotdir,obj))
+          fp.write('<TD><A HREF={:s}/{:s}_spec.png TARGET="_obj"> <IMG SRC={:s}/{:s}_spec.png></a>\n'.format(plotdir,obj,plotdir,obj))
+          fp.write('<TD><A HREF={:s}/{:s}_spec2.png TARGET="_obj"> <IMG SRC={:s}/{:s}_spec2.png></a>\n'.format(plotdir,obj,plotdir,obj))
+          fp.write('<TD><A HREF={:s}/{:s}_cont.png TARGET="_obj"> <IMG SRC={:s}/{:s}_cont.png></a>\n'.format(plotdir,obj,plotdir,obj))
+
+    fp.write('</TABLE></BODY></HTML>')
+    fp.close() 

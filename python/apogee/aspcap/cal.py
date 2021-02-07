@@ -7,6 +7,7 @@ except: pass
 import copy
 import os
 import shutil
+import time
 import pdb
 import glob
 import numpy as np
@@ -78,8 +79,8 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
         if cluster == '' :
             j=np.arange(len(a))
         elif cluster == 'solar' :
-            j=np.where((a['GAIA_PARALLAX_ERROR']/abs(a['GAIA_PARALLAX']) < 0.1) )[0]
-            distance = 1000./a['GAIA_PARALLAX'][j]
+            j=np.where((a['GAIAEDR3_PARALLAX_ERROR']/abs(a['GAIAEDR3_PARALLAX']) < 0.1) )[0]
+            distance = 1000./a['GAIAEDR3_PARALLAX'][j]
             x,y,z,r=lbd2xyz(a['GLON'][j],a['GLAT'][j],distance/1000.)
             gd = np.where((abs(z) < 0.5) & (r>8) & (r<9) ) [0]
             j=j[gd]
@@ -88,7 +89,7 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
             #stars=list(set(ascii.read(os.environ['APOGEE_REDUX']+'/dr17/stars/clusters/'+cluster+'.txt',names=['ID'])['ID']))
             #apogee_id = np.array(np.core.defchararray.split(a['APOGEE_ID'],'.').tolist())[:,0]
             #j,j2=match.match(apogee_id.astype(str),stars)
-            j=np.array(apselect.clustmember(a,cluster,raw=True,logg=[-1,6],te=[3000,6000]))
+            j=np.array(apselect.clustmember(a,cluster,param='FPARAM',logg=[-1,6],te=[3000,6000]))
         if len(j) == 0 : return None, None
         gd=apselect.select(a[j],sn=[75,100000],field=field,mh=mh,raw=True)
         if len(gd) == 0 : return None, None
@@ -104,16 +105,17 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
     for i,(a,n,j,m) in enumerate(zip(all,names,inds,mult)) :
         ax[i].cla()
         plots.plotc(ax[i],a['FPARAM'][j,0],a['FPARAM'][j,1],a['FPARAM'][j,3],
-                    xr=[6000,3000],yr=[6,-1],xt='Teff',yt='log g',zr=[-2,0.5],size=25,label=(0.05,0.9,n))
+                    xr=[6500,3000],yr=[6,-1],xt='Teff',yt='log g',zr=[-2,0.5],size=25,label=(0.05,0.9,n))
         plots.plotp(ax[i],a['FPARAM'][m,0],a['FPARAM'][m,1],color='k',size=25)
-        jc=np.where(clust.name == cluster)[0][0]
-        if clust.mh[jc] <-0.1 : isofile= 'zm{:02d}.dat'.format(round(np.abs(np.max([-2.1,clust.mh[jc]])*10)))
-        else :isofile= 'zp{:02d}.dat'.format(round(np.abs(clust.mh[jc]*10)))
-        age=np.round(np.log10(clust.age[jc]*1.e9)*10)/10.
-        print(cluster,clust.mh[jc],clust.age[jc],isofile,age)
-        iso=isochrones.read(isofile,agerange=[age,age])
-        isochrones.plot(ax[i],iso,'te','logg')
-        fig.suptitle('{:s}, isochrone [M/H]: {:.1f}  age: {:.1f}'.format(cluster,clust.mh[jc], clust.age[jc]))
+        if cluster != 'solar' :
+            jc=np.where(clust.name == cluster)[0][0]
+            if clust.mh[jc] <-0.1 : isofile= 'zm{:02d}.dat'.format(round(np.abs(np.max([-2.1,clust.mh[jc]])*10)))
+            else :isofile= 'zp{:02d}.dat'.format(round(np.abs(clust.mh[jc]*10)))
+            age=np.round(np.log10(clust.age[jc]*1.e9)*10)/10.
+            print(cluster,clust.mh[jc],clust.age[jc],isofile,age)
+            iso=isochrones.read(isofile,agerange=[age,age])
+            isochrones.plot(ax[i],iso,'te','logg')
+            fig.suptitle('{:s}, isochrone [M/H]: {:.1f}  age: {:.1f}'.format(cluster,clust.mh[jc], clust.age[jc]))
     if hard is not None:
         fig.savefig(hard+cluster+suffix+'_'+'hr'+'.png')
         plt.close()
@@ -194,7 +196,7 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
         except:
             cn=a['FELEM'][:,0,0]-a['FELEM'][:,0,2]
 
-        ymed=np.median(a['FELEM'][j,0]-a['FELEM'][j,2])
+        ymed=np.nanmedian(a['FELEM'][j,0]-a['FELEM'][j,2])
         plots.plotc(ax[i],a['FPARAM'][j,1],cn[j],a['FPARAM'][j,zindex],yt='[C/N]',
                 xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr,size=25,label=(0.05,0.9,n))
         plots.plotp(ax[i],a['FPARAM'][m,1],a['FELEM'][m,0]-a['FELEM'][m,2],color='k',size=25)
@@ -220,9 +222,15 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
             try:
                 gd=np.where(a['FELEM'][j,iel]>-999)[0]
                 if len(gd) == 0 : continue
-                ymed=np.median(a['FELEM'][j[gd],iel])
-                plots.plotc(ax[i],a['FPARAM'][j[gd],1],a['FELEM'][j[gd],iel],a['FPARAM'][j[gd],zindex],yt=el,
-                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr,size=25,label=(0.05,0.9,n))
+                ymed=np.nanmedian(a['FELEM'][j[gd],iel])
+                if el == 'C13' :
+                  ymed=np.median(a['FELEM'][j[gd],iel]-a['FELEM'][j[gd],0])
+                  GKg=np.where(np.core.defchararray.find(a['ASPCAP_GRID'][j[gd]].astype(str),'GKg') >=0)[0]
+                  plots.plotc(ax[i],a['FPARAM'][j[gd[GKg]],1],a['FELEM'][j[gd[GKg]],iel]-a['FELEM'][j[gd[GKg]],0],a['FPARAM'][j[gd[GKg]],zindex],yt='[C13/C]',
+                      xr=[0,5],yr=[ymed-1.3,ymed+0.3],xt='log g',zr=zr,size=25,label=(0.05,0.9,n))
+                else :
+                  plots.plotc(ax[i],a['FPARAM'][j[gd],1],a['FELEM'][j[gd],iel],a['FPARAM'][j[gd],zindex],yt=el,
+                      xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr,size=25,label=(0.05,0.9,n))
                 plots.plotp(ax[i],a['FPARAM'][m,1],a['FELEM'][m,iel],color='k',size=25)
             except:
                 gd=np.where(a['FELEM'][j,0,iel]>-999)[0]
@@ -418,10 +426,17 @@ def summary(out='allCal.fits',prefix='allcal/',cal='dr16',hr=True,repeat=True,dr
 
     # HR diagrams
     if hr :
+        start = time.time()
+        print('start: ',start)
+        print('making HR diagrams....')
         qa.hr(all,hard=prefix+'hr/hr.png',xr=[8000,3000],grid=True,iso=[9.0,10.0],alpha=1.0,snrbd=5,target=prefix+'hr/hr',size=1)
+        print('making HR diagrams....')
         qa.hr(all,hard=prefix+'hr/hrhot.png',xr=[20000,3000],iso=[8.0,10.0],snrbd=30,size=1)
+        print('making HR diagrams....')
         qa.multihr(all,hard=prefix+'hr/multihr.png',size=1)
+        print('making HR diagrams....')
         qa.hr(all,hard=prefix+'hr/hr_cal.png',xr=[8000,3000],grid=True,iso=[9.0,10.0],alpha=1.0,snrbd=5,param='PARAM',target=prefix+'hr/hr_cal',size=1)
+        print('elapsed: ',time.time()-start)
     grid=[[prefix+'hr/hr.png',prefix+'hr/multihr.png',prefix+'hr/hrhot.png'],
           [prefix+'hr/hr_main.png',prefix+'hr/hr_targ.png',''],
           [prefix+'hr/hr_cal_main.png',prefix+'hr/hr_cal.png','']] 
@@ -495,7 +510,7 @@ def summary(out='allCal.fits',prefix='allcal/',cal='dr16',hr=True,repeat=True,dr
         grid.append(['r12_uncal_abundcomp_{:s}.png'.format(el),'r12_cal_abundcomp_{:s}.png'.format(el)])
         yt.append(el)
     html.htmltab(grid,file=prefix+'optical/optical.html',ytitle=yt,xtitle=['uncalibrated','calibrated'])
-   
+  
     # do the calibration and calibration and QA plots
     if calibrate :
         allcal=docal(out,clobber=False,hr=False,teff=teff,logg=logg,vmicro=False,vmacro=False,elemcal=elemcal,
@@ -513,16 +528,28 @@ def summary(out='allCal.fits',prefix='allcal/',cal='dr16',hr=True,repeat=True,dr
     if dr14comp :
         qa.dr14comp(hdulist,out=prefix+'qa/',elem=elemcal)
     if doqa : 
+        start = time.time()
+        print('start: ',start)
         qa.plotelems(hdulist,out=prefix+'qa/')
+        print('elapsed: ',time.time()-start)
         qa.plotelem_errs(hdulist,out=prefix+'qa/')
+        print('elapsed: ',time.time()-start)
         qa.plotelems(hdulist,calib=True,out=prefix+'qa_calibrated/')
+        print('elapsed: ',time.time()-start)
         qa.plotelems(hdulist,out=prefix+'qa_calibrated/all_',main=False)
+        print('elapsed: ',time.time()-start)
         qa.plotelems(hdulist,out=prefix+'qa_calibrated/named_',named=True)
+        print('elapsed: ',time.time()-start)
         qa.plotcn(hdulist,out=prefix+'qa/')
+        print('elapsed: ',time.time()-start)
         qa.calib(hdulist,out=prefix+'qa/')
+        print('elapsed: ',time.time()-start)
         qa.m67(hdulist,out=prefix+'qa/')
+        print('elapsed: ',time.time()-start)
         qa.apolco(hdulist,out=prefix+'qa/')
+        print('elapsed: ',time.time()-start)
         qa.flags(hdulist,out=prefix+'qa/')
+        print('elapsed: ',time.time()-start)
 
     return all
 
@@ -549,16 +576,21 @@ def concat(files,hdu=1) :
         print(len(all), len(a))
     return all
 
-def solarsample(indata,data,raw=True) :
-    """ selects sample of solar neighborhood low log g stars from previous data set
+def solarsample(indata,data=None,raw=True,gaia='EDR3', logg=[-1,5]) :
+    """ selects sample of solar neighborhood low log g stars, possibly from previous data set
     """
-    i1,i2 = match.match(indata['APOGEE_ID'],data['APOGEE_ID'])
-    solar=np.where((data['gaia_parallax_error'][i2]/abs(data['gaia_parallax'][i2]) < 0.1) )[0]
-    distance = 1000./data['gaia_parallax'][solar]
+    if data is not None :
+        i1,i2 = match.match(indata['APOGEE_ID'],data['APOGEE_ID'])
+    else :
+        i1 = np.arange(len(indata))
+        i2 = np.arange(len(indata))
+        data = indata
+    solar=np.where((data['GAIA'+gaia+'_PARALLAX_ERROR'][i2]/abs(data['GAIA'+gaia+'_PARALLAX'][i2]) < 0.1) )[0]
+    distance = 1000./data['GAIA'+gaia+'_PARALLAX'][solar]
     x,y,z,r=lbd2xyz(data['GLON'][solar],data['GLAT'][solar],distance/1000.)
-    gd = np.where((abs(z) < 0.5) & (r>8) & (r<9) & (data['FPARAM'][i2[solar],1]<2.5)&(data['FPARAM'][i2[solar],1]>-1) )[0]
+    gd = np.where((abs(z) < 0.5) & (r>8) & (r<9) & (data['FPARAM'][i2[solar],1]>logg[0])&(data['FPARAM'][i2[solar],1]<logg[1]) )[0]
     solar=solar[gd]
-    return i1[solar], i2[solar]
+    return i1[solar]
 
 def hrsample(indata,hrdata,maxbin=50,raw=True) :
     """ selects stars covering HR diagram as best as possible from input sample
@@ -615,15 +647,16 @@ def calsample(indata=None,root='stars.calsample',file='clust.html',plot=True,clu
         all.extend(jc)
    
     if solarneigh :
-        solar=np.where((data['GAIA_PARALLAX_ERROR']/abs(data['GAIA_PARALLAX']) < 0.1) )[0]
-        distance = 1000./data['GAIA_PARALLAX'][solar]
-        x,y,z,r=lbd2xyz(data['GLON'][solar],data['GLAT'][solar],distance/1000.)
-        gd = np.where((abs(z) < 0.5) & (r>8) & (r<9) & (data['RV_TEFF'][solar]<5500) & (data['H'][solar] < 9) )[0]
-        solar=solar[gd]
+        #solar=np.where((data['GAIA_PARALLAX_ERROR']/abs(data['GAIA_PARALLAX']) < 0.1) )[0]
+        #distance = 1000./data['GAIA_PARALLAX'][solar]
+        #x,y,z,r=lbd2xyz(data['GLON'][solar],data['GLAT'][solar],distance/1000.)
+        #gd = np.where((abs(z) < 0.5) & (r>8) & (r<9) & (data['RV_TEFF'][solar]<5500) & (data['H'][solar] < 9) )[0]
+        #solar=solar[gd]
+        solar = solarsample(data)
         print('Number of solar neighborhood stars: ',len(solar))
 
         if solardata is not None :
-            i1, i2 = solarsample(data,solardata)
+            i1 = solarsample(data,solardata)
             solar=list(solar)
             solar.extend(i1)
             solar=list(set(solar))

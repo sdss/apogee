@@ -8,13 +8,9 @@ from tools import match
 from tools import fit
 import matplotlib
 import matplotlib.pyplot as plt
-from apogee.aspcap import aspcap
-from apogee.aspcap import err
-from apogee.aspcap import ferre
+from apogee.aspcap import aspcap, err, ferre, cal
 from apogee.speclib import isochrones
-from apogee.utils import apload
-from apogee.utils import apselect
-from apogee.utils import bitmask
+from apogee.utils import apload, apselect, bitmask
 
 def plotparams(a,title=None,hard=None) :
     """ Plot parameters vs Teff
@@ -87,11 +83,7 @@ def elemvslogg(hdulist,title=None,out=None,calib=False,main=True,named=False) :
     etoh=hdulist[3].data['ELEMTOH'][0]
 
     # for plots vs logg of solar neighborhood solar stars
-    solar=np.where((a['gaia_parallax_error']/np.abs(a['gaia_parallax']) < 0.1) )[0]
-    distance = 1000./a['gaia_parallax'][solar]
-    x,y,z,r=lbd2xyz(a['GLON'][solar],a['GLAT'][solar],distance/1000.)
-    gd = np.where((abs(z) < 0.5) & (r>8) & (r<9))[0]
-    solar=solar[gd]
+    solar = cal.solarsample(a)
     gd = np.where((a[param][solar,3] >= -0.1) & (a[param][solar,3] <= 0.1) )[0]
     solar=solar[gd]
     gels=list(els)
@@ -161,11 +153,7 @@ def plotelems(hdulist,title=None,out=None,calib=False,main=True,named=False) :
     yt=[]
 
     # for plots vs logg of solar neighborhood solar stars
-    solar=np.where((a['gaia_parallax_error']/np.abs(a['gaia_parallax']) < 0.1) )[0]
-    distance = 1000./a['gaia_parallax'][solar]
-    x,y,z,r=lbd2xyz(a['GLON'][solar],a['GLAT'][solar],distance/1000.)
-    gd = np.where((abs(z) < 0.5) & (r>8) & (r<9))[0]
-    solar=solar[gd]
+    solar = cal.solarsample(a)
     gd = np.where((a[param][solar,3] >= -0.1) & (a[param][solar,3] <= 0.1) )[0]
     solar=solar[gd]
     gels=list(els)
@@ -481,7 +469,7 @@ def m67(allstar,out='./') :
     """ M67 abundances
     """
     gd=apselect.select(allstar[1].data,badval='STAR_BAD')
-    m67=np.array(apselect.clustmember(allstar[1].data[gd],'M67',raw=True,pm=True,dist=True))
+    m67=np.array(apselect.clustmember(allstar[1].data[gd],'M67',param=None,pm=True,dist=True))
     m67=gd[m67]
     els=allstar[3].data['ELEM_SYMBOL'][0]
     grid=[]

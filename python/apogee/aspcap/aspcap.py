@@ -491,9 +491,6 @@ def fit_params(planfile,aspcapdata=None,clobber=False,write=True,minerr=0.005,ap
         aspcapspec.add_column(Column(name='SPEC_BESTFIT_MULT',dtype=np.float32,shape=(27,nwave),length=len(aspcapfield)))
 
     # loop over all grids
-    param_class=[]
-    spec_class=[]
-    chi2_class=[]
     for igrid,grid in enumerate(config['grids']) :
 
         # set up output FERRE directory for this grid
@@ -626,8 +623,6 @@ def fit_params(planfile,aspcapdata=None,clobber=False,write=True,minerr=0.005,ap
         param,spec,wave=ferre.read(out,os.path.dirname(out)+'/'+libfile)
         # fill in locked parameters
         fill_plock(param,grid['PLOCK'])
-        param_class.append(param) 
-        spec_class.append(spec) 
 
         # load into apcapField
         print('loading FERRE output...')

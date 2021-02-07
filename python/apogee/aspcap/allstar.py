@@ -341,7 +341,7 @@ def add_members(tab) :
 
     membermask=bitmask.MembersBitMask()
     for name in membermask.name :
-        j=apselect.clustmember(tab,name)
+        j=apselect.clustmember(tab,name,usememberflag=False)
         for jj in j :
             tab['MEMBERFLAG'][jj] |= membermask.getval(name)
         j=apselect.clustmember(tab,name,dsph=True)

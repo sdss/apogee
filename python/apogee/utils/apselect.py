@@ -83,7 +83,7 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
     aspcapflag=bitmask.AspcapBitMask()
     if type(badval) is str :
         badval = [badval]
-    badbits = np.uint64(0)
+    badbits = np.int64(0)
     if badval is not None : 
         for name in badval :
             badbits = badbits | aspcapflag.getval(name)
@@ -96,7 +96,7 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
     starflag=bitmask.StarBitMask()
     if type(badstar) is str :
         badstar = [badstar]
-    badbits = np.uint64(0)
+    badbits = np.int64(0)
     if badstar is not None : 
         for name in badstar :
             badbits = badbits | starflag.getval(name)
@@ -422,9 +422,18 @@ def clustdata(gals=True) :
     return out[gd].view(np.recarray)
 
 
-def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=True,raw=False,firstgen=False,firstpos=True,
+def clustmember(data,cluster,param=None,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=True,firstgen=False,firstpos=True,
                 ratag='RA',dectag='DEC',rvtag='VHELIO',idtag='APOGEE_ID',btag='J',rtag='K',pmra=None,pmdec=None,
-                plot=False,hard=None,gals=True,dsph=False) :
+                plot=False,hard=None,gals=True,dsph=False,usememberflag=True) :
+
+    if usememberflag :
+        # can we use MEMBERFLAG?
+        try :
+            membermask=bitmask.MembersBitMask()
+            j = np.where(data['MEMBERFLAG'] & membermask.getval(cluster))[0]
+            print('MEMBERFLAG returns {:d} members'.format(len(j)))
+            return j
+        except : pass
 
     if dsph : clust=dsphdata()
     else : clust=clustdata(gals=gals)
@@ -608,20 +617,17 @@ def clustmember(data,cluster,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=T
       if len(jc) <= 1 : return jc
 
     # parameters criteria
-    if raw :
-        param='FPARAM'
-    else :
-        param='PARAM'
-    try :
-        j = np.where((data[param][jc,1] >= logg[0]) & (data[param][jc,1] <= logg[1]) &
-                     (data[param][jc,0] >= te[0]) & (data[param][jc,0] <= te[1]) )[0]
-        if len(j) > 0 :
-            jc=jc[j]
-        else :
-            jc=[]
-    except: pass
-    print('{:d} stars after parameters criterion'.format(len(jc)))
-    if len(jc) <= 1 : return jc
+    if param is not None :
+        try :
+            j = np.where((data[param][jc,1] >= logg[0]) & (data[param][jc,1] <= logg[1]) &
+                         (data[param][jc,0] >= te[0]) & (data[param][jc,0] <= te[1]) )[0]
+            if len(j) > 0 :
+                jc=jc[j]
+            else :
+                jc=[]
+        except: pass
+        print('{:d} stars after parameters criterion'.format(len(jc)))
+        if len(jc) <= 1 : return jc
 
     # Remove badstars
     if plot :

@@ -219,7 +219,8 @@ def read(name,libfile) :
                         (val > libhead0['LLIMITS'][i]+libhead0['STEPS'][i]*(libhead0['N_P'][i]-1-1.)) )[0]
         a['PARAMFLAG'][warn,index] |= parammask.getval('GRIDEDGE_WARN')
         a['ASPCAPFLAG'][warn] |= aspcapmask.getval(flagnames[index]+'_WARN')
-        bad = np.where(val < -999)[0]
+        # flag failed fits
+        bad = np.where( (val < -999) | (paramerr[:,i] < -0.01) )[0]
         a['PARAMFLAG'][bad,index] |= parammask.getval('FERRE_FAIL')
         a['ASPCAPFLAG'][bad] |= aspcapmask.getval(flagnames[index]+'_BAD')
         a['ASPCAPFLAG'][bad] |= aspcapmask.getval('FERRE_FAIL')
@@ -228,14 +229,14 @@ def read(name,libfile) :
     # put spectral data into a structured array
     form='{:d}f4'.format(nwave)
     sform='{:d}f4'.format(spm.shape[1])
-    out=np.empty(nobj, dtype=[('obj','S24'),('spm',sform),('obs',form),('frd',form),('err',form),('mdl',form),('chi2',form)])
-    out['obj']=ipfobj
-    out['spm'][i1,:]=spm[i2,:]
-    out['obs'][i1,:]=readspec(name+'.obs')[i1,:]
-    out['frd'][i1,:]=readspec(name+'.frd')[i2,:]
-    out['err'][i1,:]=readspec(name+'.err')[i1,:]
-    out['mdl'][i1,:]=readspec(name+'.mdl')[i2,:]
-    out['chi2'][i1,:]=(out['obs']-out['mdl'])**2/out['err']**2
+    out=np.empty(nobj, dtype=[('obj','S100'),('spm',sform),('obs',form),('frd',form),('err',form),('mdl',form),('chi2',form)])
+    out['obj']=ipfobj[i1]
+    out['spm']=spm[i2,:]
+    out['obs']=readspec(name+'.obs')[i1,:]
+    out['frd']=readspec(name+'.frd')[i2,:]
+    out['err']=readspec(name+'.err')[i1,:]
+    out['mdl']=readspec(name+'.mdl')[i2,:]
+    out['chi2']=(out['obs']-out['mdl'])**2/out['err']**2
 
     return a,out,wave
 
@@ -444,7 +445,9 @@ def interp(libfile,params,renorm=4,obscont=0,rejectcont=0.3) :
     libhead0,libhead=rdlibhead(libfile)
     writenml(tmpname+'.nml',tmpname,libhead0,ncpus=1,nruns=1,inter=3,pca=1,errbar=1,indi=None,indv=None,filterfile=None,f_format=1,f_access=1,f_sort=None,
                init=None,indini=None,renorm=renorm,obscont=obscont,rejectcont=rejectcont,algor=1,nov=0,stopcr=None,ttie=None) 
-    writeipf(tmpname,libfile,['dummy'],param=[params]) 
+    stars=['dummy']
+    if len(params.shape) > 1 : stars=np.tile(stars,len(params))
+    writeipf(tmpname,libfile,stars,param=params) 
     ret = subprocess.call(['ferre.x',tmpname+'.nml'],shell=False)
     mdl = readspec(tmpname+'.mdl')
     for ext in ['nml','ipf','mdl'] : os.remove(tmpname+'.'+ext)

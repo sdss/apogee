@@ -837,4 +837,35 @@ def cal(a,caldir='cal/') :
 
     return 
 
+import tensorflow as tf
+from astropy.io import ascii
+def nn_cal(a,caldir='cal') :
+    """ apply log g calibration with NN prescription
+    """
+
+    # get bitmask, and select stars without STAR_BAD
+    aspcapmask=bitmask.AspcapBitMask()
+    parammask=bitmask.ParamBitMask()
+    starmask=bitmask.StarBitMask()
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
+
+    norm = ascii.read(caldir+'/trainstatsLogG_CalModel.csv',data_start=1)
+    mean=norm['col3']
+    std=norm['col4']
+
+    model = tf.keras.models.load_model(caldir+'/LogGCal.h5',compile=False)
+
+    #Data must be formatted as 'Metallicity, carbon, nitrogen, Raw TEFF, Raw Log G' with an overall shape of (#stars, 5)
+    inpars = np.vstack((a['FPARAM'][:,3],a['FPARAM'][:,4],a['FPARAM'][:,5],a['FPARAM'][:,0],a['FPARAM'][:,1])).transpose()
+    normed_data = (inpars-mean)/std
+
+    logg_cal = model.predict(normed_data).flatten()
+    fig,ax=plots.multi(1,1)
+    plots.plotc(ax,a['FPARAM'][:,1],a['FPARAM'][:,1]-logg_cal,a['FPARAM'][:,3])
+
+    fig,ax=plots.multi(2,1,hspace=0.001)
+    plots.plotc(ax[0],a['FPARAM'][:,0],a['FPARAM'][:,1],a['FPARAM'][:,3],xr=[8000,3000],yr=[6,-1])
+    plots.plotc(ax[1],a['FPARAM'][:,0],logg_cal,a['FPARAM'][:,3],xr=[8000,3000],yr=[6,-1])
+
+
 

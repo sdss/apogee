@@ -330,7 +330,7 @@ def aspcapflag(aspcapfield) :
 def add_members(tab) :
     """ Add membership bitmask
     """
-    col = Column(np.full([len(tab)],np.uint32(0)),name='MEMBERFLAG',dtype=np.uint32)
+    col = Column(np.full([len(tab)],np.int64(0)),name='MEMBERFLAG',dtype=np.int64)
     try : tab.remove_column('MEMBERFLAG')
     except: pass
     tab.add_column(col)

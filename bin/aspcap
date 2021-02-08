@@ -35,8 +35,9 @@ if __name__ == '__main__' :
     parser.add_argument("--host")
     parser.add_argument("--cal", type=str, help='calibration dir (and calibrate only')
     parser.add_argument('--mult', help='multiple starting guesses?',action="store_true")
+    parser.add_argument('--reload', help='Reload from existing FERRE?',action="store_true")
     parser.add_argument('--noparam', help='Skip parameter determination?',action="store_true")
-    parser.add_argument('--calparam', help='Skip redo parameter determination with calibrated logg?',action="store_true")
+    parser.add_argument('--calparam', help='redo parameter determination with calibrated logg?',action="store_true")
     parser.add_argument('--noelem', help='Skip elemental abundances?',action="store_true")
     parser.add_argument('--calelem', help='Skip elemental abundances?',action="store_true")
     parser.add_argument('--noplot', help='Skip plots?',action="store_true")
@@ -52,6 +53,10 @@ if __name__ == '__main__' :
 
     try:
       if '.yml' in args.planfile :
+        if args.reload :
+            out_renorm=aspcap.fit_params(args.planfile,aspcapdata='read',clobber=args.clobber,
+                                         init='FPARAM',renorm=True,html=False,mult=args.mult)
+
         if not args.noparam :
             # initial fit with vmicro relation
             print('Initial parameters from initial RV parameters, fixed vmicro')

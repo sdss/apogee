@@ -189,7 +189,7 @@ def read(name,libfile) :
                               ('FPARAM_COV','f4',(ntotparams,ntotparams)),
                               ('ASPCAP_CHI2','f4'),
                               ('PARAMFLAG','i4',(ntotparams)),
-                              ('ASPCAPFLAG','i4')])
+                              ('ASPCAPFLAG','i8')])
     a['APOGEE_ID']=ipfobj[i1]
     a['ASPCAP_CHI2']=chi2
 

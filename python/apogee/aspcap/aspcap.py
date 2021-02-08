@@ -455,16 +455,22 @@ def fit_params(planfile,aspcapdata=None,clobber=False,write=True,minerr=0.005,ap
     if 'outfield' not in plan.keys() : outfield = field
     else : outfield = plan['outfield']
 
+    # output directory
+    load = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope=telescope)
+    if isinstance(field,list) : bundleload = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope='bundle_'+telescope)
+    else : bundleload = load
+    outfile=bundleload.filename('aspcapField',field=outfield)
+    outdir=os.path.dirname(outfile)
+
     # get initial aspcapField if not provided
     if aspcapdata is None : 
         aspcapfield,aspcapspec=apField2aspcapField(planfile,minerr=minerr,apstar_vers=apstar_vers)
+    elif aspcapdata=='read' :
+        aspcapfield = fits.open(outfile)[1].data
+        aspcapspec = fits.open(outfile)[2].data
     else :
         aspcapfield = copy.deepcopy(aspcapdata[0])
         aspcapspec = copy.deepcopy(aspcapdata[1])
-
-    # output directory
-    load = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope=telescope)
-    outdir=os.path.dirname(load.filename('aspcapField',field=outfield))
 
     # read ASPCAP configuration
     config = yaml.safe_load(open(os.environ['APOGEE_DIR']+'/config/aspcap/'+aspcap_config+'/'+instrument+'.yml','r'))
@@ -648,6 +654,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,write=True,minerr=0.005,ap
                 aspcapfield['FPARAM'][gd[istar]] = param['FPARAM'][i]
                 aspcapfield['FPARAM_COV'][gd[istar]] = param['FPARAM_COV'][i]
                 aspcapfield['PARAMFLAG'][gd[istar]] = param['PARAMFLAG'][i]
+                aspcapfield['ASPCAPFLAG'][gd[istar]] = param['ASPCAPFLAG'][i]
                 aspcapspec['SPEC'][gd[istar]] = spec['frd'][i]
                 aspcapspec['SPEC_BESTFIT'][gd[istar]] =  spec['mdl'][i]
                 # continuum correct
@@ -702,7 +709,9 @@ def fit_params(planfile,aspcapdata=None,clobber=False,write=True,minerr=0.005,ap
                     aspcapfield['FPARAM_MULT'][gd[istar],imult,:] = param['FPARAM'][i]
                     aspcapspec['SPEC_BESTFIT_MULT'][gd[istar],imult,:] =  spec['mdl'][i]
 
-
+    # populate ASPCAPFLAGS
+    for i,star in enumerate(aspcapfield) :
+        aspcapfield['ASPCAPFLAGS'][i] = aspcapmask.getname(star['ASPCAPFLAG'])
 
     # Results in astropy tables
     aspcapfield=Table(aspcapfield)
@@ -727,7 +736,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,write=True,minerr=0.005,ap
     if write :
         if mult : suffix='_mult'
         print('writing master aspcapField...')
-        writefiles(load,outfield,aspcapfield,aspcapspec,aspcapkey,suffix=suffix,aspcapstar=False)
+        writefiles(bundleload,outfield,aspcapfield,aspcapspec,aspcapkey,suffix=suffix,aspcapstar=False)
         if isinstance(field,list) :
             for f in field :
                 print('writing aspcapField...',f)
@@ -739,9 +748,9 @@ def fit_params(planfile,aspcapdata=None,clobber=False,write=True,minerr=0.005,ap
         if isinstance(field,list) :
             for f in field :
                 gd = np.where(aspcapfield['FIELD'] == f)[0]
-                if len(gd) > 0 : mkhtml(f,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
+                if len(gd) > 0 : mkhtml(load,f,suffix='')
         else :
-            mkhtml(outfield,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
+            mkhtml(load,outfield,suffix='')
 
     return aspcapfield,aspcapspec,aspcapkey
 
@@ -766,7 +775,9 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
 
     # get aspcapField if not provided
     load = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope=telescope)
-    outfile=load.filename('aspcapField',field=outfield)
+    if isinstance(field,list) : bundleload = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope='bundle_'+telescope)
+    else : bundleload = load
+    outfile=bundleload.filename('aspcapField',field=outfield)
     outdir=os.path.dirname(outfile)
 
     if aspcapdata is None : 
@@ -915,17 +926,20 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
     # Results into an HDUList 
 
     if write :
-        writefiles(load,outfield,aspcapfield,aspcapspec,aspcapkey,suffix=suffix,aspcapstar=False)
-        for f in field :
-            gd = np.where(aspcapfield['FIELD'] == f)[0]
-            if len(gd) > 0 : writefiles(load,f,aspcapfield[gd],aspcapspec[gd],aspcapkey,suffix=suffix)
+        writefiles(bundleload,outfield,aspcapfield,aspcapspec,aspcapkey,suffix=suffix,aspcapstar=False)
+        if isinstance(field,list) :
+            for f in field :
+                gd = np.where(aspcapfield['FIELD'] == f)[0]
+                if len(gd) > 0 : writefiles(load,f,aspcapfield[gd],aspcapspec[gd],aspcapkey,suffix=suffix)
 
     if html :
-        # create output HTML page
-        #mkhtml(outfield,suffix=suffix,apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
-        for f in field :
-            gd = np.where(aspcapfield['FIELD'] == f)[0]
-            if len(gd) > 0 : mkhtml(f,suffix='',apred=apred,aspcap_vers=aspcap_vers,telescope=telescope)
+        # create output HTML page, but if we are bundling, only for the individual fields
+        if isinstance(field,list) :
+            for f in field :
+                gd = np.where(aspcapfield['FIELD'] == f)[0]
+                if len(gd) > 0 : mkhtml(load,f,suffix='')
+        else :
+            mkhtml(load,outfield,suffix='')
 
     return aspcapfield,aspcapspec,aspcapkey
 
@@ -978,13 +992,12 @@ def add_header(hdu) :
     hdu.header['CTYPE1'] = 'LOG-LINEAR'
     hdu.header['DC-FLAG'] = 1
 
-def mkhtml(field,suffix='',apred='r13',aspcap_vers='l33',telescope='apo25m') :
+def mkhtml(load,field,suffix='') :
     """ Create ASPCAP field web page and plots
     """
 
     matplotlib.use('Agg')
 
-    load = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope=telescope)
     infile=load.filename('aspcapField',field=field)
     infile=os.path.dirname(infile)+'/'+os.path.splitext(os.path.basename(infile))[0]+suffix+'.fits'
     a=fits.open(infile)

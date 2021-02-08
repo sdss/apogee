@@ -24,10 +24,13 @@ class BitMask():
         '''
         strflag=''
         for ibit,name in enumerate(self.name) :
-            try:
-                if ( np.int64(val) & np.int64(2**ibit) ) > 0 and ( level == 0 or self.level == level ) :
-                  strflag = strflag + name +','
-            except: pdb.set_trace()
+            if (name != 'RESERVED' ) :
+                try:
+                    if ( val & 2**ibit ) > 0 and ( level == 0 or self.level == level ) :
+                      strflag = strflag + name +','
+                except: 
+                    print('bit problem: ', ibit)
+                    pdb.set_trace()
         if strip : return strflag.strip(',')
         else : return strflag
 
@@ -76,7 +79,7 @@ class StarBitMask(BitMask):
     name=(['BAD_PIXELS','COMMISSIONING','BRIGHT_NEIGHBOR','VERY_BRIGHT_NEIGHBOR','LOW_SNR','','','',
           '','PERSIST_HIGH','PERSIST_MED','PERSIST_LOW','PERSIST_JUMP_POS','PERSIST_JUMP_NEG','','',
           'SUSPECT_RV_COMBINATION','SUSPECT_BROAD_LINES','BAD_RV_COMBINATION','RV_REJECT','RV_SUSPECT','MULTIPLE_SUSPECT','RV_FAIL','',
-          'MTPFLUX_LT_75','MTPFLUX_LT_50','','','','','',''])
+          'MTPFLUX_LT_75','MTPFLUX_LT_50','','','','','','RESERVED'])
     level=([1,0,0,1,0,0,0,0,
              0,0,0,0,0,0,0,0,
              0,0,1,0,0,0,1,0,
@@ -134,7 +137,7 @@ class AspcapBitMask(BitMask):
           'MISSING_APSTAR','NO_GRID','BAD_FRAC_LOWSNR','BAD_FRAC_BADPIX','FERRE_FAIL','','','',
           'PROBLEM_TARGET','','','','','','','',
           '','','','','','','','',
-          '','','','','','','',''])
+          '','','','','','','','RESERVED'])
     level=([2,2,0,0,0,0,0,2,
             2,2,2,2,2,2,0,0,
             1,1,0,0,0,0,0,1,
@@ -190,7 +193,7 @@ class ParamBitMask(BitMask):
     name =['GRIDEDGE_BAD','CALRANGE_BAD','OTHER_BAD','FERRE_FAIL','PARAM_MISMATCH_BAD','FERRE_ERR_USED','','',
            'GRIDEDGE_WARN','CALRANGE_WARN','OTHER_WARN','FERRE_WARN','PARAM_MISMATCH_WARN','OPTICAL_WARN','ERR_WARN','FAINT_WARN',
            'PARAM_FIXED','RV_WARN','','','','','','',
-           'LOGG_CAL_RC','LOGG_CAL_RGB','LOGG_CAL_MS','LOGG_CAL_RGB_MS','','','','']
+           'LOGG_CAL_RC','LOGG_CAL_RGB','LOGG_CAL_MS','LOGG_CAL_RGB_MS','','','','RESERVED']
 
 
     level=[1,1,1,1,1,0,0,0,
@@ -240,7 +243,7 @@ class PixelBitMask(BitMask) :
     name=(['BADPIX','CRPIX','SATPIX','UNFIXABLE','BADDARK','BADFLAT','BADERR','NOSKY',
           'LITTROW_GHOST','PERSIST_HIGH','PERSIST_MED','PERSIST_LOW','SIG_SKYLINE','SIG_TELLURIC','NOT_ENOUGH_PSF','',
           'FERRE_MASK','','','','','','','',
-          '','','','','','','',''])
+          '','','','','','','','RESERVED'])
 
     level=([1,1,1,1,1,1,1,1,
             0,0,0,0,0,0,1,0,
@@ -389,9 +392,9 @@ class RVBitMask(BitMask) :
     BitMask class for RVBitMask
     '''
     name = ([ 'RV_BCFIT','RV_BCFIT_FAIL','RV_FAINT_FIT','RV_WINDOW_MASK','RV_VALUE_ERROR','RV_RUNTIME_ERROR','RV_ERROR','',
-              'NO_GOOD_VISITS','ALL_VISITS_REJECTED','','','','','','',
+              'NO_GOOD_VISITS','ALL_VISITS_REJECTED','RV_REJECT','RV_SUSPECT','','','','',
               '','','','','','','','',
-              '','','','','','','',''])
+              '','','','','','','','RESERVED'])
     descrip=([
      'Initial fit on BC combined spectra, then small RV range',
      'Failed fit on BC combined spectra',
@@ -403,8 +406,8 @@ class RVBitMask(BitMask) :
      '',
      'No good visits for RV',
      'All visits rejected',
-     '',
-     '',
+     'RV rejected based on fit vs xcorr RV',
+     'RV suspect based on fit vs xcorr RV',
      '',
      '',
      '',
@@ -436,9 +439,9 @@ class MembersBitMask(BitMask) :
         'ComaBer','N6791',
         'N5053','M68','N6397','M55','N5634','M22','M79','N3201','M10',
         'N6752','Omegacen','M54','N6229','Pal5','N6544','N6522','N288','N362','N1851',
-        'M4','N2808','Pal6','47TUC','Pal1','N6539','N6388','Terzan12','N6441','N6316',
-        'N6760','Terzan5','N6553','N6528',
-        'DRACO','URMINOR','BOOTES1','SEXTANS','FORNAX','SCULPTOR','CARINA']
+        'M4','N2808','Pal6','47TUC','Pal1','N6539','N6388','N6441','N6316',
+        'N6760','N6553','N6528',
+        'DRACO','URMINOR','BOOTES1','SEXTANS','FORNAX','SCULPTOR','CARINA','','RESERVED']
 
 
 def targflags(targ1,targ2,targ3,targ4,survey='apogee2') :

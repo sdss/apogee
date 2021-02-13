@@ -55,7 +55,7 @@ if __name__ == '__main__' :
       if '.yml' in args.planfile :
         if args.reload :
             out_renorm=aspcap.fit_params(args.planfile,aspcapdata='read',clobber=args.clobber,
-                                         init='FPARAM',renorm=True,html=False,mult=args.mult)
+                                         init='FPARAM',renorm=True,html=True,mult=args.mult)
 
         if not args.noparam :
             # initial fit with vmicro relation

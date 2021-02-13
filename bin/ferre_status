@@ -1,0 +1,13 @@
+#/bin/csh
+foreach dir ( $* )
+  set field = `echo $dir | awk -F/ '{print $2}'`
+  set tel = `echo $dir | awk -F/ '{print $1}'`
+  if ( -e log/"$field".yml.done ) then
+    set line = DONE
+  else
+    set line = `ls -lt $dir/ferre | head -2 | tail -1`
+  endif
+  echo $field $line
+
+end
+

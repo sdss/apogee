@@ -595,7 +595,7 @@ def star(apfv, objs) :
           fp.write('H: {:8.2f}<BR>'.format(star['H']))
           fp.write('RV_TEFF: {:8.2f}<BR>'.format(star['RV_TEFF']))
           fp.write('<TABLE BORDER=2>')
-          fp.write('<TR><TD>JD<TD>PLATE<TD>MJD<TD>FIBER<TD>S/N<TD>Doppler xcorr<TD> xcorr_err<TD>Doppler<TD>VERR<TD>BC<TD>N_COMPONENTS\n')
+          fp.write('<TR><TD>JD<TD>PLATE<TD>MJD<TD>FIBER<TD>S/N<TD>Doppler xcorr<TD> xcorr_err<TD>Doppler<TD>VERR<TD>BC<TD>N_COMPONENTS<TD>CCWFHM<TD>AUTOFWHM\n')
           for i in j : 
             if np.isfinite(apfv['VHELIO'][i]) == False :
                 bgcolor='bgcolor=red'
@@ -606,13 +606,13 @@ def star(apfv, objs) :
             else : bgcolor=''
             fp.write(('<TR {:s}> <TD> <A HREF={:s} TARGET="_obj"> {:12.3f}</A> <TD> {:s} <TD> {:5d} <TD> {:5d}'+
                      '<TD> {:8.1f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} ' +
-                     '<TD> {:8.2f} <TD>{:8.2f} <TD>{:d}\n').format(
+                     '<TD> {:8.2f} <TD>{:8.2f} <TD>{:d} <TD>{:8.2f} <TD> {:8.2f}\n').format(
                       bgcolor,
                       apfv['FILE'][i].replace('.fits','_dopfit.png').replace('-r12-','-r13-'),
                       apfv['JD'][i],apfv['PLATE'][i],apfv['MJD'][i],apfv['FIBERID'][i],
                       apfv['SNR'][i],
                       apfv['XCORR_VHELIO'][i],apfv['XCORR_VRELERR'][i],
-                      apfv['VHELIO'][i],apfv['VRELERR'][i],apfv['BC'][i],apfv['N_COMPONENTS'][i]))
+                      apfv['VHELIO'][i],apfv['VRELERR'][i],apfv['BC'][i],apfv['N_COMPONENTS'][i],apfv['CCFWHM'][i],apfv['AUTOFWHM'][i]))
           fp.write('</TABLE>\n')
 
 

@@ -38,7 +38,7 @@ def all(planfile,dofix=False,suffix=None,allvisit=True,allplate=True, calsample=
                   out=aspcap_dir+'allVisit-'+apred_vers+'-'+aspcap_vers+suffix+'.fits')
 
    # add VISIT_PK
-   add_visitpk(tab,allvisit)
+   nvisits=add_visitpk(tab,allvisit)
 
    # fix up issues in allStar file that require allVisit (SB2s)
    if dofix :
@@ -58,8 +58,10 @@ def all(planfile,dofix=False,suffix=None,allvisit=True,allplate=True, calsample=
        allplate = apstar.allPlate(allvisit,
                   out=aspcap_dir+'allPlate-'+apred_vers+'-'+aspcap_vers+suffix+'.fits')
 
+   return nvisits
+
 def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out='allStar.fits',
-            skip=['Field-cal_','Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.'], 
+            skip=['Field-cal_','Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.','apo1m.'], 
             caldir=None,dofix=False) :
     '''
     Concatenate set of aspcapField files, and add named_tags, extratarg
@@ -179,7 +181,7 @@ def add_named_tags(tab) :
         try : tab.remove_column(name+'_ERR')
         except: pass
         tab.add_column(col)
-        col = Column(np.full([len(tab)],np.uint32(0)),name=name+'_FLAG',dtype=np.uint32)
+        col = Column(np.full([len(tab)],np.int32(0)),name=name+'_FLAG',dtype=np.int32)
         try : tab.remove_column(name+'_FLAG')
         except: pass
         tab.add_column(col)
@@ -190,14 +192,14 @@ def add_named_tags(tab) :
         else :
             tab[tag] = tab['X_H'][:,i].astype(np.float32) - tab['X_H'][:,ife].astype(np.float32)
         tab[tag+'_ERR'] = tab['X_H_ERR'][:,i].astype(np.float32)
-        tab[tag+'_FLAG'] = tab['ELEMFLAG'][:,i].astype(np.uint32)
+        tab[tag+'_FLAG'] = tab['ELEMFLAG'][:,i].astype(np.int32)
 
 def add_extratarg(tab) :
     """ add EXTRATARG, MIN_H, MAX_H, MIN_JK, MAX_JK
     """
     if not isinstance(tab,astropy.table.table.Table) : tab=Table(tab)
     # start with OTHER set
-    col = Column(np.full([len(tab)],np.uint32(1)),name='EXTRATARG',dtype=np.uint32)
+    col = Column(np.full([len(tab)],np.int32(1)),name='EXTRATARG',dtype=np.int32)
     try : tab.remove_column('EXTRATARG')
     except: pass
     tab.add_column(col)
@@ -227,12 +229,33 @@ def add_extratarg(tab) :
     tab['EXTRATARG'][j] |= 8
     print('apo1m',len(j))
 
+    # duplicates
+    # get indices in file for each degree of RA, to shorten search
+    ind = np.zeros(360,dtype=int)
+    for i in range(1,360) : 
+        ind[i] = np.where(tab['RA']>i)[0][0] 
+        print(i,ind[i])
+
+    print('duplicates: ')
+    for i,star in enumerate(tab) :
+        ira=int(star['RA'])
+        i1 = ind[ira]
+        if ira < 359 : i2 = ind[ira+1 ]
+        else : i2 = len(tab)
+        j = np.where(tab['APOGEE_ID'][i1:i2] == star['APOGEE_ID'])[0]
+        print(i,len(j))
+        if len(j) > 1 :
+            jsort = np.argsort(tab['SNR'][j])
+            tab['EXTRATARG'][j[jsort[0:-1]]] |= 16
+    dup = np.where(tab['EXTRATARG']&16)[0]
+    print('duplicates: ',len(dup))
+
 def allcal(aspcapfield,caldir='cal/') :
     """ Apply the calibrations
     """
     teff.cal(aspcapfield,caldir=caldir)
     logg.cal(aspcapfield,caldir=caldir)
-    cal.elem(aspcapfield,caldir=caldir)
+    cal.elemcal(aspcapfield,caldir=caldir)
 
 def aspcapflag(aspcapfield) :
     """ Set bits in ASPCAPFLAG
@@ -359,7 +382,8 @@ def add_visitpk(allstar, allvisit ) :
 
     # add VISIT_PK column, initialize with out of range indices
     if not isinstance(allstar,astropy.table.table.Table) : allstar=Table(allstar)
-    col = Column(np.full([len(allstar),75],len(v)),name='VISIT_PK',dtype=np.int)
+    maxvisit=100
+    col = Column(np.full([len(allstar),maxvisit],len(allvisit)),name='VISIT_PK',dtype=np.int)
     try : allstar.remove_column('VISIT_PK')
     except: pass
     allstar.add_column(col)
@@ -379,7 +403,7 @@ def add_visitpk(allstar, allvisit ) :
         if ira < 359 : i2 = ind[ira+1 ]
         else : i2 = len(allvisit)
         j = np.where(allvisit['APOGEE_ID'][i1:i2] == star['APOGEE_ID'])[0]
-        allstar['VISIT_PK'][i,0:len(j)] = i1+j
+        allstar['VISIT_PK'][i,0:min([maxvisit,len(j)])] = (i1+j)[0:min([maxvisit,len(j)])]
         print(i,len(j))
         nvisits.append(len(j))
         if len(j) > nmax : nmax = len(j)

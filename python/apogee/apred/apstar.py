@@ -924,7 +924,7 @@ def mkhtml(field,suffix='',apred='r13',telescope='apo25m',apstar_vers='stars') :
    
     fp.write('<BR>Click on column headers to sort by column value<BR>\n') 
     fp.write('<TABLE BORDER=2 CLASS=sortable>\n')
-    fp.write('<TR><TD>Obj<TD>Delta(VSCATTER)<TD>H<TD>Doppler RV_TEFF<TD>N_components<TD>Combined spectrum<TD>RV plot<TD>Spectrum<TD>Spectrum windows<TD> continuum\n')
+    fp.write('<TR><TD>Obj<TD>H<TD>RV_TEFF<TD>RV_CHI2<TD>N_comp<TD>Combined spectrum<TD>RV plot<TD>Spectrum<TD>Spectrum windows<TD> continuum\n')
     for star in apf :
         obj=star['APOGEE_ID']
         print(obj)
@@ -1011,9 +1011,9 @@ def mkhtml(field,suffix='',apred='r13',telescope='apo25m',apstar_vers='stars') :
         fp.write('</TABLE>\n')
 
         # vscatter difference with DR16
-        fp.write('<TD> {:8.2f}\n'.format(star['VSCATTER']-vscatter_idl))
         fp.write('<TD> {:8.2f}\n'.format(star['H']))
         fp.write('<TD> {:8.2f}\n'.format(star['RV_TEFF']))
+        fp.write('<TD> {:8.2f}\n'.format(star['RV_CHI2']))
         fp.write('<TD> {:d}\n'.format(star['N_COMPONENTS']))
 
         # plot visit RVs

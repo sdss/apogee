@@ -324,15 +324,18 @@ def cal(a,caldir='cal/'):
     parammask=bitmask.ParamBitMask()
     starmask=bitmask.StarBitMask()
     gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
-
-    calpars=fits.open(caldir+'/all_tecal.fits')[1].data[0]
-    calteffmin=calpars['caltemin']
-    calteffmax=calpars['caltemax']
-
     #initial values
     a['PARAM'][:,0] = np.nan
     a['PARAMFLAG'][gd,0] |= parammask.getval('CALRANGE_BAD')
 
+    if caldir == 'none' :
+        a['PARAM'][gd,0] = a['FPARAM'][gd,0]
+        a['PARAMFLAG'][gd,0] &= ~parammask.getval('CALRANGE_BAD')
+        return
+
+    calpars=fits.open(caldir+'/all_tecal.fits')[1].data[0]
+    calteffmin=calpars['caltemin']
+    calteffmax=calpars['caltemax']
     teff=np.clip(a['FPARAM'][gd,0],calpars['temin'],calpars['temax'])
     mh=np.clip(a['FPARAM'][gd,3],calpars['mhmin'],calpars['mhmax'])
     try: snr=np.clip(a['SNREV'][gd],0,200.)

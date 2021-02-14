@@ -250,7 +250,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                           ('STARFLAG',np.int64),('STARFLAGS','S132'),('ANDFLAG',np.int64),('ANDFLAGS','S132'),
                           ('VHELIO_AVG',np.float32),('VSCATTER',np.float32),('VERR',np.float32),
                           ('RV_TEFF',np.float32),('RV_LOGG',np.float32),('RV_FEH',np.float32),('RV_ALPHA',np.float32),('RV_CARB',np.float32),
-                          ('RV_CCFWHM',np.float32),('RV_AUTOFWHM',np.float32),('RV_FLAG',np.int),
+                          ('RV_CHI2',np.float32),('RV_CCFWHM',np.float32),('RV_AUTOFWHM',np.float32),('RV_FLAG',np.int),
                           ('N_COMPONENTS',int),('MEANFIB',np.float32),('SIGFIB',np.float32),
                           ('MIN_H',np.float32),('MAX_H',np.float32),('MIN_JK',np.float32),('MAX_JK',np.float32)
                          ])
@@ -262,7 +262,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     allfield['TELESCOPE'] = telescope
     allfield['FIELD'] = field
     #initialize some tags to NaN in case RV fails
-    for tag in ['VHELIO_AVG', 'RV_TEFF', 'RV_LOGG', 'RV_FEH' ] : allfield[tag] = np.nan
+    for tag in ['VHELIO_AVG', 'RV_TEFF', 'RV_LOGG', 'RV_FEH', 'RV_CHI2' ] : allfield[tag] = np.nan
     allfield['N_COMPONENTS'] = -1
 
     allfiles=[]
@@ -487,6 +487,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         print(j,v[-1][1],allfield['APOGEE_ID'][j],apstar.header['N_COMP'])
         allfield['N_COMPONENTS'][j] = apstar.header['N_COMP']
         allfield['VHELIO_AVG'][j] = apstar.header['VHELIO']
+        allfield['RV_CHI2'][j] = apstar.header['RV_CHI2']
         allfield['RV_CCFWHM'][j] = apstar.header['CCFWHM']
         allfield['RV_AUTOFWHM'][j] = apstar.header['AUTOFWHM']
 
@@ -949,6 +950,8 @@ def mkhtml(field,suffix='',apred='r13',telescope='apo25m',apstar_vers='stars') :
                    (star['RA'],star['DEC']))
         fp.write('H  = {:7.2f}<br>'.format(star['H']))
         fp.write('SNR  = {:7.2f}<br>'.format(star['SNR']))
+        fp.write('RV_CHI2  = {:7.2f}<br>'.format(star['RV_CHI2']))
+        fp.write('RV_CCFWHM  = {:7.2f}  RV_AUTOFWHM = {:7.2f} <br>'.format(star['RV_CCFWHM'],star['RV_AUTOFWHM']))
         fp.write('{:s}<br>'.format(star['TARGFLAGS']))
         fp.write('{:s}<br>'.format(star['STARFLAGS']))
         fp.write('{:s}<br>'.format(rvmask.getname(star['RV_FLAG'])))
@@ -1416,6 +1419,7 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
     apstar.header['RV_LOGG'] = (allvisit['RV_LOGG'].max(),'Surface gravity from RV fit')
     apstar.header['RV_FEH'] = (allvisit['RV_FEH'].max(),'Metallicity from RV fit')
     # these are filled below, but set here to make sure cards exist even in case of failure
+    apstar.header['RV_CHI2'] = (0.,' chisq from Doppler RV fit')
     apstar.header['CCFWHM'] = (0.,' FWHM of RV CCF of star with template (km/s)')
     apstar.header['AUTOFWHM'] = (0.,' FWHM of RV CCF of template with template (km/s)')
 
@@ -1471,6 +1475,7 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
             out= doppler.rv.jointfit([spec],verbose=False,plot=False,tweak=False,maxvel=[-500,500])
             apstar.cont=out[3][0].flux
             apstar.template=out[2][0].flux
+            apstar.header['RV_CHI2'] = (out[1]['chisq'][0],'chisq from Doppler RV fit')
             apstar.header['CCFWHM'] = (out[1]['ccpfwhm'][0],'FWHM of RV CCF of star with template (km/s)')
             apstar.header['AUTOFWHM'] = (out[1]['autofwhm'][0],'FWHM of RV CCF of template with template (km/s)')
             #rvtab=Table(out[1])

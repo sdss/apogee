@@ -419,7 +419,7 @@ def globalscatter(allstar,elems,vscatter=[0,0.2],pm=True,dist=True) :
     clusts = ['N2420', 'M67', 'N188', 'N7789', 'N6819', 'N6791']
     fp=open('global.dat','w')
     for cluster in clusts :
-        j=np.array(apselect.clustmember(allstar[gd],cluster,raw=True,pm=pm,dist=dist))
+        j=np.array(apselect.clustmember(allstar[gd],cluster,param=None,pm=pm,dist=dist))
         print(cluster,len(j))
         members.append(j)
         for jj in j :
@@ -531,7 +531,7 @@ def getabun(data,elems,elemtoh,el,xh=False,terange=[-1,10000],calib=False,line=0
         except: pdb.set_trace()
     return abun, ok
 
-def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, maxvisit=100,cal='default',dwarfs=False,inter=False,
+def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, maxvisit=100,calvers='default',dwarfs=False,inter=False,
         errpar=False,calib=False,nx=4,ny=2,maxvscatter=0.2,pm=True,dist=True, lines=False) :
     ''' 
     Determine internal calibration relations for elements
@@ -615,11 +615,11 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
             #if clustdir :
             #    stars=ascii.read(clustdir+'/'+cluster+'.txt',names=['APOGEE_ID'],format='no_header')
             #    jsaved,j2 = match.match(allstar[1].data[gd]['APOGEE_ID'],stars['APOGEE_ID'])
-            j=apselect.clustmember(allstar[1].data[gd],cluster,raw=True,firstgen=True,firstpos=False,logg=logg,
+            j=apselect.clustmember(allstar[1].data[gd],cluster,param=None,firstgen=True,firstpos=False,logg=logg,
                                    pm=pm,dist=dist)
             #print(cluster,len(j),len(jsaved))
             if len(j) < 1 :
-                j=apselect.clustmember(allstar[1].data[gd],cluster,raw=True,logg=logg,pm=pm,dist=dist)
+                j=apselect.clustmember(allstar[1].data[gd],cluster,param=None,logg=logg,pm=pm,dist=dist)
             all=set(all).union(gd[j].tolist())
     data=allstar[1].data[list(all)]
 
@@ -637,9 +637,9 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
             ax.scatter((iplot//12)*0.1+0.25,12-iplot%12,marker=markers[iclust],color=colors[iclust])
             ax.text((iplot//12)*0.1+0.26,12-iplot%12,clusts[iclust]+' ( '+str(clusters[iclust].mh)+')',color=colors[iclust],va='center')
             ax.set_xlim(0.23,0.8)
-            j=apselect.clustmember(data,clusts[iclust],raw=True,firstgen=True,firstpos=False,logg=logg,pm=pm,dist=dist)
+            j=apselect.clustmember(data,clusts[iclust],param=None,firstgen=True,firstpos=False,logg=logg,pm=pm,dist=dist)
             if len(j) < 1 :
-                j=apselect.clustmember(data,clusts[iclust],raw=True,logg=logg, pm=pm, dist=dist)
+                j=apselect.clustmember(data,clusts[iclust],param=None,logg=logg, pm=pm, dist=dist)
             iplot+=1
         else :
             j=[]
@@ -698,11 +698,11 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
         nels=0
         for el in doels :
           # parameters for the fit for this element
-          if cal == 'dr13' :
+          if calvers == 'dr13' :
               pars = dr13cal(el,dwarfs=dwarfs)
-          elif cal == 'dr14' :
+          elif calvers == 'dr14' :
               pars = dr14cal(el,dwarfs=dwarfs)
-          elif cal == 'dr16' :
+          elif calvers == 'dr16' :
               pars = dr16cal(el,dwarfs=dwarfs)
           else :
               pars = defaultcal(el,dwarfs=dwarfs)
@@ -728,11 +728,11 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
         else : nlines = 0
 
         # parameters for the fit for this element
-        if cal == 'dr13' :
+        if calvers == 'dr13' :
             pars = dr13cal(el,dwarfs=dwarfs)
-        elif cal == 'dr14' :
+        elif calvers == 'dr14' :
             pars = dr14cal(el,dwarfs=dwarfs)
-        elif cal == 'dr16' :
+        elif calvers == 'dr16' :
             pars = dr16cal(el,dwarfs=dwarfs)
         else :
             pars = defaultcal(el,dwarfs=dwarfs)

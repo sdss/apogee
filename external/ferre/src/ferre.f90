@@ -809,7 +809,6 @@ do j=1,nobj
 	          obs=obs/fit
 	          e_obs=e_obs/fit
               endwhere              
-              where (obs < 0._dp) e_obs=abs(obs)
 	    endif	  	
 
 

@@ -1862,16 +1862,18 @@ def jointfit(speclist,models=None,mcmc=False,snrcut=10.0,saveplot=False,verbose=
     
     # Creating catalog of info on each spectrum
     nlag = 2*np.round(np.abs(maxlag))+1
-    dt = np.dtype([('filename',np.str,300),('snr',float),('vhelio',float),('vrel',float),('vrelerr',float),
+    dt = np.dtype([('filename',np.str,72),('jd',np.float64),('snr',float),('vhelio',float),('vrel',float),('vrelerr',float),
                    ('teff',float),('tefferr',float),('logg',float),('loggerr',float),('feh',float),
                    ('feherr',float),('chisq',float),('bc',float),('x_ccf',(float,nlag)),('ccf',(float,nlag)),
                    ('ccferr',(float,nlag)),('xcorr_vrel',float),('xcorr_vrelerr',float),('xcorr_vhelio',float),
-                   ('ccpfwhm',float),('autofwhm',float)])
+                   ('ccpfwhm',float),('autofwhm',float),('autoccf',(float,nlag))])
     info = np.zeros(nspec,dtype=dt)
     for n in dt.names: info[n] = np.nan
     for i,s in enumerate(speclist):
-        info['filename'][i] = s.filename
+        info['filename'][i] = os.path.basename(s.filename)
         info['snr'][i] = s.snr
+        try: info['jd'][i] = s.head['JD-MID']
+        except : pass
 
     # Create catalog of summary info
     sumdt = np.dtype([('medsnr',float),('totsnr',float),('vhelio',float),('vscatter',float),('verr',float),
@@ -1999,6 +2001,7 @@ def jointfit(speclist,models=None,mcmc=False,snrcut=10.0,saveplot=False,verbose=
         final['xcorr_vrelerr'][0] = outstr['vrelerr']
         final['xcorr_vhelio'][0] = rv+vr1+info['bc'][i]
         final['ccpfwhm'][0] = outstr['ccpfwhm']
+        final['autoccf'][0][0:nlag] = model_outstr['ccf']
         final['autofwhm'][0] = model_outstr['ccpfwhm']
         return sumstr, final, [m], specmlist, time.time()-t0
 
@@ -2161,6 +2164,7 @@ def jointfit(speclist,models=None,mcmc=False,snrcut=10.0,saveplot=False,verbose=
         final['xcorr_vrel'][i] =xcorr_vhelio - info['bc'][i]
         final['xcorr_vrelerr'][i] = outstr['vrelerr']
         final['ccpfwhm'][i] = outstr['ccpfwhm']
+        final['autoccf'][i][0:nlag] = model_outstr['ccf']
         final['autofwhm'][i] = model_outstr['ccpfwhm']
 
     totchisq = np.sqrt(totchisq/totnpix)

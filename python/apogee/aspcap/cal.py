@@ -286,12 +286,12 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
 
     return inds, rms
 
-def allclust(all,names,clusters=['M67','N7789','N6819','N6791','M3','M15'],out='clust') :
+def allclust(all,names,clusters=['M67','N7789','N6819','N6791','M3','M15'],out='clust',hard='plots/') :
     """ Create cluster plots for multiple clusters and make summary web page
     """
     allinds=[]
     for cluster in clusters :
-        inds=plotlogg(all,names,cluster=cluster,hard='plots/')
+        inds=plotlogg(all,names,cluster=cluster,hard=hard+'/')
         allinds.append(inds)
 
     grid=[]
@@ -315,7 +315,7 @@ def allclust(all,names,clusters=['M67','N7789','N6819','N6791','M3','M15'],out='
     xtit=[]
     for c in clusters :
         xtit.append('<A HREF={:s}.html> {:s} </A>'.format(c,c))
-    html.htmltab(grid,file='plots/'+out+'.html',xtitle=xtit,ytitle=yt)
+    html.htmltab(grid,file=hard+'/'+out+'.html',xtitle=xtit,ytitle=yt)
     return allinds
 
     
@@ -401,7 +401,9 @@ def writecal(allstar='allStar',allcal='allCal') :
     dwarf_abuncal.write('cal/dwarf_abuncal.fits',overwrite=True)
 
 
-def summary(out='allCal.fits',prefix='allcal/',cal='dr16',hr=True,repeat=True,dr14comp=True,teff=True,logg=True,elemcal=True, calib=True, doqa=True, calibrate=True) :
+from multiprocessing import Process
+
+def summary(out='allCal.fits',prefix='allcal/',calvers='dr16',hr=True,repeat=True,drcomp=None,teffcal=True,loggcal=True,elemcal=True, calib=True, doqa=True, calibrate=True) :
     """ Create QA summary page and plots
     """
     hdulist=fits.open(out)
@@ -410,6 +412,8 @@ def summary(out='allCal.fits',prefix='allcal/',cal='dr16',hr=True,repeat=True,dr
     try: os.mkdir(prefix)
     except: pass
     try: os.mkdir(prefix+'hr/')
+    except: pass
+    try: os.mkdir(prefix+'clust/')
     except: pass
     try: os.mkdir(prefix+'calib/')
     except: pass
@@ -479,7 +483,8 @@ def summary(out='allCal.fits',prefix='allcal/',cal='dr16',hr=True,repeat=True,dr
     f.write('<p> Comparisons<ul>\n')
     f.write('<li> <a href='+prefix+'optical/optical.html> Comparison with optical abundances</a>\n')
     f.write('<li> <a href='+prefix+'qa/apolco.html> APO-LCO comparison</a>\n')
-    f.write('<li> <a href='+prefix+'qa/m67.html> M67 abundances</a>\n')
+    f.write('<li> <a href='+prefix+'clust/clust.html> Cluster abundances</a>\n')
+    f.write('<li> <a href='+prefix+'qa/elem_solar_logg.html> Solar neighborhood abundances at solar metallicity</a>\n')
     f.write('</ul>\n')
     f.write('<p> Chemistry plots<ul>\n')
     f.write('<li> <a href='+prefix+'qa/elem_chem.html> Chemistry plots with uncalibrated abundances</a>\n')
@@ -488,10 +493,11 @@ def summary(out='allCal.fits',prefix='allcal/',cal='dr16',hr=True,repeat=True,dr
     f.write('<li> <a href='+prefix+'qa_calibrated/named_elem_chem.html> Chemistry plots with calibrated abundances, named tags</a>\n')
     f.write('</ul>\n')
     f.write('<p> QA checks<ul>\n')
+    f.write('<li> <a href='+prefix+'qa/chi2.html> CHI2 vs Teff</a>\n')
     f.write('<li> <a href='+prefix+'qa/cn.html> C,N parameters vs abundances</a>\n')
     f.write('<li> <a href='+prefix+'qa/flags.html> Bitmasks</a>\n')
     f.write('<li> <a href='+prefix+'qa/elem_errs.html> Abundance uncertainties</a>\n')
-    f.write('<li> <a href='+prefix+'qa/dr14_diffs.html> DR14 comparison plots</a>')
+    if drcomp is not None : f.write('<li> <a href='+prefix+'qa/'+drcomp+'_diffs.html> '+drcomp+'comparison plots</a>')
     f.write('</ul>\n')
     f.write('<br> Duplicates/repeats, for empirical uncertainties: <ul>\n')
     f.write('<li> <a href='+prefix+'repeat/giant_repeat_elem.html> Elemental abundances, giants</a>\n')
@@ -513,8 +519,8 @@ def summary(out='allCal.fits',prefix='allcal/',cal='dr16',hr=True,repeat=True,dr
   
     # do the calibration and calibration and QA plots
     if calibrate :
-        allcal=docal(out,clobber=False,hr=False,teff=teff,logg=logg,vmicro=False,vmacro=False,elemcal=elemcal,
-              out=prefix+'calib/',stp=False,cal=cal,calib=False) 
+        allcal=docal(out,clobber=False,hr=False,teffcal=teffcal,loggcal=loggcal,vmicro=False,vmacro=False,elemcal=elemcal,
+              out=prefix+'calib/',stp=False,calvers=calvers,calib=False) 
     if repeat :
         # get scatter from repeat observations
         giant_param_errfit,giant_elem_errfit=err.repeat(hdulist,out=prefix+'repeat/giant_',elem=elemcal,logg=[-1,3.8])
@@ -522,13 +528,14 @@ def summary(out='allCal.fits',prefix='allcal/',cal='dr16',hr=True,repeat=True,dr
 
     # now get plots for calibrated data
     if calib : 
-        docal(out,clobber=False,hr=False,teff=teff,logg=logg,vmicro=False,vmacro=False,elemcal=elemcal,
-              out=prefix+'calibrated/',stp=False,cal=cal,calib=True) 
+        docal(out,clobber=False,hr=False,teffcal=teffcal,loggcal=loggcal,vmicro=False,vmacro=False,elemcal=elemcal,
+              out=prefix+'calibrated/',stp=False,caversl=calvers,calib=True) 
     hdulist=fits.open(out)
-    if dr14comp :
-        qa.dr14comp(hdulist,out=prefix+'qa/',elem=elemcal)
+    if drcomp is not None:
+        qa.drcomp(hdulist,dr=drcomp,out=prefix+'qa/',elem=elemcal)
     if doqa : 
         start = time.time()
+        allclust([hdulist[1].data],[''],hard=prefix+'clust/')
         print('start: ',start)
         qa.plotelems(hdulist,out=prefix+'qa/')
         print('elapsed: ',time.time()-start)
@@ -540,6 +547,7 @@ def summary(out='allCal.fits',prefix='allcal/',cal='dr16',hr=True,repeat=True,dr
         print('elapsed: ',time.time()-start)
         qa.plotelems(hdulist,out=prefix+'qa_calibrated/named_',named=True)
         print('elapsed: ',time.time()-start)
+        qa.chi2(hdulist,out=prefix+'qa/')
         qa.plotcn(hdulist,out=prefix+'qa/')
         print('elapsed: ',time.time()-start)
         qa.calib(hdulist,out=prefix+'qa/')
@@ -866,7 +874,7 @@ def symlink(data,out,idir,load=None) :
         infile='{:s}/calibration/{:s}'.format(tostr(data['TELESCOPE']),tostr(data['FILE']))
     os.symlink('../../'+infile,outfile)
 
-def docal(infile,clobber=False,hr=True,teff=True,logg=True,vmicro=True,vmacro=True,elemcal=True,out=None,stp=False,cal='dr14',calib=False,ebvmax=0.02) :
+def docal(infile,clobber=False,hr=True,teffcal=True,loggcal=True,vmicro=True,vmacro=True,elemcal=True,out=None,stp=False,calvers='dr14',calib=False,ebvmax=0.02) :
     '''
     Derives all calibration relations and creates plots of them, as requested
     '''
@@ -902,11 +910,11 @@ def docal(infile,clobber=False,hr=True,teff=True,logg=True,vmicro=True,vmacro=Tr
 
     allcal={}
     # Teff vs photometric
-    if teff :
+    if teffcal :
         print('Teff calibration...')
-        allcal['teffcal'] = teffcomp.ghb(c[1].data,ebvmax=ebvmax,glatmin=10,out=out+'tecal',yr=[-750,750],trange=[4500,7000],loggrange=[-1,6],calib=calib)
-        allcal['giant_teffcal'] = teffcomp.ghb(c[1].data,ebvmax=ebvmax,glatmin=10,out=out+'giant_tecal',yr=[-750,750],loggrange=[-1,3.8],calib=calib)
-        allcal['dwarf_teffcal'] = teffcomp.ghb(c[1].data,ebvmax=ebvmax,glatmin=10,trange=[4500,7000],out=out+'dwarf_tecal',yr=[-750,750],loggrange=[3.8,6],calib=calib)
+        allcal['teffcal'] = teff.ghb(c[1].data,ebvmax=ebvmax,glatmin=10,out=out+'tecal',yr=[-750,750],trange=[4500,7000],loggrange=[-1,6],calib=calib)
+        allcal['giant_teffcal'] = teff.ghb(c[1].data,ebvmax=ebvmax,glatmin=10,out=out+'giant_tecal',yr=[-750,750],loggrange=[-1,3.8],calib=calib)
+        allcal['dwarf_teffcal'] = teff.ghb(c[1].data,ebvmax=ebvmax,glatmin=10,trange=[4500,7000],out=out+'dwarf_tecal',yr=[-750,750],loggrange=[3.8,6],calib=calib)
         if out is not None :
             struct.wrfits(struct.dict2struct(allcal['teffcal']),out+'all_tecal.fits')
             struct.wrfits(struct.dict2struct(allcal['giant_teffcal']),out+'giant_tecal.fits')
@@ -920,11 +928,12 @@ def docal(infile,clobber=False,hr=True,teff=True,logg=True,vmicro=True,vmacro=Tr
     ytitle.append('Teff, giants and dwarfs')
 
     # log g vs asteroseismic
-    if logg :
+    if loggcal :
         print('log g calibration...')
-        allcal['rgbrcsep' ] = loggcomp.rcrgb(c[1].data,out=out+'rcrgbsep')
-        allcal['giant_loggcal'] = loggcomp.apokasc(c[1].data,plotcal=False,out=out+'rcrgb_loggcal',calib=calib)
-        allcal['dwarf_loggcal'] = loggcomp.dwarf(c[1].data,out=out+'logg',calib=calib)
+        allcal['rgbrcsep' ] = logg.rcrgb(c[1].data,out=out+'rcrgbsep')
+        allcal['giant_loggcal'] = logg.apokasc(c[1].data,plotcal=False,out=out+'rcrgb_loggcal',calib=calib)
+        allcal['dwarf_loggcal'] = logg.dwarf(c[1].data,out=out+'logg',calib=calib)
+        logg.clusters(c[1].data,out=out+'cluster_logg',calib=calib)
         if out is not None :
             # following is Python 2
             #struct.wrfits(struct.dict2struct(dict(allcal['rgbrcsep'].items()+allcal['giant_loggcal'].items())),
@@ -938,6 +947,8 @@ def docal(infile,clobber=False,hr=True,teff=True,logg=True,vmicro=True,vmacro=Tr
     ytitle.append('log g, RGB/RC and dwarfs')
     figs.append(['logg_all.png','logg_all.png'])
     ytitle.append('log g ')
+    figs.append(['cluster_logg.png','cluster_logg_indiv.png'])
+    ytitle.append('cluster physical gravities')
 
     # vmicro calibration
     if vmicro :
@@ -968,8 +979,8 @@ def docal(infile,clobber=False,hr=True,teff=True,logg=True,vmicro=True,vmacro=Tr
     if elemcal :
         print('abundances ...')
         elems=np.append(c[3].data['ELEM_SYMBOL'][0],['M','alpha'])
-        allcal['giant_abuncal']=elem.cal(c,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'giants_',cal=cal,errpar=True,calib=calib)
-        allcal['dwarf_abuncal']=elem.cal(c,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'dwarfs_',dwarfs=True,cal=cal,calib=calib)
+        allcal['giant_abuncal']=elem.cal(c,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'giants_',calvers=calvers,errpar=True,calib=calib)
+        allcal['dwarf_abuncal']=elem.cal(c,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'dwarfs_',dwarfs=True,calvers=calvers,calib=calib)
         if out is not None :
             struct.wrfits(allcal['giant_abuncal'],out+'giant_abuncal.fits')
             struct.wrfits(allcal['dwarf_abuncal'],out+'dwarf_abuncal.fits')
@@ -1104,106 +1115,108 @@ def allplots() :
     apl=apload.apLoad(dr='dr12')
     errplots(tags=['PARAM_ALPHA_M','O_H','MG_H','NI_H','PARAM_M_H'])
 
-def logg(a,caldir='cal/') :
-    """ apply log g calibration
-    """
-    #a=fits.open('allStar-r12-l33.fits')[1].data
 
-    aspcapmask=bitmask.AspcapBitMask()
-    parammask=bitmask.ParamBitMask()
-    starmask=bitmask.StarBitMask()
-    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
+#def logg(a,caldir='cal/') :
+#    """ apply log g calibration
+#    """
+#    #a=fits.open('allStar-r12-l33.fits')[1].data
+#
+#    aspcapmask=bitmask.AspcapBitMask()
+#    parammask=bitmask.ParamBitMask()
+#    starmask=bitmask.StarBitMask()
+#    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
+#
+#    cal=fits.open(caldir+'/giant_loggcal.fits')[1].data
+#    rgbsep=cal['rgbsep'][0]
+#    cnsep=cal['cnsep'][0]
+#    rclim=cal['rclim'][0]
+#    rcfit2=cal['rcfit2'][0]
+#    rgbfit2=cal['rgbfit2'][0]
+#    calloggmin=cal['calloggmin']
+#    calloggmax=cal['calloggmax']
+#    calteffmin=cal['calteffmin']
+#    calteffmax=cal['calteffmax']
+#
+#    # for stars that aren't bad, get cn and dt
+#    cn=a['FPARAM'][gd,4]-a['FPARAM'][gd,5]
+#    dt=a['FPARAM'][gd,0] - (rgbsep[0] + rgbsep[1]*(a['FPARAM'][gd,1]-2.5) +rgbsep[2]*a['FPARAM'][gd,3])
+##    snr=np.clip(a['SNREV'][gd],0,200.)
+#
+#    new=np.zeros(len(a))-9999.99
+#
+#    # select RC
+#    rc=np.where((a['FPARAM'][gd,1]<rclim[1])&(a['FPARAM'][gd,1]>rclim[0])&
+#                (cn>cnsep[0]+cnsep[1]*a['FPARAM'][gd,3] + cnsep[2]*dt)&
+#                (a['FPARAM'][gd,1]<calloggmax)&(a['FPARAM'][gd,1]>calloggmin) &
+#                (a['FPARAM'][gd,0]<calteffmax)&(a['FPARAM'][gd,0]>calteffmin))[0]
+#    rccorr=rcfit2[0] + rcfit2[1]*a['FPARAM'][gd,1] + rcfit2[2]*a['FPARAM'][gd,1]**2
+#    new[gd[rc]]=a['FPARAM'][gd[rc],1]-rccorr[rc]
+#    a['PARAM'][gd[rc],1]=a['FPARAM'][gd[rc],1]-rccorr[rc]
+#    a['PARAM_COV'][gd[rc],1,1]=err.elemerr(cal['rcerrpar'][0],a['FPARAM'][gd[rc],0]-4500,snr[rc]-100,a['FPARAM'][gd[rc],3])**2
+#    #rcidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RC')) >0)[0]
+#
+#    # select RGB
+#    rgb=np.where(((a['FPARAM'][gd,1]>rclim[1])|(a['FPARAM'][gd,1]<rclim[0])|
+#                (cn<cnsep[0]+cnsep[1]*a['FPARAM'][gd,3] + cnsep[2]*dt)) &
+#                (a['FPARAM'][gd,1]<calloggmax)&(a['FPARAM'][gd,1]>calloggmin) &
+#                (a['FPARAM'][gd,0]<calteffmax)&(a['FPARAM'][gd,0]>calteffmin))[0]
+#    #clip logg at loggmin and loggmax
+#    logg=np.clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
+#    mh=np.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
+#    # get correction
+#    rgbcorr=(rgbfit2[0] + rgbfit2[1]*logg + rgbfit2[2]*logg**2 +
+#                       rgbfit2[3]*logg**3 + rgbfit2[4]*mh )
+#    new[gd[rgb]]=a['FPARAM'][gd[rgb],1]-rgbcorr[rgb]
+#    a['PARAM'][gd[rgb],1]=a['FPARAM'][gd[rgb],1]-rgbcorr[rgb]
+#    a['PARAM_COV'][gd[rgb],1,1]=err.elemerr(cal['rgberrpar'][0],a['FPARAM'][gd[rgb],0]-4500,snr[rgb]-100,a['FPARAM'][gd[rgb],3])**2
+#    #rgbidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RGB')) >0)[0]
+#
+#    cal=fits.open(caldir+'/dwarf_loggcal.fits')[1].data
+#    teff=np.clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
+#    logg=np.clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
+#    mh=np.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
+#    msfit=cal['msfit'][0]
+#    mscorr=msfit[0]+msfit[1]*teff+msfit[2]*mh
+#    ms=np.where(a['FPARAM'][gd,1] > cal['calloggmin'])[0]
+#    new[gd[ms]]=a['FPARAM'][gd[ms],1]-mscorr[ms]
+#    a['PARAM'][gd[ms],1]=a['FPARAM'][gd[ms],1]-mscorr[ms]
+#    a['PARAM_COV'][gd[ms],1,1]=err.elemerr(cal['errpar'][0],a['FPARAM'][gd[ms],0]-4500,snr[ms]-100,a['FPARAM'][gd[ms],3])**2
+#    #msidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_MS')) >0)[0]
+#
+#    trans=np.where((a['FPARAM'][gd,1] < 4) & (a['FPARAM'][gd,1] > 3.5) &
+#                (a['FPARAM'][gd,0] < calteffmax) )[0]
+#    ms_weight=(a['FPARAM'][gd[trans],1]-3.5)/0.5
+#    new[gd[trans]] = a['FPARAM'][gd[trans],1]-(mscorr[trans]*ms_weight+rgbcorr[trans]*(1-ms_weight))
+#    a['PARAM'][gd[trans],1] = a['FPARAM'][gd[trans],1]-(mscorr[trans]*ms_weight+rgbcorr[trans]*(1-ms_weight))
+#
+#    diff =a['PARAM'][:,1]-new
+#    bd = np.where (np.isclose(diff,0.,1.e-6,0.01) == False)[0]
+#    return new
+#
+#def teff(a,caldir='cal/'):
+#    """ Apply Teff calibration
+#    """
+#    aspcapmask=bitmask.AspcapBitMask()
+#    parammask=bitmask.ParamBitMask()
+#    starmask=bitmask.StarBitMask()
+#    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
+#
+#    cal=fits.open(caldir+'/all_tecal.fits')[1].data[0]
+#    calteffmin=cal['caltemin']
+#    calteffmax=cal['caltemax']
+#    teff=np.clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
+#    mh=np.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
+#    snr=np.clip(a['SNREV'][gd],0,200.)
+#
+#    new=np.zeros(len(a))-9999.99
+#    ok =np.where((a['FPARAM'][gd,0] >= calteffmin) & (a['FPARAM'][gd,0] <= calteffmax) )[0]
+#    a['PARAM'][gd[ok],0] = a['FPARAM'][gd[ok],0] - (cal['par2d'][0]+cal['par2d'][1]*mh[ok]+cal['par2d'][2]*teff[ok])
+#    a['PARAM_COV'][gd[ok],0,0] = err.elemerr(cal['errpar'],a['FPARAM'][gd[ok],0]-4500.,snr[ok]-100.,a['FPARAM'][gd[ok],3])**2
+#    new[gd[ok]] = a['FPARAM'][gd[ok],0] - (cal['par2d'][0]+cal['par2d'][1]*mh[ok]+cal['par2d'][2]*teff[ok])
+#    return new
 
-    cal=fits.open(caldir+'/giant_loggcal.fits')[1].data
-    rgbsep=cal['rgbsep'][0]
-    cnsep=cal['cnsep'][0]
-    rclim=cal['rclim'][0]
-    rcfit2=cal['rcfit2'][0]
-    rgbfit2=cal['rgbfit2'][0]
-    calloggmin=cal['calloggmin']
-    calloggmax=cal['calloggmax']
-    calteffmin=cal['calteffmin']
-    calteffmax=cal['calteffmax']
 
-    # for stars that aren't bad, get cn and dt
-    cn=a['FPARAM'][gd,4]-a['FPARAM'][gd,5]
-    dt=a['FPARAM'][gd,0] - (rgbsep[0] + rgbsep[1]*(a['FPARAM'][gd,1]-2.5) +rgbsep[2]*a['FPARAM'][gd,3])
-    snr=np.clip(a['SNREV'][gd],0,200.)
-
-    new=np.zeros(len(a))-9999.99
-
-    # select RC
-    rc=np.where((a['FPARAM'][gd,1]<rclim[1])&(a['FPARAM'][gd,1]>rclim[0])&
-                (cn>cnsep[0]+cnsep[1]*a['FPARAM'][gd,3] + cnsep[2]*dt)&
-                (a['FPARAM'][gd,1]<calloggmax)&(a['FPARAM'][gd,1]>calloggmin) &
-                (a['FPARAM'][gd,0]<calteffmax)&(a['FPARAM'][gd,0]>calteffmin))[0]
-    rccorr=rcfit2[0] + rcfit2[1]*a['FPARAM'][gd,1] + rcfit2[2]*a['FPARAM'][gd,1]**2
-    new[gd[rc]]=a['FPARAM'][gd[rc],1]-rccorr[rc]
-    a['PARAM'][gd[rc],1]=a['FPARAM'][gd[rc],1]-rccorr[rc]
-    a['PARAM_COV'][gd[rc],1,1]=err.elemerr(cal['rcerrpar'][0],a['FPARAM'][gd[rc],0]-4500,snr[rc]-100,a['FPARAM'][gd[rc],3])**2
-    #rcidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RC')) >0)[0]
-
-    # select RGB
-    rgb=np.where(((a['FPARAM'][gd,1]>rclim[1])|(a['FPARAM'][gd,1]<rclim[0])|
-                (cn<cnsep[0]+cnsep[1]*a['FPARAM'][gd,3] + cnsep[2]*dt)) &
-                (a['FPARAM'][gd,1]<calloggmax)&(a['FPARAM'][gd,1]>calloggmin) &
-                (a['FPARAM'][gd,0]<calteffmax)&(a['FPARAM'][gd,0]>calteffmin))[0]
-    #clip logg at loggmin and loggmax
-    logg=np.clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
-    mh=np.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
-    # get correction
-    rgbcorr=(rgbfit2[0] + rgbfit2[1]*logg + rgbfit2[2]*logg**2 +
-                       rgbfit2[3]*logg**3 + rgbfit2[4]*mh )
-    new[gd[rgb]]=a['FPARAM'][gd[rgb],1]-rgbcorr[rgb]
-    a['PARAM'][gd[rgb],1]=a['FPARAM'][gd[rgb],1]-rgbcorr[rgb]
-    a['PARAM_COV'][gd[rgb],1,1]=err.elemerr(cal['rgberrpar'][0],a['FPARAM'][gd[rgb],0]-4500,snr[rgb]-100,a['FPARAM'][gd[rgb],3])**2
-    #rgbidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RGB')) >0)[0]
-
-    cal=fits.open(caldir+'/dwarf_loggcal.fits')[1].data
-    teff=np.clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
-    logg=np.clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
-    mh=np.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
-    msfit=cal['msfit'][0]
-    mscorr=msfit[0]+msfit[1]*teff+msfit[2]*mh
-    ms=np.where(a['FPARAM'][gd,1] > cal['calloggmin'])[0]
-    new[gd[ms]]=a['FPARAM'][gd[ms],1]-mscorr[ms]
-    a['PARAM'][gd[ms],1]=a['FPARAM'][gd[ms],1]-mscorr[ms]
-    a['PARAM_COV'][gd[ms],1,1]=err.elemerr(cal['errpar'][0],a['FPARAM'][gd[ms],0]-4500,snr[ms]-100,a['FPARAM'][gd[ms],3])**2
-    #msidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_MS')) >0)[0]
-
-    trans=np.where((a['FPARAM'][gd,1] < 4) & (a['FPARAM'][gd,1] > 3.5) &
-                (a['FPARAM'][gd,0] < calteffmax) )[0]
-    ms_weight=(a['FPARAM'][gd[trans],1]-3.5)/0.5
-    new[gd[trans]] = a['FPARAM'][gd[trans],1]-(mscorr[trans]*ms_weight+rgbcorr[trans]*(1-ms_weight))
-    a['PARAM'][gd[trans],1] = a['FPARAM'][gd[trans],1]-(mscorr[trans]*ms_weight+rgbcorr[trans]*(1-ms_weight))
-
-    diff =a['PARAM'][:,1]-new
-    bd = np.where (np.isclose(diff,0.,1.e-6,0.01) == False)[0]
-    return new
-
-def teff(a,caldir='cal/'):
-    """ Apply Teff calibration
-    """
-    aspcapmask=bitmask.AspcapBitMask()
-    parammask=bitmask.ParamBitMask()
-    starmask=bitmask.StarBitMask()
-    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
-
-    cal=fits.open(caldir+'/all_tecal.fits')[1].data[0]
-    calteffmin=cal['caltemin']
-    calteffmax=cal['caltemax']
-    teff=np.clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
-    mh=np.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
-    snr=np.clip(a['SNREV'][gd],0,200.)
-
-    new=np.zeros(len(a))-9999.99
-    ok =np.where((a['FPARAM'][gd,0] >= calteffmin) & (a['FPARAM'][gd,0] <= calteffmax) )[0]
-    a['PARAM'][gd[ok],0] = a['FPARAM'][gd[ok],0] - (cal['par2d'][0]+cal['par2d'][1]*mh[ok]+cal['par2d'][2]*teff[ok])
-    a['PARAM_COV'][gd[ok],0,0] = err.elemerr(cal['errpar'],a['FPARAM'][gd[ok],0]-4500.,snr[ok]-100.,a['FPARAM'][gd[ok],3])**2
-    new[gd[ok]] = a['FPARAM'][gd[ok],0] - (cal['par2d'][0]+cal['par2d'][1]*mh[ok]+cal['par2d'][2]*teff[ok])
-    return new
-
-def elem(a,caldir='cal/') :
+def elemcal(a,caldir='cal/') :
     """ Calibrate abundances 
     """
 
@@ -1236,6 +1249,17 @@ def elem(a,caldir='cal/') :
     els = ['M','alpha']
     els.extend(aspcap.elems()[0])
     elemtoh = aspcap.elems()[1]
+
+    if caldir == 'none' :
+        a['PARAM'][gd,3] = a['FPARAM'][gd,3]
+        a['PARAM'][gd,6] = a['FPARAM'][gd,6]
+        for iel,el in enumerate(aspcap.elems()[0]) :
+            if elemtoh[iel] :
+                a['X_M'][gd,iel] = a['FELEM'][gd,iel]-a['FPARAM'][gd,3]
+            else :
+                a['X_M'][gd,iel] = a['FELEM'][gd,iel]
+        return
+ 
     for group in ['dwarf','giant'] :
         cal=fits.open(caldir+'/'+group+'_abuncal.fits')[1].data
         if group == 'giant' :
@@ -1257,7 +1281,7 @@ def elem(a,caldir='cal/') :
             mh=np.clip(a['FPARAM'][ok[gdel],3],cal['femin'][iel],cal['femax'][iel])
             try: snr=np.clip(a['SNREV'][ok[gdel]],0,200.)
             except:
-                print('No SNREV, continnue with SNR?')
+                print('No SNREV, continue with SNR?')
                 pdb.set_trace()
                 snr=np.clip(a['SNR'][ok[gdel]],0,200.)
 

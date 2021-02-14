@@ -236,6 +236,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                           ('SRC_H','S16'),('WASH_M',np.float32),('WASH_M_ERR',np.float32),('WASH_T2',np.float32),('WASH_T2_ERR',np.float32),
                           ('DDO51',np.float32),('DDO51_ERR',np.float32),('IRAC_3_6',np.float32),('IRAC_3_6_ERR',np.float32),
                           ('IRAC_4_5',np.float32),('IRAC_4_5_ERR',np.float32),('IRAC_5_8',np.float32),('IRAC_5_8_ERR',np.float32),
+                          ('IRAC_8_0',np.float32),('IRAC_8_0_ERR',np.float32),
                           ('WISE_4_5',np.float32),('WISE_4_5_ERR',np.float32),('TARG_4_5',np.float32),('TARG_4_5_ERR',np.float32),
                           ('WASH_DDO51_GIANT_FLAG',int),('WASH_DDO51_STAR_FLAG',int),
                           ('TARG_PMRA',np.float32),('TARG_PMDEC',np.float32),('TARG_PM_SRC','S16'),
@@ -281,7 +282,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         keys=['RA','DEC','GLON','GLAT','LOCATION_ID','ALT_ID','J','J_ERR','H','H_ERR','K','K_ERR',
               'SRC_H','WASH_M','WASH_M_ERR','WASH_T2','WASH_T2_ERR',
               'DDO51','DDO51_ERR','IRAC_3_6','IRAC_3_6_ERR',
-              'IRAC_4_5','IRAC_4_5_ERR','IRAC_5_8','IRAC_5_8_ERR',
+              'IRAC_4_5','IRAC_4_5_ERR','IRAC_5_8','IRAC_5_8_ERR','IRAC_8_0','IRAC_8_0_ERR',
               'WISE_4_5','WISE_4_5_ERR','TARG_4_5','TARG_4_5_ERR',
               'WASH_DDO51_GIANT_FLAG','WASH_DDO51_STAR_FLAG',
               'AK_TARG','AK_TARG_METHOD','AK_WISE','SFD_EBV']
@@ -333,7 +334,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         #allvisits.rename_column(col,'EST'+col)
         #if col == 'VTYPE' : allvisits[col] = 0
         #else : allvisits[col] = np.nan
-    for col in ['XCORR_VREL','XCORR_VRELERR','XCORR_VHELIO','BC','CCFWHM','AUTOFWHM'] :
+    for col in ['XCORR_VREL','XCORR_VRELERR','XCORR_VHELIO','BC','CCFWHM','AUTOFWHM','RV_CHI2'] :
         allvisits[col] = np.nan
 
     # add columns for RV components
@@ -386,6 +387,7 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                 allvisits[visit]['RV_TEFF']=v['teff']
                 allvisits[visit]['RV_LOGG']=v['logg']
                 allvisits[visit]['RV_FEH']=v['feh']
+                allvisits[visit]['RV_CHI2']=v['chisq']
                 if g is None : allvisits[visit]['N_COMPONENTS']=0
                 else : allvisits[visit]['N_COMPONENTS']=g['N_components']
                 if allvisits[visit]['N_COMPONENTS'] > 1 :
@@ -1118,6 +1120,12 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
             pix=wave.wave2pix(w,apvisit.wave[chip,:])
             gd=np.where(np.isfinite(pix))[0]
 
+            # normalize if we have very large numbers (VESTA!)
+            fluxnorm = np.median(apvisit.flux[chip,:])
+            if fluxnorm > 1.e10 :
+                apvisit.flux[chip,:] /= fluxnorm
+                apvisit.err[chip,:] /= fluxnorm
+
             # get a smoothed, filtered spectrum to use as replacement for bad values when we do the sinc interpolation
             cont = gaussian_filter(median_filter(apvisit.flux[chip,:],[501],mode='reflect'),100)
             errcont = gaussian_filter(median_filter(apvisit.flux[chip,:],[501],mode='reflect'),100)
@@ -1465,6 +1473,8 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
             apstar.template=out[2][0].flux
             apstar.header['CCFWHM'] = (out[1]['ccpfwhm'][0],'FWHM of RV CCF of star with template (km/s)')
             apstar.header['AUTOFWHM'] = (out[1]['autofwhm'][0],'FWHM of RV CCF of template with template (km/s)')
+            #rvtab=Table(out[1])
+            #apstar.rvtab = vstack([apstar.rvtab,rvtab])
         except ValueError as err:
             print('Exception raised in visitcomb RV for: ', apstar.header['FIELD'],apstar.header['OBJID'])
             print("ValueError: {0}".format(err))

@@ -412,6 +412,7 @@ def apField2aspcapField(planfile,minerr=0.005,apstar_vers='stars',addgaia=False)
             # make sure there are no NaNs input to FERRE
             aspcapspec['OBS'][istar,bd] = 0.0001
             aspcapspec['ERR'][istar,bd] = 1.e10
+
         # fraction of bad pixels
         aspcapfield['FRAC_BADPIX'][istar] = len(bd) / len(aspcapspec['OBS'][istar])
         # skip if bad pixel fraction > 0.5 or > 0.33 in any individual chip
@@ -579,6 +580,8 @@ def fit_params(planfile,aspcapdata=None,clobber=False,write=True,minerr=0.005,ap
                 else :
                     normflux=spec['OBS']
                     normerr=spec['ERR']
+                bd = np.where(normflux < 0)[0]
+                if len(bd) > 0 : normerr[bd] = abs(normflux[bd])
                 flux.append(normflux)
                 err.append(normerr)
                 if mult :
@@ -835,6 +838,8 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
             else :
                 normflux=spec['OBS']
                 normerr=spec['ERR']
+            bd = np.where(normflux < 0)[0]
+            if len(bd) > 0 : normerr[bd] = abs(normflux[bd])
             flux.append(normflux)
             err.append(normerr)
 

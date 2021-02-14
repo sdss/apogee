@@ -568,7 +568,7 @@ def clusters(allstar,xr=[-2.75,0.5],yr=[-1.,1.],zr=[3500,5500],apokasc='APOKASC_
         ytext=0.85-itext%3*0.15
         if mass > 0 :
             # get cluster members
-            j=np.array(apselect.clustmember(allstar,cluster,raw=True,firstgen=firstgen))
+            j=np.array(apselect.clustmember(allstar,cluster,param=None,firstgen=firstgen))
 
             # calculate physical gravities
             lum=10.**(-0.4*(allstar['H'][j]-ah+isochrones.bc(allstar['FPARAM'][j,0],filt='h',agerange=[age-0.05,age+0.05])-(5*np.log10(dist)-5)-4.74))*astropy.constants.L_sun.cgs.value
@@ -643,7 +643,7 @@ def dr13dr12() :
         mass=0.85
 
         #DR12
-        j=apselect.clustmember(dr12,cluster,raw=True)
+        j=apselect.clustmember(dr12,cluster,param='FPARAM')
         lum=10.**(-0.4*(dr12['H'][j]+isochrones.bc(dr12['FPARAM'][j,0],filt='h',
             agerange=[10,10.1])-(5*np.log10(dist)-5)-4.74))*astropy.constants.L_sun.cgs.value
         logg=np.log10(4*np.pi*astropy.constants.G.cgs.value*mass*astropy.constants.M_sun.cgs.value*
@@ -654,7 +654,7 @@ def dr13dr12() :
                     xr=[-2.75,-1.],yr=[-2,2],zr=[3500,5500],xt='[M/H]',yt='ASPCAP-physical log g',label=[0.1,0.9,'DR12 cal'])
 
         #DR13
-        j=apselect.clustmember(dr13,cluster,raw=True)
+        j=apselect.clustmember(dr13,cluster,param='FPARAM')
         lum=10.**(-0.4*(dr13['H'][j]+isochrones.bc(dr13['FPARAM'][j,0],filt='h',
             agerange=[10,10.1])-(5*np.log10(dist)-5)-4.74))*astropy.constants.L_sun.cgs.value
         logg=np.log10(4*np.pi*astropy.constants.G.cgs.value*mass*astropy.constants.M_sun.cgs.value*
@@ -665,7 +665,7 @@ def dr13dr12() :
             xr=[-2.75,-1.],yr=[-2,2],zr=[3500,5500],label=[0.1,0.9,'DR13 cal'],xt='[M/H]')
 
         #l30i
-        j=apselect.clustmember(l30i,cluster,raw=True)
+        j=apselect.clustmember(l30i,cluster,param='FPARAM')
         lum=10.**(-0.4*(l30i['H'][j]+isochrones.bc(l30i['FPARAM'][j,0],filt='h',
              agerange=[10,10.1])-(5*np.log10(dist)-5)-4.74))*astropy.constants.L_sun.cgs.value
         logg=np.log10(4*np.pi*astropy.constants.G.cgs.value*mass*astropy.constants.M_sun.cgs.value*
@@ -762,6 +762,11 @@ def cal(a,caldir='cal/') :
     a['PARAM'][:,1] = np.nan
     a['PARAMFLAG'][gd,1] |= parammask.getval('CALRANGE_BAD')
 
+    if caldir == 'none' :
+        a['PARAM'][gd,1]=a['FPARAM'][gd,1]
+        a['PARAMFLAG'][gd,1] &= ~parammask.getval('CALRANGE_BAD')
+        return
+
     # get calibration data
     calpars=fits.open(caldir+'/giant_loggcal.fits')[1].data
     rgbsep=calpars['rgbsep'][0]
@@ -773,7 +778,6 @@ def cal(a,caldir='cal/') :
     calloggmax=calpars['calloggmax']
     calteffmin=calpars['calteffmin']
     calteffmax=calpars['calteffmax']
-
 
     # for stars that aren't bad, get cn and dt
     cn=a['FPARAM'][gd,4]-a['FPARAM'][gd,5]
@@ -839,7 +843,7 @@ def cal(a,caldir='cal/') :
 
 import tensorflow as tf
 from astropy.io import ascii
-def nn_cal(a,caldir='cal') :
+def nn_cal(a,caldir='cal',modelfile='LogGCalNN.h5') :
     """ apply log g calibration with NN prescription
     """
 
@@ -853,19 +857,87 @@ def nn_cal(a,caldir='cal') :
     mean=norm['col3']
     std=norm['col4']
 
-    model = tf.keras.models.load_model(caldir+'/LogGCal.h5',compile=False)
+    model = tf.keras.models.load_model(caldir+'/'+modelfile,compile=False)
 
     #Data must be formatted as 'Metallicity, carbon, nitrogen, Raw TEFF, Raw Log G' with an overall shape of (#stars, 5)
     inpars = np.vstack((a['FPARAM'][:,3],a['FPARAM'][:,4],a['FPARAM'][:,5],a['FPARAM'][:,0],a['FPARAM'][:,1])).transpose()
     normed_data = (inpars-mean)/std
 
     logg_cal = model.predict(normed_data).flatten()
-    fig,ax=plots.multi(1,1)
-    plots.plotc(ax,a['FPARAM'][:,1],a['FPARAM'][:,1]-logg_cal,a['FPARAM'][:,3])
+    fig,ax=plots.multi(1,2)
+    plots.plotc(ax[0],a['FPARAM'][:,1],logg_cal,a['FPARAM'][:,3],xr=[-1,6],yr=[-2,2],zr=[-2.5,0.5],size=1)
+    dw=np.where(a['FPARAM'][:,1]>4)[0]
+    plots.plotc(ax[1],a['FPARAM'][dw,0],logg_cal[dw],a['FPARAM'][dw,3],xr=[8000,3000],yr=[-2,2],zr=[-2.5,0.5],size=1)
+    fig.tight_layout()
 
     fig,ax=plots.multi(2,1,hspace=0.001)
-    plots.plotc(ax[0],a['FPARAM'][:,0],a['FPARAM'][:,1],a['FPARAM'][:,3],xr=[8000,3000],yr=[6,-1])
-    plots.plotc(ax[1],a['FPARAM'][:,0],logg_cal,a['FPARAM'][:,3],xr=[8000,3000],yr=[6,-1])
+    plots.plotc(ax[0],a['FPARAM'][:,0],a['FPARAM'][:,1],a['FPARAM'][:,3],xr=[8000,3000],yr=[6,-1],size=1,zr=[-2,0.5])
+    plots.plotc(ax[1],a['FPARAM'][:,0],a['FPARAM'][:,1]+logg_cal,a['FPARAM'][:,3],xr=[8000,3000],yr=[6,-1],size=1,zr=[-2,0.5])
 
+
+def nn_train(allstar,apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',loggrange=[-1.,3.8],mhrange=[-2.5,0.5],teffrange=[3500,5500]) :
+    """ get log g calibration by training a neural net
+    """
+
+    # match ASPCAP with APOKASC, and get RC/RGB stars
+    apokasc=fits.open(os.environ['APOGEE_DIR']+'/data/apokasc/'+apokasc_cat)[1].data
+    # strip off .XXXX if we have it, e.g. from calibration fields where we have added .FIELD
+    apogee_id = np.array(np.core.defchararray.split(allstar['APOGEE_ID'],'.').tolist())[:,0]
+    i1,i2=match.match(apogee_id,apokasc['2MASS_ID'])
+
+    fig,ax=plots.multi(1,3)
+    plots.plotc(ax[0],allstar['FPARAM'][i1,1],allstar['FPARAM'][i1,1]-apokasc['APOKASC3P_LOGG'][i2],allstar['FPARAM'][i1,3],zr=[-2,0.5],xr=[-1,5],yr=[-1,1])
+    plots.plotc(ax[1],allstar['FPARAM'][i1,1],allstar['FPARAM'][i1,1]-apokasc['LOGG_DW'][i2],allstar['FPARAM'][i1,3],zr=[-2,0.5],xr=[-1,5],yr=[-1,1])
+
+    iso=isochrone(allstar)
+    j1,j2=match.match(apogee_id,iso['APOGEE_ID'])
+    plots.plotc(ax[2],allstar['FPARAM'][j1,0],allstar['FPARAM'][j1,1]-iso['ISOLOGG'][j2],allstar['FPARAM'][j1,3],zr=[-2,0.5],xr=[6000,3000],yr=[-1,1])
+    pdb.set_trace()
+
+    i=np.append(i1,j1)
+    inpars = np.vstack((allstar['FPARAM'][i,3],allstar['FPARAM'][i,4],allstar['FPARAM'][i,5],allstar['FPARAM'][i,0],allstar['FPARAM'][i,1])).T
+
+    mn=[]
+    std=[]
+    for ipar in range(5) :
+        mn.append(inpars[:,ipar].mean())
+        std.append(inpars[:,ipar].std())
+    mn=np.array(mn)
+    std=np.array(std)
+    inpars_norm= (inpars-mn)/std
+
+    loggcal = np.append(apokasc['APOKASC3P_LOGG'][i2],iso['ISOLOGG'][j2])
+
+    np.random.seed(1111)
+    np.random.shuffle(inpars)
+
+    ntrain=int(len(inpars)*0.8)
+    train = inpars[0:ntrain]
+    test = inpars[ntrain:]
+    pdb.set_trace()
+
+    model = tf.keras.Sequential([
+        tf.keras.layers.Dense(16, activation='relu', input_shape=[train.shape[1]]),
+        tf.keras.layers.Dense(1)
+    ])
+    optimizer = tf.keras.optimizers.RMSprop(0.001)
+    model.compile(loss='mse',
+                  optimizer=optimizer,
+                  metrics=['mae', 'mse'])
+
+    early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=15)
+    EPOCHS = 750
+    history = model.fit(
+        inpars_norm,(loggcal - inpars[:,4]),
+        epochs=EPOCHS, validation_split=0.2, verbose=0,
+        callbacks=[early_stop])
+
+    #corrections = model.predict(normed_test_data).flatten()
+    #test_predictions = corrections + test_dataset['Raw_Grav']
+#
+#    perc_errors = (test_labels - test_predictions) / test_predictions
+#
+#    residual=test_predictions-test_labels
+#    calibrated_residuals = calibrated_grav_test-test_labels
 
 

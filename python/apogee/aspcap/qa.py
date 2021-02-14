@@ -342,19 +342,19 @@ def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
             fig,ax=plots.multi(1,2,hspace=0.001)
             if j == 0 :
                 plots.plotc(ax[0],a['FPARAM'][i1,0],b['FPARAM'][i2,i]-a['FPARAM'][i1,i],a['FPARAM'][i1,3],
-                            yt=r'$\Delta$'+tagnames[i],xt='Teff',yr=yr,xr=[3000,8000],zr=[-2,0.5])
+                            yt=r'$\Delta$'+tagnames[i],xt='Teff',yr=yr,xr=[3000,8000],zr=[-2,0.5],size=1)
                 plots.plotc(ax[1],a['PARAM'][i1,0],b['PARAM'][i2,i]-a['PARAM'][i1,i],a['PARAM'][i1,3]
-                            ,yt=r'$\Delta$'+tagnames[i],xt='Teff',yr=yr,xr=[3000,8000],zr=[-2,0.5])
+                            ,yt=r'$\Delta$'+tagnames[i],xt='Teff',yr=yr,xr=[3000,8000],zr=[-2,0.5],size=1)
             elif j == 1 :
                 plots.plotc(ax[0],a['FPARAM'][i1,1],b['FPARAM'][i2,i]-a['FPARAM'][i1,i],a['FPARAM'][i1,3],
-                            yt=r'$\Delta$'+tagnames[i],xt='log g',yr=yr,xr=[-1,6],zr=[-2,0.5])
+                            yt=r'$\Delta$'+tagnames[i],xt='log g',yr=yr,xr=[-1,6],zr=[-2,0.5],size=1)
                 plots.plotc(ax[1],a['PARAM'][i1,1],b['PARAM'][i2,i]-a['PARAM'][i1,i],a['PARAM'][i1,3],
-                            yt=r'$\Delta$'+tagnames[i],xt='log g',yr=yr,xr=[-1,6],zr=[-2,0.5])
+                            yt=r'$\Delta$'+tagnames[i],xt='log g',yr=yr,xr=[-1,6],zr=[-2,0.5],size=1)
             elif j == 2 :
                 plots.plotc(ax[0],a['FPARAM'][i1,3],b['FPARAM'][i2,i]-a['FPARAM'][i1,i],a['FPARAM'][i1,3],
-                            yt=r'$\Delta$'+tagnames[i],xt='[M/H]',yr=yr,xr=[-2.5,1.0],zr=[-2,0.5])
+                            yt=r'$\Delta$'+tagnames[i],xt='[M/H]',yr=yr,xr=[-2.5,1.0],zr=[-2,0.5],size=1)
                 plots.plotc(ax[1],a['PARAM'][i1,3],b['PARAM'][i2,i]-a['PARAM'][i1,i],a['PARAM'][i1,3],
-                            yt=r'$\Delta$'+tagnames[i],xt='[M/H]',yr=yr,xr=[-2.5,1.0],zr=[-2,0.5])
+                            yt=r'$\Delta$'+tagnames[i],xt='[M/H]',yr=yr,xr=[-2.5,1.0],zr=[-2,0.5],size=1)
             ax[0].text(0.1,0.9,'Uncalibrated',transform=ax[0].transAxes)
             ax[1].text(0.1,0.9,'Calibrated',transform=ax[1].transAxes)
             if out is not None:
@@ -387,16 +387,16 @@ def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
             if len(b[elem].shape) == 3 : abun_b=b[elem][i2,0,ii]
             else : abun_b=b[elem][i2,i]
             for j in range(3) :
-                fig,ax=plots.multi(1,2)
+                fig,ax=plots.multi(1,2,hspace=0.001)
                 if j == 0 :
-                    plots.plotc(ax[0],a['FPARAM'][i1,0],abun_b-abun,a['FPARAM'][i1,3],yt=r'$\Delta$'+el,xt='Teff',yr=yr,xr=[3000,8000],zr=[-2,0.5])
-                    plots.plotc(ax[1],a['PARAM'][i1,0],abun_b-abun,a['PARAM'][i1,3],yt=r'$\Delta$'+el,xt='Teff',yr=yr,xr=[3000,8000],zr=[-2,0.5])
+                    plots.plotc(ax[0],a['FPARAM'][i1,0],abun_b-abun,a['FPARAM'][i1,3],yt=r'$\Delta$'+el,xt='Teff',yr=yr,xr=[3000,8000],zr=[-2,0.5],size=1)
+                    plots.plotc(ax[1],a['PARAM'][i1,0],abun_b-abun,a['PARAM'][i1,3],yt=r'$\Delta$'+el,xt='Teff',yr=yr,xr=[3000,8000],zr=[-2,0.5],size=1)
                 elif j == 1 :
-                    plots.plotc(ax[0],a['FPARAM'][i1,1],abun_b-abun,a['FPARAM'][i1,3],yt=r'$\Delta$'+el,xt='log g',yr=yr,xr=[-1,6],zr=[-2,0.5])
-                    plots.plotc(ax[1],a['PARAM'][i1,1],abun_b-abun,a['PARAM'][i1,3],yt=r'$\Delta$'+el,xt='log g',yr=yr,xr=[-1,6],zr=[-2,0.5])
+                    plots.plotc(ax[0],a['FPARAM'][i1,1],abun_b-abun,a['FPARAM'][i1,3],yt=r'$\Delta$'+el,xt='log g',yr=yr,xr=[-1,6],zr=[-2,0.5],size=1)
+                    plots.plotc(ax[1],a['PARAM'][i1,1],abun_b-abun,a['PARAM'][i1,3],yt=r'$\Delta$'+el,xt='log g',yr=yr,xr=[-1,6],zr=[-2,0.5],size=1)
                 elif j == 2 :
-                    plots.plotc(ax[0],a['FPARAM'][i1,3],abun_b-abun,a['FPARAM'][i1,3],yt=r'$\Delta$'+el,xt='[M/H]',yr=yr,xr=[-2.5,1.0],zr=[-2,0.5])
-                    plots.plotc(ax[1],a['PARAM'][i1,3],abun_b-abun,a['PARAM'][i1,3],yt=r'$\Delta$'+el,xt='[M/H]',yr=yr,xr=[-2.5,1.0],zr=[-2,0.5])
+                    plots.plotc(ax[0],a['FPARAM'][i1,3],abun_b-abun,a['FPARAM'][i1,3],yt=r'$\Delta$'+el,xt='[M/H]',yr=yr,xr=[-2.5,1.0],zr=[-2,0.5],size=1)
+                    plots.plotc(ax[1],a['PARAM'][i1,3],abun_b-abun,a['PARAM'][i1,3],yt=r'$\Delta$'+el,xt='[M/H]',yr=yr,xr=[-2.5,1.0],zr=[-2,0.5],size=1)
                 ax[0].text(0.1,0.9,'Uncalibrated',transform=ax[0].transAxes)
                 ax[1].text(0.1,0.9,'Calibrated',transform=ax[1].transAxes)
                 if out is not None:
@@ -436,34 +436,46 @@ def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
     html.tail(fp)
     return 
     
-def dr14comp(a,out=None,elem=True,domiss=False) :
+def drcomp(a,dr='dr14',out=None,elem=True,domiss=False) :
     """ Comparisons to DR14
     """
-    apl=apload.ApLoad(dr='dr14')
-    dr14=apl.allStar()
-    plotparamdiffs(a,dr14,out=out+'dr14_',elem=elem)
+    apl=apload.ApLoad(dr=dr)
+    prev=apl.allStar()
+    plotparamdiffs(a,prev,out=out+dr+'_',elem=elem)
 
     if domiss :
-        miss=set(dr14[1].data['APOGEE_ID'])-set(a[1].data['APOGEE_ID'])
+        miss=set(prev[1].data['APOGEE_ID'])-set(a[1].data['APOGEE_ID'])
         print('{:d} stars in DR14 missing from current data'.format(len(miss)))
 
         bad=[]
         bad1m=[]
         for m in miss :
-            j=np.where(dr14[1].data['APOGEE_ID'] == m)[0]
-            for v,jj in zip(dr14[1].data['VISITS'][j],j) :
+            j=np.where(prev[1].data['APOGEE_ID'] == m)[0]
+            for v,jj in zip(prev[1].data['VISITS'][j],j) :
                 for vv in v.split(',') :
                     mjd=vv.split('-')[2]
                     try: 
                         if int(mjd) > 55800 : 
                             bad.append(m)
-                            #print(m,vv,mjd,dr14[1].data['FIELD'][jj],dr14[1].data['LOCATION_ID'][jj])   
+                            #print(m,vv,mjd,prev[1].data['FIELD'][jj],prev[1].data['LOCATION_ID'][jj])   
                     except: 
                         bad1m.append(m)
                         #print(m,vv)
         print('not 1m',len(bad),len(set(bad)))
         print('1m',len(bad1m),len(set(bad1m)))
 
+def chi2(allstar,out='./') :
+    """ Chi2 plots
+    """
+
+    fig,ax=plots.multi(1,2,hspace=0.001)
+    plots.plotc(ax[0],allstar['FPARAM'][:,0],np.log10(allstar['ASPCAP_CHI2']),allstar['FPARAM'][:,3],xr=[8000,3000],xt='Teff',yt='log(CHI2)',size=1)
+    plots.plotc(ax[1],allstar['FPARAM'][:,0],np.log10(allstar['ASPCAP_CHI2']/(allstar['SNR']/100)**2),allstar['FPARAM'][:,3],xr=[8000,3000],xt='Teff',yt='log(CHI2/(SNR/100)**2)',size=1)
+    ax[1].plot([8000,3000],[np.log10(50),np.log10(50)],'r')
+    ax[1].plot([8000,3000],[np.log10(30),np.log10(30)],'r')
+    outfile=out+'chi2.png'
+    fig.savefig(outfile)
+  
 
 def m67(allstar,out='./') :
     """ M67 abundances
@@ -547,14 +559,42 @@ def flags(hdulist,out='./',alpha=0.005) :
     """ Tabulate number of objects with different flag bits set, and make HR diagrams showing these
     """
     f=html.head(out+'flags.html')
+    mask=bitmask.StarBitMask()
+    xt=[]
+    for i in range(31) : 
+        if mask.name[i] != '' : xt.append(mask.name[i])
+    data=[]
+    row=[]
+    yt=['STARFLAG']
+    for i in range(31) :
+        j=np.where(hdulist[1].data['STARFLAG'] & 2**i)[0]
+        if mask.name[i] == '' and len(j) > 0 :
+            print('Unnamed bits are set!',i,len(j))
+            pdb.set_trace()
+        elif mask.name[i] != '' :
+            print(mask.name[i])
+            if len(j) > 0 :
+                fig,ax=plots.multi(1,1)
+                plots.plotc(ax,hdulist[1].data['FPARAM'][:,0],hdulist[1].data['FPARAM'][:,1],hdulist[1].data['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
+                plots.plotc(ax,hdulist[1].data['FPARAM'][j,0],hdulist[1].data['FPARAM'][j,1],hdulist[1].data['FPARAM'][j,3],
+                           xr=[10000,3000],yr=[6,-1],zr=[-2,0.5],xt='Teff (raw)',yt='logg (raw)')
+                outfile=out+'flag_starflag_{:d}.png'.format(i)
+                fig.savefig(outfile)
+                plt.close()
+                row.append('<a href={:s}> {:d} </a>'.format(os.path.basename(outfile),len(j)))
+            else : 
+                row.append('{:d}'.format(len(j)))
+    data.append(row)
+    f.write(html.table(data,xtitle=xt,ytitle=yt,plots=False,formstr=':s'))
+
     mask=bitmask.AspcapBitMask()
     xt=[]
-    for i in range(32) : 
+    for i in range(63) : 
         if mask.name[i] != '' : xt.append(mask.name[i])
     data=[]
     row=[]
     yt=['ASPCAPFLAG']
-    for i in range(32) :
+    for i in range(63) :
         j=np.where(hdulist[1].data['ASPCAPFLAG'] & 2**i)[0]
         if mask.name[i] == '' and len(j) > 0 :
             print('Unnamed bits are set!',i,len(j))

@@ -338,12 +338,12 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         allvisits[col] = np.float32(np.nan)
 
     # add columns for RV components
-    allvisits['N_COMPONENTS'] = np.int(-1)
+    allvisits['N_COMPONENTS'] = np.int32(-1)
     rv_components = Column(name='RV_COMPONENTS',dtype=np.float32,shape=(3,),length=len(allvisits))
     allvisits.add_column(rv_components)
     rvtab = Column(name='RVTAB',dtype=Table,length=len(allvisits))
     allvisits.add_column(rvtab)
-    allvisits['RV_FLAG'] = np.int(0)
+    allvisits['RV_FLAG'] = np.int32(0)
 
     # now load the new ones with the dorv() output
     allv=[]

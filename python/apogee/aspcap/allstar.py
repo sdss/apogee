@@ -34,8 +34,9 @@ def all(planfile,dofix=False,suffix=None,allvisit=True,allplate=True, calsample=
    # allVisit file
    if allvisit :
        print('Create allVisit file')
-       allvisit = apstar.allFieldVisit(search=[apstar_dir+'apo*/*/a?FieldVisits-*.fits',apstar_dir+'lco*/*/a?FieldVisits-*.fits'],
-                  out=aspcap_dir+'allVisit-'+apred_vers+'-'+aspcap_vers+suffix+'.fits')
+       allvisit = apstar.allFieldVisit(search=[apstar_dir+'apo*/*/a?FieldVisits-*.fits',apstar_dir+'lco*/*/a?FieldVisits-*.fits'],out=None)
+       tab['VISIT_ID' ] = visit_id(allvisit,apred_vers=apred_vers)
+       allvisit.write(aspcap_dir+'allVisit-'+apred_vers+'-'+aspcap_vers+suffix+'.fits')
 
    # add VISIT_PK
    nvisits=add_visitpk(tab,allvisit)
@@ -590,6 +591,26 @@ def aspcap_id(data,aspcap_vers='l33') :
     id = np.core.defchararray.add(id,data['FIELD'].astype(str))
     id = np.core.defchararray.add(id,'.')
     id = np.core.defchararray.add(id,data['APOGEE_ID'].astype(str))
+    return id
+
+def visit_id(data,apred_vers='dr17') :
+    """ Unique visit identifier
+    """
+    id = np.core.defchararray.add('apogee.',data['TELESCOPE'].astype(str))
+    id = np.core.defchararray.add(id,'.')
+    id = np.core.defchararray.add(id,apred_vers)
+    id = np.core.defchararray.add(id,'.')
+    id = np.core.defchararray.add(id,np.char.strip(data['PLATE'].astype(str)))
+    id = np.core.defchararray.add(id,'.')
+
+    tmp=[]   
+    for d in data :
+        if d['TELESCOPE'] == 'apo1m'  :
+            tmp.append(d['FILE'].split('-')[2]+'.'+d['APOGEE_ID'])
+        else :
+            tmp.append(str(d['MJD'])+'.'+str(d['FIBERID']))
+    id = np.core.defchararray.add(id,np.array(tmp))
+
     return id
 
 # routines here used for DR16 only

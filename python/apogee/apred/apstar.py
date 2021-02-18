@@ -787,7 +787,7 @@ def gauss_decomp(out,phase='one',alpha1=0.5,alpha2=1.5,thresh=[4,4],plot=None,fi
                 ax[i].plot(x,gaussian(*pars)(x))
                 if pars[0] > 0 : color='k'
                 else : color='r'
-                ax[i].text(0.1,0.8-j*0.1,'{:8.1f}{:8.1f}{:8.1f}'.format(*pars),transform=ax[i].transAxes,color=color)
+                ax[i].text(0.1,0.8-j*0.1,'{:8.2f}{:8.1f}{:8.1f}'.format(*pars),transform=ax[i].transAxes,color=color)
             fig.savefig(plot+'_ccf.png')
     del g
     return gout

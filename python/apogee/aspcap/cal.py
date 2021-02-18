@@ -403,7 +403,9 @@ def writecal(allstar='allStar',allcal='allCal') :
 
 from multiprocessing import Process
 
-def summary(out='allCal.fits',prefix='allcal/',calvers='dr16',hr=True,repeat=True,drcomp=None,teffcal=True,loggcal=True,elemcal=True, calib=True, doqa=True, calibrate=True) :
+def summary(out='allCal.fits',prefix='allcal/',calvers='dr16',hr=True,repeat=True,drcomp=None,
+            teffcal=True,loggcal=True,elemcal=True, calib=True, doqa=True, calibrate=True,
+            doelem=True) :
     """ Create QA summary page and plots
     """
     hdulist=fits.open(out)
@@ -493,7 +495,7 @@ def summary(out='allCal.fits',prefix='allcal/',calvers='dr16',hr=True,repeat=Tru
     f.write('<li> <a href='+prefix+'qa_calibrated/named_elem_chem.html> Chemistry plots with calibrated abundances, named tags</a>\n')
     f.write('</ul>\n')
     f.write('<p> QA checks<ul>\n')
-    f.write('<li> <a href='+prefix+'qa/chi2.html> CHI2 vs Teff</a>\n')
+    f.write('<li> <a href='+prefix+'qa/chi2.png> CHI2 vs Teff</a>\n')
     f.write('<li> <a href='+prefix+'qa/cn.html> C,N parameters vs abundances</a>\n')
     f.write('<li> <a href='+prefix+'qa/flags.html> Bitmasks</a>\n')
     f.write('<li> <a href='+prefix+'qa/elem_errs.html> Abundance uncertainties</a>\n')
@@ -529,35 +531,37 @@ def summary(out='allCal.fits',prefix='allcal/',calvers='dr16',hr=True,repeat=Tru
     # now get plots for calibrated data
     if calib : 
         docal(out,clobber=False,hr=False,teffcal=teffcal,loggcal=loggcal,vmicro=False,vmacro=False,elemcal=elemcal,
-              out=prefix+'calibrated/',stp=False,caversl=calvers,calib=True) 
+              out=prefix+'calibrated/',stp=False,calvers=calvers,calib=True) 
     hdulist=fits.open(out)
     if drcomp is not None:
         qa.drcomp(hdulist,dr=drcomp,out=prefix+'qa/',elem=elemcal)
     if doqa : 
         start = time.time()
-        allclust([hdulist[1].data],[''],hard=prefix+'clust/')
-        print('start: ',start)
-        qa.plotelems(hdulist,out=prefix+'qa/')
-        print('elapsed: ',time.time()-start)
-        qa.plotelem_errs(hdulist,out=prefix+'qa/')
-        print('elapsed: ',time.time()-start)
-        qa.plotelems(hdulist,calib=True,out=prefix+'qa_calibrated/')
-        print('elapsed: ',time.time()-start)
-        qa.plotelems(hdulist,out=prefix+'qa_calibrated/all_',main=False)
-        print('elapsed: ',time.time()-start)
-        qa.plotelems(hdulist,out=prefix+'qa_calibrated/named_',named=True)
-        print('elapsed: ',time.time()-start)
-        qa.chi2(hdulist,out=prefix+'qa/')
-        qa.plotcn(hdulist,out=prefix+'qa/')
-        print('elapsed: ',time.time()-start)
-        qa.calib(hdulist,out=prefix+'qa/')
-        print('elapsed: ',time.time()-start)
-        qa.m67(hdulist,out=prefix+'qa/')
+        qa.chi2(hdulist[1].data,out=prefix+'qa/')
         print('elapsed: ',time.time()-start)
         qa.apolco(hdulist,out=prefix+'qa/')
         print('elapsed: ',time.time()-start)
         qa.flags(hdulist,out=prefix+'qa/')
         print('elapsed: ',time.time()-start)
+        if doelem :
+            allclust([hdulist[1].data],[''],hard=prefix+'clust/')
+            print('start: ',start)
+            qa.plotelems(hdulist,out=prefix+'qa/')
+            print('elapsed: ',time.time()-start)
+            qa.plotelem_errs(hdulist,out=prefix+'qa/')
+            print('elapsed: ',time.time()-start)
+            qa.plotelems(hdulist,calib=True,out=prefix+'qa_calibrated/')
+            print('elapsed: ',time.time()-start)
+            qa.plotelems(hdulist,out=prefix+'qa_calibrated/all_',main=False)
+            print('elapsed: ',time.time()-start)
+            qa.plotelems(hdulist,out=prefix+'qa_calibrated/named_',named=True)
+            print('elapsed: ',time.time()-start)
+            qa.plotcn(hdulist,out=prefix+'qa/')
+            print('elapsed: ',time.time()-start)
+            qa.calib(hdulist,out=prefix+'qa/')
+            print('elapsed: ',time.time()-start)
+            qa.m67(hdulist,out=prefix+'qa/')
+            print('elapsed: ',time.time()-start)
 
     return all
 
@@ -606,7 +610,7 @@ def hrsample(indata,hrdata,maxbin=50,raw=True) :
     i1,i2 = match.match(indata['APOGEE_ID'],hrdata['APOGEE_ID'])
     gd=[]
     for teff in np.arange(3000,6000,500) :
-        gdteff=apselect.select(hrdata[i2],badval=['STAR_BAD'],badtarg=['EMBEDDED','EXTENDED'],teff=[teff,teff+500],sn=[100,1000],raw=raw)
+        gdteff=apselect.select(hrdata[i2],badval=['STAR_BAD'],badstar=['MULTIPLE_SUSPECT'],badtarg=['EMBEDDED','EXTENDED'],teff=[teff,teff+500],sn=[100,1000],raw=raw)
         for logg in np.arange(-0.5,5.5,1) :
             j=apselect.select(hrdata[i2[gdteff]],logg=[logg,logg+1],raw=True)
             gdlogg=gdteff[j]
@@ -618,10 +622,10 @@ def hrsample(indata,hrdata,maxbin=50,raw=True) :
                 gd.extend(x)
     return i1[gd],i2[gd]
 
-def calsample(indata=None,root='stars.calsample',file='clust.html',plot=True,clusters=True,apokasc='APOKASC_cat_v4.4.2',apred=None,
+def calsample(indata=None,root='stars.calsample',file='clust.html',clusters=False,apokasc=None,apred=None,
               calclusters=None,solarneigh=False,solardata=None,
-              cal1m=True,coolstars=True,dir='cal',hrdata=None,optical='cal_stars_20190329.txt',ns=True,
-              special=None,Ce=True,ebvmax=None,snmin=75,mkindiv=False,mkall=True) :
+              cal1m=False,coolstars=False,dir='cal',hrdata=None,optical=None,ns=False,
+              special=None,Ce=False,ebvmax=None,snmin=75,mkindiv=True,mkall=False) :
 
     """ selects a calibration subsample from an input apField structure, including several calibration sub-classes: 
         cluster, APOKASC stars, 1m calibration stars. Creates cluster web pages/plots if requested
@@ -893,11 +897,10 @@ def docal(infile,clobber=False,hr=True,teffcal=True,loggcal=True,vmicro=True,vma
         c[1].data['GLON'] = coords.galactic.l
         c[1].data['GLAT'] = coords.galactic.b
 
-
-    figs=[]
-    ytitle=[]
     # HR diagram
     if hr :
+        figs=[]
+        ytitle=[]
         print('HR diagram...')
         reload(apselect)
         fig,ax=plots.multi(1,1)
@@ -907,10 +910,13 @@ def docal(infile,clobber=False,hr=True,teffcal=True,loggcal=True,vmicro=True,vma
         plt.savefig(out+'hr.png')                                                                                                 
         figs.append(['hr.png','hr.png'])
         ytitle.append('HR')
+        html.htmltab(figs,ytitle=ytitle,file=out+'/hr.html')
 
     allcal={}
     # Teff vs photometric
     if teffcal :
+        figs=[]
+        ytitle=[]
         print('Teff calibration...')
         allcal['teffcal'] = teff.ghb(c[1].data,ebvmax=ebvmax,glatmin=10,out=out+'tecal',yr=[-750,750],trange=[4500,7000],loggrange=[-1,6],calib=calib)
         allcal['giant_teffcal'] = teff.ghb(c[1].data,ebvmax=ebvmax,glatmin=10,out=out+'giant_tecal',yr=[-750,750],loggrange=[-1,3.8],calib=calib)
@@ -920,19 +926,23 @@ def docal(infile,clobber=False,hr=True,teffcal=True,loggcal=True,vmicro=True,vma
             struct.wrfits(struct.dict2struct(allcal['giant_teffcal']),out+'giant_tecal.fits')
             struct.wrfits(struct.dict2struct(allcal['dwarf_teffcal']),out+'dwarf_tecal.fits')
         if stp : pdb.set_trace()
-    figs.append(['tecal.png','tecal_b.png'])
-    ytitle.append('Teff all together')
-    figs.append(['giant_tecal.png','dwarf_tecal.png'])
-    ytitle.append('Teff, giants and dwarfs')
-    figs.append(['giant_tecal_b.png','dwarf_tecal_b.png'])
-    ytitle.append('Teff, giants and dwarfs')
+        figs.append(['tecal.png','tecal_b.png'])
+        ytitle.append('Teff all together')
+        figs.append(['giant_tecal.png','dwarf_tecal.png'])
+        ytitle.append('Teff, giants and dwarfs')
+        figs.append(['giant_tecal_b.png','dwarf_tecal_b.png'])
+        ytitle.append('Teff, giants and dwarfs')
+        html.htmltab(figs,ytitle=ytitle,file=out+'/teff.html')
 
     # log g vs asteroseismic
     if loggcal :
+        figs=[]
+        ytitle=[]
         print('log g calibration...')
         allcal['rgbrcsep' ] = logg.rcrgb(c[1].data,out=out+'rcrgbsep')
-        allcal['giant_loggcal'] = logg.apokasc(c[1].data,plotcal=False,out=out+'rcrgb_loggcal',calib=calib)
+        allcal['giant_loggcal'] = logg.apokasc(c[1].data,plotcal=False,out=out+'rcrgb_loggcal',calib=calib,loggmin=1.5)
         allcal['dwarf_loggcal'] = logg.dwarf(c[1].data,out=out+'logg',calib=calib)
+        logg.nn_train(c[1].data,out=out+'nn_')
         logg.clusters(c[1].data,out=out+'cluster_logg',calib=calib)
         if out is not None :
             # following is Python 2
@@ -941,14 +951,36 @@ def docal(infile,clobber=False,hr=True,teffcal=True,loggcal=True,vmicro=True,vma
                             out+'giant_loggcal.fits')
             struct.wrfits(struct.dict2struct(allcal['dwarf_loggcal']),out+'dwarf_loggcal.fits')
         if stp : pdb.set_trace()
-    figs.append(['rcrgbsep.png','rcrgb_loggcal.png'])
-    ytitle.append('log g, RGB/RC')
-    figs.append(['rcrgb_loggcal_b.png','logg_dwarfs.png'])
-    ytitle.append('log g, RGB/RC and dwarfs')
-    figs.append(['logg_all.png','logg_all.png'])
-    ytitle.append('log g ')
-    figs.append(['cluster_logg.png','cluster_logg_indiv.png'])
-    ytitle.append('cluster physical gravities')
+        figs.append(['rcrgbsep.png','rcrgb_loggcal.png'])
+        ytitle.append('log g, RGB/RC')
+        figs.append(['rcrgb_loggcal_b.png','logg_dwarfs.png'])
+        ytitle.append('log g, RGB/RC and dwarfs')
+        figs.append(['logg_all.png','logg_all.png'])
+        ytitle.append('log g ')
+        figs.append(['cluster_logg.png','cluster_logg_indiv.png'])
+        ytitle.append('cluster physical gravities')
+        figs.append(['nn_nn_logg_train.png','nn_nn_logg_hr.png'])
+        ytitle.append('nn training')
+        figs.append(['nn_nn_logg_scatter.png','nn_nn_logg_cal.png'])
+        ytitle.append('nn cal')
+        # plots of corrections
+        logg.cal(c[1].data,caldir=out)
+        logg.plot_correction(c[1].data,out=out)
+        logg.clusters(c[1].data,out=out+'cluster_logg_calib',calib=True)
+        junk = logg.apokasc(c[1].data,plotcal=False,out=out+'rcrgb_loggcal_calib',calib=True,loggmin=1.5)
+
+        logg.nn_cal(c[1].data,caldir=out,modelfile='nn_logg_nn_model.h5')
+        junk = logg.apokasc(c[1].data,plotcal=False,out=out+'nn_rcrgb_loggcal_calib',calib=True,loggmin=1.5)
+        logg.plot_correction(c[1].data,out=out+'nn_')
+        logg.clusters(c[1].data,out=out+'nn_cluster_logg_calib',calib=True)
+        figs.append(['logg_correction_hr.png','nn_logg_correction_hr.png'])
+        ytitle.append('corrections')
+        figs.append(['rcrgb_loggcal_calib_b.png','nn_rcrgb_loggcal_calib_b.png'])
+        ytitle.append('calibrated astroseismic')
+        figs.append(['cluster_logg_calib.png','nn_cluster_logg_calib.png'])
+        ytitle.append('calibrated physical')
+
+        html.htmltab(figs,ytitle=ytitle,file=out+'/logg.html')
 
     # vmicro calibration
     if vmicro :
@@ -977,6 +1009,8 @@ def docal(infile,clobber=False,hr=True,teffcal=True,loggcal=True,vmicro=True,vma
 
     # elemental abundances
     if elemcal :
+        figs=[]
+        ytitle=[]
         print('abundances ...')
         elems=np.append(c[3].data['ELEM_SYMBOL'][0],['M','alpha'])
         allcal['giant_abuncal']=elem.cal(c,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'giants_',calvers=calvers,errpar=True,calib=calib)
@@ -985,16 +1019,17 @@ def docal(infile,clobber=False,hr=True,teffcal=True,loggcal=True,vmicro=True,vma
             struct.wrfits(allcal['giant_abuncal'],out+'giant_abuncal.fits')
             struct.wrfits(allcal['dwarf_abuncal'],out+'dwarf_abuncal.fits')
         if stp : pdb.set_trace()
-    figs.append(['giants_all.png','dwarfs_all.png'])
-    ytitle.append('clusters')
-    figs.append(['giants_allsolar.png','dwarfs_allsolar.png'])
-    ytitle.append('solar circle')
-    figs.append(['giants_M.png','dwarfs_M.png'])
-    ytitle.append('cluster [M/H]')
-    figs.append(['giants_clust_key.png','dwarfs_clust_key.png'])
-    ytitle.append('cluster ID')
+        figs.append(['giants_all.png','dwarfs_all.png'])
+        ytitle.append('clusters')
+        figs.append(['giants_allsolar.png','dwarfs_allsolar.png'])
+        ytitle.append('solar circle')
+        figs.append(['giants_M.png','dwarfs_M.png'])
+        ytitle.append('cluster [M/H]')
+        figs.append(['giants_clust_key.png','dwarfs_clust_key.png'])
+        ytitle.append('cluster ID')
+        html.htmltab(figs,ytitle=ytitle,file=out+'/elem.html')
 
-    html.htmltab(figs,xtitle=['giants','dwarfs'],ytitle=ytitle,file=out+infile.replace('.fits','.html'))
+    #html.htmltab(figs,xtitle=['giants','dwarfs'],ytitle=ytitle,file=out+infile.replace('.fits','.html'))
     return allcal
 
 def comp(plots=['hr','giant_teffcomp','dwarf_teffcomp','rcrgbsep','loggcomp_b','loggcomp','giants_all','clust_key','dwarfs_all','giants_allsolar','dwarfs_allsolar','giants_M','dwarfs_M','giants_err_all','dwarfs_err_all'],runs=['l31a','l31b','l30b_vm4','l31b_vm4','l31a_asset'],out=None) :

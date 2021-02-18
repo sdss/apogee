@@ -182,14 +182,14 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
 
     gd = np.where((bad == 0)  & (targ == 0) & (dist == 0) &
          (startype) &
-         (t >= teff[0]) & (t <= teff[1])  &
-         (g >= logg[0]) & (g <= logg[1])  &
-         (m >= mh[0]) & (m <= mh[1])  &
-         (a >= alpha[0]) & (a <= alpha[1])  &
+         (t >= teff[0]) & (t < teff[1])  &
+         (g >= logg[0]) & (g < logg[1])  &
+         (m >= mh[0]) & (m < mh[1])  &
+         (a >= alpha[0]) & (a < alpha[1])  &
          (vscat >= vscatter[0]) & (vscat <= vscatter[1])  &
-         (data['GLON'] >= glon[0]) & (data['GLON'] <= glon[1])  &
-         (data['GLAT'] >= glat[0]) & (data['GLAT'] <= glat[1])  &
-         (snr >= sn[0]) & (snr <= sn[1])  
+         (data['GLON'] >= glon[0]) & (data['GLON'] < glon[1])  &
+         (data['GLAT'] >= glat[0]) & (data['GLAT'] < glat[1])  &
+         (snr >= sn[0]) & (snr < sn[1])  
          )[0]
 
     if grid is not None :
@@ -431,7 +431,7 @@ def clustmember(data,cluster,param=None,logg=[-1,3.8],te=[3800,5500],rv=True,pm=
         try :
             membermask=bitmask.MembersBitMask()
             j = np.where(data['MEMBERFLAG'] & membermask.getval(cluster))[0]
-            print('MEMBERFLAG returns {:d} members'.format(len(j)))
+            print('MEMBERFLAG returns {:d} members for {:s}'.format(len(j),cluster))
             return j
         except : pass
 

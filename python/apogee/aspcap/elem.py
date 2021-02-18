@@ -419,7 +419,7 @@ def globalscatter(allstar,elems,vscatter=[0,0.2],pm=True,dist=True) :
     clusts = ['N2420', 'M67', 'N188', 'N7789', 'N6819', 'N6791']
     fp=open('global.dat','w')
     for cluster in clusts :
-        j=np.array(apselect.clustmember(allstar[gd],cluster,param=None,pm=pm,dist=dist))
+        j=np.array(apselect.clustmember(allstar[gd],str(cluster),param=None,pm=pm,dist=dist))
         print(cluster,len(j))
         members.append(j)
         for jj in j :
@@ -578,9 +578,9 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
     solar=apselect.select(allstar[1].data,badval='STAR_BAD',badtarg=['YOUNG','EMBEDDED','EMISSION','EXTENDED'],
                           raw=True,logg=logg,sn=[200,10000])
     try :
-        gd=np.where((allstar[1].data['gaia_parallax_error'][solar]/abs(allstar[1].data['gaia_parallax'][solar]) < 0.1) )[0]   
+        gd=np.where((allstar[1].data['gaiaedr3_parallax_error'][solar]/abs(allstar[1].data['gaiaedr3_parallax'][solar]) < 0.1) )[0]   
         solar=solar[gd]
-        distance = 1000./allstar[1].data['gaia_parallax'][solar]
+        distance = 1000./allstar[1].data['gaiaedr3_parallax'][solar]
         x,y,z,r=lbd2xyz(allstar[1].data['GLON'][solar],allstar[1].data['GLAT'][solar],distance/1000.)
         gd = np.where((abs(z) < 0.5) & (r>8) & (r<9))[0]
         solar=solar[gd]
@@ -598,14 +598,14 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
     except :
         print('VISIT keyword does not exist')
     # preselect with fast HTM method at largest cluster radius
-    try:
-        print('pre-selecting cluster members using HTM')
-        h=esutil.htm.HTM()
-        maxrad=clusters['rad'].max()
-        m1,m2,rad=h.match(clusters['ra'],clusters['dec'],allstar[1].data['RA'][gd],allstar[1].data['DEC'][gd],maxrad,maxmatch=500)
-        gd=gd[m2]
-    except :
-        pass
+    #try:
+    #    print('pre-selecting cluster members using HTM')
+    #    h=esutil.htm.HTM()
+    #    maxrad=clusters['rad'].max()
+    #    m1,m2,rad=h.match(clusters['ra'],clusters['dec'],allstar[1].data['RA'][gd],allstar[1].data['DEC'][gd],maxrad,maxmatch=500)
+    #    gd=gd[m2]
+    #except :
+    #    pass
     # now select per cluster
     print('selecting cluster members')
     all=[]
@@ -615,11 +615,11 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
             #if clustdir :
             #    stars=ascii.read(clustdir+'/'+cluster+'.txt',names=['APOGEE_ID'],format='no_header')
             #    jsaved,j2 = match.match(allstar[1].data[gd]['APOGEE_ID'],stars['APOGEE_ID'])
-            j=apselect.clustmember(allstar[1].data[gd],cluster,param=None,firstgen=True,firstpos=False,logg=logg,
+            j=apselect.clustmember(allstar[1].data[gd],str(cluster),param=None,firstgen=True,firstpos=False,logg=logg,
                                    pm=pm,dist=dist)
             #print(cluster,len(j),len(jsaved))
             if len(j) < 1 :
-                j=apselect.clustmember(allstar[1].data[gd],cluster,param=None,logg=logg,pm=pm,dist=dist)
+                j=apselect.clustmember(allstar[1].data[gd],str(cluster),param=None,logg=logg,pm=pm,dist=dist)
             all=set(all).union(gd[j].tolist())
     data=allstar[1].data[list(all)]
 
@@ -637,9 +637,9 @@ def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, 
             ax.scatter((iplot//12)*0.1+0.25,12-iplot%12,marker=markers[iclust],color=colors[iclust])
             ax.text((iplot//12)*0.1+0.26,12-iplot%12,clusts[iclust]+' ( '+str(clusters[iclust].mh)+')',color=colors[iclust],va='center')
             ax.set_xlim(0.23,0.8)
-            j=apselect.clustmember(data,clusts[iclust],param=None,firstgen=True,firstpos=False,logg=logg,pm=pm,dist=dist)
+            j=apselect.clustmember(data,str(clusts[iclust]),param=None,firstgen=True,firstpos=False,logg=logg,pm=pm,dist=dist)
             if len(j) < 1 :
-                j=apselect.clustmember(data,clusts[iclust],param=None,logg=logg, pm=pm, dist=dist)
+                j=apselect.clustmember(data,str(clusts[iclust]),param=None,logg=logg, pm=pm, dist=dist)
             iplot+=1
         else :
             j=[]

@@ -573,11 +573,11 @@ def comp_apstar(field,apred='r13',telescope='apo25m') :
         ax[1].cla()    
         ax[2].cla()    
 
-def star(apfv, objs) :
+def star(apfv, objs, htmlfile='rv.html') :
     """ Make web page with RV info for specified stars
     """
 
-    fp = open('rv.html','w')
+    fp = open(htmlfile,'w')
     fp.write('<HTML><BODY>')
     fp.write('<TABLE BORDER=2>')
     # individual visit velocities

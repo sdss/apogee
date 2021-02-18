@@ -469,8 +469,10 @@ def chi2(allstar,out='./') :
     """
 
     fig,ax=plots.multi(1,2,hspace=0.001)
-    plots.plotc(ax[0],allstar['FPARAM'][:,0],np.log10(allstar['ASPCAP_CHI2']),allstar['FPARAM'][:,3],xr=[8000,3000],xt='Teff',yt='log(CHI2)',size=1)
-    plots.plotc(ax[1],allstar['FPARAM'][:,0],np.log10(allstar['ASPCAP_CHI2']/(allstar['SNR']/100)**2),allstar['FPARAM'][:,3],xr=[8000,3000],xt='Teff',yt='log(CHI2/(SNR/100)**2)',size=1)
+    plots.plotc(ax[0],allstar['FPARAM'][:,0],np.log10(allstar['ASPCAP_CHI2']),allstar['FPARAM'][:,3],
+                xr=[8000,3000],xt='Teff',yr=[-1,5],yt='log(CHI2)',size=1)
+    plots.plotc(ax[1],allstar['FPARAM'][:,0],np.log10(allstar['ASPCAP_CHI2']/(allstar['SNR']/100)**2),allstar['FPARAM'][:,3],
+                xr=[8000,3000],xt='Teff',yr=[-1,5],yt='log(CHI2/(SNR/100)**2)',size=1)
     ax[1].plot([8000,3000],[np.log10(50),np.log10(50)],'r')
     ax[1].plot([8000,3000],[np.log10(30),np.log10(30)],'r')
     outfile=out+'chi2.png'

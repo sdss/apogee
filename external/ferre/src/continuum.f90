@@ -78,7 +78,7 @@ do j=1,nsynth
 		        x2(1:nx)=1.
 		        xaxis2(1:nx)=xaxis(1:nx)
 		        do i=1,nel
-			    if (abs(sx(p1+i-1)/x(p1+i-1)) < rejectcont) then
+			    if (abs(sx(p1+i-1)/x(p1+i-1)) < abs(rejectcont)) then
 			      nel2=nel2+1
 			      !xaxis2(nel2)=xaxis(p1+i-1)
 			      xaxis2(nel2)=xaxis(i)
@@ -102,15 +102,16 @@ do j=1,nsynth
 			else
 			    !fit polynomial
 			    coef(:)=0.0_dp
-			    call lsq_fit(xaxis2(1:nel2)/xaxis(nel),x2(1:nel2),nel2,n,coef,error)
+			    call lsq_fit(xaxis2(1:nel2)-xaxis(nel2/2),x2(1:nel2),nel2,n,coef,error)
 			    !call lsq_fit(xaxis(1:nel),x(p1:p2),nel,n,coef,error)
 			    !call poly_fit(xaxis(1:nel),x(p1:p2),w(p1:p2),nel,n,coef,error)
 
 			    !evaluate it
 			    y(p1:p2)=coef(0)
 			    do i=1,n
-				y(p1:p2)=y(p1:p2)+coef(i)*(xaxis(1:nel)/xaxis(nel))**i
+				y(p1:p2)=y(p1:p2)+coef(i)*(xaxis(1:nel)-xaxis(nel2/2))**i
 			    enddo
+                            if (rejectcont .lt. 0) write(*,*) y
 	  	  	endif
 		  case (2)
 		    call pem(x(p1:p2),nel,n,y(p1:p2))	

@@ -573,13 +573,15 @@ def comp_apstar(field,apred='r13',telescope='apo25m') :
         ax[1].cla()    
         ax[2].cla()    
 
-def star(apfv, objs, htmlfile='rv.html') :
+def star(apfv, objs, htmlfile='rv.html',visittable=True, apred='dr17', apstar='stars') :
     """ Make web page with RV info for specified stars
     """
 
     fp = open(htmlfile,'w')
     fp.write('<HTML><BODY>')
     fp.write('<TABLE BORDER=2>')
+
+    load=apload.ApLoad(apred=apred,apstar=apstar)
     # individual visit velocities
     starmask = bitmask.StarBitMask()
     for obj in objs :
@@ -588,23 +590,52 @@ def star(apfv, objs, htmlfile='rv.html') :
         fields = set(apfv['FIELD'][j])
         for field in fields :
           j = np.where((apfv['APOGEE_ID'] == obj) & (apfv['FIELD'] == field))[0]
+
+          telescope=apfv['TELESCOPE'][j[0]]
+          load.settelescope(telescope)
+          # try to get apStar file for STARFLAGS and make combined ccf plot
+          try:
+              aps=load.apStar(field,obj)
+              rvtab=aps[10].data
+              starflags=starmask.getname(aps[0].header['STARFLAG'])
+              snr=aps[0].header['SNR']
+              nccf= len(rvtab['x_ccf'])
+              fig,ax=plots.multi(1,nccf,hspace=0.001)
+              ax=np.atleast_1d(ax)
+              for i in range(nccf) :
+                  ax[i].plot(rvtab['x_ccf'][i],rvtab['ccf'][i])
+                  ax[i].plot(rvtab['x_ccf'][i],rvtab['ccf'][i]/rvtab['ccf'][i].max())
+                  n=len(rvtab['x_ccf'][i])
+                  ax[i].plot(rvtab['x_ccf'][i],rvtab['autoccf'][i][:n])
+                  ax[i].text(0.1,0.9,'ccpfwhm: {:8.2f}   autofwhm: {:8.2f}'.format(rvtab['ccpfwhm'][i],rvtab['autofwhm'][i]),transform=ax[i].transAxes)
+              plt.savefig('plots/{:s}_autoccf.png'.format(obj))
+              plt.close()
+          except : 
+              starflags=''
+              snr=-999.
+
           fp.write('<TR><TD>')
           fp.write('APOGEE_ID: {:s}<BR>'.format(obj))
           fp.write('FIELD: {:s}<BR>'.format(field))
           star=apfv[j[0]]
           fp.write('H: {:8.2f}<BR>'.format(star['H']))
           fp.write('RV_TEFF: {:8.2f}<BR>'.format(star['RV_TEFF']))
-          fp.write('<TABLE BORDER=2>')
-          fp.write('<TR><TD>JD<TD>PLATE<TD>MJD<TD>FIBER<TD>S/N<TD>Doppler xcorr<TD> xcorr_err<TD>Doppler<TD>VERR<TD>BC<TD>N_COMPONENTS<TD>CCWFHM<TD>AUTOFWHM\n')
-          for i in j : 
-            if np.isfinite(apfv['VHELIO'][i]) == False :
-                bgcolor='bgcolor=red'
-            elif apfv['STARFLAG'][i] & starmask.getval('RV_REJECT') > 0 :
-                bgcolor='bgcolor=lightpink'
-            elif apfv['STARFLAG'][i] & starmask.getval('RV_SUSPECT') > 0 :
-                bgcolor='bgcolor=#F4DEDE'
-            else : bgcolor=''
-            fp.write(('<TR {:s}> <TD> <A HREF={:s} TARGET="_obj"> {:12.3f}</A> <TD> {:s} <TD> {:5d} <TD> {:5d}'+
+          fp.write('STARFLAGS: {:s}<BR>'.format(starflags))
+          fp.write('SNR: {:8.2f}<BR>'.format(snr))
+          try: fp.write('CCFWHM: {:8.2f}  AUTOFWHM: {:8.2f} <BR>'.format(star['RV_CCFWHM'],star['RV_AUTOFWHM']))
+          except: pass
+          if visittable :
+              fp.write('<TABLE BORDER=2>')
+              fp.write('<TR><TD>JD<TD>PLATE<TD>MJD<TD>FIBER<TD>S/N<TD>Doppler xcorr<TD> xcorr_err<TD>Doppler<TD>VERR<TD>BC<TD>N_COMPONENTS<TD>CCWFHM<TD>AUTOFWHM\n')
+              for i in j : 
+                if np.isfinite(apfv['VHELIO'][i]) == False :
+                    bgcolor='bgcolor=red'
+                elif apfv['STARFLAG'][i] & starmask.getval('RV_REJECT') > 0 :
+                    bgcolor='bgcolor=lightpink'
+                elif apfv['STARFLAG'][i] & starmask.getval('RV_SUSPECT') > 0 :
+                    bgcolor='bgcolor=#F4DEDE'
+                else : bgcolor=''
+                fp.write(('<TR {:s}> <TD> <A HREF={:s} TARGET="_obj"> {:12.3f}</A> <TD> {:s} <TD> {:5d} <TD> {:5d}'+
                      '<TD> {:8.1f} <TD> {:8.2f} <TD> {:8.2f} <TD> {:8.2f} ' +
                      '<TD> {:8.2f} <TD>{:8.2f} <TD>{:d} <TD>{:8.2f} <TD> {:8.2f}\n').format(
                       bgcolor,
@@ -613,17 +644,18 @@ def star(apfv, objs, htmlfile='rv.html') :
                       apfv['SNR'][i],
                       apfv['XCORR_VHELIO'][i],apfv['XCORR_VRELERR'][i],
                       apfv['VHELIO'][i],apfv['VRELERR'][i],apfv['BC'][i],apfv['N_COMPONENTS'][i],apfv['CCFWHM'][i],apfv['AUTOFWHM'][i]))
-          fp.write('</TABLE>\n')
+              fp.write('</TABLE>\n')
 
-
-          telescope=apfv['TELESCOPE'][j[0]]
-          plotdir = 'stars/{:s}/{:s}/plots/'.format(telescope,field)
-          fp.write('<TD><a HREF={:s}/{:s}.png TARGET="_obj"> <IMG SRC={:s}/{:s}.png WIDTH=600></A>\n'.format(plotdir,obj,plotdir,obj))
-          fp.write('<TD><IMG SRC={:s}/{:s}_rv.png TARGET="_obj">\n'.format(plotdir,obj))
+          plotdir = apstar+'/{:s}/{:s}/plots/'.format(telescope,field)
+          #fp.write('<TD><a HREF={:s}/{:s}.png TARGET="_obj"> <IMG SRC={:s}/{:s}.png WIDTH=600></A>\n'.format(plotdir,obj,plotdir,obj))
+          #fp.write('<TD><IMG SRC={:s}/{:s}_rv.png TARGET="_obj">\n'.format(plotdir,obj))
           fp.write('<TD><A HREF={:s}/{:s}_ccf.png TARGET="_obj"> <IMG SRC={:s}/{:s}_ccf.png></A>\n'.format(plotdir,obj,plotdir,obj))
-          fp.write('<TD><A HREF={:s}/{:s}_spec.png TARGET="_obj"> <IMG SRC={:s}/{:s}_spec.png></a>\n'.format(plotdir,obj,plotdir,obj))
+          #fp.write('<TD><A HREF={:s}/{:s}_spec.png TARGET="_obj"> <IMG SRC={:s}/{:s}_spec.png></a>\n'.format(plotdir,obj,plotdir,obj))
           fp.write('<TD><A HREF={:s}/{:s}_spec2.png TARGET="_obj"> <IMG SRC={:s}/{:s}_spec2.png></a>\n'.format(plotdir,obj,plotdir,obj))
-          fp.write('<TD><A HREF={:s}/{:s}_cont.png TARGET="_obj"> <IMG SRC={:s}/{:s}_cont.png></a>\n'.format(plotdir,obj,plotdir,obj))
+          #fp.write('<TD><A HREF={:s}/{:s}_cont.png TARGET="_obj"> <IMG SRC={:s}/{:s}_cont.png></a>\n'.format(plotdir,obj,plotdir,obj))
+          fp.write('<TD><A HREF=plots/{:s}_autoccf.png TARGET="_obj"> <IMG SRC=plots/{:s}_autoccf.png></a>\n'.format(obj,obj))
+
+
 
     fp.write('</TABLE></BODY></HTML>')
     fp.close() 

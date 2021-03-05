@@ -11,8 +11,8 @@ from __future__ import print_function
 from __future__ import absolute_import
 #from __future__ import unicode_literals
 
-from astropy.io import fits
-from astropy.io import ascii
+from astropy.io import fits, ascii
+from astropy.table import Table
 import os
 from sdss_access.path import path
 from sdss_access.sync.http import HttpAccess
@@ -24,10 +24,8 @@ from esutil import htm
 
 import numpy as np
 import copy
-from tools import html
-from tools import plots
-from tools import match
-from apogee.utils import bitmask
+from tools import html, plots, match
+from apogee.utils import bitmask, orbital
 import matplotlib.pyplot as plt
 
 def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,100.],alpha=[-100.,100.],sn=[0,1000], raw=False, 
@@ -422,7 +420,7 @@ def clustdata(gals=True) :
     return out[gd].view(np.recarray)
 
 
-def clustmember(data,cluster,param=None,logg=[-1,3.8],te=[3800,5500],rv=True,pm=True,dist=True,firstgen=False,firstpos=True,
+def clustmember(data,cluster,param=None,logg=[-1,6],te=[3000,10000],rv=True,pm=True,dist=True,firstgen=False,firstpos=True,
                 ratag='RA',dectag='DEC',rvtag='VHELIO',idtag='APOGEE_ID',btag='J',rtag='K',pmra=None,pmdec=None,
                 plot=False,hard=None,gals=True,dsph=False,usememberflag=True) :
 
@@ -430,9 +428,13 @@ def clustmember(data,cluster,param=None,logg=[-1,3.8],te=[3800,5500],rv=True,pm=
         # can we use MEMBERFLAG?
         try :
             membermask=bitmask.MembersBitMask()
-            j = np.where(data['MEMBERFLAG'] & membermask.getval(cluster))[0]
-            print('MEMBERFLAG returns {:d} members for {:s}'.format(len(j),cluster))
-            return j
+            jc = np.where((data['MEMBERFLAG'] & membermask.getval(cluster)) )[0]
+            if param is not None :
+                j = np.where((data[param][jc,1] >= logg[0]) & (data[param][jc,1] <= logg[1]) &
+                             (data[param][jc,0] >= te[0]) & (data[param][jc,0] <= te[1]) )[0]
+                jc = jc[j]
+            print('MEMBERFLAG returns {:d} members for {:s}'.format(len(jc),cluster))
+            return jc
         except : pass
 
     if dsph : clust=dsphdata()
@@ -744,4 +746,42 @@ def dsph(data,dir='dsph/',ratag='RA',dectag='DEC',rvtag='VHELIO',idtag='APOGEE_I
             for star in data[j][idtag] : fstars.write('{:s} {:s}\n'.format(star,clust[ic].name))
     html.tail(f)
     fstars.close()
+
+def solar(indata,data=None,raw=True,gaia='GAIAEDR3', logg=[-1,6], R=[8,9], snmin=100, mh=[-0.05,0.05], Z_MAX=0.3, ECC=0.15) :
+    """ selects sample of solar neighborhood low log g stars, possibly from previous data set
+
+        indata : return indices in this structure for solar neighborhood stars
+        data : if specified, choose using parameters from this structure, otherwise use indata
+
+    """
+    if data is not None :
+        i1,i2 = match.match(indata['APOGEE_ID'],data['APOGEE_ID'])
+    else :
+        i1 = np.arange(len(indata))
+        i2 = np.arange(len(indata))
+        data = indata
+
+    distance = 1000./data[gaia+'_PARALLAX'][i2]
+    x,y,z,r=lbd2xyz(data['GLON'][i2],data['GLAT'][i2],distance/1000.)
+    j = np.where((data[gaia+'_PARALLAX_ERROR'][i2]/abs(data[gaia+'_PARALLAX'][i2]) < 0.1) &  
+                 (abs(z) < Z_MAX+0.2) & (r>R[0]) & (r<R[1]) & (data['SNREV'][i2] > snmin) &
+                 (data['FPARAM'][:,1]>=logg[0]) & (data['FPARAM'][:,1]<logg[1]) &
+                 (data['FPARAM'][i2,3]>mh[0])  & ( data['FPARAM'][i2,3]<mh[1]) ) [0]
+    # calculate orbital parameters for this subset
+    tab=orbital.parameters(Table(data[j]))
+    gd=np.where((tab['Z_MAX'] <0.3) & (tab['ECC'] < 0.15) )[0]
+    j=j[gd] 
+    return i1[j]
+
+def lbd2xyz(l,b,d,R0=8.5) :
+    ''' Angular coordinates + distance -> galactocentry x,y,z '''
+
+    brad = b*np.pi/180.
+    lrad = l*np.pi/180.
+
+    x = d*np.sin(0.5*np.pi-brad)*np.cos(lrad)-R0
+    y = d*np.sin(0.5*np.pi-brad)*np.sin(lrad)
+    z = d*np.cos(0.5*np.pi-brad)
+    r = np.sqrt(x**2+y**2)
+    return x, y, z, r
 

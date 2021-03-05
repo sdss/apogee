@@ -9,7 +9,11 @@
 set host=`hostname | awk -F. '{print $1}'`
 
 if ( $?UUFSCELL ) then
-  setenv APOGEE_LOCALDIR /scratch/local/$USER/$SLURM_JOB_ID 
+  if ( $?SLURM_JOB_ID ) then 
+    setenv APOGEE_LOCALDIR /scratch/local/$USER/$SLURM_JOB_ID 
+  else
+    setenv APOGEE_LOCALDIR /scratch/local/$USER
+  endif
 else
   mkdir $APOGEE_LOCALDIR
   ls $APOGEE_LOCALDIR

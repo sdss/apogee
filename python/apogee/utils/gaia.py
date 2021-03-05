@@ -91,7 +91,7 @@ def getdata(data,vers='dr2',posn_match=30,verbose=True) :
                          ON distance(db.ra, db.dec, coords.apogee_ra, coords.apogee_dec)< {:f}) 
                      SELECT * from withpar
                      JOIN gedr3dist.main as dist using (source_id)
-                """.format(posn_match/3600.), uploads={'coords' : tab})
+                """.format(posn_match/3600.), uploads={'coords' : tab},maxrec=1000000)
             print('pyvo returned: ',len(posn_gaia))
 
             #m1,m2=match.match(posn_gaia_archive['source_id'],posn_gaia['source_id'])

@@ -71,6 +71,24 @@ class BitMask():
                 val=val | np.int64(2**i)
         return val
 
+    def print(self,fmt='txt') :
+        """ Formatted output of bit definitions
+        """
+        if fmt == 'txt' :
+            print('{:25s}{:>6s}  {:s}'.format('Name','Bit','Description'))
+        elif fmt == 'wiki' :
+            print('||{:25s}||{:>6s}||{:s}||'.format('Name','Bit','Description'))
+        elif fmt == 'latex' :
+            print('{:25s}&{:>6s}&{:s}\\\\'.format('Name','Bit','Description'))
+        for ibit,name in enumerate(self.name) :
+            if (name != 'RESERVED' and name != '' ) :
+                if fmt == 'txt' :
+                    print('{:25s}{:6d}  {:s}'.format(name,ibit,self.descrip[ibit]))
+                elif fmt == 'wiki' :
+                    print('||{:25s}||{:6d}||{:s}||'.format(name,ibit,self.descrip[ibit]))
+                elif fmt == 'latex' :
+                    print('{:25s}&{:6d}&{:s}\\\\'.format(name,ibit,self.descrip[ibit]))
+
 class StarBitMask(BitMask):
     '''
     BitMask class for APOGEE star bitmask (APOGEE_STARFLAG)
@@ -442,6 +460,9 @@ class MembersBitMask(BitMask) :
         'M4','N2808','Pal6','47TUC','Pal1','N6539','N6388','N6441','N6316',
         'N6760','N6553','N6528',
         'DRACO','URMINOR','BOOTES1','SEXTANS','FORNAX','SCULPTOR','CARINA','','RESERVED']
+    descrip = []
+    for n in name: 
+        descrip.append('Likely member of '+n)
 
 
 def targflags(targ1,targ2,targ3,targ4,survey='apogee2') :

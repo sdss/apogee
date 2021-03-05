@@ -33,7 +33,7 @@ class ApSpec() :
     """
     def __init__(self,flux,header=None,err=None,wave=None,mask=None,bitmask=None,
                  sky=None,skyerr=None,telluric=None,telerr=None,cont=None,template=None,filename='',
-                 lsfpars=None,rvtab=Table(),sptype='apStar',waveregime='NIR',instrument='APOGEE',snr=100) :
+                 lsfpars=None,rvtab=Table(),comb_rvtab=Table(),sptype='apStar',waveregime='NIR',instrument='APOGEE',snr=100) :
         # Initialize the object
         self.flux = flux
         if header is None : self.header = fits.PrimaryHDU().header
@@ -50,6 +50,7 @@ class ApSpec() :
         self.template = template
         self.filename = filename
         self.rvtab = rvtab
+        self.comb_rvtab = comb_rvtab
         self.lsfpars = lsfpars
         self.sptype = sptype
         self.waveregime = waveregime
@@ -119,6 +120,7 @@ class ApSpec() :
         hdulist.append(fits.ImageHDU(self.telerr,header=header))
         hdulist.append(fits.ImageHDU(self.lsfpars))
         hdulist.append(fits.table_to_hdu(self.rvtab))
+        hdulist.append(fits.table_to_hdu(self.comb_rvtab))
         hdulist.writeto(filename,overwrite=overwrite)
 
 class ApLoad :

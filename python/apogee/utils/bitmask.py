@@ -96,7 +96,7 @@ class StarBitMask(BitMask):
 
     name=(['BAD_PIXELS','COMMISSIONING','BRIGHT_NEIGHBOR','VERY_BRIGHT_NEIGHBOR','LOW_SNR','','','',
           '','PERSIST_HIGH','PERSIST_MED','PERSIST_LOW','PERSIST_JUMP_POS','PERSIST_JUMP_NEG','','',
-          'SUSPECT_RV_COMBINATION','SUSPECT_BROAD_LINES','BAD_RV_COMBINATION','RV_REJECT','RV_SUSPECT','MULTIPLE_SUSPECT','RV_FAIL','',
+          'SUSPECT_RV_COMBINATION','SUSPECT_BROAD_LINES','BAD_RV_COMBINATION','RV_REJECT','RV_SUSPECT','MULTIPLE_SUSPECT','RV_FAIL','SUSPECT_ROTATION',
           'MTPFLUX_LT_75','MTPFLUX_LT_50','','','','','','RESERVED'])
     level=([1,0,0,1,0,0,0,0,
              0,0,0,0,0,0,0,0,
@@ -121,13 +121,13 @@ class StarBitMask(BitMask):
      '',
      '',
      'RVs from synthetic template differ significantly (~2 km/s) from those from combined template: WARN', 
-     'Cross-correlation peak with template significantly broader than autocorrelation of template: WARN',
+     'Autocorrelation peak width large',
      'RVs from synthetic template differ very significatly (~10 km/s) from those from combined template: BAD',
      'Rejected visit because cross-correlation RV differs significantly from least squares RV',
      'Suspect visit (but used!) because cross-correlation RV differs slightly from least squares RV',
      'Suspect multiple components from Gaussian decomposition of cross-correlation',
      'RV failure',
-     '',
+     'Suspect rotation: cross-correlation peak with template significantly broader than autocorretion of template',
      'Spectrum falls on fiber in MTP block with relative flux < 0.75',
      'Spectrum falls on fiber in MTP block with relative flux < 0.5',
      '',
@@ -417,7 +417,7 @@ class RVBitMask(BitMask) :
      'Initial fit on BC combined spectra, then small RV range',
      'Failed fit on BC combined spectra',
      'Faint star, RV fit on reduced range',
-     'Regions masked in RV fit'
+     'Regions masked in RV fit',
      'Jointfit failed with ValueError',
      'Jointfit failed with RuntimeError',
      'Jointfit failed with exception',

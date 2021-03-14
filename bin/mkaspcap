@@ -47,7 +47,9 @@ if __name__ == '__main__' :
         tot=0
         group=[]
         igroup=0
-        for i,field in enumerate(np.sort(args.fields)) :
+        np.random.seed(11111)
+        np.random.shuffle(args.fields)
+        for i,field in enumerate(args.fields) :
             comp=field.split('/')
             name=comp[-1]
             telescope=comp[-2]

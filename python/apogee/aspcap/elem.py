@@ -3,16 +3,12 @@
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 import numpy as np
-from apogee.utils import apload
-from apogee.utils import apselect
-from apogee.aspcap import err
-from tools import plots
-from tools import html
-from tools import fit
-from tools import match
+from apogee.utils import apload, apselect, bitmask
+from apogee.aspcap import err, aspcap
+from tools import plots, html, fit, match
 import pdb
-from astropy.io import fits
-from astropy.io import ascii
+from astropy.io import fits, ascii
+from astropy.table import Table, Column
 try:
    import esutil
 except:
@@ -531,7 +527,7 @@ def getabun(data,elems,elemtoh,el,xh=False,terange=[-1,10000],calib=False,line=0
         except: pdb.set_trace()
     return abun, ok
 
-def cal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, maxvisit=100,calvers='default',dwarfs=False,inter=False,
+def docal(allstar,elems,elemtoh,doels,xh=False,plot=True,sepplot=False,hard=None, maxvisit=100,calvers='default',dwarfs=False,inter=False,
         errpar=False,calib=False,nx=4,ny=2,maxvscatter=0.2,pm=True,dist=True, lines=False) :
     ''' 
     Determine internal calibration relations for elements
@@ -1868,4 +1864,180 @@ def lbd2xyz(l,b,d,R0=8.5) :
     z = d*np.cos(0.5*np.pi-brad)
     r = np.sqrt(x**2+y**2)
     return x, y, z, r
+
+
+def zerocal(tab,j,elems,elemtoh,doels,calvers='dr16',extfit=None,calib=False) :
+    """ Get zeropoint calibration only from abundances of specified indices
+    """
+    rec = np.zeros(len(doels),dtype=[
+                       ('elem','S5'),
+                       ('elemfit','i4'),
+                       ('mhmin','f4'),
+                       ('te0','f4'),
+                       ('temin','f4'),
+                       ('temax','f4'),
+                       ('femin','f4'),
+                       ('femax','f4'),
+                       ('caltemin','f4'),
+                       ('caltemax','f4'),
+                       ('extfit','i4'),
+                       ('extpar','3f4'),
+                       ('exterr','f4'),
+                       ('par','3f4'),
+                       ('errpar','4f4'),
+                       ])
+    data = tab[j]
+    for iel,el in enumerate(doels) :
+        if calvers == 'dr16' :
+            pars=dr16cal(el)
+        else :
+            pdb.set_trace()           
+
+        pars['elem'] = el
+        for key in ['elem','elemfit','mhmin','te0','temin','temax','caltemin','caltemax','extfit','extpar'] :
+            rec[iel][key] = pars[key]
+
+        if pars['extfit'] > 0 :
+            abun,ok = getabun(data,elems,elemtoh,el,xh=False,terange=[-1,10000],calib=calib,line=0) 
+            zero = np.median(abun[ok])
+            zero_err = np.median(np.abs(abun[ok]-zero))
+            rec[iel]['extpar'][0] = zero
+            rec[iel]['exterr'] = zero_err
+
+        if extfit is not None : rec[iel]['extfit'] = extfit
+        if rec[iel]['extfit'] == 2 : 
+            rec[iel]['exterr'] = data['X_H_ERR'][0,iel]
+
+    return rec
+
+def zeroplot(tab3) :
+    fig,ax=plots.multi(1,1,figsize=(12,4))
+    x=np.arange(len(tab3['SOLAR_ZERO'][0])) 
+    plots.plotp(ax,x-0.2,tab3['GIANT_SOLARNEIGH_ZERO'][0],yerr=tab3['GIANT_SOLARNEIGH_ZERO_ERR'][0],color='r',size=10,label='giants')
+    plots.plotp(ax,x,tab3['DWARF_SOLARNEIGH_ZERO'][0],yerr=tab3['DWARF_SOLARNEIGH_ZERO_ERR'][0],color='b',size=10,label='dwarfs')
+    plots.plotp(ax,x+0.05,tab3['DWARF2_SOLARNEIGH_ZERO'][0],yerr=tab3['DWARF2_SOLARNEIGH_ZERO_ERR'][0],color='c',size=10,label='dwarfs45-50')
+    plots.plotp(ax,x+0.2,tab3['SOLAR_ZERO'][0],yerr=tab3['SOLAR_ZERO_ERR'][0],color='g',size=10,label='Vesta')
+    ax.set_ylim(-0.4,0.4)
+    ax.legend()
+    ax.grid()
+    ax.set_xticks(x)
+    ax.set_xticklabels(tab3['ELEM_SYMBOL'][0].astype(str))
+
+def cal(a,caldir='cal/') :
+    """ Calibrate abundances 
+    """
+
+    aspcapmask=bitmask.AspcapBitMask()
+    parammask=bitmask.ParamBitMask()
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
+
+    giant = np.where( (a['FPARAM'][gd,1] < 2./1300.*(a['FPARAM'][gd,0]-3500)+2.) &
+                      (a['FPARAM'][gd,1] < 4) & (a['FPARAM'][gd,0] < 7000) )[0]
+    tmp = np.zeros(len(gd),dtype=bool)
+    tmp[giant] = True
+    dwarf = np.where(~tmp)[0]
+
+    # initialize calibrated arrays and flag
+    for i in [3,4,5,6] :
+        a['PARAM'][:,i] = np.nan
+        a['PARAMFLAG'][gd,i] |= parammask.getval('CALRANGE_BAD')
+
+    a['X_H'][:,:] = np.nan
+    a['X_M'][:,:] = np.nan
+
+    # [N/M] and [C/M] parameters
+    for i in [4,5] : 
+        a['PARAM'][gd,i] = a['FPARAM'][gd,i]
+        a['PARAMFLAG'][gd,i] &= ~parammask.getval('CALRANGE_BAD')
+
+    # calibrate [M/H], [alpha/M], and individual elemets
+    els = ['M','alpha']
+    els.extend(aspcap.elems()[0])
+    elemtoh = aspcap.elems()[1]
+
+    if caldir == 'none' :
+        a['PARAM'][gd,3] = a['FPARAM'][gd,3]
+        a['PARAM'][gd,6] = a['FPARAM'][gd,6]
+        a['PARAMFLAG'][gd,3] &= ~parammask.getval('CALRANGE_BAD')
+        a['PARAMFLAG'][gd,6] &= ~parammask.getval('CALRANGE_BAD')
+        for iel,el in enumerate(aspcap.elems()[0]) :
+            if elemtoh[iel] :
+                a['X_M'][gd,iel] = a['FELEM'][gd,iel]-a['FPARAM'][gd,3]
+                a['X_H'][gd,iel] = a['FELEM'][gd,iel]
+            else :
+                a['X_M'][gd,iel] = a['FELEM'][gd,iel]
+                a['X_H'][gd,iel] = a['FELEM'][gd,iel]+a['FPARAM'][gd,3]
+        return
+ 
+    for group in ['dwarf','giant'] :
+        cal=fits.open(caldir+'/'+group+'_abuncal.fits')[1].data
+        if group == 'giant' :
+            ok = gd[giant]
+        else :
+            ok = gd[dwarf]
+
+        for el in els :
+            print(el)
+            iel = np.where(cal['elem'] == el)[0][0]
+            calteffmin=cal['caltemin'][iel]
+            calteffmax=cal['caltemax'][iel]
+            print(el,calteffmin,calteffmax)
+
+            gdel=np.where( (a['FPARAM'][ok,0] >= calteffmin)  &
+                           (a['FPARAM'][ok,0] <= calteffmax) ) [0]
+
+            teff=np.clip(a['FPARAM'][ok[gdel],0],cal['temin'][iel],cal['temax'][iel])
+            mh=np.clip(a['FPARAM'][ok[gdel],3],cal['femin'][iel],cal['femax'][iel])
+            try: snr=np.clip(a['SNREV'][ok[gdel]],0,200.)
+            except:
+                print('No SNREV, continue with SNR?')
+                pdb.set_trace()
+                snr=np.clip(a['SNR'][ok[gdel]],0,200.)
+
+            x = teff-cal['te0'][iel]
+
+            # "internal" calibration
+            fit=0
+            for iorder in range(0,cal['elemfit'][iel]) :
+                fit+=cal['par'][iel,iorder] * x**(iorder+1)
+
+            # "external" calibration
+            for iorder in range(2) :
+                fit+=cal['extpar'][iel,iorder] * x**(iorder)
+
+            if el == 'M' :
+                a['PARAM'][ok[gdel],3] = a['FPARAM'][ok[gdel],3]-fit
+                # populate uncertainties with err.apply()
+                #a['PARAM_COV'][ok[gdel],3,3] = err.elemerr(cal['errpar'][iel],
+                #    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)**2
+                a['PARAMFLAG'][ok[gdel],3] &= ~parammask.getval('CALRANGE_BAD')
+            elif el == 'alpha' :
+                a['PARAM'][ok[gdel],6] = a['FPARAM'][ok[gdel],6]-fit
+                # populate uncertainties with err.apply()
+                #a['PARAM_COV'][ok[gdel],6,6] = err.elemerr(cal['errpar'][iel],
+                #    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)**2
+                a['PARAMFLAG'][ok[gdel],6] &= ~parammask.getval('CALRANGE_BAD')
+            else :
+                jel = np.where(aspcap.elems()[0] == el)[0]
+                print(iel,jel,elemtoh[jel])
+                if elemtoh[jel] :
+                    a['X_M'][ok[gdel],iel] = a['FELEM'][ok[gdel],iel]-fit-a['FPARAM'][ok[gdel],3]
+                else :
+                    a['X_M'][ok[gdel],iel] = a['FELEM'][ok[gdel],iel]-fit
+                # [X/H] calculated with all calibrated parameters
+                a['X_H'][ok[gdel],iel] = a['X_M'][ok[gdel],iel]+a['PARAM'][ok[gdel],3]
+
+                # populate uncertainties with err.apply()
+                #a['X_H_ERR'][ok[gdel],iel] = err.elemerr(cal['errpar'][iel],
+                #    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)
+                #a['X_M_ERR'][ok[gdel],iel] = err.elemerr(cal['errpar'][iel],
+                #    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)
+                # use FERRE uncertainty if larger
+                tmp=ok[gdel]
+                #j=np.where(a['FELEM_ERR'][tmp,iel] > a['X_H_ERR'][tmp,iel])[0]
+                #a['X_H_ERR'][tmp[j],iel] = a['FELEM_ERR'][tmp[j],iel]
+                #a['ELEMFLAG'][tmp[j],iel] |= parammask.getval('FERRE_ERR_USED')
+                #print(el,'FERRE ERR used: ',len(j))
+
+    return
 

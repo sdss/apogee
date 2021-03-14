@@ -12,7 +12,7 @@ from apogee.aspcap import aspcap, err, ferre, cal
 from apogee.speclib import isochrones
 from apogee.utils import apload, apselect, bitmask
 
-def plotparams(a,title=None,hard=None) :
+def plotparams(a=None,title=None,hard=None) :
     """ Plot parameters vs Teff
     """
     fig,ax=plots.multi(1,8,hspace=0.001)
@@ -27,7 +27,7 @@ def plotparams(a,title=None,hard=None) :
 te_ranges=[[3000,4000],[4000,4500],[4500,8000],[3000,4000],[4000,8000]]
 logg_ranges=[[0,3.8],[0,3.8],[0,3.8],[3.8,5.5],[3.8,5.5]]
 
-def plotcn(hdulist,title=None,out=None) :
+def plotcn(hdulist=None,title=None,out=None) :
     """ Compare parameter level C/M and N/M with element level
     """
     a=hdulist[1].data
@@ -65,7 +65,7 @@ def plotcn(hdulist,title=None,out=None) :
         grid.append(row)
     html.htmltab(grid,file=out+'cn.html',ytitle=yt,xtitle=xt)
 
-def elemvslogg(hdulist,title=None,out=None,calib=False,main=True,named=False) :
+def elemvslogg(hdulist=None,title=None,out=None,calib=False,main=True,named=False) :
     """ Abundances vs log g for solar sample
     """
     a=hdulist[1].data
@@ -131,7 +131,7 @@ def elemvslogg(hdulist,title=None,out=None,calib=False,main=True,named=False) :
     fig.savefig(out+'cn_logg.png',dpi=150)
 
 
-def plotelems(hdulist,title=None,out=None,calib=False,main=True,named=False) :
+def plotelems(hdulist=None,title=None,out=None,calib=False,main=True,named=False) :
     """ Make [X/M] vs [M/H] plots for all elements as f(Teff, logg)
     """
     a=hdulist[1].data
@@ -153,9 +153,9 @@ def plotelems(hdulist,title=None,out=None,calib=False,main=True,named=False) :
     yt=[]
 
     # for plots vs logg of solar neighborhood solar stars
-    solar = cal.solarsample(a)
-    gd = np.where((a[param][solar,3] >= -0.1) & (a[param][solar,3] <= 0.1) )[0]
-    solar=solar[gd]
+    #solar = cal.solarsample(a)
+    #gd = np.where((a[param][solar,3] >= -0.1) & (a[param][solar,3] <= 0.1) )[0]
+    #solar=solar[gd]
     gels=list(els)
     for el in ['Fe','Ge','Rb','Nd','Yb','Ce'] : gels.remove(el)
     igel=0
@@ -220,16 +220,16 @@ def plotelems(hdulist,title=None,out=None,calib=False,main=True,named=False) :
         row.append(os.path.basename(outfile))
         grid.append(row)
 
-        if el in gels :
-            print(el,igel)
-            plots.plotc(gax[igel//2,igel%2],a[param][solar,1],abun[solar],a[param][solar,3],xr=[5.9,-0.9],yr=[-0.39,0.39],zr=[-0.1,0.1],
-                        size=1,xt='log g',yt=ytit,zt='[M/H]')
-            igel+=1
+        #if el in gels :
+        #    print(el,igel)
+        #    plots.plotc(gax[igel//2,igel%2],a[param][solar,1],abun[solar],a[param][solar,3],xr=[5.9,-0.9],yr=[-0.39,0.39],zr=[-0.1,0.1],
+        #                size=1,xt='log g',yt=ytit,zt='[M/H]')
+        #    igel+=1
 
-    gfig.savefig(out+'elem_solar_logg.png')
+    #gfig.savefig(out+'elem_solar_logg.png')
     if out is not None : html.htmltab(grid,file=out+'elem_chem.html',ytitle=yt,xtitle=xt)
 
-def plotparam_errs(hdulist,title=None,out=None) :
+def plotparam_errs(hdulist=None,title=None,out=None) :
     """ Plot uncertainties
     """
     a=hdulist[1].data
@@ -269,7 +269,7 @@ def plotparam_errs(hdulist,title=None,out=None) :
             yt.append(el) 
     if out is not None : html.htmltab(grid,file=out+'elem_errs.html',ytitle=yt,xtitle=['giants','dwarfs'])
 
-def plotelem_errs(hdulist,title=None,out=None,calib=False) :
+def plotelem_errs(hdulist=None,title=None,out=None,calib=False) :
     """ Plot uncertainties
     """
     a=hdulist[1].data
@@ -436,15 +436,15 @@ def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
     html.tail(fp)
     return 
     
-def drcomp(a,dr='dr14',out=None,elem=True,domiss=False) :
+def drcomp(hdulist=None,dr='dr14',out=None,elem=True,domiss=False) :
     """ Comparisons to DR14
     """
     apl=apload.ApLoad(dr=dr)
     prev=apl.allStar()
-    plotparamdiffs(a,prev,out=out+dr+'_',elem=elem)
+    plotparamdiffs(hdulist,prev,out=out+dr+'_',elem=elem)
 
     if domiss :
-        miss=set(prev[1].data['APOGEE_ID'])-set(a[1].data['APOGEE_ID'])
+        miss=set(prev[1].data['APOGEE_ID'])-set(hdulist[1].data['APOGEE_ID'])
         print('{:d} stars in DR14 missing from current data'.format(len(miss)))
 
         bad=[]
@@ -464,7 +464,7 @@ def drcomp(a,dr='dr14',out=None,elem=True,domiss=False) :
         print('not 1m',len(bad),len(set(bad)))
         print('1m',len(bad1m),len(set(bad1m)))
 
-def chi2(allstar,out='./') :
+def chi2(allstar=None,out='./') :
     """ Chi2 plots
     """
 
@@ -503,7 +503,7 @@ def m67(allstar,out='./') :
         grid.append([os.path.basename(outfile)])
     html.htmltab(grid,file=out+'m67.html',ytitle=els)
 
-def calib(allstar,out='./') :
+def calib(allstar=None,out='./') :
     """ Plot calibration relations
     """
 
@@ -557,7 +557,7 @@ def calib(allstar,out='./') :
 
     html.htmltab(grid,file=out+'calib.html',ytitle=yt)
 
-def flags(hdulist,out='./',alpha=0.005) :
+def flags(hdulist=None,out='./',alpha=0.005) :
     """ Tabulate number of objects with different flag bits set, and make HR diagrams showing these
     """
     f=html.head(out+'flags.html')
@@ -693,7 +693,7 @@ def flags(hdulist,out='./',alpha=0.005) :
 
     html.tail(f)
 
-def apolco(hdulist,out='./',snmin=150) :
+def apolco(hdulist=None,out='./',snmin=150) :
     """ histograms of LCO-APO  parameters and abundances
     """
 
@@ -864,7 +864,7 @@ def intplot(a=None,param='FPARAM',indir='cal',apred='r10',aspcap='t33b',verbose=
     plt.close(sf)
     plt.close(fig)
 
-def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=None, alpha=0.3,hard=None, gridclass=None,xr=[8000,3000],yr=[6,-1],grid=False,contour=False,snrbd=0,target=None,size=5) :
+def hr(a=None,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=None, alpha=0.3,hard=None, gridclass=None,xr=[8000,3000],yr=[6,-1],grid=False,contour=False,snrbd=0,target=None,size=5) :
     """ Plot an HR diagram from input structure
 
         Args:
@@ -984,7 +984,7 @@ def hr(a,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=None, alpha=0.3,ha
 
     return fig,ax
 
-def multihr(a,param='FPARAM',colorbar=False,hard=None,xr=[8000,3000],yr=[6,-1],size=5) :
+def multihr(a=None,param='FPARAM',colorbar=False,hard=None,xr=[8000,3000],yr=[6,-1],size=5) :
     """ Series of HR diagram plots, color-coded by different quantities
     """
     fig,ax = plots.multi(3,4,hspace=0.001,wspace=0.001,figsize=(12,10))

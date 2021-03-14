@@ -1,4 +1,4 @@
-from apogee.utils import apload, apselect, bitmask
+from apogee.utils import apload, apselect, bitmask, orbital
 from apogee.aspcap import elem, teff, logg, aspcap, err, qa
 from apogee.speclib import isochrones
 from tools import html, match, struct, plots, fit
@@ -19,6 +19,9 @@ from astropy.io import fits, ascii
 from astropy.table import Table, vstack, Column
 from astropy.coordinates import SkyCoord
 import astropy.units as units
+from multiprocessing import Process
+#from apogee.aspcap.qa import plotelems, plotelem_errs, plotcn, calib, m67, chi2, apolco, flags, hr, multihr
+
 
 os.environ['ISOCHRONE_DIR']='/uufs/chpc.utah.edu/common/home/apogee/isochrones/'
 
@@ -63,33 +66,54 @@ def allField(search=['apo*/*/a?Field-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?
     return all
 
 
-def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None) :
+def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=None,xaxis='Mabs') :
     """ Create set of plots for input cluster with CHI2/parameters/abundances as
         a function of log g, for multiple input data sets
     """
 
-    if zindex == 0 : zr=[3500,5500]
-    elif zindex == 3 : zr=[-1, 0.5]
+    if zindex == 0 : 
+        zr=[3500,8000]
+        zt='Teff'
+    elif zindex == 3 : 
+        zr=[-1, 0.5]
+        zt='[M/H]'
     else : zr=None
+
+    if xaxis=='Mabs' :
+        xr = [-7,6]
+        xt = 'M$_H$'
+    elif xaxis == 'logg' :
+        xr = [0,5]
+        xt = 'log g'
+        zindex=-1
+        zt='[C/N]'
+        zr=[-0.5,0.5]
+    elif xaxis == 'Teff' :
+        xr = [3000,7000]
+        xt = 'Teff'
+        zindex = 1
+        zr = [0,5]
+        zt = 'log g'
+    if suffix=='' : suffix='_'+xaxis
 
     # get indices of cluster stars for each input data set, and indices of MULTIPLES
     inds=[]
     mult=[]
+    size=25
     for a in all :
         if cluster == '' :
             j=np.arange(len(a))
         elif cluster == 'solar' :
-            j=np.where((a['GAIAEDR3_PARALLAX_ERROR']/abs(a['GAIAEDR3_PARALLAX']) < 0.1) )[0]
-            distance = 1000./a['GAIAEDR3_PARALLAX'][j]
-            x,y,z,r=lbd2xyz(a['GLON'][j],a['GLAT'][j],distance/1000.)
-            gd = np.where((abs(z) < 0.5) & (r>8) & (r<9) ) [0]
-            j=j[gd]
+            j=apselect.solar(a)
+            size=5
+        elif cluster == 'inner' :
+            j=apselect.solar(a,R=[6,7])
         else :
             #pdb.set_trace()
             #stars=list(set(ascii.read(os.environ['APOGEE_REDUX']+'/dr17/stars/clusters/'+cluster+'.txt',names=['ID'])['ID']))
             #apogee_id = np.array(np.core.defchararray.split(a['APOGEE_ID'],'.').tolist())[:,0]
             #j,j2=match.match(apogee_id.astype(str),stars)
-            j=np.array(apselect.clustmember(a,cluster,param='FPARAM',logg=[-1,6],te=[3000,6000]))
+            j=np.array(apselect.clustmember(a,cluster,param='FPARAM',logg=[-1,6],te=[3000,8000]))
         if len(j) == 0 : return None, None
         gd=apselect.select(a[j],sn=[75,100000],field=field,mh=mh,raw=True)
         if len(gd) == 0 : return None, None
@@ -97,6 +121,8 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
         try :bd=np.where(np.core.defchararray.find(a[j[gd]]['STARFLAGS'],'MULTIPLE'.encode()) >=0 )[0]
         except :bd=np.where(np.core.defchararray.find(a[j[gd]]['STARFLAGS'],'MULTIPLE') >=0 )[0]
         mult.append(j[gd[bd]])
+        #np.savetxt(cluster+'_mult.txt',a['APOGEE_ID'][j[gd[bd]]],fmt='%s')
+        #pdb.set_trace()
 
     # HR
     fig,ax=plots.multi(len(all),1,wspace=0.001)
@@ -105,9 +131,9 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
     for i,(a,n,j,m) in enumerate(zip(all,names,inds,mult)) :
         ax[i].cla()
         plots.plotc(ax[i],a['FPARAM'][j,0],a['FPARAM'][j,1],a['FPARAM'][j,3],
-                    xr=[6500,3000],yr=[6,-1],xt='Teff',yt='log g',zr=[-2,0.5],size=25,label=(0.05,0.9,n))
-        plots.plotp(ax[i],a['FPARAM'][m,0],a['FPARAM'][m,1],color='k',size=25)
-        if cluster != 'solar' :
+                    xr=[6500,3000],yr=[6,-1],xt='Teff',yt='log g',zr=[-2,0.5],zt=zt,size=size,label=(0.05,0.9,n))
+        plots.plotp(ax[i],a['FPARAM'][m,0],a['FPARAM'][m,1],color='k',size=size)
+        if cluster != 'solar' and cluster != 'inner' :
             jc=np.where(clust.name == cluster)[0][0]
             if clust.mh[jc] <-0.1 : isofile= 'zm{:02d}.dat'.format(round(np.abs(np.max([-2.1,clust.mh[jc]])*10)))
             else :isofile= 'zp{:02d}.dat'.format(round(np.abs(clust.mh[jc]*10)))
@@ -116,18 +142,26 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
             iso=isochrones.read(isofile,agerange=[age,age])
             isochrones.plot(ax[i],iso,'te','logg')
             fig.suptitle('{:s}, isochrone [M/H]: {:.1f}  age: {:.1f}'.format(cluster,clust.mh[jc], clust.age[jc]))
+            # get distance to use for absolute magnitude
+            distance=clust.dist[jc]*1000.
     if hard is not None:
         fig.savefig(hard+cluster+suffix+'_'+'hr'+'.png')
         plt.close()
+
 
     # CHI2
     fig,ax=plots.multi(1,len(all),hspace=0.001)
     ax=np.atleast_1d(ax)
     for i,(a,n,j,m) in enumerate(zip(all,names,inds,mult)) :
+        if xaxis=='Mabs' : x = a['H'] - 5*np.log10(1000./a['GAIAEDR3_PARALLAX']) + 5
+        elif xaxis=='logg' : x = a['FPARAM'][:,1]
+        else : x = a['FPARAM'][:,0]
+        if zindex >= 0 : z=a['FPARAM'][:,zindex]
+        else : z=a['FPARAM'][:,4]-a['FPARAM'][:,5]
         ax[i].cla()
-        plots.plotc(ax[i],a['FPARAM'][j,1],a['ASPCAP_CHI2'][j],a['FPARAM'][j,zindex],yt='CHI2',
-                    xr=[0,5],yr=[0,30],xt='log g',zr=zr,size=25,label=(0.05,0.9,n))
-        plots.plotp(ax[i],a['FPARAM'][m,1],a['ASPCAP_CHI2'][m],color='k',size=25)
+        plots.plotc(ax[i],x[j],a['ASPCAP_CHI2'][j],z[j],yt='CHI2',
+                    xr=xr,yr=[0,30],xt=xt,zr=zr,zt=zt,size=size,label=(0.05,0.9,n),colorbar=True)
+        plots.plotp(ax[i],x[m],a['ASPCAP_CHI2'][m],color='k',size=size)
         fig.suptitle(cluster)
     if hard is not None:
         fig.savefig(hard+cluster+suffix+'_'+'chi2'+'.png')
@@ -139,14 +173,21 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
     irms=0
     for iparam,param in zip([3,4,5,6],['M','Cpar','Npar','alpha']) :
         for i,(a,n,j,m) in enumerate(zip(all,names,inds,mult)) :
+            if zindex >= 0 : z=a['FPARAM'][:,zindex]
+            else : z=a['FPARAM'][:,4]-a['FPARAM'][:,5]
+            if xaxis=='Mabs' : x = a['H'] - 5*np.log10(1000./a['GAIAEDR3_PARALLAX']) + 5
+            elif xaxis=='logg' : x = a['FPARAM'][:,1]
+            else : x = a['FPARAM'][:,0]
             giants=np.where(a['FPARAM'][j,1] < 3.8)[0]
             dwarfs=np.where(a['FPARAM'][j,1] > 3.8)[0]
             ax[i].cla()
             ymed=np.median(a['FPARAM'][j,iparam])
             print(param,ymed)
-            plots.plotc(ax[i],a['FPARAM'][j,1],a['FPARAM'][j,iparam],a['FPARAM'][j,zindex],yt=param,
-                        xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr,size=25,label=(0.05,0.9,n))
-            plots.plotp(ax[i],a['FPARAM'][m,1],a['FPARAM'][m,iparam],color='k',size=25)
+            if param == 'M' : yr=[ymed-0.3,ymed+0.3]
+            else : yr=[-0.3,0.3]
+            plots.plotc(ax[i],x[j],a['FPARAM'][j,iparam],z[j],yt=param,
+                        xr=xr,yr=yr,xt=xt,zr=zr,zt=zt,size=size,label=(0.05,0.9,n))
+            plots.plotp(ax[i],x[m],a['FPARAM'][m,iparam],color='k',size=size)
             out=stats(a['FPARAM'][j,iparam],subsets=[giants,dwarfs])
             ax[i].text(0.99,0.8,'{:8.3f}, {:8.3f}'.format(out[0][0],out[0][1]),transform=ax[i].transAxes,ha='right')
             ax[i].text(0.99,0.7,'{:8.3f}, {:8.3f}'.format(out[1][0],out[1][1]),transform=ax[i].transAxes,ha='right',color='r')
@@ -155,7 +196,8 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
             rms[i,irms,1] = a['FPARAM'][j[giants],iparam].std()
             rms[i,irms,2] = a['FPARAM'][j[dwarfs],iparam].std()
             if i == 0 : y0 = ymed
-            ax[i].plot([0,5],[y0,y0],ls=':')
+            #ax[i].plot(xr,[y0,y0],ls=':')
+            ax[i].grid()
             fig.suptitle(cluster)
         irms+=1
         if hard is not None:
@@ -164,14 +206,19 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
 
     # parameter [C/N]
     for i,(a,n,j,m) in enumerate(zip(all,names,inds,mult)) :
+        if xaxis=='Mabs' : x = a['H'] - 5*np.log10(1000./a['GAIAEDR3_PARALLAX']) + 5
+        elif xaxis=='logg' : x = a['FPARAM'][:,1]
+        else : x = a['FPARAM'][:,0]
+        if zindex >= 0 : z=a['FPARAM'][:,zindex]
+        else : z=a['FPARAM'][:,4]-a['FPARAM'][:,5]
         giants=np.where(a['FPARAM'][j,1] < 3.8)[0]
         dwarfs=np.where(a['FPARAM'][j,1] > 3.8)[0]
         ax[i].cla()
         cn=a['FPARAM'][:,4]-a['FPARAM'][:,5]
         ymed=np.median(a['FPARAM'][j,4]-a['FPARAM'][j,5])
-        plots.plotc(ax[i],a['FPARAM'][j,1],a['FPARAM'][j,4]-a['FPARAM'][j,5],a['FPARAM'][j,zindex],yt='[Cpar/Npar]',
-                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr,size=25,label=(0.05,0.9,n))
-        plots.plotp(ax[i],a['FPARAM'][m,1],a['FPARAM'][m,4]-a['FPARAM'][m,5],color='k',size=25)
+        plots.plotc(ax[i],x[j],a['FPARAM'][j,4]-a['FPARAM'][j,5],z[j],yt='[Cpar/Npar]',
+                    xr=xr,yr=[-0.3,+0.3],xt=xt,zr=zr,zt=zt,size=size,label=(0.05,0.9,n))
+        plots.plotp(ax[i],x[m],a['FPARAM'][m,4]-a['FPARAM'][m,5],color='k',size=size)
         ax[i].text(0.9,0.8,'{:8.3f}'.format(cn[j].std()),transform=ax[i].transAxes)
         ax[i].text(0.9,0.7,'{:8.3f}'.format(cn[j[giants]].std()),transform=ax[i].transAxes,color='r')
         ax[i].text(0.9,0.6,'{:8.3f}'.format(cn[j[dwarfs]].std()),transform=ax[i].transAxes,color='g')
@@ -179,7 +226,8 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
         rms[i,irms,1] = cn[j[giants]].std()
         rms[i,irms,2] = cn[j[dwarfs]].std()
         if i == 0 : y0=ymed
-        ax[i].plot([0,5],[y0,y0],ls=':')
+        #ax[i].plot(xr,[y0,y0],ls=':')
+        ax[i].grid()
         fig.suptitle(cluster)
     irms+=1
     if hard is not None:
@@ -191,15 +239,20 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
         giants=np.where(a['FPARAM'][j,1] < 3.8)[0]
         dwarfs=np.where(a['FPARAM'][j,1] > 3.8)[0]
         ax[i].cla()
+        if xaxis=='Mabs' : x = a['H'] - 5*np.log10(1000./a['GAIAEDR3_PARALLAX']) + 5
+        elif xaxis=='logg' : x = a['FPARAM'][:,1]
+        else : x = a['FPARAM'][:,0]
+        if zindex >= 0 : z=a['FPARAM'][:,zindex]
+        else : z=a['FPARAM'][:,4]-a['FPARAM'][:,5]
         try :
             cn=a['FELEM'][:,0]-a['FELEM'][:,2]
         except:
             cn=a['FELEM'][:,0,0]-a['FELEM'][:,0,2]
 
         ymed=np.nanmedian(a['FELEM'][j,0]-a['FELEM'][j,2])
-        plots.plotc(ax[i],a['FPARAM'][j,1],cn[j],a['FPARAM'][j,zindex],yt='[C/N]',
-                xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr,size=25,label=(0.05,0.9,n))
-        plots.plotp(ax[i],a['FPARAM'][m,1],a['FELEM'][m,0]-a['FELEM'][m,2],color='k',size=25)
+        plots.plotc(ax[i],x[j],cn[j],z[j],yt='[C/N]',
+                xr=xr,yr=[-0.3,+0.3],xt=xt,zr=zr,zt=zt,size=size,label=(0.05,0.9,n))
+        plots.plotp(ax[i],x[m],a['FELEM'][m,0]-a['FELEM'][m,2],color='k',size=size)
         ax[i].text(0.9,0.8,'{:8.3f}'.format(cn[j].std()),transform=ax[i].transAxes)
         ax[i].text(0.9,0.7,'{:8.3f}'.format(cn[j[giants]].std()),transform=ax[i].transAxes,color='r')
         ax[i].text(0.9,0.6,'{:8.3f}'.format(cn[j[dwarfs]].std()),transform=ax[i].transAxes,color='g')
@@ -207,7 +260,8 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
         rms[i,irms,1] = cn[j[giants]].std()
         rms[i,irms,2] = cn[j[dwarfs]].std()
         if i == 0 : y0=ymed
-        ax[i].plot([0,5],[y0,y0],ls=':')
+        #ax[i].plot(xr,[y0,y0],ls=':')
+        ax[i].grid()
         fig.suptitle(cluster)
     irms+=1
     if hard is not None:
@@ -215,28 +269,29 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
     else : pdb.set_trace()    
 
     # elements
-    els = aspcap.elems()[0]
-    for iel,el in enumerate(els) :
+    els = aspcap.elems()
+    for iel,el in enumerate(els[0]) :
         for i,(a,n,j,m) in enumerate(zip(all,names,inds,mult)) :
+            if els[1][iel] ==1 : abun = a['FELEM'][:,iel]-a['FPARAM'][:,3]
+            else : abun=a['FELEM'][:,iel]
+            if xaxis=='Mabs' : x = a['H'] - 5*np.log10(1000./a['GAIAEDR3_PARALLAX']) + 5
+            elif xaxis=='logg' : x = a['FPARAM'][:,1]
+            else : x = a['FPARAM'][:,0]
+            if zindex >= 0 : z=a['FPARAM'][:,zindex]
+            else : z=a['FPARAM'][:,4]-a['FPARAM'][:,5]
             ax[i].cla()
-            try:
-                gd=np.where(a['FELEM'][j,iel]>-999)[0]
-                if len(gd) == 0 : continue
-                ymed=np.nanmedian(a['FELEM'][j[gd],iel])
-                if el == 'C13' :
-                  ymed=np.median(a['FELEM'][j[gd],iel]-a['FELEM'][j[gd],0])
-                  GKg=np.where(np.core.defchararray.find(a['ASPCAP_GRID'][j[gd]].astype(str),'GKg') >=0)[0]
-                  plots.plotc(ax[i],a['FPARAM'][j[gd[GKg]],1],a['FELEM'][j[gd[GKg]],iel]-a['FELEM'][j[gd[GKg]],0],a['FPARAM'][j[gd[GKg]],zindex],yt='[C13/C]',
-                      xr=[0,5],yr=[ymed-1.3,ymed+0.3],xt='log g',zr=zr,size=25,label=(0.05,0.9,n))
-                else :
-                  plots.plotc(ax[i],a['FPARAM'][j[gd],1],a['FELEM'][j[gd],iel],a['FPARAM'][j[gd],zindex],yt=el,
-                      xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr,size=25,label=(0.05,0.9,n))
-                plots.plotp(ax[i],a['FPARAM'][m,1],a['FELEM'][m,iel],color='k',size=25)
-            except:
-                gd=np.where(a['FELEM'][j,0,iel]>-999)[0]
-                ymed=np.median(a['FELEM'][j,0,iel])
-                plots.plotc(ax[i],a['FPARAM'][j[gd],1],a['FELEM'][j[gd],0,iel],a['FPARAM'][j[gd],zindex],yt=el,
-                    xr=[0,5],yr=[ymed-0.3,ymed+0.3],xt='log g',zr=zr,size=25)
+            gd=np.where(abun[j]>-999)[0]
+            if len(gd) == 0 : continue
+            ymed=np.nanmedian(abun[j[gd]])
+            #if el == 'C13' :
+            #  ymed=np.median(abun[gd]-a['FELEM'][j[gd],0])
+            #  GKg=np.where(np.core.defchararray.find(a['ASPCAP_GRID'][j[gd]].astype(str),'GKg') >=0)[0]
+            #  plots.plotc(ax[i],x[j[gd[GKg]]],abun[j[gd[GKg]],iel]-a['FELEM'][j[gd[GKg]],0],a['FPARAM'][j[gd[GKg]],zindex],yt='[C13/C]',
+            #      xr=xr,yr=[ymed-1.3,ymed+0.3],xt=xt,zr=zr,size=size,label=(0.05,0.9,n),colorbar=True)
+            #else :
+            plots.plotc(ax[i],x[j[gd]],abun[j[gd]],z[j[gd]],yt=el,
+                  xr=xr,yr=[-0.3,+0.3],xt=xt,zr=zr,zt=zt,size=size,label=(0.05,0.9,n))
+            plots.plotp(ax[i],x[m],abun[m],color='k',size=size)
             giants=np.where(a['FPARAM'][j[gd],1] < 3.8)[0]
             dwarfs=np.where(a['FPARAM'][j[gd],1] > 3.8)[0]
             out=stats(a['FELEM'][j[gd],iel],subsets=[giants,dwarfs])
@@ -247,7 +302,8 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
             rms[i,irms,1] = a['FELEM'][j[gd[giants]],iel].std()
             rms[i,irms,2] = a['FELEM'][j[gd[dwarfs]],iel].std()
             if i == 0 : y0=ymed
-            ax[i].plot([0,5],[y0,y0],ls=':')
+            #ax[i].plot(xr,[y0,y0],ls=':')
+            ax[i].grid()
             fig.suptitle(cluster)
         irms+=1
         if hard is not None:
@@ -265,7 +321,7 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
         ax[i].set_ylim(0,0.2)
         ax[i].set_ylabel('rms')
     labs=['M','Cp','Np','al','CNp','CN']
-    labs.extend(els)
+    labs.extend(els[0])
     ax[2].set_xlim(ax[0].get_xlim())
     ax[2].set_xticks(np.arange(rms.shape[1]))
     ax[2].set_xticklabels(labs)
@@ -286,12 +342,12 @@ def plotlogg(all,names,cluster='M67',hard=None,field=None,suffix='',zindex=0,mh=
 
     return inds, rms
 
-def allclust(all,names,clusters=['M67','N7789','N6819','N6791','M3','M15'],out='clust',hard='plots/') :
+def allclust(all=None,names=None,clusters=['M67','N7789','N6819','N6791','M3','M15','M35','Pleiades'],out='clust',hard='plots/',xaxis='Mabs') :
     """ Create cluster plots for multiple clusters and make summary web page
     """
     allinds=[]
     for cluster in clusters :
-        inds=plotlogg(all,names,cluster=cluster,hard=hard+'/')
+        inds=plotlogg(all,names,cluster=cluster,hard=hard+'/',xaxis=xaxis)
         allinds.append(inds)
 
     grid=[]
@@ -299,7 +355,7 @@ def allclust(all,names,clusters=['M67','N7789','N6819','N6791','M3','M15'],out='
     for param in ['hr','rms','chi2','M','Cpar','Npar','alpha','Cpar_Npar','C_N'] :
         row=[]
         for clust in clusters :
-            fig=clust+'_'+param+'.png'
+            fig=clust+'_'+xaxis+'_'+param+'.png'
             row.append(fig)
         grid.append(row)
         yt.append(param)
@@ -307,14 +363,14 @@ def allclust(all,names,clusters=['M67','N7789','N6819','N6791','M3','M15'],out='
     for el in aspcap.elems()[0] :
         row=[]
         for clust in clusters :
-            fig=clust+'_'+el+'.png'
+            fig=clust+'_'+xaxis+'_'+el+'.png'
             row.append(fig)
         grid.append(row)
         yt.append(el)
 
     xtit=[]
     for c in clusters :
-        xtit.append('<A HREF={:s}.html> {:s} </A>'.format(c,c))
+        xtit.append('<A HREF={:s}.html> {:s} </A>'.format(c+'_'+xaxis,c+'_'+xaxis))
     html.htmltab(grid,file=hard+'/'+out+'.html',xtitle=xtit,ytitle=yt)
     return allinds
 
@@ -388,20 +444,39 @@ def writecal(allstar='allStar',allcal='allCal') :
     dwarf_errfit=fits.open(allcal+'/repeat/dwarf_errfit.fits')
     giant_abuncal=Table.read(allstar+'/calib/giant_abuncal.fits')
     dwarf_abuncal=Table.read(allstar+'/calib/dwarf_abuncal.fits')
-    giant_abuncal.remove_column('errpar')
-    dwarf_abuncal.remove_column('errpar')
+
+    # add M, alpha to element uncertainty fits
     errfit=np.vstack([giant_errfit[2].data['ERRFIT'],giant_errfit[1].data['ERRFIT'][3:7:3,:]])
+    giant_abuncal.remove_column('errpar')
     giant_abuncal.add_column(Column(errfit, name='errpar'))
-    errfit=np.vstack([dwarf_errfit[2].data['ERRFIT'],dwarf_errfit[1].data['ERRFIT'][3:7:3,:]])
-    dwarf_abuncal.add_column(Column(errfit, name='errpar'))
-    shutil.copy(allstar+'/calib/all_tecal.fits','cal/')
-    shutil.copy(allstar+'/calib/giant_loggcal.fits','cal/')
-    shutil.copy(allstar+'/calib/dwarf_loggcal.fits','cal/')
     giant_abuncal.write('cal/giant_abuncal.fits',overwrite=True)
+
+    errfit=np.vstack([dwarf_errfit[2].data['ERRFIT'],dwarf_errfit[1].data['ERRFIT'][3:7:3,:]])
+    dwarf_abuncal.remove_column('errpar')
+    dwarf_abuncal.add_column(Column(errfit, name='errpar'))
     dwarf_abuncal.write('cal/dwarf_abuncal.fits',overwrite=True)
 
+    # use repeats for Teff and logg
+    all_tecal = Table.read(allstar+'/calib/all_tecal.fits')
+    all_tecal.remove_column('errpar')
+    all_tecal.add_column(Column(giant_errfit[1].data['ERRFIT'][0,:]), name='errpar')
+    all_tecal.add_column(Column(dwarf_errfit[1].data['ERRFIT'][0,:]), name='dwarf_errpar')
+    all_tecal.write('cal/all_tecal.fits',overwrite=True)
 
-from multiprocessing import Process
+    giant_loggcal = Table.read(allstar+'/calib/giant_loggcal.fits')
+    giant_loggcal.remove_column('errpar')
+    giant_loggcal.add_column(Column(giant_errfit[1].data['ERRFIT'][1,:]), name='errpar')
+    giant_loggcal.write('cal/giant_loggcal.fits',overwrite=True)
+
+    dwarf_loggcal = Table.read(allstar+'/calib/giant_loggcal.fits')
+    dwarf_loggcal.remove_column('errpar')
+    dwarf_loggcal.add_column(Column(giant_errfit[1].data['ERRFIT'][1,:]), name='errpar')
+    dwarf_loggcal.write('cal/dwarf_loggcal.fits',overwrite=True)
+
+    #shutil.copy(allstar+'/calib/all_tecal.fits','cal/')
+    #shutil.copy(allstar+'/calib/giant_loggcal.fits','cal/')
+    #shutil.copy(allstar+'/calib/dwarf_loggcal.fits','cal/')
+
 
 def summary(out='allCal.fits',prefix='allcal/',calvers='dr16',hr=True,repeat=True,drcomp=None,
             teffcal=True,loggcal=True,elemcal=True, calib=True, doqa=True, calibrate=True,
@@ -432,17 +507,25 @@ def summary(out='allCal.fits',prefix='allcal/',calvers='dr16',hr=True,repeat=Tru
 
     # HR diagrams
     if hr :
-        start = time.time()
-        print('start: ',start)
         print('making HR diagrams....')
-        qa.hr(all,hard=prefix+'hr/hr.png',xr=[8000,3000],grid=True,iso=[9.0,10.0],alpha=1.0,snrbd=5,target=prefix+'hr/hr',size=1)
+        kw={'a' : all,'hard' : prefix+'hr/hr.png','xr' : [8000,3000],'grid' : True,
+            'iso' : [9.0,10.0],'alpha' : 1.0,'snrbd' : 5,'target' : prefix+'hr/hr','size' : 1}
+        hr1=Process(target=qa.hr,kwargs=kw)
+        hr1.start()
         print('making HR diagrams....')
-        qa.hr(all,hard=prefix+'hr/hrhot.png',xr=[20000,3000],iso=[8.0,10.0],snrbd=30,size=1)
+        kw={'a' :all, 'hard' : prefix+'hr/hrhot.png','xr' : [20000,3000],'iso' : [8.0,10.0],'snrbd' : 30,'size' : 1}
+        hr2=Process(target=qa.hr,kwargs=kw)
+        hr2.start()
         print('making HR diagrams....')
-        qa.multihr(all,hard=prefix+'hr/multihr.png',size=1)
+        kw={'a' : all,'hard' : prefix+'hr/multihr.png','size' : 1}
+        hr3=Process(target=qa.multihr,kwargs=kw)
+        hr3.start()
         print('making HR diagrams....')
-        qa.hr(all,hard=prefix+'hr/hr_cal.png',xr=[8000,3000],grid=True,iso=[9.0,10.0],alpha=1.0,snrbd=5,param='PARAM',target=prefix+'hr/hr_cal',size=1)
-        print('elapsed: ',time.time()-start)
+        kw = {'a' : all,'hard' : prefix+'hr/hr_cal.png','xr' : [8000,3000],'grid' : True,
+              'iso' : [9.0,10.0],'alpha' : 1.0,'snrbd' : 5,'param' : 'PARAM','target' : prefix+'hr/hr_cal','size' : 1}
+        hr4=Process(target=qa.hr,kwargs=kw)
+        hr4.start()
+
     grid=[[prefix+'hr/hr.png',prefix+'hr/multihr.png',prefix+'hr/hrhot.png'],
           [prefix+'hr/hr_main.png',prefix+'hr/hr_targ.png',''],
           [prefix+'hr/hr_cal_main.png',prefix+'hr/hr_cal.png','']] 
@@ -479,6 +562,11 @@ def summary(out='allCal.fits',prefix='allcal/',calvers='dr16',hr=True,repeat=Tru
 
     f.write('<p> Calibration relations<ul>\n')
     f.write('<li> <a href='+prefix+'calib/'+out.replace('.fits','.html')+'> Calibration plots</a>\n')
+    f.write('<ul>')
+    f.write('<li> <a href='+prefix+'calib/logg.html> log g </a>\n')
+    f.write('<li> <a href='+prefix+'calib/teff.html> Teff </a>\n')
+    f.write('<li> <a href='+prefix+'calib/elem.html> Abundances </a>\n')
+    f.write('</ul>')
     f.write('<li> <a href='+prefix+'calibrated/'+out.replace('.fits','.html')+'> Calibration check (calibration plots from calibrated values) </a>\n')
     f.write('<li> <a href='+prefix+'qa/calib.html> Calibrated-uncalibrated plots</a>\n')
     f.write('</ul>\n')
@@ -486,7 +574,7 @@ def summary(out='allCal.fits',prefix='allcal/',calvers='dr16',hr=True,repeat=Tru
     f.write('<li> <a href='+prefix+'optical/optical.html> Comparison with optical abundances</a>\n')
     f.write('<li> <a href='+prefix+'qa/apolco.html> APO-LCO comparison</a>\n')
     f.write('<li> <a href='+prefix+'clust/clust.html> Cluster abundances</a>\n')
-    f.write('<li> <a href='+prefix+'qa/elem_solar_logg.html> Solar neighborhood abundances at solar metallicity</a>\n')
+    f.write('<li> <a href='+prefix+'clust/solar.html> Solar neighborhood abundances at solar metallicity</a>\n')
     f.write('</ul>\n')
     f.write('<p> Chemistry plots<ul>\n')
     f.write('<li> <a href='+prefix+'qa/elem_chem.html> Chemistry plots with uncalibrated abundances</a>\n')
@@ -511,57 +599,114 @@ def summary(out='allCal.fits',prefix='allcal/',calvers='dr16',hr=True,repeat=Tru
 
     # optical comparison index
     grid=[]
-    grid.append(['r12_uncal_paramcomp.png','r12_cal_paramcomp.png'])
-    grid.append(['dr14_uncal_paramcomp.png','dr14_cal_paramcomp.png'])
-    yt=['DR16 Parameters','DR14 parameters']
+    #grid.append(['r12_uncal_paramcomp.png','r12_cal_paramcomp.png'])
+    #grid.append(['dr14_uncal_paramcomp.png','dr14_cal_paramcomp.png'])
+    grid.append(['paramcomp_ts20_uncal.png',''])
+    #yt=['DR16 Parameters','DR14 parameters']
+    yt=['TS20 Parameters','']
     for el in hdulist[3].data['ELEM_SYMBOL'][0] :
-        grid.append(['r12_uncal_abundcomp_{:s}.png'.format(el),'r12_cal_abundcomp_{:s}.png'.format(el)])
+        #grid.append(['r12_uncal_abundcomp_{:s}.png'.format(el),'r12_cal_abundcomp_{:s}.png'.format(el)])
+        grid.append(['{:s}_abundcomp_ts20_uncal.png'.format(el),''])
         yt.append(el)
+
     html.htmltab(grid,file=prefix+'optical/optical.html',ytitle=yt,xtitle=['uncalibrated','calibrated'])
   
     # do the calibration and calibration and QA plots
     if calibrate :
-        allcal=docal(out,clobber=False,hr=False,teffcal=teffcal,loggcal=loggcal,vmicro=False,vmacro=False,elemcal=elemcal,
-              out=prefix+'calib/',stp=False,calvers=calvers,calib=False) 
+        print('running calibrate....')
+        kw={'infile' : out,'clobber' : False,'hr' : False,'teffcal' : teffcal,'loggcal' : loggcal,'vmicro' : False,'vmacro' : False,
+            'elemcal' : elemcal, 'out' : prefix+'calib/','stp' : False,'calvers' : calvers,'calib' : False} 
+        docal1=Process(target=docal,kwargs=kw)
+        docal1.start()
+
     if repeat :
+        start = time.time()
+        print('running repeat....')
         # get scatter from repeat observations
-        giant_param_errfit,giant_elem_errfit=err.repeat(hdulist,out=prefix+'repeat/giant_',elem=elemcal,logg=[-1,3.8])
-        dwarf_param_errfit,dwarf_elem_errfit=err.repeat(hdulist,out=prefix+'repeat/dwarf_',elem=elemcal,logg=[3.8,5.5])
+        kw={'hdulist' : hdulist, 'out' : prefix+'repeat/giant_', 'elem' : elemcal,'logg' : [-1,3.8]}
+        err1=Process(target=err.repeat,kwargs=kw)
+        err1.start()
+        kw={'hdulist' : hdulist, 'out' : prefix+'repeat/dwarf_', 'elem' : elemcal,'logg' : [3.8,5.5]}
+        err2=Process(target=err.repeat,kwargs=kw)
+        err2.start()
+        print('repeat elapsed: ',time.time()-start)
 
     # now get plots for calibrated data
     if calib : 
-        docal(out,clobber=False,hr=False,teffcal=teffcal,loggcal=loggcal,vmicro=False,vmacro=False,elemcal=elemcal,
-              out=prefix+'calibrated/',stp=False,calvers=calvers,calib=True) 
+        print('running docal....')
+        kw={'infile' : out,'clobber' : False,'hr' : False,'teffcal' : teffcal,'loggcal' : loggcal,'vmicro' : False,'vmacro' : False,
+            'elemcal' : elemcal, 'out' : prefix+'calib/','stp' : False,'calvers' : calvers,'calib' : True} 
+        docal2=Process(target=docal,kwargs=kw)
+        docal2.start()
     hdulist=fits.open(out)
     if drcomp is not None:
-        qa.drcomp(hdulist,dr=drcomp,out=prefix+'qa/',elem=elemcal)
+        kw={'hdulist' : hdulist,'dr' : drcomp,'out' : prefix+'qa/','elem' : elemcal}
+        qa0=Process(target=qa.drcomp,kwargs=kw)
+        qa0.start()
     if doqa : 
         start = time.time()
-        qa.chi2(hdulist[1].data,out=prefix+'qa/')
-        print('elapsed: ',time.time()-start)
-        qa.apolco(hdulist,out=prefix+'qa/')
-        print('elapsed: ',time.time()-start)
-        qa.flags(hdulist,out=prefix+'qa/')
-        print('elapsed: ',time.time()-start)
+        print('running qa....')
+        kw= {'allstar' : hdulist[1].data,'out' : prefix+'qa/'}
+        qa1=Process(target=qa.chi2,kwargs=kw)
+        qa1.start()
+        kw = {'hdulist' : hdulist,'out' : prefix+'qa/'}
+        qa2=Process(target=qa.apolco,kwargs=kw)
+        qa2.start()
+        kw = {'hdulist' : hdulist,'out' : prefix+'qa/'}
+        qa3=Process(target=qa.flags,kwargs=kw)
+        qa3.start()
         if doelem :
-            allclust([hdulist[1].data],[''],hard=prefix+'clust/')
-            print('start: ',start)
-            qa.plotelems(hdulist,out=prefix+'qa/')
-            print('elapsed: ',time.time()-start)
+            for xaxis in ['Mabs','logg','Teff'] :
+                kw = {'all' : [hdulist[1].data],'names' : [''],'hard' : prefix+'clust/','out' : 'solarz'+'_'+xaxis,
+                      'clusters' : ['solar','inner'],'xaxis' : xaxis}  
+                t=Process(target=allclust,kwargs=kw)
+                t.start()
+                kw = { 'all' : [hdulist[1].data],'names' : [''],'hard' : prefix+'clust/','xaxis' : xaxis}
+                t=Process(target=allclust,kwargs=kw)
+                t.start()
+            for param in ['hr','rms','chi2','M','Cpar','Npar','alpha','Cpar_Npar','C_N'] :
+                row=[]
+                for xaxis in ['Mabs','logg','Teff'] :
+                    fig='solar'+'_'+xaxis+'_'+param+'.png'
+                    row.append(fig)
+                yt=append(param) 
+                grid.append(row)
+            for elem in aspcap.elems()[0] :
+                row=[]
+                for xaxis in ['Mabs','logg','Teff'] :
+                    fig='solar'+'_'+xaxis+'_'+el+'.png'
+                    row.append(fig)
+                yt=append(el) 
+                grid.append(row)
+            html.htmltab(grid,file=prefix+'clust/solar.html',ytitle=yt)
+
+
+            kw= {'hdulist' : hdulist,'out' : prefix+'qa/'}
+            qa4=Process(target=qa.plotelems,kwargs=kw)
+            qa4.start()
             qa.plotelem_errs(hdulist,out=prefix+'qa/')
-            print('elapsed: ',time.time()-start)
-            qa.plotelems(hdulist,calib=True,out=prefix+'qa_calibrated/')
-            print('elapsed: ',time.time()-start)
-            qa.plotelems(hdulist,out=prefix+'qa_calibrated/all_',main=False)
-            print('elapsed: ',time.time()-start)
-            qa.plotelems(hdulist,out=prefix+'qa_calibrated/named_',named=True)
-            print('elapsed: ',time.time()-start)
-            qa.plotcn(hdulist,out=prefix+'qa/')
-            print('elapsed: ',time.time()-start)
-            qa.calib(hdulist,out=prefix+'qa/')
-            print('elapsed: ',time.time()-start)
+            kw= {'hdulist' : hdulist,'out' : prefix+'qa/'}
+            qa5=Process(target=qa.plotelem_errs,kwargs=kw)
+            qa5.start()
+            kw= {'hdulist' : hdulist,'calib' : True, 'out' : prefix+'qa_calibrated/'}
+            qa5=Process(target=qa.plotelems,kwargs=kw)
+            qa5.start()
+            kw= {'hdulist' : hdulist,'out' : prefix+'qa_calibrated/all_','main' : False}
+            qa4=Process(target=qa.plotelems,kwargs=kw)
+            qa4.start()
+            kw= {'hdulist' : hdulist,'out' : prefix+'qa_calibrated/named_','named' : True}
+            qa4=Process(target=qa.plotelems,kwargs=kw)
+            qa4.start()
+            kw= {'hdulist' : hdulist,'out' : prefix+'qa/' }
+            qa4=Process(target=qa.plotcn,kwargs=kw)
+            qa4.start()
+            kw= {'hdulist' : hdulist,'out' : prefix+'qa/' }
+            qa4=Process(target=qa.calib,kwargs=kw)
+            qa4.start()
             qa.m67(hdulist,out=prefix+'qa/')
-            print('elapsed: ',time.time()-start)
+            kw= {'hdulist' : hdulist,'out' : prefix+'qa/' }
+            qa4=Process(target=qa.m67,kwargs=kw)
+            qa4.start()
 
     return all
 
@@ -587,22 +732,6 @@ def concat(files,hdu=1) :
             all=a
         print(len(all), len(a))
     return all
-
-def solarsample(indata,data=None,raw=True,gaia='EDR3', logg=[-1,5]) :
-    """ selects sample of solar neighborhood low log g stars, possibly from previous data set
-    """
-    if data is not None :
-        i1,i2 = match.match(indata['APOGEE_ID'],data['APOGEE_ID'])
-    else :
-        i1 = np.arange(len(indata))
-        i2 = np.arange(len(indata))
-        data = indata
-    solar=np.where((data['GAIA'+gaia+'_PARALLAX_ERROR'][i2]/abs(data['GAIA'+gaia+'_PARALLAX'][i2]) < 0.1) )[0]
-    distance = 1000./data['GAIA'+gaia+'_PARALLAX'][solar]
-    x,y,z,r=lbd2xyz(data['GLON'][solar],data['GLAT'][solar],distance/1000.)
-    gd = np.where((abs(z) < 0.5) & (r>8) & (r<9) & (data['FPARAM'][i2[solar],1]>logg[0])&(data['FPARAM'][i2[solar],1]<logg[1]) )[0]
-    solar=solar[gd]
-    return i1[solar]
 
 def hrsample(indata,hrdata,maxbin=50,raw=True) :
     """ selects stars covering HR diagram as best as possible from input sample
@@ -659,16 +788,11 @@ def calsample(indata=None,root='stars.calsample',file='clust.html',clusters=Fals
         all.extend(jc)
    
     if solarneigh :
-        #solar=np.where((data['GAIA_PARALLAX_ERROR']/abs(data['GAIA_PARALLAX']) < 0.1) )[0]
-        #distance = 1000./data['GAIA_PARALLAX'][solar]
-        #x,y,z,r=lbd2xyz(data['GLON'][solar],data['GLAT'][solar],distance/1000.)
-        #gd = np.where((abs(z) < 0.5) & (r>8) & (r<9) & (data['RV_TEFF'][solar]<5500) & (data['H'][solar] < 9) )[0]
-        #solar=solar[gd]
-        solar = solarsample(data)
+        solar = apselect.solar(data)
         print('Number of solar neighborhood stars: ',len(solar))
 
         if solardata is not None :
-            i1 = solarsample(data,solardata)
+            i1 = apselect.solar(data,solardata)
             solar=list(solar)
             solar.extend(i1)
             solar=list(set(solar))
@@ -878,7 +1002,7 @@ def symlink(data,out,idir,load=None) :
         infile='{:s}/calibration/{:s}'.format(tostr(data['TELESCOPE']),tostr(data['FILE']))
     os.symlink('../../'+infile,outfile)
 
-def docal(infile,clobber=False,hr=True,teffcal=True,loggcal=True,vmicro=True,vmacro=True,elemcal=True,out=None,stp=False,calvers='dr14',calib=False,ebvmax=0.02) :
+def docal(infile=None,clobber=False,hr=True,teffcal=True,loggcal=True,vmicro=True,vmacro=True,elemcal=True,out=None,stp=False,calvers='dr14',calib=False,ebvmax=0.02) :
     '''
     Derives all calibration relations and creates plots of them, as requested
     '''
@@ -888,6 +1012,7 @@ def docal(infile,clobber=False,hr=True,teffcal=True,loggcal=True,vmicro=True,vma
     except: pass
     print(os.getcwd())
 
+    print('infile: ', infile)
     c=fits.open(infile)
 
     # if we don't have GLON/GLAT, add it
@@ -918,9 +1043,9 @@ def docal(infile,clobber=False,hr=True,teffcal=True,loggcal=True,vmicro=True,vma
         figs=[]
         ytitle=[]
         print('Teff calibration...')
-        allcal['teffcal'] = teff.ghb(c[1].data,ebvmax=ebvmax,glatmin=10,out=out+'tecal',yr=[-750,750],trange=[4500,7000],loggrange=[-1,6],calib=calib)
-        allcal['giant_teffcal'] = teff.ghb(c[1].data,ebvmax=ebvmax,glatmin=10,out=out+'giant_tecal',yr=[-750,750],loggrange=[-1,3.8],calib=calib)
-        allcal['dwarf_teffcal'] = teff.ghb(c[1].data,ebvmax=ebvmax,glatmin=10,trange=[4500,7000],out=out+'dwarf_tecal',yr=[-750,750],loggrange=[3.8,6],calib=calib)
+        allcal['teffcal'] = teff.ghb(c[1].data,ebvmax=ebvmax,glatmin=10,out=out+'tecal',yr=[-750,750],trange=[4500,7000],loggrange=[-1,6],calib=calib,doerr=False)
+        allcal['giant_teffcal'] = teff.ghb(c[1].data,ebvmax=ebvmax,glatmin=10,out=out+'giant_tecal',yr=[-750,750],loggrange=[-1,3.8],calib=calib,doerr=False)
+        allcal['dwarf_teffcal'] = teff.ghb(c[1].data,ebvmax=ebvmax,glatmin=10,trange=[4500,7000],out=out+'dwarf_tecal',yr=[-750,750],loggrange=[3.8,6],calib=calib,doerr=False)
         if out is not None :
             struct.wrfits(struct.dict2struct(allcal['teffcal']),out+'all_tecal.fits')
             struct.wrfits(struct.dict2struct(allcal['giant_teffcal']),out+'giant_tecal.fits')
@@ -940,8 +1065,8 @@ def docal(infile,clobber=False,hr=True,teffcal=True,loggcal=True,vmicro=True,vma
         ytitle=[]
         print('log g calibration...')
         allcal['rgbrcsep' ] = logg.rcrgb(c[1].data,out=out+'rcrgbsep')
-        allcal['giant_loggcal'] = logg.apokasc(c[1].data,plotcal=False,out=out+'rcrgb_loggcal',calib=calib,loggmin=1.5)
-        allcal['dwarf_loggcal'] = logg.dwarf(c[1].data,out=out+'logg',calib=calib)
+        allcal['giant_loggcal'] = logg.apokasc(c[1].data,plotcal=False,out=out+'rcrgb_loggcal',calib=calib,loggmin=1.5,doerr=False)
+        allcal['dwarf_loggcal'] = logg.dwarf(c[1].data,out=out+'logg',calib=calib,doerr=False)
         logg.nn_train(c[1].data,out=out+'nn_')
         logg.clusters(c[1].data,out=out+'cluster_logg',calib=calib)
         if out is not None :
@@ -963,21 +1088,25 @@ def docal(infile,clobber=False,hr=True,teffcal=True,loggcal=True,vmicro=True,vma
         ytitle.append('nn training')
         figs.append(['nn_nn_logg_scatter.png','nn_nn_logg_cal.png'])
         ytitle.append('nn cal')
+
         # plots of corrections
         logg.cal(c[1].data,caldir=out)
         logg.plot_correction(c[1].data,out=out)
         logg.clusters(c[1].data,out=out+'cluster_logg_calib',calib=True)
-        junk = logg.apokasc(c[1].data,plotcal=False,out=out+'rcrgb_loggcal_calib',calib=True,loggmin=1.5)
+        junk = logg.apokasc(c[1].data,plotcal=False,out=out+'rcrgb_loggcal_calib',calib=True,loggmin=1.5,doerr=False)
 
         logg.nn_cal(c[1].data,caldir=out,modelfile='nn_logg_nn_model.h5')
-        junk = logg.apokasc(c[1].data,plotcal=False,out=out+'nn_rcrgb_loggcal_calib',calib=True,loggmin=1.5)
         logg.plot_correction(c[1].data,out=out+'nn_')
         logg.clusters(c[1].data,out=out+'nn_cluster_logg_calib',calib=True)
+        junk = logg.apokasc(c[1].data,plotcal=False,out=out+'nn_rcrgb_loggcal_calib',calib=True,loggmin=1.5,doerr=False)
+
         figs.append(['logg_correction_hr.png','nn_logg_correction_hr.png'])
         ytitle.append('corrections')
         figs.append(['rcrgb_loggcal_calib_b.png','nn_rcrgb_loggcal_calib_b.png'])
         ytitle.append('calibrated astroseismic')
         figs.append(['cluster_logg_calib.png','nn_cluster_logg_calib.png'])
+        ytitle.append('calibrated physical')
+        figs.append(['cluster_logg_calib_indiv.png','nn_cluster_logg_calib_indiv.png'])
         ytitle.append('calibrated physical')
 
         html.htmltab(figs,ytitle=ytitle,file=out+'/logg.html')
@@ -1012,12 +1141,23 @@ def docal(infile,clobber=False,hr=True,teffcal=True,loggcal=True,vmicro=True,vma
         figs=[]
         ytitle=[]
         print('abundances ...')
-        elems=np.append(c[3].data['ELEM_SYMBOL'][0],['M','alpha'])
-        allcal['giant_abuncal']=elem.cal(c,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'giants_',calvers=calvers,errpar=True,calib=calib)
-        allcal['dwarf_abuncal']=elem.cal(c,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'dwarfs_',dwarfs=True,calvers=calvers,calib=calib)
+        elems=c[3].data['ELEM_SYMBOL'][0]
+        solar=apselect.solar(c[1].data,logg=[-1,3.8])
+        allcal['giant_solarneigh_zero']=elem.zerocal(c,solar,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,calvers=calvers,calib=calib,col='giant_solarneigh_zero',extfit=4)
+        solar=apselect.solar(c[1].data,logg=[4,6])
+        allcal['dwarf_solarneigh_zero']=elem.zerocal(c,solar,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,calvers=calvers,calib=calib,col='dwarf_solarneigh_zero',extfit=4)
+        j=np.where(c[1].data['APOGEE_ID'] == 'VESTA')[0]
+        allcal['solar_zero']=elem.zerocal(c,j,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,calvers=calvers,calib=calib,col='solar_zero',extfit=2)
         if out is not None :
-            struct.wrfits(allcal['giant_abuncal'],out+'giant_abuncal.fits')
-            struct.wrfits(allcal['dwarf_abuncal'],out+'dwarf_abuncal.fits')
+            Table(allcal['giant_solarneigh_zero']).write(out+'giant_solarneigh_zero.fits')
+            Table(allcal['dwarf_solarneigh_zero']).write(out+'dwarf_solarneigh_zero.fits')
+            Table(allcal['solar_zero']).write(out+'solar_zero.fits')
+        #elems=np.append(c[3].data['ELEM_SYMBOL'][0],['M','alpha'])
+        #allcal['giant_abuncal']=elem.docal(c,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'giants_',calvers=calvers,errpar=True,calib=calib)
+        #allcal['dwarf_abuncal']=elem.docal(c,c[3].data['ELEM_SYMBOL'][0],c[3].data['ELEMTOH'][0],elems,hard=out+'dwarfs_',dwarfs=True,calvers=calvers,calib=calib)
+        #if out is not None :
+        #    struct.wrfits(allcal['giant_abuncal'],out+'giant_abuncal.fits')
+        #    struct.wrfits(allcal['dwarf_abuncal'],out+'dwarf_abuncal.fits')
         if stp : pdb.set_trace()
         figs.append(['giants_all.png','dwarfs_all.png'])
         ytitle.append('clusters')
@@ -1135,7 +1275,7 @@ def errplots(tags=['ALPHA_M','O_FE','MG_FE','NI_FE','M_H'],cannon=None) :
                 j=np.where(a3['ELEM_SYMBOL'][0] == el)[0]
                 a['X_M'][:,j[0]] = cannon[tag]
         # scatter in clusters
-        elem.cal(a,a3['ELEM_SYMBOL'][0],a3['ELEMTOH'][0],[el,el],hard='cal/'+el+'_clust',errpar=True,calib=True)
+        elem.docal(a,a3['ELEM_SYMBOL'][0],a3['ELEMTOH'][0],[el,el],hard='cal/'+el+'_clust',errpar=True,calib=True)
 
 def allplots() :
     global apl
@@ -1149,106 +1289,6 @@ def allplots() :
     os.chdir('../dr12')
     apl=apload.apLoad(dr='dr12')
     errplots(tags=['PARAM_ALPHA_M','O_H','MG_H','NI_H','PARAM_M_H'])
-
-
-#def logg(a,caldir='cal/') :
-#    """ apply log g calibration
-#    """
-#    #a=fits.open('allStar-r12-l33.fits')[1].data
-#
-#    aspcapmask=bitmask.AspcapBitMask()
-#    parammask=bitmask.ParamBitMask()
-#    starmask=bitmask.StarBitMask()
-#    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
-#
-#    cal=fits.open(caldir+'/giant_loggcal.fits')[1].data
-#    rgbsep=cal['rgbsep'][0]
-#    cnsep=cal['cnsep'][0]
-#    rclim=cal['rclim'][0]
-#    rcfit2=cal['rcfit2'][0]
-#    rgbfit2=cal['rgbfit2'][0]
-#    calloggmin=cal['calloggmin']
-#    calloggmax=cal['calloggmax']
-#    calteffmin=cal['calteffmin']
-#    calteffmax=cal['calteffmax']
-#
-#    # for stars that aren't bad, get cn and dt
-#    cn=a['FPARAM'][gd,4]-a['FPARAM'][gd,5]
-#    dt=a['FPARAM'][gd,0] - (rgbsep[0] + rgbsep[1]*(a['FPARAM'][gd,1]-2.5) +rgbsep[2]*a['FPARAM'][gd,3])
-##    snr=np.clip(a['SNREV'][gd],0,200.)
-#
-#    new=np.zeros(len(a))-9999.99
-#
-#    # select RC
-#    rc=np.where((a['FPARAM'][gd,1]<rclim[1])&(a['FPARAM'][gd,1]>rclim[0])&
-#                (cn>cnsep[0]+cnsep[1]*a['FPARAM'][gd,3] + cnsep[2]*dt)&
-#                (a['FPARAM'][gd,1]<calloggmax)&(a['FPARAM'][gd,1]>calloggmin) &
-#                (a['FPARAM'][gd,0]<calteffmax)&(a['FPARAM'][gd,0]>calteffmin))[0]
-#    rccorr=rcfit2[0] + rcfit2[1]*a['FPARAM'][gd,1] + rcfit2[2]*a['FPARAM'][gd,1]**2
-#    new[gd[rc]]=a['FPARAM'][gd[rc],1]-rccorr[rc]
-#    a['PARAM'][gd[rc],1]=a['FPARAM'][gd[rc],1]-rccorr[rc]
-#    a['PARAM_COV'][gd[rc],1,1]=err.elemerr(cal['rcerrpar'][0],a['FPARAM'][gd[rc],0]-4500,snr[rc]-100,a['FPARAM'][gd[rc],3])**2
-#    #rcidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RC')) >0)[0]
-#
-#    # select RGB
-#    rgb=np.where(((a['FPARAM'][gd,1]>rclim[1])|(a['FPARAM'][gd,1]<rclim[0])|
-#                (cn<cnsep[0]+cnsep[1]*a['FPARAM'][gd,3] + cnsep[2]*dt)) &
-#                (a['FPARAM'][gd,1]<calloggmax)&(a['FPARAM'][gd,1]>calloggmin) &
-#                (a['FPARAM'][gd,0]<calteffmax)&(a['FPARAM'][gd,0]>calteffmin))[0]
-#    #clip logg at loggmin and loggmax
-#    logg=np.clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
-#    mh=np.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
-#    # get correction
-#    rgbcorr=(rgbfit2[0] + rgbfit2[1]*logg + rgbfit2[2]*logg**2 +
-#                       rgbfit2[3]*logg**3 + rgbfit2[4]*mh )
-#    new[gd[rgb]]=a['FPARAM'][gd[rgb],1]-rgbcorr[rgb]
-#    a['PARAM'][gd[rgb],1]=a['FPARAM'][gd[rgb],1]-rgbcorr[rgb]
-#    a['PARAM_COV'][gd[rgb],1,1]=err.elemerr(cal['rgberrpar'][0],a['FPARAM'][gd[rgb],0]-4500,snr[rgb]-100,a['FPARAM'][gd[rgb],3])**2
-#    #rgbidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_RGB')) >0)[0]
-#
-#    cal=fits.open(caldir+'/dwarf_loggcal.fits')[1].data
-#    teff=np.clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
-#    logg=np.clip(a['FPARAM'][gd,1],cal['loggmin'],cal['loggmax'])
-#    mh=np.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
-#    msfit=cal['msfit'][0]
-#    mscorr=msfit[0]+msfit[1]*teff+msfit[2]*mh
-#    ms=np.where(a['FPARAM'][gd,1] > cal['calloggmin'])[0]
-#    new[gd[ms]]=a['FPARAM'][gd[ms],1]-mscorr[ms]
-#    a['PARAM'][gd[ms],1]=a['FPARAM'][gd[ms],1]-mscorr[ms]
-#    a['PARAM_COV'][gd[ms],1,1]=err.elemerr(cal['errpar'][0],a['FPARAM'][gd[ms],0]-4500,snr[ms]-100,a['FPARAM'][gd[ms],3])**2
-#    #msidl=np.where( (a['PARAMFLAG'][gd,1]&parammask.getval('LOGG_CAL_MS')) >0)[0]
-#
-#    trans=np.where((a['FPARAM'][gd,1] < 4) & (a['FPARAM'][gd,1] > 3.5) &
-#                (a['FPARAM'][gd,0] < calteffmax) )[0]
-#    ms_weight=(a['FPARAM'][gd[trans],1]-3.5)/0.5
-#    new[gd[trans]] = a['FPARAM'][gd[trans],1]-(mscorr[trans]*ms_weight+rgbcorr[trans]*(1-ms_weight))
-#    a['PARAM'][gd[trans],1] = a['FPARAM'][gd[trans],1]-(mscorr[trans]*ms_weight+rgbcorr[trans]*(1-ms_weight))
-#
-#    diff =a['PARAM'][:,1]-new
-#    bd = np.where (np.isclose(diff,0.,1.e-6,0.01) == False)[0]
-#    return new
-#
-#def teff(a,caldir='cal/'):
-#    """ Apply Teff calibration
-#    """
-#    aspcapmask=bitmask.AspcapBitMask()
-#    parammask=bitmask.ParamBitMask()
-#    starmask=bitmask.StarBitMask()
-#    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
-#
-#    cal=fits.open(caldir+'/all_tecal.fits')[1].data[0]
-#    calteffmin=cal['caltemin']
-#    calteffmax=cal['caltemax']
-#    teff=np.clip(a['FPARAM'][gd,0],cal['temin'],cal['temax'])
-#    mh=np.clip(a['FPARAM'][gd,3],cal['mhmin'],cal['mhmax'])
-#    snr=np.clip(a['SNREV'][gd],0,200.)
-#
-#    new=np.zeros(len(a))-9999.99
-#    ok =np.where((a['FPARAM'][gd,0] >= calteffmin) & (a['FPARAM'][gd,0] <= calteffmax) )[0]
-#    a['PARAM'][gd[ok],0] = a['FPARAM'][gd[ok],0] - (cal['par2d'][0]+cal['par2d'][1]*mh[ok]+cal['par2d'][2]*teff[ok])
-#    a['PARAM_COV'][gd[ok],0,0] = err.elemerr(cal['errpar'],a['FPARAM'][gd[ok],0]-4500.,snr[ok]-100.,a['FPARAM'][gd[ok],3])**2
-#    new[gd[ok]] = a['FPARAM'][gd[ok],0] - (cal['par2d'][0]+cal['par2d'][1]*mh[ok]+cal['par2d'][2]*teff[ok])
-#    return new
 
 
 def elemcal(a,caldir='cal/') :
@@ -1271,9 +1311,7 @@ def elemcal(a,caldir='cal/') :
         a['PARAMFLAG'][gd,i] |= parammask.getval('CALRANGE_BAD')
 
     a['X_H'][:,:] = np.nan
-    a['X_H_ERR'][:,:] = np.nan
     a['X_M'][:,:] = np.nan
-    a['X_M_ERR'][:,:] = np.nan
 
     # [N/M] and [C/M] parameters
     for i in [4,5] : 
@@ -1288,11 +1326,15 @@ def elemcal(a,caldir='cal/') :
     if caldir == 'none' :
         a['PARAM'][gd,3] = a['FPARAM'][gd,3]
         a['PARAM'][gd,6] = a['FPARAM'][gd,6]
+        a['PARAMFLAG'][gd,3] &= ~parammask.getval('CALRANGE_BAD')
+        a['PARAMFLAG'][gd,6] &= ~parammask.getval('CALRANGE_BAD')
         for iel,el in enumerate(aspcap.elems()[0]) :
             if elemtoh[iel] :
                 a['X_M'][gd,iel] = a['FELEM'][gd,iel]-a['FPARAM'][gd,3]
+                a['X_H'][gd,iel] = a['FELEM'][gd,iel]
             else :
                 a['X_M'][gd,iel] = a['FELEM'][gd,iel]
+                a['X_H'][gd,iel] = a['FELEM'][gd,iel]+a['FPARAM'][gd,3]
         return
  
     for group in ['dwarf','giant'] :
@@ -1333,13 +1375,15 @@ def elemcal(a,caldir='cal/') :
 
             if el == 'M' :
                 a['PARAM'][ok[gdel],3] = a['FPARAM'][ok[gdel],3]-fit
-                a['PARAM_COV'][ok[gdel],3,3] = err.elemerr(cal['errpar'][iel],
-                    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)**2
+                # populate uncertainties with err.apply()
+                #a['PARAM_COV'][ok[gdel],3,3] = err.elemerr(cal['errpar'][iel],
+                #    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)**2
                 a['PARAMFLAG'][ok[gdel],3] &= ~parammask.getval('CALRANGE_BAD')
             elif el == 'alpha' :
                 a['PARAM'][ok[gdel],6] = a['FPARAM'][ok[gdel],6]-fit
-                a['PARAM_COV'][ok[gdel],6,6] = err.elemerr(cal['errpar'][iel],
-                    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)**2
+                # populate uncertainties with err.apply()
+                #a['PARAM_COV'][ok[gdel],6,6] = err.elemerr(cal['errpar'][iel],
+                #    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)**2
                 a['PARAMFLAG'][ok[gdel],6] &= ~parammask.getval('CALRANGE_BAD')
             else :
                 jel = np.where(aspcap.elems()[0] == el)[0]
@@ -1350,31 +1394,20 @@ def elemcal(a,caldir='cal/') :
                     a['X_M'][ok[gdel],iel] = a['FELEM'][ok[gdel],iel]-fit
                 # [X/H] calculated with all calibrated parameters
                 a['X_H'][ok[gdel],iel] = a['X_M'][ok[gdel],iel]+a['PARAM'][ok[gdel],3]
-                a['X_H_ERR'][ok[gdel],iel] = err.elemerr(cal['errpar'][iel],
-                    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)
-                a['X_M_ERR'][ok[gdel],iel] = err.elemerr(cal['errpar'][iel],
-                    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)
+
+                # populate uncertainties with err.apply()
+                #a['X_H_ERR'][ok[gdel],iel] = err.elemerr(cal['errpar'][iel],
+                #    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)
+                #a['X_M_ERR'][ok[gdel],iel] = err.elemerr(cal['errpar'][iel],
+                #    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)
                 # use FERRE uncertainty if larger
                 tmp=ok[gdel]
-                j=np.where(a['FELEM_ERR'][tmp,iel] > a['X_H_ERR'][tmp,iel])[0]
-                a['X_H_ERR'][tmp[j],iel] = a['FELEM_ERR'][tmp[j],iel]
-                a['ELEMFLAG'][tmp[j],iel] |= parammask.getval('FERRE_ERR_USED')
-                print(el,'FERRE ERR used: ',len(j))
+                #j=np.where(a['FELEM_ERR'][tmp,iel] > a['X_H_ERR'][tmp,iel])[0]
+                #a['X_H_ERR'][tmp[j],iel] = a['FELEM_ERR'][tmp[j],iel]
+                #a['ELEMFLAG'][tmp[j],iel] |= parammask.getval('FERRE_ERR_USED')
+                #print(el,'FERRE ERR used: ',len(j))
 
     return
-
-
-def lbd2xyz(l,b,d,R0=8.5) :
-    ''' Angular coordinates + distance -> galactocentry x,y,z '''
-
-    brad = b*np.pi/180.
-    lrad = l*np.pi/180.
-
-    x = d*np.sin(0.5*np.pi-brad)*np.cos(lrad)-R0
-    y = d*np.sin(0.5*np.pi-brad)*np.sin(lrad)
-    z = d*np.cos(0.5*np.pi-brad)
-    r = np.sqrt(x**2+y**2)
-    return x, y, z, r
 
 def stats(a,subsets=None) :
     """ Return standard deviation and mean absolute deviation

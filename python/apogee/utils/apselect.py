@@ -747,7 +747,7 @@ def dsph(data,dir='dsph/',ratag='RA',dectag='DEC',rvtag='VHELIO',idtag='APOGEE_I
     html.tail(f)
     fstars.close()
 
-def solar(indata,data=None,raw=True,gaia='GAIAEDR3', logg=[-1,6], R=[8,9], snmin=100, mh=[-0.05,0.05], Z_MAX=0.3, ECC=0.15) :
+def solar(indata,data=None,raw=True,gaia='GAIAEDR3', teff=[3000,8000], logg=[-1,6], R=[8,9], Z=[0.,0.5], snmin=100, mh=[-0.05,0.05], Z_MAX=0.3, ECC=0.15) :
     """ selects sample of solar neighborhood low log g stars, possibly from previous data set
 
         indata : return indices in this structure for solar neighborhood stars
@@ -764,13 +764,15 @@ def solar(indata,data=None,raw=True,gaia='GAIAEDR3', logg=[-1,6], R=[8,9], snmin
     distance = 1000./data[gaia+'_PARALLAX'][i2]
     x,y,z,r=lbd2xyz(data['GLON'][i2],data['GLAT'][i2],distance/1000.)
     j = np.where((data[gaia+'_PARALLAX_ERROR'][i2]/abs(data[gaia+'_PARALLAX'][i2]) < 0.1) &  
-                 (abs(z) < Z_MAX+0.2) & (r>R[0]) & (r<R[1]) & (data['SNREV'][i2] > snmin) &
+                 (z > Z[0]) & (z< Z[1]) & (r>R[0]) & (r<R[1]) & (data['SNREV'][i2] > snmin) &
+                 (data['FPARAM'][:,0]>=teff[0]) & (data['FPARAM'][:,0]<teff[1]) &
                  (data['FPARAM'][:,1]>=logg[0]) & (data['FPARAM'][:,1]<logg[1]) &
                  (data['FPARAM'][i2,3]>mh[0])  & ( data['FPARAM'][i2,3]<mh[1]) ) [0]
     # calculate orbital parameters for this subset
-    tab=orbital.parameters(Table(data[j]))
-    gd=np.where((tab['Z_MAX'] <0.3) & (tab['ECC'] < 0.15) )[0]
-    j=j[gd] 
+    if Z_MAX is not None or ECC is not None :
+        tab=orbital.parameters(Table(data[j]))
+        gd=np.where((tab['Z_MAX'] <0.3) & (tab['ECC'] < 0.15) )[0]
+        j=j[gd] 
     return i1[j]
 
 def lbd2xyz(l,b,d,R0=8.5) :

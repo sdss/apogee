@@ -7,13 +7,78 @@ from numpy.random import normal
 from tools import plots
 from tools import html
 from tools import fit
-from apogee.utils import apselect
+from apogee.utils import apselect, bitmask
+from apogee.aspcap import aspcap
 from astropy.io import fits
+
+def apply(data,caldir=None) :
+    """ Add empirical uncertainties to data
+    """
+
+    if caldir is None or caldir == 'none' :
+        print('no uncertainty calibration specified, not populating')
+        return
+
+    aspcapmask=bitmask.AspcapBitMask()
+    parammask=bitmask.ParamBitMask()
+    gd=np.where( ((data['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
+
+    # separate giants and dwarfs
+    giant = np.where( (data['FPARAM'][gd,1] < 2./1300.*(data['FPARAM'][gd,0]-3500)+2.) &
+                      (data['FPARAM'][gd,1] < 4) & (data['FPARAM'][gd,0] < 7000) )[0]
+    tmp = np.zeros(len(gd),dtype=bool)
+    tmp[giant] = True
+    dwarf = np.where(~tmp)[0]
+    giant = gd[giant]
+    dwarf = gd[dwarf]
+
+    # cap S/N at 200.
+    try: snr=np.clip(data['SNREV'],0,200.)
+    except:
+        print('No SNREV, continnue with SNR?')
+        pdb.set_trace()
+        snr=np.clip(a['SNR'],0,200.)
+
+    # read uncertainty fit parameters
+    giant_errfit=fits.open(caldir+'/giant_errfit.fits')
+    dwarf_errfit=fits.open(caldir+'/dwarf_errfit.fits')
+
+    # add uncertainties for parameters
+    fig,ax=plots.multi(1,1)
+    for iparam,param in enumerate(aspcap.params()[1]) :
+        data['PARAM_COV'][giant,iparam,iparam] = elemerr(giant_errfit[1].data['errfit'][iparam],data['FPARAM'][giant,0]-4500.,snr[giant]-100.,data['FPARAM'][giant,3])**2
+        data['PARAM_COV'][dwarf,iparam,iparam] = elemerr(dwarf_errfit[1].data['errfit'][iparam],data['FPARAM'][dwarf,0]-4500.,snr[dwarf]-100.,data['FPARAM'][dwarf,3])**2
+        j=np.where(data['FPARAM_COV'][:,iparam,iparam] > data['PARAM_COV'][:,iparam,iparam])[0]
+        data['PARAM_COV'][j,iparam,iparam] = data['FPARAM_COV'][j,iparam,iparam]
+        data['PARAMFLAG'][j,iparam] |= parammask.getval('FERRE_ERR_USED')
+        print(param,'FERRE ERR used: ',len(j))
+
+    # add uncertainties for abundances
+    for ielem,elem in enumerate(aspcap.elems()[0]) :
+        data['X_H_ERR'][giant,ielem] = elemerr(giant_errfit[2].data['errfit'][ielem],data['FPARAM'][giant,0]-4500.,snr[giant]-100.,data['FPARAM'][giant,3])
+        data['X_H_ERR'][dwarf,ielem] = elemerr(dwarf_errfit[2].data['errfit'][ielem],data['FPARAM'][dwarf,0]-4500.,snr[dwarf]-100.,data['FPARAM'][dwarf,3])
+        # use FERRE uncertainty if larger
+        j=np.where(data['FELEM_ERR'][:,ielem] > data['X_H_ERR'][:,ielem])[0]
+        data['X_H_ERR'][j,ielem] = data['FELEM_ERR'][j,ielem]
+        data['ELEMFLAG'][j,ielem] |= parammask.getval('FERRE_ERR_USED')
+        print(elem,'FERRE ERR used: ',len(j))
+        data['X_M_ERR'][:,ielem] = data['X_H_ERR'][:,ielem]
+
+
+def elemerr(soln,te,sn,fe, quad=False, log=True, fact=1.0) :
+    ''' 
+    Function to evaluate fit for uncertainty
+    '''
+    out=soln[0]+soln[1]*te+soln[2]*sn
+    if len(soln) > 3: out+= soln[3]*fe
+    if quad : out +=soln[4]*te**2
+    if log : return np.exp(out)*fact
+    else : return out
 
 def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,6000,250), mhbins=np.arange(-2.25,0.75,0.5),verbose=False,
            out=None,title='', zr=[0,0.1], snplot=True, meanerr=None,quad=False,mkhtml=True ) :
     '''
-    Fits for empirical uncertainty as function of Teff, S/N, and [M/H]
+    Fits for empirical uncertainty as function of Teff, S/N, and [M/H] given measured values of a quantity
     '''
     if out is not None :
         fig,ax=plots.multi(len(snbins),2,wspace=0.001,figsize=(3*len(snbins),5))
@@ -115,24 +180,20 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
     try : return soln
     except : return 0.
 
-def elemerr(soln,te,sn,fe, quad=False, log=True, fact=1.0) :
-    ''' 
-    Function to evaluate fit for uncertainty
-    '''
-    out=soln[0]+soln[1]*te+soln[2]*sn
-    if len(soln) > 3: out+= soln[3]*fe
-    if quad : out +=soln[4]*te**2
-    if log : return np.exp(out)*fact
-    else : return out
-
-def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
-    """ Comparison of repeat observations of objects
+def repeat(data=None,params=None,elems=None,inds=None,stars=None, out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
+    """ Fits for empirical uncertainty given repeat observations of objects
     """
 
-    gd=apselect.select(data[1].data,badval='STAR_BAD',raw=True,logg=logg)
-    a=data[1].data[gd]
-    stars = set(a['APOGEE_ID'])
+    # duplicates
+    # get indices in file for each degree of RA, to shorten search
+    gd=apselect.select(data,badval='STAR_BAD',raw=True,logg=logg)
+    a=data[gd]
+    ind = np.zeros(360,dtype=int)
+    for i in range(1,360) :
+        ind[i] = np.where(a['RA']>i)[0][0]
+        print(i,ind[i])
 
+    # bins for plots only
     snbins=np.arange(50,300,50)
     tebins=np.arange(3500,7500,250)
     tebins=np.arange(3500,6000,250)
@@ -142,10 +203,10 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
     dsn = snbins[1]-snbins[0]
 
     # output data files
-    params=data[3].data['PARAM_SYMBOL'][0]
-    els=data[3].data['ELEM_SYMBOL'][0]
+    if params is None : params=aspcap.params()[1]
+    if elems is None : elems=aspcap.elems()[0]
     of=[]
-    for el in els: 
+    for el in elems: 
         of.append(open(out+el+'.txt','w'))
 
     # loop over stars looking for duplications
@@ -154,10 +215,15 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
     rmselem=[]
     quad= True
     fmt='{:<20s}'+6*' {:9.2f}'+3*' {:10.3f}'+'\n'
-    for star in stars :
-        jj = np.where(a['APOGEE_ID'] == star)[0]
+    for istar,star in enumerate(a) :
+        ira=int(star['RA'])
+        i1 = ind[ira]
+        if ira < 359 : i2 = ind[ira+1 ]
+        else : i2 = len(a)
+        jj = i1 + np.where(a['APOGEE_ID'][i1:i2] == star['APOGEE_ID'])[0]
         n = len(jj)
         if n > 1 :
+            print(istar,n)
             isort = np.argsort(a['SNR'][jj])
             j=jj[isort]
             i=0
@@ -171,14 +237,14 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
                    rmsparam.append(np.abs(a['FPARAM'][j[i],:]-a['FPARAM'][j[i+1],:])*np.sqrt(np.pi)/2.)
                    try: rmselem.append(np.abs(a['FELEM'][j[i],0,:]-a['FELEM'][j[i+1],0,:])*np.sqrt(np.pi)/2.)
                    except: rmselem.append(np.abs(a['FELEM'][j[i],:]-a['FELEM'][j[i+1],:])*np.sqrt(np.pi)/2.)
-                   for iel in range(len(els)) :
+                   for iel in range(len(elems)) :
                        try : 
                            felem=a['FELEM'][j[i],0,iel]
                            felem1=a['FELEM'][j[i+1],0,iel]
                        except : 
                            felem=a['FELEM'][j[i],iel]
                            felem1=a['FELEM'][j[i+1],iel]
-                       of[iel].write(fmt.format(star,a['FPARAM'][j[i],0],a['FPARAM'][j[i+1],0],
+                       of[iel].write(fmt.format(star['APOGEE_ID'],a['FPARAM'][j[i],0],a['FPARAM'][j[i+1],0],
                                                 a['SNR'][j[i]],a['SNR'][j[i+1]],
                                                 a['FPARAM'][j[i],3],a['FPARAM'][j[i+1],3],
                                                 felem,felem1,
@@ -186,7 +252,7 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
                    i+=2
                 else :
                    i+=1
-    for iel in range(len(els)) : of[iel].close()
+    for iel in range(len(elems)) : of[iel].close()
     rmsderiv=np.array(rmsderiv)
     rmsparam=np.array(rmsparam)
     rmselem=np.array(rmselem)
@@ -221,6 +287,13 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
             sn = snbins[iplt]+dsn/2.
             ax[iplt].imshow(elemerr(soln,y-4500.,sn-100.,x, quad=quad, log=log, fact=fact),extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
                               aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower',cmap='rainbow')
+            cs=ax[iplt].contour(np.linspace(mhbins[0],mhbins[-1],200),np.linspace(tebins[0],tebins[-1],200),
+                             elemerr(soln,y-4500.,sn-100.,x, quad=quad, log=log, fact=fact),extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
+                             levels=[0.05,0.1,0.15,0.2],colors='k')
+            ax[iplt].clabel(cs,fontsize=8)
+            ax[iplt].set_xlabel('[M/H]')
+            ax[iplt].set_ylabel('Teff')
+
             ax[iplt].text(0.98,0.98,param+' S/N={:4.0f}'.format(sn),va='top',ha='right',transform=ax[iplt].transAxes)
 
         # plots of rms
@@ -233,8 +306,8 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
                 gdplt = np.where((rmsderiv[:,1]+4500.>tebins[ix]) & (rmsderiv[:,1]+4500.<tebins[ix+1]) &
                                   (rmsderiv[:,3]>mhbins[iy]) & (rmsderiv[:,3]<mhbins[iy+1]) )[0]
                 if len(gdplt) > 1 :
-                    plots.plotc(snax[iy,ix],rmsderiv[gdplt,2]+100,rmsparam[gdplt,i],rmsderiv[gdplt,3],size=5,zr=[-2,0.5],
-                                yr=zr,xr=[snbins[0],snbins[-1]],xt='S/N',yt=yt)
+                    plots.plotc(snax[iy,ix],rmsderiv[gdplt,2]+100,rmsparam[gdplt,i],rmsderiv[gdplt,3],size=10,zr=[-2,0.5],
+                                yr=zr,xr=[snbins[0],snbins[-1]+10],xt='S/N',yt=yt)
                 snax[iy,ix].set_ylim(zr)
                 snax[iy,ix].plot(xx,elemerr(soln,tebins[ix]+dte/2.-4500,xx-100,mhbins[iy]+dmh/2., quad=quad, log=log, fact=fact))
                 snax[iy,ix].text(0.98,0.98,'{:8.0f}{:6.2f}'.format(tebins[ix]+dte/2.,mhbins[iy]+dmh/2.),ha='right',va='top',transform=snax[iy,ix].transAxes,fontsize='x-small')
@@ -250,14 +323,14 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
         grid.append([os.path.basename(out+param+'.png'),os.path.basename(out+param+'_sn.png')])
         ytit.append(param)
     html.htmltab(grid,file=out+'repeat_param.html',ytitle=ytit)
-   
+  
     # elements 
     grid=[]
     ytit=[]
-    outtype=np.dtype([('ELEM',els.dtype),('ERRFIT','5f4')])
-    outelem=np.empty(len(els),dtype=outtype)
+    outtype=np.dtype([('ELEM',elems.dtype),('ERRFIT','5f4')])
+    outelem=np.empty(len(elems),dtype=outtype)
     allfig,allax=plots.multi(5,5,hspace=0.001,wspace=0.001,xtickrot=60)
-    for i,el in enumerate(els) :
+    for i,el in enumerate(elems) :
         print(el)
         outelem[i]['ELEM']=el
         gd=np.where((rmselem[:,i] < 1.) & (rmselem[:,i] > 0.) )[0]
@@ -270,6 +343,10 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
         fig,ax=plots.multi(len(snbins),1,wspace=0.001,figsize=(3*len(snbins),4))
         for iplt in range(len(snbins)) :
             sn = snbins[iplt]+dsn/2.
+            cs=ax[iplt].contour(np.linspace(mhbins[0],mhbins[-1],200),np.linspace(tebins[0],tebins[-1],200),
+                             elemerr(soln,y-4500.,sn-100.,x, quad=quad, log=log, fact=fact),
+                             levels=[0.05,0.1,0.15,0.2],colors='k') 
+            ax[iplt].clabel(cs,fontsize=8)
             ax[iplt].imshow(elemerr(soln,y-4500.,sn-100.,x, quad=quad, log=log, fact=fact),
                               extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
                               aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower',cmap='rainbow')
@@ -278,6 +355,10 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
                 allax[i//5,i%5].text(0.05,0.95,el,va='top',ha='left',transform=allax[i//5,i%5].transAxes,color='w')
                 allax[i//5,i%5].set_xlabel('[M/H]')
                 if i%5 == 0 : allax[i//5,i%5].set_ylabel(r'$T_{eff}$')
+                cs=allax[i//5,i%5].contour(np.linspace(mhbins[0],mhbins[-1],200),np.linspace(tebins[0],tebins[-1],200),
+                                        elemerr(soln,y-4500.,sn-100.,x, quad=quad, log=log, fact=fact),
+                                        levels=[0.05,0.1,0.15,0.2],colors='k') 
+                allax[i//5,i%5].clabel(cs,fontsize=6)
                 cm= allax[i//5,i%5].imshow(elemerr(soln,y-4500.,sn-100.,x, quad=quad, log=log, fact=fact),
                                        extent=[mhbins[0],mhbins[-1],tebins[0],tebins[-1]], 
                                        aspect='auto',vmin=zr[0],vmax=0.1, origin='lower',cmap='rainbow')
@@ -293,8 +374,8 @@ def repeat(data,out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
                 if len(gdplt) > 1 :
                     #plots.plotc(snax[iy,ix],rmsderiv[gdplt,2]+100,rmselem[gdplt,i],rmsderiv[gdplt,3],size=5,zr=[-2,0.5],
                     #            yr=zr,xr=[snbins[0],snbins[-1]],xt='S/N')
-                    plots.plotp(snax[iy,ix],rmsderiv[gdplt,2]+100,rmselem[gdplt,i],color='k',size=5,zr=[-2,0.5],
-                                yr=zr,xr=[snbins[0],snbins[-1]],xt='S/N')
+                    plots.plotp(snax[iy,ix],rmsderiv[gdplt,2]+100,rmselem[gdplt,i],color='k',size=10,zr=[-2,0.5],
+                                yr=zr,xr=[snbins[0],snbins[-1]+10],xt='S/N')
                 snax[iy,ix].set_xlim(snbins[0]+1,snbins[-1]-1)
                 snax[iy,ix].set_xlabel('S/N')
                 snax[iy,ix].set_ylim(zr)

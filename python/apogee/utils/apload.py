@@ -98,6 +98,7 @@ class ApSpec() :
         hdu.header['HISTORY'] = 'HDU7 : telluric uncertainty'
         hdu.header['HISTORY'] = 'HDU8 : LSF table'
         hdu.header['HISTORY'] = 'HDU9 : RV table'
+        hdu.header['HISTORY'] = 'HDU10 : RV table for combined spectrum'
         hdulist.append(hdu)
         header=fits.Header()
         header['CRVAL1'] = hdu.header['CRVAL1']

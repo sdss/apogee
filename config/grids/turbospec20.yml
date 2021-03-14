@@ -128,9 +128,9 @@ Fd: &Fd
     teff0 : 5500
     dteff : 250
     nteff : 11
-    logg0 : 2.5
+    logg0 : 1.5
     dlogg : 0.5
-    nlogg : 7
+    nlogg : 8
 GKd: &GKd
     <<: *dwarf
     specdir : tdGK_180901_turbo20

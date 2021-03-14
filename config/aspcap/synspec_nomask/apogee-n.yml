@@ -1,4 +1,7 @@
 ---
+lsfcombo5 : &lsfcombo5
+    fibermin : 0
+    fibermax : 300
 lsfa : &lsfa
     fibermin : 245
     fibermax : 300
@@ -11,12 +14,9 @@ lsfc : &lsfc
 lsfd : &lsfd
     fibermin : 1
     fibermax : 50
-lsfcombo : &lsfcombo
-    fibermin : 1
-    fibermax : 300
 
 defaults : &defaults
-    mask :  dr17/global_mask_v02.txt
+    mask :  dr17/global.mask
     windows : dr17/
     inter :           3
     renorm :          -4
@@ -114,14 +114,15 @@ F : &F
 Fd : &Fd
     << : *F
     << : *dwarf
-    fix_coarse : ['C','N','O Mg Si S Ca Ti']
     logg_range :    [-10.,10.]
+    fix_coarse : ['C','N','O Mg Si S Ca Ti']
     PLOCK :
       - name : O
         const : 0.000
         te_coef : 0.000
         logg_coef : [0.,0.,0.] 
         mh_coef : 0.000
+
 BA : &BA
     init : 1
     teff_range :    [7500.,100000.]
@@ -158,90 +159,89 @@ BA : &BA
         logg_coef : [0.,0.,0.]
         mh_coef : 0.000
 
-
 grids :
   - name : BA
     lib : synspec/kurucz/solarisotopes/sBA_lsfcombo5_l33/p_apssBA_lsfcombo5_l33_012_075
     <<: *BA
     <<: *lsfcombo
   - name : GKg_a 
-    lib : turbospec/marcs/giantisotopes/tgGK_180901_turbo20_lsfa/p_apstgGK_180901_turbo20_lsfa_012_075
+    lib : synspec/marcs/giantisotopes/sgGK_200921nlte_lsfa/p_apssgGK_200921nlte_lsfa_012_075
     <<: *GKg
     <<: *lsfa
   - name : GKg_b 
-    lib : turbospec/marcs/giantisotopes/tgGK_180901_turbo20_lsfb/p_apstgGK_180901_turbo20_lsfb_012_075
+    lib : synspec/marcs/giantisotopes/sgGK_200921nlte_lsfb/p_apssgGK_200921nlte_lsfb_012_075
     <<: *GKg
     <<: *lsfb
   - name : GKg_c  
-    lib : turbospec/marcs/giantisotopes/tgGK_180901_turbo20_lsfc/p_apstgGK_180901_turbo20_lsfc_012_075
+    lib : synspec/marcs/giantisotopes/sgGK_200921nlte_lsfc/p_apssgGK_200921nlte_lsfc_012_075
     <<: *GKg
     <<: *lsfc
   - name : GKg_d  
-    lib : turbospec/marcs/giantisotopes/tgGK_180901_turbo20_lsfd/p_apstgGK_180901_turbo20_lsfd_012_075
+    lib : synspec/marcs/giantisotopes/sgGK_200921nlte_lsfd/p_apssgGK_200921nlte_lsfd_012_075
     <<: *GKg
     <<: *lsfd
   - name : GKd_a  
-    lib : turbospec/marcs/solarisotopes/tdGK_180901_turbo20_lsfa/p_apstdGK_180901_turbo20_lsfa_012_075
+    lib : synspec/marcs/solarisotopes/sdGK_200921nlte_lsfa/p_apssdGK_200921nlte_lsfa_012_075
     <<: *GKd
     <<: *lsfa
   - name : GKd_b  
-    lib : turbospec/marcs/solarisotopes/tdGK_180901_turbo20_lsfb/p_apstdGK_180901_turbo20_lsfb_012_075
+    lib : synspec/marcs/solarisotopes/sdGK_200921nlte_lsfb/p_apssdGK_200921nlte_lsfb_012_075
     <<: *GKd
     <<: *lsfb
   - name : GKd_c  
-    lib : turbospec/marcs/solarisotopes/tdGK_180901_turbo20_lsfc/p_apstdGK_180901_turbo20_lsfc_012_075
+    lib : synspec/marcs/solarisotopes/sdGK_200921nlte_lsfc/p_apssdGK_200921nlte_lsfc_012_075
     <<: *GKd
     <<: *lsfc
   - name : GKd_d  
-    lib : turbospec/marcs/solarisotopes/tdGK_180901_turbo20_lsfd/p_apstdGK_180901_turbo20_lsfd_012_075
+    lib : synspec/marcs/solarisotopes/sdGK_200921nlte_lsfd/p_apssdGK_200921nlte_lsfd_012_075
     <<: *GKd
     <<: *lsfd
   - name : Mg_a 
-    lib : turbospec/marcs/giantisotopes/tgM_180901_turbo20_lsfa/p_apstgM_180901_turbo20_lsfa_012_075
+    lib : synspec/marcs/giantisotopes/sgM_200921nlte_lsfa/p_apssgM_200921nlte_lsfa_012_075
     <<: *Mg
     <<: *lsfa
   - name : Mg_b 
-    lib : turbospec/marcs/giantisotopes/tgM_180901_turbo20_lsfb/p_apstgM_180901_turbo20_lsfb_012_075
+    lib : synspec/marcs/giantisotopes/sgM_200921nlte_lsfb/p_apssgM_200921nlte_lsfb_012_075
     <<: *Mg
     <<: *lsfb
   - name : Mg_c  
-    lib : turbospec/marcs/giantisotopes/tgM_180901_turbo20_lsfc/p_apstgM_180901_turbo20_lsfc_012_075
+    lib : synspec/marcs/giantisotopes/sgM_200921nlte_lsfc/p_apssgM_200921nlte_lsfc_012_075
     <<: *Mg
     <<: *lsfc
   - name : Mg_d  
-    lib : turbospec/marcs/giantisotopes/tgM_180901_turbo20_lsfd/p_apstgM_180901_turbo20_lsfd_012_075
+    lib : synspec/marcs/giantisotopes/sgM_200921nlte_lsfd/p_apssgM_200921nlte_lsfd_012_075
     <<: *Mg
     <<: *lsfd
   - name : Md_a  
-    lib : turbospec/marcs/solarisotopes/tdM_180901_turbo20_lsfa/p_apstdM_180901_turbo20_lsfa_012_075
+    lib : synspec/marcs/solarisotopes/sdM_200921nlte_lsfa/p_apssdM_200921nlte_lsfa_012_075
     <<: *Md
     <<: *lsfa
   - name : Md_b  
-    lib : turbospec/marcs/solarisotopes/tdM_180901_turbo20_lsfb/p_apstdM_180901_turbo20_lsfb_012_075
+    lib : synspec/marcs/solarisotopes/sdM_200921nlte_lsfb/p_apssdM_200921nlte_lsfb_012_075
     <<: *Md
     <<: *lsfb
   - name : Md_c  
-    lib : turbospec/marcs/solarisotopes/tdM_180901_turbo20_lsfc/p_apstdM_180901_turbo20_lsfc_012_075
+    lib : synspec/marcs/solarisotopes/sdM_200921nlte_lsfc/p_apssdM_200921nlte_lsfc_012_075
     <<: *Md
     <<: *lsfc
   - name : Md_d  
-    lib : turbospec/marcs/solarisotopes/tdM_180901_turbo20_lsfd/p_apstdM_180901_turbo20_lsfd_012_075
+    lib : synspec/marcs/solarisotopes/sdM_200921nlte_lsfd/p_apssdM_200921nlte_lsfd_012_075
     <<: *Md
     <<: *lsfd
   - name : Fd_a  
-    lib : turbospec/marcs/solarisotopes/tdF_180901_turbo20_lsfa/p_apstdF_180901_turbo20_lsfa_012_025
+    lib : synspec/marcs/solarisotopes/sdF_200921nlte_lsfa/p_apssdF_200921nlte_lsfa_012_025
     <<: *Fd
     <<: *lsfa
   - name : Fd_b  
-    lib : turbospec/marcs/solarisotopes/tdF_180901_turbo20_lsfb/p_apstdF_180901_turbo20_lsfb_012_025
+    lib : synspec/marcs/solarisotopes/sdF_200921nlte_lsfb/p_apssdF_200921nlte_lsfb_012_025
     <<: *Fd
     <<: *lsfb
   - name : Fd_c  
-    lib : turbospec/marcs/solarisotopes/tdF_180901_turbo20_lsfc/p_apstdF_180901_turbo20_lsfc_012_025
+    lib : synspec/marcs/solarisotopes/sdF_200921nlte_lsfc/p_apssdF_200921nlte_lsfc_012_025
     <<: *Fd
     <<: *lsfc
   - name : Fd_d  
-    lib : turbospec/marcs/solarisotopes/tdF_180901_turbo20_lsfd/p_apstdF_180901_turbo20_lsfd_012_025
+    lib : synspec/marcs/solarisotopes/sdF_200921nlte_lsfd/p_apssdF_200921nlte_lsfd_012_025
     <<: *Fd
     <<: *lsfd
 

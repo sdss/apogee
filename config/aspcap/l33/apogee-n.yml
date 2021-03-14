@@ -11,6 +11,9 @@ lsfc : &lsfc
 lsfd : &lsfd
     fibermin : 1
     fibermax : 50
+lsfcombo : &lsfcombo
+    fibermin : 1
+    fibermax : 300
 
 defaults : &defaults
     mask :  dr17/global_mask_v02.txt
@@ -120,7 +123,47 @@ Fd : &Fd
         logg_coef : [0.,0.,0.] 
         mh_coef : 0.000
 
+BA : &BA
+    init : 1 
+    teff_range :    [7500.,100000.]
+    logg_range :    [-10.,10.]
+    <<: *defaults
+    nov  :      4
+    indv :  [1,2,3,4]
+    indini : [ -1,-1,-1,-1]
+    initpar : [0.0000,0.0000,0.0000,0.0000]
+    PLOCK :
+      - name : C
+        const : 0.000
+        te_coef : 0.000
+        logg_coef : [0.,0.,0.] 
+        mh_coef : 0.000
+      - name : N
+        const : 0.000
+        te_coef : 0.000
+        logg_coef : [0.,0.,0.] 
+        mh_coef : 0.000
+      - name : 'O Mg Si S Ca Ti'
+        const : 0.000
+        te_coef : 0.000
+        logg_coef : [0.,0.,0.] 
+        mh_coef : 0.000
+      - name : LOG10VDOP
+        const : 0.000
+        te_coef : 0.000
+        logg_coef : [0.,0.,0.] 
+        mh_coef : 0.000
+      - name : O
+        const : 0.000
+        te_coef : 0.000
+        logg_coef : [0.,0.,0.] 
+        mh_coef : 0.000
+
 grids :
+  - name : BA
+    lib : synspec/kurucz/solarisotopes/sBA_lsfcombo5_l33/p_apssBA_lsfcombo5_l33_012_075
+    <<: *BA
+    <<: *lsfcombo
   - name : GKg_a 
     lib : turbospec/marcs/giantisotopes/tgGK_180901_lsfa_l33/p_apstgGK_180901_lsfa_l33_012_075
     <<: *GKg
@@ -201,7 +244,6 @@ grids :
     lib : turbospec/marcs/solarisotopes/tdF_180901_lsfd_l33/p_apstdF_180901_lsfd_l33_012_025
     <<: *Fd
     <<: *lsfd
-
 elems :
     - name : C
       griddim : 'C'

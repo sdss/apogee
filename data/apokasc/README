@@ -1,0 +1,7 @@
+logg_cal.csv supplied by Marc P, as preliminary APOKASC3, late Jan 2021
+
+APOKASC_cal supplied by Marc P. 2/23/21 as "final" high quality calibration sample
+APOKASC3_mrseisg.out has more info (and includes less secure values?)
+
+various logg calibration samples, including APOKASC_cal, compiled into ../calib/logg_cal.fits, see
+logg.py there

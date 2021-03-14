@@ -487,6 +487,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,write=True,minerr=0.005,ap
 
     # reset CHI2 if we are iterating on a previous solution
     aspcapfield['ASPCAP_CHI2'] = 0.
+    penalized_chi2 = copy.copy(aspcapfield['ASPCAP_CHI2'])
     pars=params()[0]
 
     if mult :
@@ -600,7 +601,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,write=True,minerr=0.005,ap
                                 imult+=1
             #exclude dimensions if coarse run or fixed parameters specified
             exclude=[]
-            if coarse : exclude.extend(grid['fix_coarse'])
+            if coarse and grid.get('fix_coarse') : exclude.extend(grid['fix_coarse'])
             if fix is not None : exclude.extend(fix)
             if len(exclude) > 0 :    
                 indv=[]
@@ -612,8 +613,10 @@ def fit_params(planfile,aspcapdata=None,clobber=False,write=True,minerr=0.005,ap
             ferre.writeipf(out,os.path.dirname(out)+'/'+libfile,stars,param=np.array(inpars))
             ferre.writespec(out+'.obs',flux)
             ferre.writespec(out+'.err',err)
+            if grid.get('indi') : indi=grid['indi']
+            else : indi=None
             ferre.writenml(out+'.nml',os.path.basename(out),libhead0,init=0,indv=indv,f_sort=0,
-                       algor=grid['algor'],ncpus=plan['ncpus'],
+                       algor=grid['algor'],ncpus=plan['ncpus'],indi=indi,
                        obscont=grid['obscont'],rejectcont=grid['rejectcont'],
                        renorm=abs(grid['renorm']),
                        filterfile=os.environ['APOGEE_DIR']+'/data/windows/'+grid['mask'])
@@ -651,9 +654,12 @@ def fit_params(planfile,aspcapdata=None,clobber=False,write=True,minerr=0.005,ap
             if param['PARAMFLAG'][i,1] & (parammask.getval('GRIDEDGE_WARN')|parammask.getval('GRIDEDGE_BAD')) > 0 : chi2*=5
 
             # load star for this grid if its the best fit
-            if chi2 < aspcapfield['ASPCAP_CHI2'][gd[istar]] or aspcapfield['ASPCAP_CHI2'][gd[istar]]<=0 :
+            #if chi2 < aspcapfield['ASPCAP_CHI2'][gd[istar]] or aspcapfield['ASPCAP_CHI2'][gd[istar]]<=0 :
+            if chi2 < penalized_chi2[gd[istar]] or aspcapfield['ASPCAP_CHI2'][gd[istar]]<=0 :
                 aspcapfield['ASPCAP_GRID'][gd[istar]] = grid['name']
-                aspcapfield['ASPCAP_CHI2'][gd[istar]] = chi2
+                #aspcapfield['ASPCAP_CHI2'][gd[istar]] = chi2
+                aspcapfield['ASPCAP_CHI2'][gd[istar]] = param['ASPCAP_CHI2'][i]
+                penalized_chi2[gd[istar]] = chi2  
                 aspcapfield['FPARAM'][gd[istar]] = param['FPARAM'][i]
                 aspcapfield['FPARAM_COV'][gd[istar]] = param['FPARAM_COV'][i]
                 aspcapfield['PARAMFLAG'][gd[istar]] = param['PARAMFLAG'][i]
@@ -862,7 +868,8 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
 
             # write FERRE files
             if clobber or not os.path.exists(out+'.spm') or \
-               (os.path.exists(out+'.spm') and len(open(out+'.spm').readlines()) < len(stars) ) :
+               (os.path.exists(out+'.spm') and len(open(out+'.spm').readlines()) < len(open(out+'.ipf').readlines()) ) :
+               #(os.path.exists(out+'.spm') and len(open(out+'.spm').readlines()) < len(stars) ) :
                 link(os.environ['APOGEE_SPECLIB']+'/synth/',os.path.dirname(out)+'/lib')
                 filterfile = elem['name']+'.mask'
                 shutil.copyfile(os.environ['APOGEE_DIR']+'/data/windows/'+grid['windows']+'/'+filterfile,
@@ -874,7 +881,8 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
                     except: pass
                     link('../spectra/'+os.path.basename(outspec)+ext,out+ext)
                 ferre.writeipf(out,outdir+'/ferre/'+libfile,stars,param=np.array(inpars))
-                index = np.where(libhead0['LABEL'] == elem['griddim'].encode())[0][0]+1
+                try : index = np.where(libhead0['LABEL'] == elem['griddim'].encode())[0][0]+1
+                except : index = np.where(libhead0['LABEL'] == 'METALS'.encode())[0][0]+1
                 if elem['griddim'] == 'METALS' : 
                     ttie=[]
                     for dim in ['C','N','O Mg Si S Ca Ti'] :
@@ -882,8 +890,10 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
                         if len(j) > 0 : ttie.append(j[0]+1)
                         else : ttie.append(-1)
                 else : ttie=[-1,-1,-1]
+                if grid.get('indi') : indi=grid['indi']
+                else : indi=None
                 ferre.writenml(out+'.nml',dirname+'/'+os.path.basename(out),libhead0,init=0,f_sort=0,
-                           nov=1,indv=[index],ttie=ttie,
+                           nov=1,indv=[index],ttie=ttie,indi=indi,
                            algor=grid['algor'],ncpus=plan['ncpus'],
                            obscont=grid['obscont'],rejectcont=grid['rejectcont'],
                            renorm=abs(grid['renorm']),

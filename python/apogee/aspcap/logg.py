@@ -185,7 +185,7 @@ def rcrgb_plot(a,out=None) :
         plt.close()
 
 
-def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3000,7500],apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',out='logg',calib=False) :
+def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3000,7500],apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',out='logg',calib=False,doerr=True) :
     """ logg calibration for dwarfs, from asteroseismic and isochrones
     """
     if calib :
@@ -243,8 +243,12 @@ def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3000,7500],a
     mhfit=np.append(mhfit,allstar[param][j1,3])
     diff=np.append(diff,allstar[param][j1,1]-isologg['ISOLOGG'][j2])
     snrfit=np.append(snrfit,allstar['SNR'][j1])
-    mserrpar = err.errfit(tfit,np.clip(snrfit,0.,249.),mhfit,diff-msfit(tfit,mhfit),
+    if doerr:
+        mserrpar = err.errfit(tfit,np.clip(snrfit,0.,249.),mhfit,diff-msfit(tfit,mhfit),
                           out=out+'_ms',title='log g',zr=[0,0.2])
+    else :
+        mserrpar = 0.
+
     #mserrpar=np.zeros([4])
 
     # plot the relation
@@ -284,7 +288,7 @@ def dwarf(allstar,mhrange=[-2.5,1.0],loggrange=[3.8,5.5],teffrange=[3000,7500],a
             'msfit' : msfit.parameters, 'errpar' : mserrpar }
 
  
-def apokasc(allstar,apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',raw=True,plotcal=False,out='loggcomp',loggmin=None,
+def apokasc(allstar,apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',raw=True,plotcal=False,out='loggcomp',loggmin=None,doerr=True,
             calloggrange=[-1.,3.8],loggrange=[-1.,3.8],mhrange=[-2.5,0.5],teffrange=[3500,5500],calteffrange=[3000,6000],calib=False,
             logg='APOKASC3P_LOGG',evstates='APOKASC3_CONS_EVSTATES') :
     '''
@@ -346,9 +350,11 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',raw=True,plotcal=Fa
     print('errfit')
     if out is not None : outfile=out+'_rgb'
     else : outfile = None
-    rgberrpar = err.errfit(allstar[param][i1[rgb],0],allstar['SNR'][i1[rgb]],allstar[param][i1[rgb],3],
+    if doerr :
+        rgberrpar = err.errfit(allstar[param][i1[rgb],0],allstar['SNR'][i1[rgb]],allstar[param][i1[rgb],3],
                         allstar[param][i1[rgb],1]-rgbfit(allstar['FPARAM'][i1[rgb],1],allstar['FPARAM'][i1[rgb],3])-apokasc[logg][i2[rgb]],
                         out=outfile,title='log g',zr=[0,0.2])
+    else : rgberrpar = 0.
     if loggmin == None : loggmin=allstar['FPARAM'][i1[rgb],1].min()
     loggmax=allstar['FPARAM'][i1[rgb],1].max()
 
@@ -364,9 +370,11 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',raw=True,plotcal=Fa
     rcrms=(allstar[param][i1[rc],1]-rcfit(allstar['FPARAM'][i1[rc],1],allstar['FPARAM'][i1[rc],3])-apokasc[logg][i2[rc]]).std()
     if out is not None : outfile=out+'_rc'
     else : outfile = None
-    rcerrpar = err.errfit(allstar[param][i1[rc],0],allstar['SNR'][i1[rc]],allstar[param][i1[rc],3],
+    if doerr :
+        rcerrpar = err.errfit(allstar[param][i1[rc],0],allstar['SNR'][i1[rc]],allstar[param][i1[rc],3],
                         allstar[param][i1[rc],1]-rcfit(allstar['FPARAM'][i1[rc],1],allstar['FPARAM'][i1[rc],3])-apokasc[logg][i2[rc]],
                         out=outfile,title='log g',zr=[0,0.2])
+    else : rcerrpar = 0.
     ax[1].text(0.98,0.98,'rms: {:5.3f}'.format(rcrms),transform=ax[1].transAxes,va='top',ha='right')
     fig.tight_layout()
     if out is not None :
@@ -387,8 +395,12 @@ def apokasc(allstar,apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',raw=True,plotcal=Fa
         if plotcal: tmpax=ax[:,0]
         plots.plotc(tmpax[0],allstar['FPARAM'][i1,3],allstar[param][i1,1]-apokasc[logg][i2],
            allstar['FPARAM'][i1,1],zr=[0,5],xr=[-2.5,0.5],yr=[-0.75,0.75],xt='[M/H]',yt='ASPCAP-seismic log g',zt='log g',size=15,colorbar=True)
+        gd= np.where(np.abs(allstar[param][i1,1]-apokasc[logg][i2]) < 1)[0]
+        rms=(allstar[param][i1[gd],1]-apokasc[logg][i2[gd]]).std()
+        tmpax[0].text(0.1,0.9,'rms: {:8.3f}'.format(rms),transform=tmpax[0].transAxes)
         plots.plotc(tmpax[1],allstar['FPARAM'][i1,1],allstar[param][i1,1]-apokasc[logg][i2],
            allstar['FPARAM'][i1,3],xr=[0,5],zr=[-2.5,0.5],yr=[-0.75,0.75],zt='[M/H]',yt='ASPCAP-seismic log g',xt='log g',size=15,colorbar=True)
+        tmpax[1].text(0.1,0.9,'rms: {:8.3f}'.format(rms),transform=tmpax[1].transAxes)
         loggfit=np.arange(1,3.5,0.01)
         mhfit=loggfit*0.
         plots.plotl(tmpax[1],loggfit,rgbfit(loggfit,mhfit),color='orange',linewidth=1.5)
@@ -490,8 +502,9 @@ def isochrone(allstar,snrbd=300) :
                  ((allstar['STARFLAG']&starmask.badval()) == 0) &
                   (allstar['SNR']>=snrbd) ) [0]
     allstar=allstar[gd]
-    if 'TARGFLAGS' in allstar.columns.names : badtarg=['YOUNG','EMBEDDED','EXTENDED','M31','M33','EMISSION','RRLYR','DSPH','MAGCLOUD']
-    else : badtarg = None
+    badtarg=['YOUNG','EMBEDDED','EXTENDED','M31','M33','EMISSION','RRLYR','DSPH','MAGCLOUD']
+    #if 'TARGFLAGS' in allstar.columns.names : badtarg=['YOUNG','EMBEDDED','EXTENDED','M31','M33','EMISSION','RRLYR','DSPH','MAGCLOUD']
+    #else : badtarg = None
 
     gd=apselect.select(allstar,raw=True,teff=[3000,5000],logg=[4.0,5.5],badtarg=badtarg)
     allstar=allstar[gd]
@@ -568,7 +581,7 @@ def clusters(allstar,xr=[-2.75,0.5],yr=[-1.,1.],zr=[3500,5500],apokasc='APOKASC_
         ytext=0.85-itext%3*0.15
         if mass > 0 :
             # get cluster members
-            j=np.array(apselect.clustmember(allstar,cluster,param=None,firstgen=firstgen))
+            j=np.array(apselect.clustmember(allstar,cluster,param='FPARAM',firstgen=firstgen,te=[3000,5000],logg=[-1,3.8]))
 
             # calculate physical gravities
             lum=10.**(-0.4*(allstar['H'][j]-ah+isochrones.bc(allstar['FPARAM'][j,0],filt='h',agerange=[age-0.05,age+0.05])-(5*np.log10(dist)-5)-4.74))*astropy.constants.L_sun.cgs.value
@@ -577,14 +590,16 @@ def clusters(allstar,xr=[-2.75,0.5],yr=[-1.,1.],zr=[3500,5500],apokasc='APOKASC_
             #axim=plots.plotc(ax[0],allstar['FPARAM'][j,3],allstar['FPARAM'][j,1]-logg,allstar['FELEM'][j,6]-allstar['FPARAM'][j,3],zr=[-0.25,0.5],yt='ASPCAP-physical log g')
             ax[0].text(0.9,0.1,'raw',transform=ax[0].transAxes,ha='right')
 
-            plots.plotp(ax[0],mh[0],np.median(allstar[param][j,1]-logg),size=50,color='k')
+            plots.plotp(ax[0],mh[0],np.nanmedian(allstar[param][j,1]-logg),size=50,color='k')
+            print(cluster,np.nanmedian(allstar[param][j,1]-logg))
             ax[0].text(mh[0],ytext,name[0],ha='center')
             ax[0].grid()
 
             plots.plotc(cax[iclust],allstar['FPARAM'][j,1],allstar[param][j,1]-logg,allstar['FPARAM'][j,0],xr=[0,4],yr=[-0.49,0.49],zr=zr,yt='ASPCAP-physical log g',xt='ASPCAP log g',size=40)
             cax[iclust].grid()
             cax[iclust].text(0.1,0.9,cluster,transform=cax[iclust].transAxes)
-            txt.write('{:<20s}{:8.3f}{:8.3f}{:8.3f}\n'.format(clust[i].name[0],clust[i].dist[0],clust[i].ebv[0],mass[0]))
+            #txt.write('{:<20s}{:8.3f}{:8.3f}{:8.3f}\n'.format(clust[i].name[0],clust[i].dist[0],clust[i].ebv[0],mass[0]))
+            for ii,jj in enumerate(j) : txt.write('{:s}{:8.3f} {:s}\n'.format(allstar['APOGEE_ID'][jj],logg[ii],clust[i].name[0]))
 
             #if calib :
             #    gd=np.where((allstar['PARAM'][j,3]>-9)&(allstar['PARAM'][j,1]>-9))[0]
@@ -795,7 +810,9 @@ def cal(a,caldir='cal/') :
                 (a['FPARAM'][gd,0]<calteffmax)&(a['FPARAM'][gd,0]>calteffmin))[0]
     rccorr=rcfit2[0] + rcfit2[1]*a['FPARAM'][gd,1] + rcfit2[2]*a['FPARAM'][gd,1]**2
     a['PARAM'][gd[rc],1]=a['FPARAM'][gd[rc],1]-rccorr[rc]
-    a['PARAM_COV'][gd[rc],1,1]=err.elemerr(calpars['rcerrpar'][0],a['FPARAM'][gd[rc],0]-4500,snr[rc]-100,a['FPARAM'][gd[rc],3])**2
+    # populate uncertainties with err.apply()
+    #try : a['PARAM_COV'][gd[rc],1,1]=err.elemerr(calpars['rcerrpar'][0],a['FPARAM'][gd[rc],0]-4500,snr[rc]-100,a['FPARAM'][gd[rc],3])**2
+    #except : print('no error parameters ...')
     a['PARAMFLAG'][gd[rc],1] &= ~parammask.getval('CALRANGE_BAD')
     a['PARAMFLAG'][gd[rc],1] |= parammask.getval('LOGG_CAL_RC')
 
@@ -811,7 +828,9 @@ def cal(a,caldir='cal/') :
     rgbcorr=(rgbfit2[0] + rgbfit2[1]*logg + rgbfit2[2]*logg**2 +
                        rgbfit2[3]*logg**3 + rgbfit2[4]*mh )
     a['PARAM'][gd[rgb],1]=a['FPARAM'][gd[rgb],1]-rgbcorr[rgb]
-    a['PARAM_COV'][gd[rgb],1,1]=err.elemerr(calpars['rgberrpar'][0],a['FPARAM'][gd[rgb],0]-4500,snr[rgb]-100,a['FPARAM'][gd[rgb],3])**2
+    # populate uncertainties with err.apply()
+    #try : a['PARAM_COV'][gd[rgb],1,1]=err.elemerr(calpars['rgberrpar'][0],a['FPARAM'][gd[rgb],0]-4500,snr[rgb]-100,a['FPARAM'][gd[rgb],3])**2
+    #except : print('no error parameters...')
     a['PARAMFLAG'][gd[rgb],1] &= ~parammask.getval('CALRANGE_BAD')
     a['PARAMFLAG'][gd[rc],1] |= parammask.getval('LOGG_CAL_RGB')
 
@@ -824,7 +843,9 @@ def cal(a,caldir='cal/') :
     mscorr=msfit[0]+msfit[1]*teff+msfit[2]*mh
     ms=np.where(a['FPARAM'][gd,1] > calpars['calloggmin'])[0]
     a['PARAM'][gd[ms],1]=a['FPARAM'][gd[ms],1]-mscorr[ms]
-    a['PARAM_COV'][gd[ms],1,1]=err.elemerr(calpars['errpar'][0],a['FPARAM'][gd[ms],0]-4500,snr[ms]-100,a['FPARAM'][gd[ms],3])**2
+    # populate uncertainties with err.apply()
+    #try: a['PARAM_COV'][gd[ms],1,1]=err.elemerr(calpars['errpar'][0],a['FPARAM'][gd[ms],0]-4500,snr[ms]-100,a['FPARAM'][gd[ms],3])**2
+    #except : print('no error parameters...')
     a['PARAMFLAG'][gd[ms],1] &= ~parammask.getval('CALRANGE_BAD')
     a['PARAMFLAG'][gd[rc],1] |= parammask.getval('LOGG_CAL_MS')
 
@@ -843,7 +864,7 @@ def cal(a,caldir='cal/') :
 
 import tensorflow as tf
 from astropy.io import ascii
-def nn_cal(a,caldir='./',modelfile='logg_nn_model.h5',out=None) :
+def nn_cal(a,caldir='./',modelfile='logg_nn_model.h5',out=None,gbclip=False) :
     """ apply log g calibration with NN prescription
     """
 
@@ -872,10 +893,11 @@ def nn_cal(a,caldir='./',modelfile='logg_nn_model.h5',out=None) :
     # clip Teff >6500
     teff=np.clip(a['FPARAM'][:,0],0,6500)
     # clip logg 0.5-5
-    logg=np.clip(a['FPARAM'][:,1],1.5,5.)
+    logg=np.clip(a['FPARAM'][:,1],0.5,5.)
     # clip gravities below giant branch to 4
-    bd=np.where((teff<4800)&(a['FPARAM'][:,1]<4)&(a['FPARAM'][:,1]>(teff-3000)*(4-0.5)/(4800-3000)+0.5))[0]
-    logg[bd]=4
+    if gbclip :
+        bd=np.where((teff<4800)&(a['FPARAM'][:,1]<4)&(a['FPARAM'][:,1]>(teff-3000)*(4-0.5)/(4800-3000)+0.5))[0]
+        logg[bd]=4
 
 
     #Data must be formatted as 'Metallicity, carbon, nitrogen, Raw TEFF, Raw Log G' with an overall shape of (#stars, 5)
@@ -883,6 +905,9 @@ def nn_cal(a,caldir='./',modelfile='logg_nn_model.h5',out=None) :
     normed_data = (inpars-mean)/std
 
     logg_cal = model.predict(normed_data).flatten()
+    # only calibrate not STAR_BAD
+    a['PARAM'][gd,1] = a['FPARAM'][gd,1]+logg_cal[gd]
+
     fig,ax=plots.multi(1,2)
     plots.plotc(ax[0],a['FPARAM'][:,1],logg_cal,a['FPARAM'][:,3],xr=[-1,6],yr=[-2,2],zr=[-2.5,0.5],size=1)
     dw=np.where(a['FPARAM'][:,1]>4)[0]
@@ -891,9 +916,8 @@ def nn_cal(a,caldir='./',modelfile='logg_nn_model.h5',out=None) :
     if out is not None :
         fig.savefig(out+'logg_correction.png')
         plt.close()
+        plot_correction(a,out=out)
 
-    # only calibrate not STAR_BAD
-    a['PARAM'][gd,1] = a['FPARAM'][gd,1]+logg_cal[gd]
 
 def plot_correction(a,out=None) :
     """ Plots of log g correction
@@ -908,7 +932,8 @@ def plot_correction(a,out=None) :
         plt.close()
 
 
-def nn_train(allstar,apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',loggrange=[-1.,3.8],mhrange=[-2.5,0.5],teffrange=[3500,5500],out=None) :
+def nn_train(allstar,apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',loggrange=[-1.,3.8],mhrange=[-2.5,0.5],teffrange=[3500,5500],out=None,neurons=8,logg_col='APOKASC3P_LOGG',calib=False) :
+#def nn_train(allstar,apokasc_cat='APOKASC_cal.fits',out=None,neurons=8,logg_col='LOGG_S') :
     """ get log g calibration by training a neural net
     """
 
@@ -916,52 +941,80 @@ def nn_train(allstar,apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',loggrange=[-1.,3.8
     gd=np.where(np.isfinite(allstar['FPARAM'][:,0]))[0]
     allstar=allstar[gd]
 
-    # match ASPCAP with APOKASC, and get RC/RGB stars
-    apokasc=fits.open(os.environ['APOGEE_DIR']+'/data/apokasc/'+apokasc_cat)[1].data
-    # strip off .XXXX if we have it, e.g. from calibration fields where we have added .FIELD
+    # get log g data to calibrate to. Compiled in data/calib/logg
+    logg_cal=fits.open(os.environ['APOGEE_DIR']+'/data/calib/logg_cal.fits')[1].data
     apogee_id = np.array(np.core.defchararray.split(allstar['APOGEE_ID'],'.').tolist())[:,0]
-    i1,i2=match.match(apogee_id,apokasc['2MASS_ID'])
+    i1,i2=match.match(apogee_id,logg_cal['APOGEE_ID'])
 
-    teff=allstar['FPARAM'][:,0]
-    logg=allstar['FPARAM'][:,1]
-    mh=allstar['FPARAM'][:,3]
-    cm=allstar['FPARAM'][:,4]
-    nm=allstar['FPARAM'][:,5]
+    # match ASPCAP with APOKASC, and get RC/RGB stars
+    #apokasc=fits.open(os.environ['APOGEE_DIR']+'/data/apokasc/'+apokasc_cat)[1].data
+    ## strip off .XXXX if we have it, e.g. from calibration fields where we have added .FIELD
+    #apogee_id = np.array(np.core.defchararray.split(allstar['APOGEE_ID'],'.').tolist())[:,0]
+    #i1,i2=match.match(apogee_id,apokasc['2MASS_ID'])
+
+    if calib : param = 'PARAM'
+    else : param = 'FPARAM'
+    teff=allstar[param][i1,0]
+    logg=allstar[param][i1,1]
+    mh=allstar[param][i1,3]
+    cm=allstar[param][i1,4]
+    nm=allstar[param][i1,5]
+
+    inpars = np.vstack((teff,logg,mh,cm-nm)).T
+    loggcal = logg_cal['LOGG'][i2]
+    fig,ax=plots.multi(1,4,hspace=0.001)
+    labs=['APOKASC','Berger','LOGG_DW','Physical']
+    for i in range(4) :
+        gd=np.where(logg_cal['SOURCE'][i2] == i)[0]
+        plots.plotc(ax[i],logg[gd],logg[gd]-loggcal[gd],mh[gd],
+                    zr=[-2,0.5],xr=[-1,5],yr=[-1,1],colorbar=True)
+        ax[i].grid()
+        ax[i].text(0.1,0.1,labs[i],transform=ax[i].transAxes)
+    if out is not None :
+        fig.savefig(out+'nn_logg_cal.png')
+        plt.close()
+
+    fig,ax=plots.multi(1,1)
+    plots.plotc(ax,teff,logg,logg-loggcal,
+                zr=[-0.5,0.5],xr=[8000,3000],yr=[6,-1],colorbar=True)
+    if out is not None :
+        fig.savefig(out+'nn_logg_cal_hr.png')
+        plt.close()
 
     # get ASPCAP gravities for RGB/RC and subgiants, and isochrone gravities for dwarfs
     # accumulate input parameters and log gs
     # make plots of log g offsets: RGB, subgiants, dwarfs
-    fig,ax=plots.multi(1,3)
-    gd=np.where(apokasc['APOKASC3P_LOGG'][i2]>-1)[0]
-    inpars = np.vstack((teff[i1[gd]],logg[i1[gd]],mh[i1[gd]],cm[i1[gd]]-nm[i1[gd]])).T
-    loggcal = apokasc['APOKASC3P_LOGG'][i2[gd]]
-    plots.plotc(ax[0],allstar['FPARAM'][i1[gd],1],allstar['FPARAM'][i1[gd],1]-apokasc['APOKASC3P_LOGG'][i2[gd]],allstar['FPARAM'][i1[gd],3],
-                zr=[-2,0.5],xr=[-1,5],yr=[-1,1],colorbar=True)
+    #fig,ax=plots.multi(1,4)
+    #gd=np.where(apokasc[logg_col][i2]>-1)[0]
+    #inpars = np.vstack((teff[i1[gd]],logg[i1[gd]],mh[i1[gd]],cm[i1[gd]]-nm[i1[gd]])).T
+    #loggcal = apokasc[logg_col][i2[gd]]
+    #plots.plotc(ax[0],allstar['FPARAM'][i1[gd],1],allstar['FPARAM'][i1[gd],1]-apokasc[logg_col][i2[gd]],allstar['FPARAM'][i1[gd],3],
+    #            zr=[-2,0.5],xr=[-1,5],yr=[-1,1],colorbar=True)
 
-    # duplicate RC stars 
-    rc=np.where(apokasc['APOKASC3_CONS_EVSTATES'][i2] == 2)[0]
-    #for i in range(3) :
-    #    inpars=np.vstack((inpars,np.vstack((teff[i1[rc]],logg[i1[rc]],mh[i1[rc]],cm[i1[rc]]-nm[i1[rc]])).T))
-    #    loggcal=np.append(loggcal,apokasc['APOKASC3P_LOGG'][i2[rc]])
+    # asteroseismic subgiants
+    #gd=np.where(apokasc['LOGG_DW'][i2]>-1)[0]
+    #inpars=np.vstack((inpars,np.vstack((teff[i1[gd]],logg[i1[gd]],mh[i1[gd]],cm[i1[gd]]-nm[i1[gd]])).T))
+    #loggcal=np.append(loggcal,apokasc['LOGG_DW'][i2[gd]])
+    #plots.plotc(ax[1],allstar['FPARAM'][i1[gd],1],allstar['FPARAM'][i1[gd],1]-apokasc['LOGG_DW'][i2[gd]],allstar['FPARAM'][i1[gd],3],
+    #            zr=[-2,0.5],xr=[-1,5],yr=[-1,1],colorbar=True)
 
-    gd=np.where(apokasc['LOGG_DW'][i2]>-1)[0]
-    inpars=np.vstack((inpars,np.vstack((teff[i1[gd]],logg[i1[gd]],mh[i1[gd]],cm[i1[gd]]-nm[i1[gd]])).T))
-    loggcal=np.append(loggcal,apokasc['LOGG_DW'][i2[gd]])
-    plots.plotc(ax[1],allstar['FPARAM'][i1[gd],1],allstar['FPARAM'][i1[gd],1]-apokasc['LOGG_DW'][i2[gd]],allstar['FPARAM'][i1[gd],3],
-                zr=[-2,0.5],xr=[-1,5],yr=[-1,1],colorbar=True)
+    # isochrone main sequence
+    #iso=isochrone(allstar)
+    #i1,i2=match.match(apogee_id,iso['APOGEE_ID'])
+    #inpars=np.vstack((inpars,np.vstack((teff[i1],logg[i1],mh[i1],cm[i1]-nm[i1])).T))
+    #loggcal=np.append(loggcal,iso['ISOLOGG'][i2])
+    #plots.plotc(ax[2],allstar['FPARAM'][i1,0],allstar['FPARAM'][i1,1]-iso['ISOLOGG'][i2],allstar['FPARAM'][i1,3],
+    #            zr=[-2,0.5],xr=[6000,3000],yr=[-1,1],colorbar=True)
+    
+    # cluster physical gravities
+    #clusters=ascii.read(os.environ['APOGEE_DIR']+'/data/calib/clusters_physical_logg.txt')
+    #i1,i2=match.match(apogee_id,clusters['col1'])
+    #inpars=np.vstack((inpars,np.vstack((teff[i1],logg[i1],mh[i1],cm[i1]-nm[i1])).T))
+    #loggcal=np.append(loggcal,clusters['col2'][i2])
+    #plots.plotc(ax[3],allstar['FPARAM'][i1,1],allstar['FPARAM'][i1,1]-clusters['col2'][i2],allstar['FPARAM'][i1,3],
+    #            zr=[-2,0.5],xr=[-1,5],yr=[-1,1],colorbar=True)
+    #fig.tight_layout()
 
-    iso=isochrone(allstar)
-    i1,i2=match.match(apogee_id,iso['APOGEE_ID'])
-    inpars=np.vstack((inpars,np.vstack((teff[i1],logg[i1],mh[i1],cm[i1]-nm[i1])).T))
-    loggcal=np.append(loggcal,iso['ISOLOGG'][i2])
-    plots.plotc(ax[2],allstar['FPARAM'][i1,0],allstar['FPARAM'][i1,1]-iso['ISOLOGG'][i2],allstar['FPARAM'][i1,3],
-                zr=[-2,0.5],xr=[6000,3000],yr=[-1,1],colorbar=True)
-    fig.tight_layout()
-    if out is not None :
-        grid=[]
-        fig.savefig(out+'nn_logg_cal.png')
-        plt.close()
-        grid.append(['nn_logg_cal.png'])
 
     # get normalization parameters for inputs
     mn=[]
@@ -995,11 +1048,10 @@ def nn_train(allstar,apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',loggrange=[-1.,3.8
     if out is not None :
         fig.savefig(out+'nn_logg_train.png')
         plt.close()
-        grid.append(['nn_logg_train.png'])
 
     # create model
     model = tf.keras.Sequential([
-        tf.keras.layers.Dense(16, activation='relu', input_shape=[inpars_norm_train.shape[1]]),
+        tf.keras.layers.Dense(neurons, activation='relu', input_shape=[inpars_norm_train.shape[1]]),
         tf.keras.layers.Dense(1)
     ])
     optimizer = tf.keras.optimizers.RMSprop(0.001)
@@ -1014,6 +1066,8 @@ def nn_train(allstar,apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',loggrange=[-1.,3.8
         inpars_norm_train,(loggcal_train - inpars_train[:,1]),
         epochs=EPOCHS, validation_split=0.2, verbose=0,
         callbacks=[early_stop])
+
+    # remove outliers more than 0.5 off in logg
     gd = np.where(np.abs(loggcal_train - inpars_train[:,1]) < 0.5) [0]
     print('keeping: ', len(gd),' out of ',len(loggcal_train))
     history = model.fit(
@@ -1033,12 +1087,11 @@ def nn_train(allstar,apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',loggrange=[-1.,3.8
     plots.plotc(ax[0],inpars[:,0],inpars[:,1],loggcal-inpars[:,1],colorbar=True,xr=[8000,3000],yr=[6,-1],zr=[-0.5,0.5],zt='true-spec')
     plots.plotc(ax[1],inpars[:,0],inpars[:,1],corrections,colorbar=True,xr=[8000,3000],yr=[6,-1],zr=[-0.5,0.5],zt='NN correction')
     plots.plotc(ax[2],inpars[:,0],inpars[:,1],loggcal-inpars[:,1]-corrections,colorbar=True,xr=[8000,3000],yr=[6,-1],zr=[-0.25,0.25],zt='Correction error')
-    plots.plotc(ax[3],inpars_train[gd,0],inpars_train[gd,1],loggcal_train[gd]-inpars_train[gd,1],colorbar=True,xr=[8000,3000],yr=[6,-1],zr=[-0.5,0.5],zt='true-spec')
+    plots.plotc(ax[3],inpars_train[gd,0],inpars_train[gd,1],loggcal_train[gd]-inpars_train[gd,1]-corrections[ind[:ntrain][gd]],colorbar=True,xr=[8000,3000],yr=[6,-1],zr=[-0.5,0.5],zt='true-spec')
     fig.tight_layout()
     if out is not None :
         fig.savefig(out+'nn_logg_hr.png')
         plt.close()
-        grid.append(['nn_logg_hr.png'])
 
     # plots for training and test data sets
     fig,ax=plots.multi(2,2,hspace=0.001,wspace=0.001)
@@ -1054,14 +1107,10 @@ def nn_train(allstar,apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',loggrange=[-1.,3.8
     if out is not None :
         fig.savefig(out+'nn_logg_scatter.png')
         plt.close()
-        grid.append(['nn_logg_scatter.png'])
 
     #calibrate the full sample and make plots of corrections
     #nn_cal(allstar,caldir=out,modelfile=out+'logg_nn_model.h5',out=out)
     #if out is not None :
-    #    grid.append(['logg_correction.png'])
-    #    grid.append(['logg_correction_hr.png'])
-    #    html.htmltab(grid,out+'logg_nn.html')
 
     #test_predictions = corrections + test_dataset['Raw_Grav']
 #

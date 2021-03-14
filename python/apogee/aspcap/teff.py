@@ -29,7 +29,7 @@ def bindata(xdata,ydata,bins,median=True) :
     return mean
 
 def ghb(allstar,glatmin=30.,ebvmax=0.03,trange=[3750,5500],loggrange=[-1,6],mhrange=[-2.5,0.75],alpha=False,out='teffcomp',yr=[-500,500],
-        calib=False,dr13=False,grid=None,cmap='rainbow') :
+        calib=False,dr13=False,grid=None,cmap='rainbow',doerr=True) :
     """
     Compares allstar ASPCPAP Teff with photometric Teff from GHB for sample of stars with GLAT>glatmin and SFD_EBV<ebvmax,
     does fits
@@ -44,8 +44,9 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,trange=[3750,5500],loggrange=[-1,6],mhra
     """
 
     # select data to use
-    if 'TARGFLAGS' in allstar.columns.names : badtarg = ['EMBEDDED','EXTENDED']
-    else : badtarg = None
+    badtarg=['YOUNG','EMBEDDED','EXTENDED','M31','M33','EMISSION','RRLYR','DSPH','MAGCLOUD']
+    #if 'TARGFLAGS' in allstar.columns.names : badtarg = ['EMBEDDED','EXTENDED']
+    #else : badtarg = None
     gd=apselect.select(allstar,badval=['STAR_BAD'],badtarg=badtarg,teff=trange,mh=mhrange,logg=loggrange,raw=True)
     allstar=allstar[gd]
     #if dr13 :
@@ -122,7 +123,9 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,trange=[3750,5500],loggrange=[-1,6],mhra
     #pfit = fit.fit2d(allstar[param][:,3],allstar[param][:,0],allstar[param][:,0]-ghb,plot=ax[0,0],zr=[-500,200],xt='[M/H]',yt=['Teff'],zt='$\Delta Teff$')
     #ejk=np.clip(np.sqrt(allstar['J_ERR']**2+allstar['K_ERR']**2),0.,0.02)
     #errpar = err.errfit(teff,allstar['SNR'],mh,teff-tefit(mh)-ghb,title='Teff',out=out+'_phot',zr=[0,250],meanerr=abs(dtdjk)*ejk)
-    errpar = err.errfit(teff,allstar['SNR'],mh,teff-tefit(mh)-ghb,title='Teff',out=out,zr=[0,150])
+    if doerr: 
+        errpar = err.errfit(teff,allstar['SNR'],mh,teff-tefit(mh)-ghb,title='Teff',out=out,zr=[0,150])
+    else: errpar=0.
 
     x=np.linspace(-3,1,200)
     rms = (teff-tefit(mh)-ghb).std()
@@ -182,7 +185,7 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,trange=[3750,5500],loggrange=[-1,6],mhra
     fig.tight_layout()
     fig.savefig(out+'_b.png')
     plt.close()
-   
+
     # do some test 2D and 1D fits and plots 
     #fig,ax=plots.multi(2,2,hspace=0.5,wspace=0.001)
     #ax[0,1].xaxis.set_visible(False)
@@ -333,7 +336,7 @@ def cal(a,caldir='cal/'):
         a['PARAMFLAG'][gd,0] &= ~parammask.getval('CALRANGE_BAD')
         return
 
-    calpars=fits.open(caldir+'/all_tecal.fits')[1].data[0]
+    calpars=fits.open(caldir+'/tecal.fits')[1].data[0]
     calteffmin=calpars['caltemin']
     calteffmax=calpars['caltemax']
     teff=np.clip(a['FPARAM'][gd,0],calpars['temin'],calpars['temax'])
@@ -346,7 +349,8 @@ def cal(a,caldir='cal/'):
 
     ok =np.where((a['FPARAM'][gd,0] >= calteffmin) & (a['FPARAM'][gd,0] <= calteffmax) )[0]
     a['PARAM'][gd[ok],0] = a['FPARAM'][gd[ok],0] - (calpars['par2d'][0]+calpars['par2d'][1]*mh[ok]+calpars['par2d'][2]*teff[ok])
-    a['PARAM_COV'][gd[ok],0,0] = err.elemerr(calpars['errpar'],a['FPARAM'][gd[ok],0]-4500.,snr[ok]-100.,a['FPARAM'][gd[ok],3])**2
+    # populate uncertainties with err.apply()
+    #a['PARAM_COV'][gd[ok],0,0] = err.elemerr(calpars['errpar'],a['FPARAM'][gd[ok],0]-4500.,snr[ok]-100.,a['FPARAM'][gd[ok],3])**2
     a['PARAMFLAG'][gd[ok],0] &= ~parammask.getval('CALRANGE_BAD')
 
     return 

@@ -49,7 +49,7 @@ def allField(search=['apo*/*/a?Field-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?
             a.append(dat)
     all =vstack(a)
     del(a)
-    all.sort(['RA'])
+    all.sort(['RA','DEC','FIELD'])
 
     # write out the file
     if out is not None:
@@ -58,7 +58,8 @@ def allField(search=['apo*/*/a?Field-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?
 
     return all
 
-def allFieldVisit(search=['apo*/*/a?FieldVisits-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?FieldVisits-*.fits'],out='allFieldVisit.fits',verbose=False) :
+def allFieldVisit(search=['apo*/*/a?FieldVisits-*.fits','apo*/*/a?FieldC-*.fits','lco*/*/a?FieldVisits-*.fits'],
+                  apred_vers='dr17',out='allFieldVisit.fits',verbose=False) :
     """ Concatenate set of apFieldVisits files
     """
 
@@ -74,16 +75,50 @@ def allFieldVisit(search=['apo*/*/a?FieldVisits-*.fits','apo*/*/a?FieldC-*.fits'
             print(file)
             dat=Table.read(file)
             a.append(dat)
-    all =vstack(a)
+    allvisit =vstack(a)
     del(a)
-    all.sort(['RA'])
+    allvisit.sort(['RA','DEC','FIELD'])
+
+    # add VISIT_ID
+    col = Column(visit_id(allvisit,apred_vers=apred_vers),name='VISIT_ID',dtype='S64')
+    allvisit.add_column(col,index=2)
+
+    # repopulate STARFLAGS to allow for longer strings
+    allvisit.remove_column('STARFLAGS')
+    for ind,col in enumerate(allvisit.columns) :
+        if col == 'STARFLAG' : break
+    col = Column(np.full([len(allvisit)],''),name='STARFLAGS',dtype='S132')
+    allvisit.add_column(col,index=ind+1)
+    starmask=bitmask.StarBitMask()
+    for i,visit in enumerate(allvisit) : allvisit['STARFLAGS'][i] = starmask.getname(visit['STARFLAG'])
 
     # write out the file
     if out is not None:
         print('writing',out)
-        all.write(out,overwrite=True)
+        allvisit.write(out,overwrite=True)
 
-    return all
+    return allvisit
+
+def visit_id(data,apred_vers='dr17') :
+    """ Unique visit identifier
+    """
+    id = np.core.defchararray.add('apogee.',data['TELESCOPE'].astype(str))
+    id = np.core.defchararray.add(id,'.')
+    id = np.core.defchararray.add(id,apred_vers)
+    id = np.core.defchararray.add(id,'.')
+    id = np.core.defchararray.add(id,np.char.strip(data['PLATE'].astype(str)))
+    id = np.core.defchararray.add(id,'.')
+
+    tmp=[]
+    for d in data :
+        if d['TELESCOPE'] == 'apo1m'  :
+            tmp.append(d['FILE'].split('-')[2]+'.'+d['APOGEE_ID'])
+        else :
+            tmp.append(str(d['MJD'])+'.'+str(d['FIBERID']))
+    id = np.core.defchararray.add(id,np.array(tmp))
+
+    return id
+
 
 def allPlate(all,out=None) :
     """ Create allPlate file from allFieldVisit
@@ -229,8 +264,8 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     else :
         allobj = obj
 
-    # output apField structure
-    fieldtype = np.dtype([('FILE','S64'),('APOGEE_ID','S30'),('TELESCOPE','S6'),('LOCATION_ID',int),('FIELD','S20'),
+    # output apField structur
+    fieldtype = np.dtype([('FILE','S64'),('APOGEE_ID','S30'),('TELESCOPE','S6'),('LOCATION_ID',np.int32),('FIELD','S20'),
                           ('ALT_ID','S30'),('RA',float),('DEC',float),('GLON',float),('GLAT',float),
                           ('J',np.float32),('J_ERR',np.float32),('H',np.float32),('H_ERR',np.float32),('K',np.float32),('K_ERR',np.float32),
                           ('SRC_H','S16'),('WASH_M',np.float32),('WASH_M_ERR',np.float32),('WASH_T2',np.float32),('WASH_T2_ERR',np.float32),
@@ -238,20 +273,20 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                           ('IRAC_4_5',np.float32),('IRAC_4_5_ERR',np.float32),('IRAC_5_8',np.float32),('IRAC_5_8_ERR',np.float32),
                           ('IRAC_8_0',np.float32),('IRAC_8_0_ERR',np.float32),
                           ('WISE_4_5',np.float32),('WISE_4_5_ERR',np.float32),('TARG_4_5',np.float32),('TARG_4_5_ERR',np.float32),
-                          ('WASH_DDO51_GIANT_FLAG',int),('WASH_DDO51_STAR_FLAG',int),
+                          ('WASH_DDO51_GIANT_FLAG',np.int32),('WASH_DDO51_STAR_FLAG',np.int32),
                           ('TARG_PMRA',np.float32),('TARG_PMDEC',np.float32),('TARG_PM_SRC','S16'),
                           ('AK_TARG',np.float32),('AK_TARG_METHOD','S32'),
                           ('AK_WISE',np.float32),('SFD_EBV',np.float32),
-                          ('APOGEE_TARGET1',int),('APOGEE_TARGET2',int),
-                          ('APOGEE2_TARGET1',int),('APOGEE2_TARGET2',int),('APOGEE2_TARGET3',int),('APOGEE2_TARGET4',int),
+                          ('APOGEE_TARGET1',np.int32),('APOGEE_TARGET2',np.int32),
+                          ('APOGEE2_TARGET1',np.int32),('APOGEE2_TARGET2',np.int32),('APOGEE2_TARGET3',np.int32),('APOGEE2_TARGET4',np.int32),
                           ('TARGFLAGS','S132'),('SURVEY','S32'),('PROGRAMNAME','S32'),
-                          ('NINST',int),('NVISITS',int),('COMBTYPE',int),('COMMISS',int),
+                          ('NINST',np.int32),('NVISITS',np.int32),('COMBTYPE',np.int32),('COMMISS',np.int32),
                           ('SNR',np.float32),('SNREV',np.float32),
                           ('STARFLAG',np.int64),('STARFLAGS','S132'),('ANDFLAG',np.int64),('ANDFLAGS','S132'),
                           ('VHELIO_AVG',np.float32),('VSCATTER',np.float32),('VERR',np.float32),
                           ('RV_TEFF',np.float32),('RV_LOGG',np.float32),('RV_FEH',np.float32),('RV_ALPHA',np.float32),('RV_CARB',np.float32),
-                          ('RV_CHI2',np.float32),('RV_CCFWHM',np.float32),('RV_AUTOFWHM',np.float32),('RV_FLAG',np.int),
-                          ('N_COMPONENTS',int),('MEANFIB',np.float32),('SIGFIB',np.float32),
+                          ('RV_CHI2',np.float32),('RV_CCFWHM',np.float32),('RV_AUTOFWHM',np.float32),('RV_FLAG',np.int32),
+                          ('N_COMPONENTS',np.int32),('MEANFIB',np.float32),('SIGFIB',np.float32),
                           ('MIN_H',np.float32),('MAX_H',np.float32),('MIN_JK',np.float32),('MAX_JK',np.float32)
                          ])
     #default initialize to 0/blank
@@ -278,7 +313,8 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         allfield['APOGEE_ID'][iobj] = star
 
         # copy basic information from first visit in case star fails
-        visit0=np.where(allvisits['APOGEE_ID'] == star)[0][0]
+        visits=np.where(allvisits['APOGEE_ID'] == star)[0]
+        visit0=visits[0]
         keys=['RA','DEC','GLON','GLAT','LOCATION_ID','ALT_ID','J','J_ERR','H','H_ERR','K','K_ERR',
               'SRC_H','WASH_M','WASH_M_ERR','WASH_T2','WASH_T2_ERR',
               'DDO51','DDO51_ERR','IRAC_3_6','IRAC_3_6_ERR',
@@ -289,11 +325,16 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         for key in keys :
             try: allfield[key][iobj] = allvisits[key][visit0]
             except KeyError: pass
-        # rename targeting proper motions
+        # rename targeting proper motions and fill design columns in case of RV failure
         keys = ['PMRA','PMDEC','PM_SRC']
         for key in keys :
             try: allfield['TARG_'+key][iobj] = allvisits[key][visit0]
             except KeyError: pass
+        allfield['MIN_H'] = allvisits['MIN_H'][visits].min()
+        allfield['MAX_H'] = allvisits['MAX_H'][visits].max()
+        allfield['MIN_JK'] = allvisits['MIN_JK'][visits].min()
+        allfield['STARFLAG'] = np.bitwise_or.reduce(allvisits['STARFLAG'][visits])
+        allfield['ANDFLAG'] = np.bitwise_and.reduce(allvisits['STARFLAG'][visits])
 
         # we will only consider good visits for RVs and combination
         visits=np.where(allvisits['APOGEE_ID'][gd] == star)[0]
@@ -304,7 +345,8 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         if len(visits) > 0 :
             allfiles.append([allvisits[gd[visits]],load,(field,star,rvclobber,verbose,tweak,plot,windows,apstar_vers,save)])
         else :
-            allfield['STARFLAG'][iobj] = starmask.getval('RV_FAIL')
+            allfield['STARFLAG'][iobj] |= starmask.getval('RV_FAIL')
+            allfield['ANDFLAG'][iobj] |= starmask.getval('RV_FAIL')
             allfield['RV_FLAG'][iobj] = rvmask.getval('NO_GOOD_VISITS')
     print('total objects: ', nobj, ' total visits: ', nvisit) 
 
@@ -384,11 +426,15 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                 allvisits[visit]['BC']=v['bc']
                 allvisits[visit]['CCFWHM']=v['ccpfwhm']
                 allvisits[visit]['AUTOFWHM']=v['autofwhm']
+                if allvisits[visit]['CCFWHM'] > 2.0*allvisits[visit]['AUTOFWHM']:
+                    allvisits[visit]['STARFLAG'] |= starmask.getval('SUSPECT_ROTATION')
+                if allvisits[visit]['AUTOFWHM'] > 300 :
+                    allvisits[visit]['STARFLAG'] |= starmask.getval('SUSPECT_BROAD_LINES')
                 allvisits[visit]['RV_TEFF']=v['teff']
                 allvisits[visit]['RV_LOGG']=v['logg']
                 allvisits[visit]['RV_FEH']=v['feh']
                 allvisits[visit]['RV_CHI2']=v['chisq']
-                if g is None : allvisits[visit]['N_COMPONENTS']=0
+                if g is None or allvisits[visit]['SNR'] < 10 : allvisits[visit]['N_COMPONENTS']=0
                 else : allvisits[visit]['N_COMPONENTS']=g['N_components']
                 if allvisits[visit]['N_COMPONENTS'] > 1 :
                     allvisits[visit]['STARFLAG'] |= starmask.getval('MULTIPLE_SUSPECT')
@@ -403,8 +449,10 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                 else : bd_diff = 5*rv_reject
                 if (np.abs(allvisits[visit]['VHELIO']-allvisits[visit]['XCORR_VHELIO']) > bd_diff) :
                     allvisits[visit]['STARFLAG'] |= starmask.getval('RV_REJECT')
+                    allvisits[visit]['RV_FLAG'] |= rvmask.getval('RV_REJECT')
                 elif not np.isclose(allvisits[visit]['VHELIO'],allvisits[visit]['XCORR_VHELIO']) :
                     allvisits[visit]['STARFLAG'] |= starmask.getval('RV_SUSPECT')
+                    allvisits[visit]['RV_FLAG'] |= rvmask.getval('RV_SUSPECT')
                 allvisits[visit]['STARFLAGS'] = starmask.getname(allvisits[visit]['STARFLAG'])
                 allvisits[visit]['RV_FLAG'] |= mask
 
@@ -425,15 +473,14 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
                         allfield['RV_FLAG'][bd] |= rvmask.getval('ALL_VISITS_REJECTED')
         else :
             bdvisits = np.where(allvisits['APOGEE_ID'] == apogee_id)[0]
-            if len(bdvisits) > 0 : 
-                starflag,andflag,rvflag = np.int64(0),np.int64(0),0
-                andflag = allvisits['STARFLAG'][bdvisits[0]]
-                for bd in bdvisits :
-                    allvisits['STARFLAG'][bd] |= starmask.getval('RV_FAIL') 
-                    allvisits['RV_FLAG'][bd] |= out[0]
-                    starflag |= allvisits['STARFLAG'][bd]
-                    andflag &= allvisits['STARFLAG'][bd]
-                    rvflag |= allvisits['RV_FLAG'][bd]
+            starflag,rvflag = np.int64(0),np.int32(0)
+            andflag = allvisits['STARFLAG'][bdvisits[0]]
+            for bd in bdvisits :
+                allvisits['STARFLAG'][bd] |= starmask.getval('RV_FAIL') 
+                allvisits['RV_FLAG'][bd] |= out[0]
+                starflag |= allvisits['STARFLAG'][bd]
+                andflag &= allvisits['STARFLAG'][bd]
+                rvflag |= allvisits['RV_FLAG'][bd]
             bd = np.where(allfield['APOGEE_ID'] == apogee_id)[0]
             if len(bd) > 0 : 
                 allfield['ANDFLAG'][bd] = andflag 
@@ -490,6 +537,10 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
         allfield['RV_CHI2'][j] = apstar.header['RV_CHI2']
         allfield['RV_CCFWHM'][j] = apstar.header['CCFWHM']
         allfield['RV_AUTOFWHM'][j] = apstar.header['AUTOFWHM']
+        if allfield['RV_CCFWHM'][j] > 2.0*allfield['RV_AUTOFWHM'][j] :
+            allfield['STARFLAG'][j] |= starmask.getval('SUSPECT_ROTATION')
+        if allfield['RV_AUTOFWHM'][j] > 300 :
+            allfield['STARFLAG'][j] |= starmask.getval('SUSPECT_BROAD_LINES')
 
         # mostly unmodified names
         for key in ['STARFLAG','ANDFLAG','SNR','SNREV','VSCATTER','VERR','RV_TEFF','RV_LOGG','RV_FEH','NVISITS','MEANFIB','SIGFIB',
@@ -762,16 +813,24 @@ def gauss_decomp(out,phase='one',alpha1=0.5,alpha2=1.5,thresh=[4,4],plot=None,fi
                 pars_j = decomp['best_fit_parameters'][j::n]
                 for k in range(j) :
                     pars_k = decomp['best_fit_parameters'][k::n]
+                    #reject likely spurious components
                     if (pars_j[0]>pars_k[0] and pars_k[0]>0 and 
+                                #closer than width
                                 (abs(pars_j[2]-pars_k[2])<abs(pars_j[1])  or 
+                                #peak less than 0.5*primary peak
                                  pars_k[0]<0.25*pars_j[0] or 
+                                #primary peak less than 0.15
+                                 pars_j[0]<0.15 or 
+                                #broad primary
                                  abs(pars_j[1])>100 or
+                                #broad secondary
                                  np.abs(pars_k[1])>2*np.abs(pars_j[1]) ) ) :
                         decomp['best_fit_parameters'][k] = 0
                         decomp['N_components'] -= 1
                     elif (pars_k[0]>pars_j[0] and pars_j[0]>0 and
                                 (abs(pars_j[2]-pars_k[2])<abs(pars_k[1]) or 
                                  pars_j[0]<0.25*pars_k[0] or 
+                                 pars_k[0]<0.15 or
                                  abs(pars_k[1])>100 or
                                  np.abs(pars_j[1])>2*np.abs(pars_k[1]) ) )  :
                         decomp['best_fit_parameters'][j] = 0
@@ -858,7 +917,7 @@ def dop_plot(outdir,obj,out,decomp=None) :
                 ax[i].plot(x,gaussian(*pars)(x))
                 if pars[0] > 0 : color='k'
                 else : color='r'
-                ax[i].text(0.1,0.8-j*0.1,'{:8.1f}{:8.1f}{:8.1f}'.format(*pars),transform=ax[i].transAxes,color=color)
+                ax[i].text(0.1,0.8-j*0.1,'{:8.2f}{:8.1f}{:8.1f}'.format(*pars),transform=ax[i].transAxes,color=color)
     fig.savefig(outdir+'/'+obj+'_ccf.png')
     plt.close()
 
@@ -924,7 +983,8 @@ def mkhtml(field,suffix='',apred='r13',telescope='apo25m',apstar_vers='stars') :
    
     fp.write('<BR>Click on column headers to sort by column value<BR>\n') 
     fp.write('<TABLE BORDER=2 CLASS=sortable>\n')
-    fp.write('<TR><TD>Obj<TD>H<TD>RV_TEFF<TD>RV_CHI2<TD>N_comp<TD>Combined spectrum<TD>RV plot<TD>Spectrum<TD>Spectrum windows<TD> continuum\n')
+    fp.write('<TR><TD>Obj<TD>H<TD>RV_TEFF<TD>RV_CHI2<TD>N_comp<TD>Combined spectrum<TD>RV plot'+
+             '<TD>CCFs<TD>Combined CCF/autoccf <TD> Spectrum windows<TD>Spectrum<TD> continuum\n')
     for star in apf :
         obj=star['APOGEE_ID']
         print(obj)
@@ -1051,8 +1111,9 @@ def mkhtml(field,suffix='',apred='r13',telescope='apo25m',apstar_vers='stars') :
         fp.write('<TD><a HREF=plots/{:s}.png TARGET="_obj"> <IMG SRC=plots/{:s}.png WIDTH=600></A>\n'.format(obj,obj))
         fp.write('<TD><IMG SRC=plots/{:s}_rv.png TARGET="_obj">\n'.format(obj))
         fp.write('<TD><A HREF=plots/{:s}_ccf.png TARGET="_obj"> <IMG SRC=plots/{:s}_ccf.png></A>\n'.format(obj,obj))
-        fp.write('<TD><A HREF=plots/{:s}_spec.png TARGET="_obj"> <IMG SRC=plots/{:s}_spec.png></a>\n'.format(obj,obj))
+        fp.write('<TD><A HREF=plots/{:s}_autoccf.png TARGET="_obj"> <IMG SRC=plots/{:s}_autoccf.png></A>\n'.format(obj,obj))
         fp.write('<TD><A HREF=plots/{:s}_spec2.png TARGET="_obj"> <IMG SRC=plots/{:s}_spec2.png></a>\n'.format(obj,obj))
+        fp.write('<TD><A HREF=plots/{:s}_spec.png TARGET="_obj"> <IMG SRC=plots/{:s}_spec.png></a>\n'.format(obj,obj))
         fp.write('<TD><A HREF=plots/{:s}_cont.png TARGET="_obj"> <IMG SRC=plots/{:s}_cont.png></a>\n'.format(obj,obj))
     fp.close() 
 
@@ -1090,6 +1151,13 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
 
     # loop over each visit and interpolate to final wavelength grid
     if plot : fig,ax=plots.multi(1,2,hspace=0.001)
+    pixlim=np.zeros([3,2],dtype=np.int32)
+    pixlim_overlap=np.zeros([3,2],dtype=np.int32)
+    for chip in range(3) :
+        pixlim[chip,0] = nwave
+        pixlim[chip,1] = 0
+        pixlim_overlap[chip,0] = 0
+        pixlim_overlap[chip,1] = nwave
     for i,visit in enumerate(allvisit) :
 
         if bconly : 
@@ -1122,6 +1190,11 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
             # get the pixel values to interpolate to
             pix=wave.wave2pix(w,apvisit.wave[chip,:])
             gd=np.where(np.isfinite(pix))[0]
+
+            pixlim[chip,0]=min([pixlim[chip,0],gd[0]])
+            pixlim[chip,1]=max([pixlim[chip,1],gd[-1]])
+            pixlim_overlap[chip,0]=max([pixlim_overlap[chip,0],gd[0]])
+            pixlim_overlap[chip,1]=min([pixlim_overlap[chip,1],gd[-1]])
 
             # normalize if we have very large numbers (VESTA!)
             fluxnorm = np.median(apvisit.flux[chip,:])
@@ -1319,16 +1392,18 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
         rvtab['x_ccf']=rvtab['x_ccf'][:,gdccf]
         rvtab['ccf']=rvtab['ccf'][:,gdccf]
         rvtab['ccferr']=rvtab['ccferr'][:,gdccf]
+        rvtab['autoccf']=rvtab['autoccf'][:,gdccf]
     else : rvtab = None
 
     apstar=apload.ApSpec(zeros,err=zeros.copy(),bitmask=izeros,wave=aspcap.apStarWave(),
                 sky=zeros.copy(),skyerr=zeros.copy(),telluric=zeros.copy(),telerr=zeros.copy(),
                 cont=zeros.copy(),template=zeros.copy(),rvtab=rvtab)
-    apstar.header['CRVAL1'] = aspcap.logw0
-    apstar.header['CDELT1'] = aspcap.dlogw
-    apstar.header['CRPIX1'] = 1
-    apstar.header['CTYPE1'] = ('LOG-LINEAR','Logarithmic wavelength scale in subsequent HDU')
-    apstar.header['DC-FLAG'] = 1
+    apstar.header['CRVAL1'] = (aspcap.logw0,'Start log10(wavelength) in subsequent HDUs')
+    apstar.header['CDELT1'] = (aspcap.dlogw,'Dispersion in log10(wave) in subsequent HDUs')
+    apstar.header['CRPIX1'] = (1,'Pixel of starting wavelength in subsequent HDUs')
+    apstar.header['CTYPE1'] = ('LOG-LINEAR','Logarithmic wavelength scale in subsequent HDUs')
+    apstar.header['DC-FLAG'] = (1,'Logarithmic wavelength scale in subsequent HDUs')
+    apstar.header['NWAVE'] = (nwave,'Number of wavelengths in subsequent HDUs')
 
     # pixel-by-pixel weighted average
     cont = np.sum(stack.cont/stack.err**2,axis=0)/np.sum(1./stack.err**2,axis=0)
@@ -1434,6 +1509,18 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
     apstar.header['MAX_H'] = (allvisit['MAX_H'].max(),'maximum H mag of cohort')
     apstar.header['MIN_JK'] = (allvisit['MIN_JK'].min(),'minimum J-K of cohort')
     apstar.header['MAX_JK'] = (allvisit['MAX_JK'].max(),'maximum J-K of cohort')
+    apstar.header['RMIN'] = (pixlim[0,0],'Min pixel of red chip contrib, any frame')
+    apstar.header['RMAX'] = (pixlim[0,1],'Maxmm pixel of red chip contrib, any frame')
+    apstar.header['GMIN'] = (pixlim[1,0],'Min pixel of green chip contrib, any frame')
+    apstar.header['GMAX'] = (pixlim[1,1],'Maxm pixel of green chip contrib, any frame')
+    apstar.header['BMIN'] = (pixlim[2,0],'Min pixel of blue chip contrib, any frame')
+    apstar.header['BMAX'] = (pixlim[2,1],'Maxm pixel of blue chip contrib, any frame')
+    apstar.header['ROVERMIN'] = (pixlim_overlap[0,0],'Min pixel of red chip contrib, all frames')
+    apstar.header['ROVERMAX'] = (pixlim_overlap[0,1],'Max pixel of red chip contrib, all frames')
+    apstar.header['GOVERMIN'] = (pixlim_overlap[1,0],'Min pixel of green chip contrib, all frames')
+    apstar.header['GOVERMAX'] = (pixlim_overlap[1,1],'Max pixel of green chip contrib, all frames')
+    apstar.header['BOVERMIN'] = (pixlim_overlap[2,0],'Minimum pixel of blue chip contrib, all frames')
+    apstar.header['BOVERMAX'] = (pixlim_overlap[2,1],'Maximum pixel of blue chip contrib, all frames')
 
     # individual visit information in header
     for i0,visit in enumerate(allvisit) :
@@ -1455,15 +1542,6 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
         apstar.header['FLAG{:d}'.format(i)] = (visit['STARFLAG'],'STARFLAG for visit {:d}'.format(i))
         apstar.header.insert('SFILE{:d}'.format(i),('COMMENT','VISIT {:d} INFORMATION'.format(i)))
 
-  #sxaddpar,header,'HJD'+num,hjd,' Reduced Heliocentric JD of visit '+num
-  #sxaddpar,header,'VTYPE'+num,visitstr[i].vtype,' RV type (1=chisq, 2=xcorr) from visit '+num
-  #sxaddpar,header,'CHISQ'+num,visitstr[i].chisq, ' chi square from visit mini-grid xcorr'
-  #sxaddpar,header,'RVTEFF'+num,visitstr[i].rv_teff,' effective temperature (K) from visit mini-grid xcorr'
-  #sxaddpar,header,'RVLOGG'+num,visitstr[i].rv_logg,' surface gravity (dex) from visit mini-grid xcorr'
-  #sxaddpar,header,'RVFEH'+num,visitstr[i].rv_feh,' metallicity [Fe/H] from visit mini-grid xcorr'
-  #sxaddpar,header,'RVALPH'+num,visitstr[i].rv_alpha,' alpha abundance from visit mini-grid xcorr'
-  #sxaddpar,header,'RVCARB'+num,visitstr[i].rv_carb,' carbon abundance from visit mini-grid xcorr'
-
     # Do a RV fit just to get a template and normalized spectrum, for plotting, and FWHM and AUTOFWHM
     if dorvfit :
         try :
@@ -1478,8 +1556,13 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
             apstar.header['RV_CHI2'] = (out[1]['chisq'][0],'chisq from Doppler RV fit')
             apstar.header['CCFWHM'] = (out[1]['ccpfwhm'][0],'FWHM of RV CCF of star with template (km/s)')
             apstar.header['AUTOFWHM'] = (out[1]['autofwhm'][0],'FWHM of RV CCF of template with template (km/s)')
-            #rvtab=Table(out[1])
-            #apstar.rvtab = vstack([apstar.rvtab,rvtab])
+            rvtab=Table(out[1])
+            gdccf=np.where(np.isfinite(rvtab['x_ccf'][0,:]))[0]
+            rvtab['x_ccf']=rvtab['x_ccf'][:,gdccf]
+            rvtab['ccf']=rvtab['ccf'][:,gdccf]
+            rvtab['ccferr']=rvtab['ccferr'][:,gdccf]
+            rvtab['autoccf']=rvtab['autoccf'][:,gdccf]
+            apstar.comb_rvtab=rvtab
         except ValueError as err:
             print('Exception raised in visitcomb RV for: ', apstar.header['FIELD'],apstar.header['OBJID'])
             print("ValueError: {0}".format(err))
@@ -1520,42 +1603,18 @@ def visitcomb(allvisit,load=None,nres=[5,4.25,3.5],bconly=False,
         for i in range(3) : ax[i].set_xlim(15100,17000)
         ax[0].set_xlabel('Wavelength')
         fig.savefig(outdir+'/plots/'+apstar.header['OBJID']+'.png')
-
-    #apstar.header[,'MEAN VALUES:',header,/comment
-    #apstar.header[,header,'VRAD',0.0,' Doppler shift (km/s) of this spectrum'  ; set to rest frame
-    #apstar.header[,header,'VHELIO',vhelio,' mean barycentric velocity (km/s)'
-    #apstar.header[,header,'VSCATTER',vscatter,' STDEV of VHELIO (km/s)'
-    #apstar.header[,header,'VERR',verr,' weighted error in VHELIO (km/s)'
-    #apstar.header[,header,'VERR_MED',verr_med,' median error in VHELIO (km/s)'
-    #apstar.header[,header,'VLSR',vlsr,' mean LSR velocity (km/s)'
-    #apstar.header[,header,'VGSR',vgsr,' mean GSR velocity (km/s)'
-    #apstar.header[,header,'OVHELIO',obsvhelio,' mean barycentric velocity (km/s) from OBSVHELIO'
-    #apstar.header[,header,'OVERR',obsverr,' weighted error in OBSVHELIO'
-    #apstar.header[,header,'OVERR_ME',obsverr_med,' median error of OBSVHELIO velocity (km/s) from synth xcorr'
-    #apstar.header[,header,'OVSCAT',obsvscatter,' STDEV of OBSVHELIO (km/s)'
-    #apstar.header[,header,'SVHELIO',synthvhelio,' mean barycentric velocity (km/s) from SYNTHVHELIO'
-    #apstar.header[,header,'SVERR',synthverr,' weighted error in SYNTHVHELIO'
-    #apstar.header[,header,'SVERR_ME',synthverr_med,' median error of SYNTHVHELIO velocity (km/s) from synth xcorr'
-    #apstar.header[,header,'SVSCAT',synthvscatter,' STDEV of SYNTHVHELIO (km/s)'
-    #apstar.header[,header,'SYNTHSCA',synthscatter,' STDEV of OBSVHELIO-SYNTHVHELIO (km/s)'
-    #apstar.header[,header,'SNR',median(starstr.spec[*,0]/starstr.err[*,0]),' final median Signal/Noise ratio'
-    #; mean fiber
-    #; best stellar parameters from RV cross-correlations
-    #if tag_exist(starstr,'rv_feh') then begin
-      #apstar.header[,header,'CHISQ',starstr.chisq, ' chi square from mini-grid cross correlation'
-      #apstar.header[,header,'RVFEH',starstr.rv_feh,' metallicity [Fe/H] from mini-grid cross correlation'
-      #apstar.header[,header,'RVTEFF',starstr.rv_teff,' effective temperature (K) from mini-grid cross correlation'
-      #apstar.header[,header,'RVLOGG',starstr.rv_logg,' surface gravity (dex) from mini-grid cross correlation'
-      #apstar.header[,header,'RVALPH',starstr.rv_alpha,' alpha abundance for mini-grid cross correlation'
-      #apstar.header[,header,'RVCARB',starstr.rv_carb,' carbon abundance for mini-grid cross correlation'
-      #apstar.header[,header,'CCPFWHM',starstr.ccpfwhm,' FWHM of RV CCF of star with template (km/s)'
-      #apstar.header[,header,'AUTOFWHM',starstr.autofwhm,' FWHM of RV CCF of template with template (km/s)'
-    #endif else begin
-      #apstar.header[,header,'RVFEH',visitstr[0].feh,' metallicity [Fe/H] from visit mini-grid cross correlation'
-      #apstar.header[,header,'RVTEFF',visitstr[0].teff,' effective temp (K) from visit mini-grid cross correlation'
-      #apstar.header[,header,'RVLOGG',visitstr[0].logg,' surface gravity from visit mini-grid cross correlation'
-    #endelse
-
+        plt.close()
+       
+        fig,ax=plots.multi(1,1) 
+        try:
+            ax.plot(rvtab['x_ccf'][0],rvtab['ccf'][0])
+            ax.plot(rvtab['x_ccf'][0],rvtab['ccf'][0]/rvtab['ccf'][0].max())
+            n=len(rvtab['x_ccf'][0])
+            ax.plot(rvtab['x_ccf'][0],rvtab['autoccf'][0])
+            ax.text(0.1,0.9,'ccpfwhm: {:8.2f}   autofwhm: {:8.2f}'.format(rvtab['ccpfwhm'][0],rvtab['autofwhm'][0]),transform=ax.transAxes)
+        except: pass
+        fig.savefig(outdir+'/plots/'+apstar.header['OBJID']+'_autoccf.png')
+        plt.close()
 
     # plot
     if plot : 

@@ -163,7 +163,7 @@ grids :
   - name : BA
     lib : synspec/kurucz/solarisotopes/sBA_lsfcombo5_l33/p_apssBA_lsfcombo5_l33_012_075
     <<: *BA
-    <<: *lsfcombo
+    <<: *lsfcombo5
   - name : GKg_a 
     lib : synspec/marcs/giantisotopes/sgGK_200921lte_lsfa/p_apssgGK_200921lte_lsfa_012_075
     <<: *GKg

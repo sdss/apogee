@@ -771,7 +771,10 @@ def cal(a,caldir='cal/') :
     aspcapmask=bitmask.AspcapBitMask()
     parammask=bitmask.ParamBitMask()
     starmask=bitmask.StarBitMask()
-    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
+
+    #populate PARAM[1] for ALL stars, filter on STAR_BAD for LOGG
+    #do this by using >=0 here
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) >= 0) )[0]
 
     # start with CALRANGE_BAD
     a['PARAM'][:,1] = np.nan
@@ -872,12 +875,12 @@ def nn_cal(a,caldir='./',modelfile='logg_nn_model.h5',out=None,gbclip=False) :
     aspcapmask=bitmask.AspcapBitMask()
     parammask=bitmask.ParamBitMask()
     starmask=bitmask.StarBitMask()
-    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
 
-    #norm = ascii.read(caldir+'/trainstatsLogG_CalModel.csv',data_start=1)
-    #mean=norm['col3']
-    #std=norm['col4']
+    #populate PARAM[1] for ALL stars, filter on STAR_BAD for LOGG
+    #do this by using >=0 here
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) >= 0) )[0]
 
+    # load NN model
     with h5py.File(caldir+'/'+modelfile,'r') as model:
         mean=np.array(model['means'])
         std=np.array(model['std'])
@@ -885,7 +888,7 @@ def nn_cal(a,caldir='./',modelfile='logg_nn_model.h5',out=None,gbclip=False) :
 
     # clip [M/H] at -1.5, 0.5
     mh=np.clip(a['FPARAM'][:,3],-2.0,0.5)
-    # for dwarfs,clip at 1m
+    # for dwarfs,clip at [M/H]=-1
     dw=np.where((a['FPARAM'][:,1]>4)&(mh<-1))[0]
     mh[dw]=-1.
     cm=a['FPARAM'][:,4]

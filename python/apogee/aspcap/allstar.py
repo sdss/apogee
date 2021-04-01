@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 from esutil import htm
 import astropy
@@ -6,7 +7,7 @@ from astropy.io import fits
 from apogee.utils import bitmask, apselect,gaia
 from apogee.apred import apstar
 from apogee.aspcap import aspcap, teff, logg, cal, err, elem, qa
-from tools import match, struct, html
+from tools import match, struct, html, plots
 import os
 import pdb
 import glob
@@ -23,7 +24,8 @@ def all(planfile,dofix=False,suffix=None,allplate=True, calsample=False) :
    aspcap_vers=plan['aspcap_vers']
    if suffix==None : suffix=plan['suffix']
    outdir='allStar-'+apred_vers+'-'+aspcap_vers+suffix
-   os.mkdir(outdir)
+   try: os.mkdir(outdir)
+   except: pass
 
    # allStar file
    apstar_dir=os.environ['APOGEE_REDUX']+'/'+apred_vers+'/'+apstar_vers+'/'
@@ -60,8 +62,8 @@ def all(planfile,dofix=False,suffix=None,allplate=True, calsample=False) :
    return nvisits
 
 def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out='allStar.fits',
-            skip=['Field-cal_','Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.','apo1m.'], 
-            doerr=True,docal=True,dofix=False,addgaia=False,outdir=None) :
+            skip=['Field-redo','Field-cal_','Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.','apo1m.'], 
+            doerr=True,docal=True,doextratarg=True,dofix=False,addgaia=False,outdir=None) :
     '''
     Concatenate set of aspcapField files, and add named_tags, extratarg
     '''
@@ -97,16 +99,17 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
     # empirical uncertainties
     if doerr : repeat_err(tab,tab3,outdir=outdir)
 
-    if docal : allcal(tab,tab3,outdir=outdir)
-
     # add EXTRATARG, H_MIN, H_MAX, JKMIN, JKMAX
-    add_extratarg(tab)
+    if doextratarg: add_extratarg(tab)
 
     # add MEMBERS
     add_members(tab)
 
     # set ASPCAPFLAG bits and ASPCAPFLAGS
     aspcapflag(tab)
+
+    # calibration depends on having STAR_BAD set
+    if docal : allcal(tab,tab3,outdir=outdir)
 
     # add named tags
     add_named_tags(tab)
@@ -121,11 +124,12 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
 
     # write out the file
     if out is not None: hdulist = write(tab,tab3,tab3,out)
-    
-    qa_plots(hdulist,prefix=outdir)
+   
+    outdir=outdir+'/' 
+    qa_plots(tab,tab3,prefix=outdir)
     qa_html(tab,tab3,prefix=outdir)
 
-    return tab, dat
+    return tab, tab3
 
 def write(tab, tab2, tab3, out) :
     # construct HDUList
@@ -156,7 +160,7 @@ def repeat_err(tab,tab3,outdir=None) :
 
     procs=[]
     kw={'data' : tab, 'out' : outdir+'/repeat/giant_', 'params' : tab3['PARAM_SYMBOL'][0].astype(str), 
-        'elems' : tab3['ELEM_SYMBOL'][0].astype(str), 'logg' : [-1,3.8]}
+        'elems' : tab3['ELEM_SYMBOL'][0].astype(str), 'logg' : [-1,3.8], 'teff' : [3000,6000]}
     procs.append(Process(target=err.repeat,kwargs=kw))
     kw={'data' : tab, 'out' : outdir+'/repeat/dwarf_', 'params' : tab3['PARAM_SYMBOL'][0].astype(str), 
         'elems' : tab3['ELEM_SYMBOL'][0].astype(str), 'logg' : [3.8,5.5]}
@@ -164,7 +168,6 @@ def repeat_err(tab,tab3,outdir=None) :
     for proc in procs : proc.start()
     for proc in procs : proc.join()
     print('repeat elapsed: ',time.time()-start)
-    err.apply(tab,caldir=outdir+'/repeat/')
 
 def add_named_tags(tab) :
     """ Add abundance named tags
@@ -185,26 +188,41 @@ def add_named_tags(tab) :
         try : tab.remove_column(name)
         except: pass
         tab.add_column(col)
-    tab['TEFF'] = tab['PARAM'][:,0].astype(np.float32)
-    tab['TEFF_ERR'] = np.sqrt(tab['PARAM_COV'][:,0,0]).astype(np.float32)
-    tab['LOGG'] = tab['PARAM'][:,1].astype(np.float32)
-    tab['LOGG_ERR'] = np.sqrt(tab['PARAM_COV'][:,1,1]).astype(np.float32)
-    tab['M_H'] = tab['PARAM'][:,3].astype(np.float32)
-    tab['M_H_ERR'] = np.sqrt(tab['PARAM_COV'][:,3,3]).astype(np.float32)
-    tab['ALPHA_M'] = tab['PARAM'][:,6].astype(np.float32)
-    tab['ALPHA_M_ERR'] = np.sqrt(tab['PARAM_COV'][:,6,6]).astype(np.float32)
-    tab['TEFF_SPEC'] = tab['FPARAM'][:,0].astype(np.float32)
-    tab['LOGG_SPEC'] = tab['FPARAM'][:,1].astype(np.float32)
-    tab['VMICRO'] = 10.**tab['FPARAM'][:,2].astype(np.float32)
-    dw=np.where((np.core.defchararray.find(tab['ASPCAP_GRID'].astype(str),'BA') >= 0) |
-                (np.core.defchararray.find(tab['ASPCAP_GRID'].astype(str),'GKd')>= 0)  |
-                (np.core.defchararray.find(tab['ASPCAP_GRID'].astype(str),'Fd')>= 0)  |
-                (np.core.defchararray.find(tab['ASPCAP_GRID'].astype(str),'Md')>= 0)  ) [0]
-    tab['VMACRO'][dw] = 0.
-    tab['VSINI'][dw] = 10.**tab['FPARAM'][dw,7].astype(np.float32)
-    giant=np.where((np.core.defchararray.find(tab['ASPCAP_GRID'].astype(str),'GKg') >=0) |
-                   (np.core.defchararray.find(tab['ASPCAP_GRID'].astype(str),'Mg')  >=0)) [0]
-    tab['VMACRO'][giant] = 10.**tab['FPARAM'][giant,7].astype(np.float32)
+
+    aspcapmask=bitmask.AspcapBitMask()
+    parammask=bitmask.ParamBitMask()
+    gd=np.where((tab['ASPCAPFLAG'] & aspcapmask.badval()) == 0)[0]
+    tab['TEFF'][gd] = tab['PARAM'][gd,0].astype(np.float32)
+    tab['TEFF_ERR'][gd] = np.sqrt(tab['PARAM_COV'][gd,0,0]).astype(np.float32)
+    tab['TEFF_SPEC'][gd] = tab['FPARAM'][gd,0].astype(np.float32)
+
+    tab['LOGG'][gd] = tab['PARAM'][gd,1].astype(np.float32)
+    tab['LOGG_ERR'][gd] = np.sqrt(tab['PARAM_COV'][gd,1,1]).astype(np.float32)
+    tab['LOGG_SPEC'][gd] = tab['FPARAM'][gd,1].astype(np.float32)
+
+    # populated named abundance tags only off grid edge
+    gdel = np.where((tab['PARAMFLAG'][gd,3]&parammask.badval()) == 0)[0]
+    tab['M_H'][gd[gdel]] = tab['PARAM'][gd[gdel],3].astype(np.float32)
+    tab['M_H_ERR'][gd[gdel]] = np.sqrt(tab['PARAM_COV'][gd[gdel],3,3]).astype(np.float32)
+
+    gdel = np.where((tab['PARAMFLAG'][gd,6]&parammask.badval()) == 0)[0]
+    tab['ALPHA_M'][gd[gdel]] = tab['PARAM'][gd[gdel],6].astype(np.float32)
+    tab['ALPHA_M_ERR'][gd[gdel]] = np.sqrt(tab['PARAM_COV'][gd[gdel],6,6]).astype(np.float32)
+
+    tab['VMICRO'][gd] = 10.**tab['FPARAM'][gd,2].astype(np.float32)
+    # populate VSINI and VMACRO for dwarfs (latter is fixed)
+    dw=np.where((np.core.defchararray.find(tab['ASPCAP_GRID'][gd].astype(str),'BA') >= 0) |
+                (np.core.defchararray.find(tab['ASPCAP_GRID'][gd].astype(str),'GKd')>= 0)  |
+                (np.core.defchararray.find(tab['ASPCAP_GRID'][gd].astype(str),'Fd')>= 0)  |
+                (np.core.defchararray.find(tab['ASPCAP_GRID'][gd].astype(str),'Md')>= 0)  ) [0]
+    tab['VMACRO'][gd[dw]] = 0.
+    tab['VSINI'][gd[dw]] = 10.**tab['FPARAM'][gd[dw],7].astype(np.float32)
+
+    # don't populate VSINI for giants (leave as NaN) since these are not derived
+    giant=np.where((np.core.defchararray.find(tab['ASPCAP_GRID'][gd].astype(str),'GKg') >=0) |
+                   (np.core.defchararray.find(tab['ASPCAP_GRID'][gd].astype(str),'Mg')  >=0)) [0]
+    # VMACRO for giants is also fixed, at the adopted relation
+    tab['VMACRO'][gd[giant]] = 10.**tab['FPARAM'][gd[giant],7].astype(np.float32)
 
     # named element flags
     elems, elemtoh, tagnames, elemfitnames = aspcap.elems()
@@ -212,6 +230,10 @@ def add_named_tags(tab) :
     for name in tagnames :
         col = Column(np.full([len(tab)],np.nan),name=name,dtype=np.float32)
         try : tab.remove_column(name)
+        except: pass
+        tab.add_column(col)
+        col = Column(np.full([len(tab)],np.nan),name=name+'_SPEC',dtype=np.float32)
+        try : tab.remove_column(name+'_SPEC')
         except: pass
         tab.add_column(col)
         col = Column(np.full([len(tab)],np.nan),name=name+'_ERR',dtype=np.float32)
@@ -224,12 +246,15 @@ def add_named_tags(tab) :
         tab.add_column(col)
     ife =np.where(elems == 'Fe')[0][0]
     for i,(el,tag) in enumerate(zip(elems,tagnames)) :
+        gdel = np.where((tab['ELEMFLAG'][gd,i]&parammask.badval()) == 0)[0]
         if el == 'Fe' :
-            tab[tag] = tab['X_H'][:,i].astype(np.float32)
+            tab[tag][gd[gdel]] = tab['X_H'][gd[gdel],i].astype(np.float32)
+            tab[tag+'_SPEC'][gd[gdel]] = tab['X_H_SPEC'][gd[gdel],i].astype(np.float32)
         else :
-            tab[tag] = tab['X_H'][:,i].astype(np.float32) - tab['X_H'][:,ife].astype(np.float32)
-        tab[tag+'_ERR'] = tab['X_H_ERR'][:,i].astype(np.float32)
-        tab[tag+'_FLAG'] = tab['ELEMFLAG'][:,i].astype(np.int32)
+            tab[tag][gd[gdel]] = tab['X_H'][gd[gdel],i].astype(np.float32) - tab['X_H'][gd[gdel],ife].astype(np.float32)
+            tab[tag+'_SPEC'][gd[gdel]] = tab['X_H_SPEC'][gd[gdel],i].astype(np.float32) - tab['X_H_SPEC'][gd[gdel],ife].astype(np.float32)
+        tab[tag+'_ERR'][gd[gdel]] = tab['X_H_ERR'][gd[gdel],i].astype(np.float32)
+        tab[tag+'_FLAG'][gd[gdel]] = tab['ELEMFLAG'][gd[gdel],i].astype(np.int32)
 
 def add_extratarg(tab) :
     """ add EXTRATARG, MIN_H, MAX_H, MIN_JK, MAX_JK
@@ -290,7 +315,7 @@ def add_extratarg(tab) :
     print('duplicates: ',len(dup))
     return jall
 
-def allcal(tab,tab3,outdir=None,doteff=True,dologg=True,doelem=True, calvers='dr16', calib=False, caldir='calib/') :
+def allcal(tab,tab3,outdir='./',doteff=True,dologg=True,doelem=True, doerr=True, calvers='dr17', calib=False, caldir='calib/') :
     """ Apply the calibrations
     """
 
@@ -298,15 +323,29 @@ def allcal(tab,tab3,outdir=None,doteff=True,dologg=True,doelem=True, calvers='dr
     try: os.makedirs(caldir)
     except FileExistsError : pass
 
+    #uncertainties
+    if doerr :
+        err.apply(tab,caldir=outdir+'/repeat/')
+
+    # Teff
     if doteff: 
         ebvmax=0.03
         teffcal = teff.ghb(tab,ebvmax=ebvmax,glatmin=10,out=caldir+'/tecal',yr=[-750,750],trange=[4500,7000],loggrange=[-1,6],calib=calib,doerr=False)
         Table(struct.dict2struct(teffcal)).write(caldir+'/tecal.fits',overwrite=True)
         teff.cal(tab,caldir=caldir)
-        figs=[['tecal.png','tecal_b.png']]
-        ytitle=['Teff all together']
+        # add calibration correction with same color scheme
+        fig,ax=plots.multi(1,1)
+        plots.plotc(ax,tab['FPARAM'][:,0],tab['FPARAM'][:,1],tab['FPARAM'][:,0]-tab['PARAM'][:,0],
+                    xr=[8000,3000],xt='Teff',yt='log g',zt=r'$\Delta$ Teff',yr=[6,-1],zr=[-250,250],colorbar=True)
+        outfile=caldir+'/calib_Teff_hr.png'
+        fig.savefig(outfile)
+        plt.close(fig)
+
+        figs=[['tecal.png','tecal_berger_mh.png'],['tecal_ghb_hr.png','tecal_berger_hr.png'],['tecal_b.png','calib_Teff_hr.png']]
+        ytitle=['Teff all stars','GHB&Berger HR','GHB']
         html.htmltab(figs,ytitle=ytitle,file=caldir+'/teff.html')
 
+    # log g
     if dologg: 
         logg.nn_train(tab,out=caldir)
         logg.nn_cal(tab,caldir=caldir,out=caldir)
@@ -316,46 +355,49 @@ def allcal(tab,tab3,outdir=None,doteff=True,dologg=True,doelem=True, calvers='dr
         grid.append(['logg_correction.png','logg_correction_hr.png'])
         html.htmltab(grid,caldir+'logg.html')
 
+    # abundances
     if doelem: 
         #cal.elemcal(tab,caldir=caldir)
         elems=tab3['ELEM_SYMBOL'][0].astype(str)
         elemtoh=tab3['ELEMTOH'][0]
 
-        for col in ['GIANT_SOLARNEIGH_ZERO','DWARF_SOLARNEIGH_ZERO', 'DWARF2_SOLARNEIGH_ZERO', 'SOLAR_ZERO'] :
+        for col in ['GIANT_SOLARNEIGH_ZERO','DWARF_SOLARNEIGH_ZERO', 'ALLDWARF_SOLARNEIGH_ZERO', 'SOLAR_ZERO'] :
             try: tab3.remove_column(col)
             except: pass
             try: tab3.remove_column(col+'_ERR')
             except: pass
 
+        # need to calibrate M before elems to populate X_H
+        doels = np.append(np.array(['M','alpha']),elems)
+
         # solar neighborhood giants
         solar=apselect.solar(tab,logg=[-1,3.8])
-        elemcal=elem.zerocal(tab,solar,elems,elemtoh,elems,calvers=calvers,calib=calib,extfit=4)
+        elemcal=elem.zerocal(tab,solar,elems,elemtoh,doels,calvers=calvers,calib=calib,extfit=4,dwarfs=False)
         tab3.add_column(Column([elemcal['extpar'][:,0]],name='GIANT_SOLARNEIGH_ZERO'))
         tab3.add_column(Column([elemcal['exterr']],name='GIANT_SOLARNEIGH_ZERO_ERR'))
-        Table(elemcal).write(caldir+'/giant_solarneigh_zero.fits',overwrite=True)
+        Table(elemcal).write(caldir+'/giant_abuncal.fits',overwrite=True)
+
+        # solar neighborhood 4500-5000 dwarfs
+        solar=apselect.solar(tab,logg=[4,6],teff=[4500,5000])
+        elemcal=elem.zerocal(tab,solar,elems,elemtoh,doels,calvers=calvers,calib=calib,extfit=4,dwarfs=True)
+        tab3.add_column(Column([elemcal['extpar'][:,0]],name='DWARF_SOLARNEIGH_ZERO'))
+        tab3.add_column(Column([elemcal['exterr']],name='DWARF_SOLARNEIGH_ZERO_ERR'))
+        Table(elemcal).write(caldir+'/dwarf_abuncal.fits',overwrite=True)
 
         # solar neighborhood all dwarfs
         solar=apselect.solar(tab,logg=[4,6])
-        elemcal=elem.zerocal(tab,solar,elems,elemtoh,elems,calvers=calvers,calib=calib,extfit=4)
-        tab3.add_column(Column([elemcal['extpar'][:,0]],name='DWARF_SOLARNEIGH_ZERO'))
-        tab3.add_column(Column([elemcal['exterr']],name='DWARF_SOLARNEIGH_ZERO_ERR'))
-        Table(elemcal).write(caldir+'/dwarf_solarneigh_zero.fits',overwrite=True)
-        # solar neighborhood 4500-5000 dwarfs
-        solar=apselect.solar(tab,logg=[4,6],teff=[4500,5000])
-        elemcal=elem.zerocal(tab,solar,elems,elemtoh,elems,calvers=calvers,calib=calib,extfit=4)
-        tab3.add_column(Column([elemcal['extpar'][:,0]],name='DWARF2_SOLARNEIGH_ZERO'))
-        tab3.add_column(Column([elemcal['exterr']],name='DWARF2_SOLARNEIGH_ZERO_ERR'))
-        Table(elemcal).write(caldir+'/dwarf2_solarneigh_zero.fits',overwrite=True)
+        elemcal=elem.zerocal(tab,solar,elems,elemtoh,doels,calvers=calvers,calib=calib,extfit=4,dwarfs=True)
+        tab3.add_column(Column([elemcal['extpar'][:,0]],name='ALLDWARF_SOLARNEIGH_ZERO'))
+        tab3.add_column(Column([elemcal['exterr']],name='ALLDWARF_SOLARNEIGH_ZERO_ERR'))
 
         # VESTA
         j=np.where(tab['APOGEE_ID'] == 'VESTA')[0]
-        elemcal=elem.zerocal(tab,j,elems,elemtoh,elems,calvers=calvers,calib=calib,extfit=2)
+        elemcal=elem.zerocal(tab,j,elems,elemtoh,doels,calvers=calvers,calib=calib,extfit=2,dwarfs=True)
         tab3.add_column(Column([elemcal['extpar'][:,0]],name='SOLAR_ZERO'))
         tab3.add_column(Column([elemcal['exterr']],name='SOLAR_ZERO_ERR'))
-        Table(elemcal).write(caldir+'/solar_zero.fits',overwrite=True)
 
-        # populate calibrated quantities without any calibration
-        elem.cal(tab,caldir='none')
+        # populate calibrated quantities 
+        elem.cal(tab,tab3,caldir=caldir)
 
     # VMICRO, VSINI, O copy from FPARAM
     for i in [2,7,8] :
@@ -365,6 +407,7 @@ def aspcapflag(aspcapfield) :
     """ Set bits in ASPCAPFLAG
     """
 
+    starbitmask=bitmask.StarBitMask()
     parambitmask=bitmask.ParamBitMask()
     aspcapbitmask=bitmask.AspcapBitMask()
 
@@ -381,21 +424,21 @@ def aspcapflag(aspcapfield) :
         print(flagname+'_WARN',len(j))
     
     # chi**2 
-    tmp= aspcapfield['ASPCAP_CHI2']/(aspcapfield['SNR']/100.)**2
-    j=np.where(tmp[gd] > 50)[0]
+    j=np.where(aspcapfield['ASPCAP_CHI2'][gd] > 50*(aspcapfield['SNR'][gd]/100.)**2 + 2) [0]
     aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('CHI2_BAD')
     print('CHI2_BAD',len(j))
-    j=np.where((tmp[gd] > 30) & (aspcapfield['ASPCAPFLAG'][gd]&aspcapbitmask.getval('CHI2_BAD')==0) )[0]
+    j=np.where((aspcapfield['ASPCAP_CHI2'][gd] > 30*(aspcapfield['SNR'][gd]/100.)**2 + 2) &
+               (aspcapfield['ASPCAPFLAG'][gd]&aspcapbitmask.getval('CHI2_BAD')==0) )[0]
     aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('CHI2_WARN')
     print('CHI2_WARN',len(j))
 
-    # rotation in giant grids
-    j=np.where( ( (np.core.defchararray.find(aspcapfield['ASPCAP_GRID'][gd].astype(str),'GKg') >=0)  |
-                  (np.core.defchararray.find(aspcapfield['ASPCAP_GRID'][gd].astype(str),'Mg') >=0) ) &
-                (aspcapfield['RV_CCFWHM'][gd]/aspcapfield['RV_AUTOFWHM'][gd] > 4.0 ) &
-                (aspcapfield['SNR'][gd] > 10) ) [0]
-    aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('ROTATION_BAD')
-    print('ROTATION_BAD',len(j))
+    # rotation in giant grids, warn only
+    #j=np.where( ( (np.core.defchararray.find(aspcapfield['ASPCAP_GRID'][gd].astype(str),'GKg') >=0)  |
+    #              (np.core.defchararray.find(aspcapfield['ASPCAP_GRID'][gd].astype(str),'Mg') >=0) ) &
+    #            (aspcapfield['RV_CCFWHM'][gd]/aspcapfield['RV_AUTOFWHM'][gd] > 4.0 ) &
+    #            (aspcapfield['SNR'][gd] > 10) ) [0]
+    #aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('ROTATION_BAD')
+    #print('ROTATION_BAD',len(j))
     j=np.where( ( (np.core.defchararray.find(aspcapfield['ASPCAP_GRID'][gd].astype(str),'GKg') >=0)  |
                   (np.core.defchararray.find(aspcapfield['ASPCAP_GRID'][gd].astype(str),'Mg') >=0) ) &
                 (aspcapfield['RV_CCFWHM'][gd]/aspcapfield['RV_AUTOFWHM'][gd] > 2.0 ) &
@@ -425,7 +468,11 @@ def aspcapflag(aspcapfield) :
     aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('COLORTE_WARN')
     print('COLORTE_WARN',len(j))
 
-    # bad targets
+    # MULTIPLE_SUSPECT transfer to ASPCAPFLAG (where it will trigger STAR_BAD)
+    j = np.where( (aspcapfield['STARFLAG'][gd] & starbitmask.getval('MULTIPLE_SUSPECT')) >0 )[0]
+    aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('MULTIPLE_SUSPECT')
+
+    # problematic targets
     j = np.where( (np.core.defchararray.find(aspcapfield['TARGFLAGS'][gd].astype(str),'EXTENDED') >=0) |
                   (np.core.defchararray.find(aspcapfield['TARGFLAGS'][gd].astype(str),'EMBEDDED') >=1) |
                   (np.core.defchararray.find(aspcapfield['TARGFLAGS'][gd].astype(str),'APOGEE2_M31') >=1) |
@@ -514,6 +561,35 @@ def add_visitpk(allstar, allvisit ) :
         if len(j) > nmax : nmax = len(j)
     print('nmax: ', nmax)
     return nvisits
+
+def fiber300fix() :
+    """ Replace records in aspcapField files that were missing for MEANFIB==300 with
+       supplemental runs from redo
+    """
+
+    for telescope in ['apo25m','lco25m'] :
+        a=fits.open(telescope+'/redo_000/aspcapField-redo_000.fits')
+        objs=np.char.split(a[1].data['APOGEE_ID'],'.')
+        for i,obj in enumerate(objs) :
+            name=telescope+'/'+obj[1]+'/aspcapField-'+obj[1]+'.fits'
+            old=fits.open(name)
+            j=np.where(old[1].data['APOGEE_ID'] == obj[0])[0]
+            print(old[1].data['APOGEE_ID'][j],old[1].data['FPARAM'][j])
+            print(a[1].data['APOGEE_ID'][i],a[1].data['FPARAM'][i])
+            if old[1].data['APOGEE_ID'][j] != a[1].data['APOGEE_ID'][i].split('.')[0] : pdb.set_trace()
+            old[1].data[j] = a[1].data[i]
+            old[2].data[j] = a[2].data[i]
+            try:os.makedirs('orig/'+os.path.dirname(name))
+            except FileExistsError: pass
+            # if we've already copied original file, don't do so again
+            if not os.path.exists('orig/'+name) : os.rename(name,'orig/'+name)
+            else : print('already copied orig')
+            hdulist=fits.HDUList()
+            hdulist.append(fits.BinTableHDU(old[1].data))
+            hdulist.append(fits.BinTableHDU(old[2].data))
+            hdulist.append(fits.BinTableHDU(old[3].data))
+            hdulist.writeto(name,overwrite=True)
+
 
 def fix(tab,visit=None) :
     """ Fix up broken things in pre-releases, e.g. dr17alpha
@@ -697,10 +773,9 @@ def aspcap_id(data,aspcap_vers='l33') :
     id = np.core.defchararray.add(id,data['APOGEE_ID'].astype(str))
     return id
 
-def qa_plots(hdulist,prefix='allStar/',hr=True, doqa=True, doelem=True) :
+def qa_plots(tab,tab3,prefix='allStar/',hr=True, doqa=True, doelem=True) :
     """ Make a series of QA plots
     """
-    tab = hdulist[1].data
     procs=[]
     if hr :
         # HR diagrams
@@ -723,11 +798,11 @@ def qa_plots(hdulist,prefix='allStar/',hr=True, doqa=True, doelem=True) :
         try: os.makedirs(prefix+'/qa/')
         except: pass
         start = time.time()
-        kw= {'allstar' : hdulist[1].data,'out' : prefix+'qa/'}
+        kw= {'tab' : tab,'out' : prefix+'qa/'}
         procs.append(Process(target=qa.chi2,kwargs=kw))
-        kw = {'hdulist' : hdulist,'out' : prefix+'qa/'}
+        kw = {'tab' : tab,'tab3': tab3,'out' : prefix+'qa/'}
         procs.append(Process(target=qa.apolco,kwargs=kw))
-        kw = {'hdulist' : hdulist,'out' : prefix+'qa/'}
+        kw = {'tab' : tab,'tab3' : tab3, 'out' : prefix+'qa/'}
         procs.append(Process(target=qa.flags,kwargs=kw))
 
     if doelem :
@@ -740,47 +815,49 @@ def qa_plots(hdulist,prefix='allStar/',hr=True, doqa=True, doelem=True) :
 
         # solar neighborhood solar metallicity and cluster star plots
         for xaxis in ['Mabs','logg','Teff'] :
-            kw = {'all' : [hdulist[1].data],'names' : [''],'hard' : prefix+'clust/','out' : 'solarz'+'_'+xaxis,
+            kw = {'all' : [tab],'names' : [''],'hard' : prefix+'qa/','out' : 'solarz'+'_'+xaxis,
                   'clusters' : ['solar','inner'],'xaxis' : xaxis}
             procs.append(Process(target=cal.allclust,kwargs=kw))
-            kw = { 'all' : [hdulist[1].data],'names' : [''],'hard' : prefix+'clust/','xaxis' : xaxis}
+            kw = { 'all' : [tab],'names' : [''],'hard' : prefix+'qa/','xaxis' : xaxis}
             procs.append(Process(target=cal.allclust,kwargs=kw))
         for param in ['hr','rms','chi2','M','Cpar','Npar','alpha','Cpar_Npar','C_N'] :
             row=[]
             for xaxis in ['Mabs','logg','Teff'] :
                 fig='solar'+'_'+xaxis+'_'+param+'.png'
-        for elem in hdulist[3].data['ELEM_SYMBOL'][0].astype(str) :
+        for elem in tab3['ELEM_SYMBOL'][0].astype(str) :
             row=[]
             for xaxis in ['Mabs','logg','Teff'] :
                 fig='solar'+'_'+xaxis+'_'+elem+'.png'
 
 
         # misc QA plots
-        kw= {'hdulist' : hdulist,'out' : prefix+'qa/' }
+        kw= {'tab' : tab, 'tab3' : tab3, 'out' : prefix+'qa/' }
         procs.append(Process(target=qa.calib,kwargs=kw))
-        qa.m67(hdulist,out=prefix+'qa/')
-        kw= {'hdulist' : hdulist,'out' : prefix+'qa/' }
+        kw= {'tab' : tab,'tab3' : tab3, 'out' : prefix+'qa/' }
         procs.append(Process(target=qa.m67,kwargs=kw))
 
         # elemental abundances
-        kw= {'hdulist' : hdulist,'out' : prefix+'qa/'}
+        kw= {'a' : tab,'tab3' : tab3, 'out' : prefix+'qa/'}
         procs.append(Process(target=qa.plotelems,kwargs=kw))
-        qa.plotelem_errs(hdulist,out=prefix+'qa/')
-        kw= {'hdulist' : hdulist,'out' : prefix+'qa/'}
+        kw= {'tab' : tab,'tab3' : tab3, 'out' : prefix+'qa/'}
         procs.append(Process(target=qa.plotelem_errs,kwargs=kw))
-        kw= {'hdulist' : hdulist,'calib' : True, 'out' : prefix+'qa_calibrated/'}
+        kw= {'a' : tab,'tab3' : tab3, 'calib' : True, 'out' : prefix+'qa_calibrated/'}
         procs.append(Process(target=qa.plotelems,kwargs=kw))
-        kw= {'hdulist' : hdulist,'out' : prefix+'qa_calibrated/all_','main' : False}
+        kw= {'a' : tab,'tab3' : tab3, 'out' : prefix+'qa_calibrated/all_','main' : False}
         procs.append(Process(target=qa.plotelems,kwargs=kw))
-        kw= {'hdulist' : hdulist,'out' : prefix+'qa_calibrated/named_','named' : True}
+        kw= {'a' : tab,'tab3' : tab3, 'out' : prefix+'qa_calibrated/named_','named' : True}
         procs.append(Process(target=qa.plotelems,kwargs=kw))
-        kw= {'hdulist' : hdulist,'out' : prefix+'qa/' }
+        kw= {'a' : tab,'out' : prefix+'qa/' }
         procs.append(Process(target=qa.plotcn,kwargs=kw))
 
     for proc in procs : proc.start()
     for proc in procs : proc.join()
 
 def qa_html(tab,tab3,prefix='allStar/',drcomp='dr16') :
+    """ Master HTML pages for qa plots
+    """
+    try: os.makedirs(prefix+'/qa/')
+    except: pass
 
     grid=[['hr/hr.png','hr/multihr.png','hr/hrhot.png'],
           ['hr/hr_main.png','hr/hr_targ.png',''],
@@ -817,11 +894,11 @@ def qa_html(tab,tab3,prefix='allStar/',drcomp='dr16') :
     f.write(html.table(tab['X_M'][j],plots=False,ytitle=ids,xtitle=xtit))
 
     f.write('<p> Calibration relations<ul>\n')
-    f.write('<li> <a href='+'calib/'+prefix+'.html'+'> Calibration plots</a>\n')
+    f.write('<li> Calibration plots\n')
     f.write('<ul>')
     f.write('<li> <a href='+'calib/logg.html> log g </a>\n')
     f.write('<li> <a href='+'calib/teff.html> Teff </a>\n')
-    f.write('<li> <a href='+'calib/elem.html> Abundances </a>\n')
+    f.write('<li> <a href='+'qa/elem.html> Abundances </a>\n')
     f.write('</ul>')
     f.write('<li> <a href='+'calibrated/'+prefix+'.html'+'> Calibration check (calibration plots from calibrated values) </a>\n')
     f.write('<li> <a href='+'qa/calib.html> Calibrated-uncalibrated plots</a>\n')
@@ -830,7 +907,7 @@ def qa_html(tab,tab3,prefix='allStar/',drcomp='dr16') :
     f.write('<li> <a href='+'optical/optical.html> Comparison with optical abundances</a>\n')
     f.write('<li> <a href='+'qa/apolco.html> APO-LCO comparison</a>\n')
     f.write('<li> <a href='+'clust/clust.html> Cluster abundances</a>\n')
-    f.write('<li> <a href='+'clust/solar.html> Solar neighborhood abundances at solar metallicity</a>\n')
+    f.write('<li> <a href='+'qa/elem.html> Solar neighborhood abundances at solar metallicity</a>\n')
     f.write('</ul>\n')
     f.write('<p> Chemistry plots<ul>\n')
     f.write('<li> <a href='+'qa/elem_chem.html> Chemistry plots with uncalibrated abundances</a>\n')
@@ -872,18 +949,52 @@ def qa_html(tab,tab3,prefix='allStar/',drcomp='dr16') :
         for xaxis in ['Mabs','logg','Teff'] :
             fig='solar'+'_'+xaxis+'_'+param+'.png'
             row.append(fig)
+        if param == 'hr' : row.extend(['../qa/calib_Teff_hr.png','','','','','','','',''])
+        elif param == 'rms': row.extend(['../qa/calib_logg_hr.png','','','','','','','',''])
+        else : row.extend(['','','','','','','','',''])
         yt.append(param)
         grid.append(row)
     for elem in aspcap.elems()[0] :
         row=[]
+        elemrow=[]
+        xt=[]
+        elemgrid=[]
         for xaxis in ['Mabs','logg','Teff'] :
             fig='solar'+'_'+xaxis+'_'+elem+'.png'
             row.append(fig)
-        yt.append(elem)
+            elemrow.append(fig)
+            xt.append(xaxis)
+        row.extend(['../qa/calib_'+elem+'_hr.png','../qa/'+elem+'_hr_err.png'])
+        for i in range(5) : row.append('../qa/{:s}_{:d}.png'.format(elem,i))
+        row.append('../qa/{:s}_teff.png'.format(elem))
+        row.append('../qa/{:s}_dwarfteff.png'.format(elem))
+        xt.extend(['calibration','uncertainty','giants 3000-4000','giants 4000-4500','giants 4500-8000','dwarfs 3000-4000','dwarfs 4000-8000','giants f(Teff)','dwarfs f(Teff)'])
+        yt.append('<a href={:s}.html>{:s}</a>'.format(elem, elem))
         grid.append(row)
-    try: os.makedirs(prefix+'/clust/')
-    except: pass
-    html.htmltab(grid,file=prefix+'clust/solar.html',ytitle=yt)
+
+        # individual element pages
+        elemrow.extend(['','','',''])
+        elemgrid.append(elemrow)
+        elemgrid.append(['../qa/calib_'+elem+'_hr.png','../qa/'+elem+'_hr_err.png','','','','',''])
+        for j in range(3) :
+            # do uncal, calibrated, and named chemistry plots for indiv elem pages
+            elemrow=[]
+            if j==0 : 
+                dir='qa'
+                pre=''
+            elif j==1 : 
+                dir='qa_calibrated'
+                pre=''
+            else : 
+                dir='qa_calibrated'
+                pre='named_'
+            for i in range(5) : 
+                elemrow.append('../{:s}/{:s}{:s}_{:d}.png'.format(dir,pre,elem,i))
+            elemrow.append('../{:s}/{:s}{:s}_teff.png'.format(dir,pre,elem))
+            elemrow.append('../{:s}/{:s}{:s}_dwarfteff.png'.format(dir,pre,elem))
+            elemgrid.append(elemrow)
+        html.htmltab(elemgrid,file=prefix+'qa/{:s}.html'.format(elem))
+    html.htmltab(grid,file=prefix+'qa/elem.html',ytitle=yt,xtitle=xt)
 
 # routines here used for DR16 only
 

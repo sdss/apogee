@@ -475,12 +475,13 @@ def getabun(data,elems,elemtoh,el,xh=False,terange=[-1,10000],calib=False,line=0
         param = 'PARAM'
     else :
         param = 'FPARAM'
+    parammask = bitmask.ParamBitMask()
     if el.strip() == 'M' :
-        ok=np.where(((data['PARAMFLAG'][:,3] & 255) == 0) & (data['FPARAM_COV'][:,3,3] < 0.2) &
+        ok=np.where(((data['PARAMFLAG'][:,3] & parammask.badval()) == 0) & (data['FPARAM_COV'][:,3,3] < 0.2) &
                     (data['FPARAM'][:,0] >= terange[0]) & (data['FPARAM'][:,0] <= terange[1]) & (data[param][:,3] > -9990.) )[0]
         abun = data[param][:,3]
     elif el.strip() == 'alpha' :
-        ok=np.where(((data['PARAMFLAG'][:,6] & 255) == 0) & (data['FPARAM_COV'][:,6,6] < 0.2) &
+        ok=np.where(((data['PARAMFLAG'][:,6] & parammask.badval()) == 0) & (data['FPARAM_COV'][:,6,6] < 0.2) &
                     (data['FPARAM'][:,0] >= terange[0]) & (data['FPARAM'][:,0] <= terange[1]) & (data[param][:,6] > -9990.) )[0]
         abun = data[param][:,6]
         if xh : abun+=data['FPARAM'][:,3]
@@ -1866,7 +1867,7 @@ def lbd2xyz(l,b,d,R0=8.5) :
     return x, y, z, r
 
 
-def zerocal(tab,j,elems,elemtoh,doels,calvers='dr16',extfit=None,calib=False) :
+def zerocal(tab,j,elems,elemtoh,doels,calvers='dr17',extfit=None,calib=False,dwarfs=False) :
     """ Get zeropoint calibration only from abundances of specified indices
     """
     rec = np.zeros(len(doels),dtype=[
@@ -1880,6 +1881,8 @@ def zerocal(tab,j,elems,elemtoh,doels,calvers='dr16',extfit=None,calib=False) :
                        ('femax','f4'),
                        ('caltemin','f4'),
                        ('caltemax','f4'),
+                       ('gdtemin','f4'),
+                       ('gdtemax','f4'),
                        ('extfit','i4'),
                        ('extpar','3f4'),
                        ('exterr','f4'),
@@ -1888,13 +1891,15 @@ def zerocal(tab,j,elems,elemtoh,doels,calvers='dr16',extfit=None,calib=False) :
                        ])
     data = tab[j]
     for iel,el in enumerate(doels) :
-        if calvers == 'dr16' :
-            pars=dr16cal(el)
+        if calvers == 'dr17' :
+            pars=dr17cal(el,dwarfs=dwarfs)
+        elif calvers == 'dr16' :
+            pars=dr16cal(el,dwarfs=dwarfs)
         else :
             pdb.set_trace()           
 
         pars['elem'] = el
-        for key in ['elem','elemfit','mhmin','te0','temin','temax','caltemin','caltemax','extfit','extpar'] :
+        for key in ['elem','elemfit','mhmin','te0','temin','temax','caltemin','caltemax','gdtemin','gdtemax','extfit','extpar'] :
             rec[iel][key] = pars[key]
 
         if pars['extfit'] > 0 :
@@ -1906,7 +1911,13 @@ def zerocal(tab,j,elems,elemtoh,doels,calvers='dr16',extfit=None,calib=False) :
 
         if extfit is not None : rec[iel]['extfit'] = extfit
         if rec[iel]['extfit'] == 2 : 
-            rec[iel]['exterr'] = data['X_H_ERR'][0,iel]
+            if el == 'M' :
+                rec[iel]['exterr'] = np.sqrt(data['PARAM_COV'][0,3,3])
+            elif el == 'alpha' :
+                rec[iel]['exterr'] = np.sqrt(data['PARAM_COV'][0,6,6])
+            else :
+                jel = np.where(elems == el)[0]
+                rec[iel]['exterr'] = data['X_H_ERR'][0,jel]
 
     return rec
 
@@ -1923,7 +1934,7 @@ def zeroplot(tab3) :
     ax.set_xticks(x)
     ax.set_xticklabels(tab3['ELEM_SYMBOL'][0].astype(str))
 
-def cal(a,caldir='cal/') :
+def cal(a,tab3,caldir='cal/') :
     """ Calibrate abundances 
     """
 
@@ -1931,21 +1942,29 @@ def cal(a,caldir='cal/') :
     parammask=bitmask.ParamBitMask()
     gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
 
-    giant = np.where( (a['FPARAM'][gd,1] < 2./1300.*(a['FPARAM'][gd,0]-3500)+2.) &
-                      (a['FPARAM'][gd,1] < 4) & (a['FPARAM'][gd,0] < 7000) )[0]
+    giant = np.where( (a['FPARAM'][gd,1] < 2./1300.*(a['FPARAM'][gd,0]-3600)+2.) &
+                      (a['FPARAM'][gd,1] < 4.0) & (a['FPARAM'][gd,0] < 5500) | (a['FPARAM'][gd,1]<2.8) )[0]
     tmp = np.zeros(len(gd),dtype=bool)
     tmp[giant] = True
     dwarf = np.where(~tmp)[0]
 
     # initialize calibrated arrays and flag
+    # turn on CALRANGE_BAD to start
+    # turn off TEFF_CUT to start
     for i in [3,4,5,6] :
         a['PARAM'][:,i] = np.nan
         a['PARAMFLAG'][gd,i] |= parammask.getval('CALRANGE_BAD')
+        a['PARAMFLAG'][gd,i] &= ~parammask.getval('TEFF_CUT')
 
     a['X_H'][:,:] = np.nan
     a['X_M'][:,:] = np.nan
+    a['X_H_SPEC'] = a['X_H']
+    a['X_M_SPEC'] = a['X_M']
+    for iel,el in enumerate(aspcap.elems()[0]) :
+        a['ELEMFLAG'][gd,iel] |= parammask.getval('CALRANGE_BAD')
+        a['ELEMFLAG'][gd,iel] &= ~parammask.getval('TEFF_CUT')
 
-    # [N/M] and [C/M] parameters
+    # populate [N/M] and [C/M] parameters with uncalibrated values
     for i in [4,5] : 
         a['PARAM'][gd,i] = a['FPARAM'][gd,i]
         a['PARAMFLAG'][gd,i] &= ~parammask.getval('CALRANGE_BAD')
@@ -1967,8 +1986,11 @@ def cal(a,caldir='cal/') :
             else :
                 a['X_M'][gd,iel] = a['FELEM'][gd,iel]
                 a['X_H'][gd,iel] = a['FELEM'][gd,iel]+a['FPARAM'][gd,3]
+            a['ELEMFLAG'][gd,iel] &= ~parammask.getval('CALRANGE_BAD')
+        a['X_H_SPEC'] = a['X_H']
+        a['X_M_SPEC'] = a['X_M']
         return
- 
+
     for group in ['dwarf','giant'] :
         cal=fits.open(caldir+'/'+group+'_abuncal.fits')[1].data
         if group == 'giant' :
@@ -1979,12 +2001,35 @@ def cal(a,caldir='cal/') :
         for el in els :
             print(el)
             iel = np.where(cal['elem'] == el)[0][0]
+
+            # no calibration if elemfit<0
+            if cal['elemfit'][iel] < 0 : continue
+
             calteffmin=cal['caltemin'][iel]
             calteffmax=cal['caltemax'][iel]
+            gdteffmin=cal['gdtemin'][iel]
+            gdteffmax=cal['gdtemax'][iel]
             print(el,calteffmin,calteffmax)
 
-            gdel=np.where( (a['FPARAM'][ok,0] >= calteffmin)  &
-                           (a['FPARAM'][ok,0] <= calteffmax) ) [0]
+            # only calibrate within calteffmin-calteffmax 
+            # allow GRIDEDGE here (flag>=0 allows all), but not in named tag
+            if el == 'M' :
+                gdel=np.where( (a['FPARAM'][ok,0] >= calteffmin)  &
+                               (a['FPARAM'][ok,0] <= calteffmax)  &
+                               ((a['PARAMFLAG'][ok,3]&parammask.badval()) >= 0) ) [0]
+            elif el == 'alpha' :
+                gdel=np.where( (a['FPARAM'][ok,0] >= calteffmin)  &
+                               (a['FPARAM'][ok,0] <= calteffmax)  &
+                               ((a['PARAMFLAG'][ok,6]&parammask.badval()) >= 0) ) [0]
+            else :
+                jel = np.where(aspcap.elems()[0] == el)[0]
+                gdel=np.where( (a['FPARAM'][ok,0] >= calteffmin)  &
+                               (a['FPARAM'][ok,0] <= calteffmax)  &
+                               ((a['ELEMFLAG'][ok,jel]&parammask.badval()) >= 0) ) [0]
+
+            # flag stars outside of "gd" range, but still populate here
+            bdel=np.where((a['FPARAM'][ok,0]<gdteffmin) |
+                          (a['FPARAM'][ok,0]>gdteffmax) )[0]
 
             teff=np.clip(a['FPARAM'][ok[gdel],0],cal['temin'][iel],cal['temax'][iel])
             mh=np.clip(a['FPARAM'][ok[gdel],3],cal['femin'][iel],cal['femax'][iel])
@@ -2011,33 +2056,152 @@ def cal(a,caldir='cal/') :
                 #a['PARAM_COV'][ok[gdel],3,3] = err.elemerr(cal['errpar'][iel],
                 #    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)**2
                 a['PARAMFLAG'][ok[gdel],3] &= ~parammask.getval('CALRANGE_BAD')
+                a['PARAMFLAG'][ok[bdel],3] |= parammask.getval('TEFF_CUT')
             elif el == 'alpha' :
                 a['PARAM'][ok[gdel],6] = a['FPARAM'][ok[gdel],6]-fit
                 # populate uncertainties with err.apply()
                 #a['PARAM_COV'][ok[gdel],6,6] = err.elemerr(cal['errpar'][iel],
                 #    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)**2
                 a['PARAMFLAG'][ok[gdel],6] &= ~parammask.getval('CALRANGE_BAD')
+                a['PARAMFLAG'][ok[bdel],6] |= parammask.getval('TEFF_CUT')
             else :
                 jel = np.where(aspcap.elems()[0] == el)[0]
                 print(iel,jel,elemtoh[jel])
                 if elemtoh[jel] :
-                    a['X_M'][ok[gdel],iel] = a['FELEM'][ok[gdel],iel]-fit-a['FPARAM'][ok[gdel],3]
+                    a['X_M'][ok[gdel],jel] = a['FELEM'][ok[gdel],jel]-fit-a['FPARAM'][ok[gdel],3]
+                    a['X_M_SPEC'][ok[gdel],jel] = a['FELEM'][ok[gdel],jel]-a['FPARAM'][ok[gdel],3]
+                    a['X_M_ERR'][ok[gdel],jel] = np.sqrt(a['X_M_ERR'][ok[gdel],jel]**2 + a['PARAM_COV'][ok[gdel],3,3])
+                    # [X/H] calculated with all calibrated parameters
+                    a['X_H'][ok[gdel],jel] = a['X_M'][ok[gdel],jel]+a['PARAM'][ok[gdel],3]
+                    a['X_H_SPEC'][ok[gdel],jel] = a['X_M_SPEC'][ok[gdel],jel]+a['FPARAM'][ok[gdel],3]
                 else :
-                    a['X_M'][ok[gdel],iel] = a['FELEM'][ok[gdel],iel]-fit
-                # [X/H] calculated with all calibrated parameters
-                a['X_H'][ok[gdel],iel] = a['X_M'][ok[gdel],iel]+a['PARAM'][ok[gdel],3]
+                    a['X_M'][ok[gdel],jel] = a['FELEM'][ok[gdel],jel]-fit
+                    a['X_M_SPEC'][ok[gdel],jel] = a['FELEM'][ok[gdel],jel]
+                    # [X/H] calculated with all calibrated parameters
+                    a['X_H'][ok[gdel],jel] = a['X_M'][ok[gdel],jel]+a['PARAM'][ok[gdel],3]
+                    a['X_H_SPEC'][ok[gdel],jel] = a['X_M_SPEC'][ok[gdel],jel]+a['FPARAM'][ok[gdel],3]
+                    a['X_H_ERR'][ok[gdel],jel] = np.sqrt(a['X_H_ERR'][ok[gdel],jel]**2 + a['PARAM_COV'][ok[gdel],3,3])
+                a['ELEMFLAG'][ok[gdel],jel] &= ~parammask.getval('CALRANGE_BAD')
+                a['ELEMFLAG'][ok[bdel],jel] |= parammask.getval('TEFF_CUT')
 
                 # populate uncertainties with err.apply()
-                #a['X_H_ERR'][ok[gdel],iel] = err.elemerr(cal['errpar'][iel],
+                #a['X_H_ERR'][ok[gdel],jel] = err.elemerr(cal['errpar'][jel],
                 #    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)
-                #a['X_M_ERR'][ok[gdel],iel] = err.elemerr(cal['errpar'][iel],
+                #a['X_M_ERR'][ok[gdel],jel] = err.elemerr(cal['errpar'][jel],
                 #    a['FPARAM'][ok[gdel],0]-4500,snr-100,a['FPARAM'][ok[gdel],3],quad=True)
                 # use FERRE uncertainty if larger
                 tmp=ok[gdel]
-                #j=np.where(a['FELEM_ERR'][tmp,iel] > a['X_H_ERR'][tmp,iel])[0]
-                #a['X_H_ERR'][tmp[j],iel] = a['FELEM_ERR'][tmp[j],iel]
-                #a['ELEMFLAG'][tmp[j],iel] |= parammask.getval('FERRE_ERR_USED')
+                #j=np.where(a['FELEM_ERR'][tmp,jel] > a['X_H_ERR'][tmp,jel])[0]
+                #a['X_H_ERR'][tmp[j],jel] = a['FELEM_ERR'][tmp[j],jel]
+                #a['ELEMFLAG'][tmp[j],jel] |= parammask.getval('FERRE_ERR_USED')
                 #print(el,'FERRE ERR used: ',len(j))
 
     return
 
+def dr17cal(el,dwarfs=False) :
+
+    elemfit = 0
+    extfit = 4
+    te0 = 4500
+    temin=0
+    temax=10000 
+    caltemin=3000
+    caltemax=7000
+    gdtemin=3000
+    gdtemax=7000
+    extpar = [0.,0.,0.]
+    mhmin=-1
+
+    if el.strip() == 'P' : elemfit=-1
+    if el.strip() == 'Ge' : elemfit=-1
+    if el.strip() == 'Rb' : elemfit=-1
+    if el.strip() == 'Cu' : elemfit=-1
+    if el.strip() == 'Yb' : elemfit=-1
+    if el.strip() == 'Nd' : elemfit=-1
+    if el.strip() == 'C13' : elemfit=-1
+
+    if dwarfs :
+        if el.strip() == 'C' : 
+            extfit = 0
+        elif el.strip() == 'CI' : 
+            extfit = 0
+        elif el.strip() == 'N' : 
+            extfit = 0
+            gdtemin=4500
+        elif el.strip() == 'Na' : 
+            gdtemin=4400
+        elif el.strip() == 'Al' : 
+            gdtemin=4400
+        elif el.strip() == 'S' : 
+            gdtemin=4500
+        elif el.strip() == 'K' : 
+            gdtemin=3800
+        elif el.strip() == 'Ca' : 
+            gdtemin=3700
+        elif el.strip() == 'Ti' : 
+            gdtemin=4000
+        elif el.strip() == 'TiII' : 
+            gdtemin=100000
+        elif el.strip() == 'V' : 
+            gdtemin=4800
+        elif el.strip() == 'Cr' : 
+            gdtemin=4400
+        elif el.strip() == 'Mn' : 
+            gdtemin=4000
+        elif el.strip() == 'Fe' : 
+            extfit = 0
+        elif el.strip() == 'Co' : 
+            gdtemin=100000
+        elif el.strip() == 'Ni' : 
+            gdtemin=0
+        elif el.strip() == 'Ce' : 
+            gdtemin=4500
+            gdtemax=6800
+        elif el.strip() == 'Nd' : 
+            gdtemin=4500
+        elif el.strip() == 'M' : 
+            extfit = 0
+    else :
+        if el.strip() == 'C' : 
+            extfit = 0
+        elif el.strip() == 'CI' : 
+            extfit = 0
+            gdtemin=3750
+        elif el.strip() == 'N' : 
+            extfit = 0
+        elif el.strip() == 'Na' : 
+            gdtemin=3600
+        elif el.strip() == 'Al' : 
+            gdtemin=3700
+        elif el.strip() == 'S' : 
+            gdtemin=3700
+        elif el.strip() == 'K' : 
+            gdtemin=3600
+        elif el.strip() == 'Ca' : 
+            gdtemin=3300
+        elif el.strip() == 'Ti' : 
+            gdtemin=3800
+        elif el.strip() == 'TiII' : 
+            gdtemin=3800
+        elif el.strip() == 'V' : 
+            gdtemin=3500
+        elif el.strip() == 'Cr' : 
+            gdtemin=3700
+        elif el.strip() == 'Mn' : 
+            gdtemin=3800
+        elif el.strip() == 'Fe' : 
+            extfit = 0
+        elif el.strip() == 'Co' : 
+            gdtemin=3600
+        elif el.strip() == 'Ni' : 
+            gdtemin=3500
+        elif el.strip() == 'Ce' : 
+            gdtemin=3900
+        elif el.strip() == 'Nd' : 
+            gdtemin=4400
+        elif el.strip() == 'M' : 
+            extfit = 0
+  
+    return {'elemfit': elemfit, 'mhmin' : mhmin, 'te0': te0, 'temin': temin, 'temax': temax, 
+            'caltemin': caltemin, 'caltemax' : caltemax, 'gdtemin' : gdtemin, 'gdtemax': gdtemax,
+            'extfit' : extfit, 'extpar' : np.array(extpar)}

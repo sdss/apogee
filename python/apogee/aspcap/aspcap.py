@@ -288,7 +288,7 @@ def apField2aspcapField(planfile,minerr=0.005,apstar_vers='stars',addgaia=False)
     # add new columns
     for col in ['ASPCAP_GRID','FPARAM_GRID','CHI2_GRID','FPARAM','FPARAM_COV','ASPCAP_CHI2',
                 'PARAM','PARAM_COV','PARAMFLAG','ASPCAPFLAG','ASPCAPFLAGS','FRAC_BADPIX','FRAC_LOWSNR','FRAC_SIGSKY',
-                'FELEM','FELEM_ERR','X_H','X_H_ERR','X_M','X_M_ERR','ELEM_CHI2','ELEMFLAG'] :
+                'FELEM','FELEM_ERR','X_H','X_H_ERR','X_M','X_M_ERR','ELEM_CHI2','ELEMFLAG','ELEMFRAC'] :
         try : aspcapfield.remove_column(col)
         except KeyError: pass
 
@@ -529,7 +529,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,write=True,minerr=0.005,ap
                           (aspcapfield['RV_LOGG'] >= grid['logg_range'][0]) &
                           (aspcapfield['RV_LOGG'] <= grid['logg_range'][1]) &
                           (aspcapfield['MEANFIB'] >= grid['fibermin']) &
-                          (aspcapfield['MEANFIB'] < grid['fibermax']) ) [0]
+                          (aspcapfield['MEANFIB'] <= grid['fibermax']) ) [0]
         else :
             gd = np.where(aspcapfield['ASPCAP_GRID'] == grid['name'])[0]
 

@@ -100,6 +100,7 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
             badbits = badbits | starflag.getval(name)
     try :
        bad = bad | (data['STARFLAG'] & badbits)
+       print('number rejected by badstar: ', len(np.where(data['STARFLAG']&badbits)[0]))
     except :
        pass
 
@@ -110,7 +111,7 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
             badtarg=[badtarg]
         for val in badtarg :
             try :
-                j=np.where(np.core.defchararray.find(data['TARGFLAGS'],val) >= 0)[0]
+                j=np.where(np.core.defchararray.find(data['TARGFLAGS'].astype(str),val) >= 0)[0]
                 targ[j]=1
                 print(val, len(j))
             except :
@@ -123,7 +124,7 @@ def select(data,badval=None,badstar=None,logg=[-1,10],teff=[0,10000],mh=[-100.,1
         targ = np.ones(len(data),dtype=np.int8)
         for val in gdtarg :
             try :
-                j=np.where(np.core.defchararray.find(data['TARGFLAGS'],val) >= 0)[0]
+                j=np.where(np.core.defchararray.find(data['TARGFLAGS'].astype(str),val) >= 0)[0]
                 targ[j]=0
             except :
                 print('error with TARGFLAGS selection')
@@ -747,7 +748,8 @@ def dsph(data,dir='dsph/',ratag='RA',dectag='DEC',rvtag='VHELIO',idtag='APOGEE_I
     html.tail(f)
     fstars.close()
 
-def solar(indata,data=None,raw=True,gaia='GAIAEDR3', teff=[3000,8000], logg=[-1,6], R=[8,9], Z=[0.,0.5], snmin=100, mh=[-0.05,0.05], Z_MAX=0.3, ECC=0.15) :
+def solar(indata,data=None,raw=True,gaia='GAIAEDR3', teff=[3000,8000], logg=[-1,6], R=[8,9], Z=[0.,0.5], 
+          gaia_max_error=0.1, snmin=100, mh=[-0.05,0.05], Z_MAX=0.3, ECC=0.15) :
     """ selects sample of solar neighborhood low log g stars, possibly from previous data set
 
         indata : return indices in this structure for solar neighborhood stars
@@ -762,8 +764,10 @@ def solar(indata,data=None,raw=True,gaia='GAIAEDR3', teff=[3000,8000], logg=[-1,
         data = indata
 
     distance = 1000./data[gaia+'_PARALLAX'][i2]
+    bd=np.where(distance<0)[0]
+    distance[bd]=8500.
     x,y,z,r=lbd2xyz(data['GLON'][i2],data['GLAT'][i2],distance/1000.)
-    j = np.where((data[gaia+'_PARALLAX_ERROR'][i2]/abs(data[gaia+'_PARALLAX'][i2]) < 0.1) &  
+    j = np.where((data[gaia+'_PARALLAX_ERROR'][i2]/abs(data[gaia+'_PARALLAX'][i2]) < gaia_max_error) &  
                  (z > Z[0]) & (z< Z[1]) & (r>R[0]) & (r<R[1]) & (data['SNREV'][i2] > snmin) &
                  (data['FPARAM'][:,0]>=teff[0]) & (data['FPARAM'][:,0]<teff[1]) &
                  (data['FPARAM'][:,1]>=logg[0]) & (data['FPARAM'][:,1]<logg[1]) &

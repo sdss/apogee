@@ -218,6 +218,7 @@ def fill_holes(argv) :
     parser.add_argument("--model",required=True)
     parser.add_argument("--dir",required=True)
     parser.add_argument("--fits",required=False)
+    parser.add_argument("--nolink",required=False,action='store_true')
     args=parser.parse_args()
 
     # transfer argument names
@@ -275,7 +276,7 @@ def fill_holes(argv) :
                 os.remove(dir+file)
             except OSError :
                 pass
-            os.symlink('../'+dir+fillfile,dir+file)
+            if not args.nolink : os.symlink('../'+dir+fillfile,dir+file)
 
             # fix up headers of filled models for new abundances
             if model.upper() == 'KURUCZ' :

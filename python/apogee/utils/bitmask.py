@@ -153,15 +153,15 @@ class AspcapBitMask(BitMask):
           'TEFF_BAD','LOGG_BAD','VMICRO_BAD','M_H_BAD','ALPHA_M_BAD','C_M_BAD','N_M_BAD','STAR_BAD',
           'CHI2_BAD','COLORTE_BAD','ROTATION_BAD','SN_BAD','SPEC_HOLE_BAD','ATMOS_HOLE_BAD','VSINI_BAD','NO_ASPCAP_RESULT',
           'MISSING_APSTAR','NO_GRID','BAD_FRAC_LOWSNR','BAD_FRAC_BADPIX','FERRE_FAIL','','','',
-          'PROBLEM_TARGET','','','','','','','',
+          'PROBLEM_TARGET','MULTIPLE_SUSPECT','','','','','','',
           '','','','','','','','',
           '','','','','','','','RESERVED'])
     level=([2,2,0,0,0,0,0,2,
             2,2,2,2,2,2,0,0,
             1,1,0,0,0,0,0,1,
-            1,1,1,1,1,2,0,1,
+            0,1,1,0,1,2,0,1,
             1,1,1,1,1,0,0,0,
-            1,0,0,0,0,0,0,0,
+            1,1,0,0,0,0,0,0,
             0,0,0,0,0,0,0,0,
             0,0,0,0,0,0,0,0])
 
@@ -208,13 +208,13 @@ class ParamBitMask(BitMask):
     '''
     BitMask class for APOGEE ASPCAP bitmask (APOGEE_ASPCAPFLAG)
     '''
-    name =['GRIDEDGE_BAD','CALRANGE_BAD','OTHER_BAD','FERRE_FAIL','PARAM_MISMATCH_BAD','FERRE_ERR_USED','','',
+    name =['GRIDEDGE_BAD','CALRANGE_BAD','OTHER_BAD','FERRE_FAIL','PARAM_MISMATCH_BAD','FERRE_ERR_USED','TEFF_CUT','',
            'GRIDEDGE_WARN','CALRANGE_WARN','OTHER_WARN','FERRE_WARN','PARAM_MISMATCH_WARN','OPTICAL_WARN','ERR_WARN','FAINT_WARN',
            'PARAM_FIXED','RV_WARN','','','','','','',
            'LOGG_CAL_RC','LOGG_CAL_RGB','LOGG_CAL_MS','LOGG_CAL_RGB_MS','','','','RESERVED']
 
 
-    level=[1,1,1,1,1,0,0,0,
+    level=[1,0,1,1,0,0,1,0,
              0,0,0,0,0,0,0,0,
              0,0,0,0,0,0,0,0,
              0,0,0,0,0,0,0,0]

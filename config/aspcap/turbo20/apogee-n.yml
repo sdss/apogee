@@ -1,7 +1,7 @@
 ---
 lsfa : &lsfa
     fibermin : 245
-    fibermax : 300
+    fibermax : 301
 lsfb : &lsfb
     fibermin : 145
     fibermax : 245
@@ -13,7 +13,7 @@ lsfd : &lsfd
     fibermax : 50
 lsfcombo : &lsfcombo
     fibermin : 1
-    fibermax : 300
+    fibermax : 301
 
 defaults : &defaults
     mask :  dr17/global_mask_v02.txt

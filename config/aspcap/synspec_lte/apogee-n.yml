@@ -1,10 +1,10 @@
 ---
 lsfcombo5 : &lsfcombo5
     fibermin : 0
-    fibermax : 300
+    fibermax : 301
 lsfa : &lsfa
     fibermin : 245
-    fibermax : 300
+    fibermax : 301
 lsfb : &lsfb
     fibermin : 145
     fibermax : 245

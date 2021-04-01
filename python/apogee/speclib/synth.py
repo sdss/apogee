@@ -424,7 +424,10 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
             print('synple.syn: ',atmod,wrange,linelists,dw,vmicro,save)
             # add 10*dw to range because of synple's spline interpolation
             wtmp=[wrange[0]-10*dw,wrange[1]+10*dw]
-            wave,flux,cont = synple.syn(atmod,wtmp,linelist=linelists,dw=dw,vmicro=vmicro,abu=abundances,save=save,clean=not save)
+            try:
+                wave,flux,cont = synple.syn(atmod,wtmp,linelist=linelists,dw=dw,vmicro=vmicro,abu=abundances,save=save,clean=not save)
+            except:
+                return 0., 0.
             wave=wave[10:-10]
             flux=flux[10:-10]
             cont=cont[10:-10]

@@ -25,7 +25,7 @@ def apply(data,caldir=None) :
 
     # separate giants and dwarfs
     giant = np.where( (data['FPARAM'][gd,1] < 2./1300.*(data['FPARAM'][gd,0]-3500)+2.) &
-                      (data['FPARAM'][gd,1] < 4) & (data['FPARAM'][gd,0] < 7000) )[0]
+                      (data['FPARAM'][gd,1] < 3.8) & (data['FPARAM'][gd,0] < 5500) )[0]
     tmp = np.zeros(len(gd),dtype=bool)
     tmp[giant] = True
     dwarf = np.where(~tmp)[0]
@@ -180,13 +180,13 @@ def errfit(te, snr, mh, val, snbins=np.arange(50,250,50), tebins=np.arange(3500,
     try : return soln
     except : return 0.
 
-def repeat(data=None,params=None,elems=None,inds=None,stars=None, out='./',elem=True,logg=[-1,6], log=True, fact=1.0) :
+def repeat(data=None,params=None,elems=None,inds=None,stars=None, out='./',elem=True,logg=[-1,6], teff=[3000,8000], log=True, fact=1.0) :
     """ Fits for empirical uncertainty given repeat observations of objects
     """
 
     # duplicates
     # get indices in file for each degree of RA, to shorten search
-    gd=apselect.select(data,badval='STAR_BAD',raw=True,logg=logg)
+    gd=apselect.select(data,badval='STAR_BAD',raw=True,logg=logg,teff=teff)
     a=data[gd]
     ind = np.zeros(360,dtype=int)
     for i in range(1,360) :

@@ -27,10 +27,9 @@ def plotparams(a=None,title=None,hard=None) :
 te_ranges=[[3000,4000],[4000,4500],[4500,8000],[3000,4000],[4000,8000]]
 logg_ranges=[[0,3.8],[0,3.8],[0,3.8],[3.8,5.5],[3.8,5.5]]
 
-def plotcn(hdulist=None,title=None,out=None) :
+def plotcn(a=None,title=None,out=None) :
     """ Compare parameter level C/M and N/M with element level
     """
-    a=hdulist[1].data
     grid=[]
     yt=[]
     for iel,el in enumerate(['C','N']) :
@@ -69,7 +68,7 @@ def elemvslogg(hdulist=None,title=None,out=None,calib=False,main=True,named=Fals
     """ Abundances vs log g for solar sample
     """
     a=hdulist[1].data
-    if main and ('EXTRATARG' in a.columns.names) :
+    if main and ('EXTRATARG' in a.columns) :
         gd=np.where(a['EXTRATARG'] == 0)[0]
         a=a[gd]
         comment=', main sample only'
@@ -79,7 +78,7 @@ def elemvslogg(hdulist=None,title=None,out=None,calib=False,main=True,named=Fals
     if calib : param = 'PARAM'
     else : param = 'FPARAM'
 
-    els=hdulist[3].data['ELEM_SYMBOL'][0]
+    els=hdulist[3].data['ELEM_SYMBOL'][0].astype(str)
     etoh=hdulist[3].data['ELEMTOH'][0]
 
     # for plots vs logg of solar neighborhood solar stars
@@ -131,24 +130,35 @@ def elemvslogg(hdulist=None,title=None,out=None,calib=False,main=True,named=Fals
     fig.savefig(out+'cn_logg.png',dpi=150)
 
 
-def plotelems(hdulist=None,title=None,out=None,calib=False,main=True,named=False) :
+def plotelems(a=None,tab3=None,title=None,out=None,calib=False,main=True,named=False,inner=False,bulge=False,solar=False) :
     """ Make [X/M] vs [M/H] plots for all elements as f(Teff, logg)
     """
-    a=hdulist[1].data
-    if main and ('EXTRATARG' in a.columns.names) :
+    if main and ('EXTRATARG' in a.columns) :
         gd=np.where(a['EXTRATARG'] == 0)[0]
         a=a[gd]
         comment=', main sample only'
     else :
         comment=', full sample'
+    if solar==True :
+        gd=apselect.solar(a,mh=[-2.5,1])
+        a=a[gd]
+        comment=comment+', solar neigh'
+    elif inner == True:
+        gd=apselect.solar(a,R=[3,7],mh=[-2.5,1],gaia_max_error=0.2)
+        a=a[gd]
+        comment=comment+', 3<R<7'
+    elif bulge == True :
+        gd=apselect.solar(a,R=[0,3],mh=[-2.5,1],ECC=None,Z_MAX=None,gaia_max_error=0.4)
+        a=a[gd]
+        comment=comment+', 0<R<3'
 
-    if calib : param = 'PARAM'
-    else : param = 'FPARAM'
+    # select subsamples and plot against raw parameters to be able to compare
+    param = 'FPARAM'
     try: vhelio = a['VHELIO_AVG']
     except: vhelio = a['VHELIO']
 
-    els=hdulist[3].data['ELEM_SYMBOL'][0]
-    etoh=hdulist[3].data['ELEMTOH'][0]
+    els=tab3['ELEM_SYMBOL'][0].astype(str)
+    etoh=tab3['ELEMTOH'][0]
     grid=[]
     yt=[]
 
@@ -161,16 +171,19 @@ def plotelems(hdulist=None,title=None,out=None,calib=False,main=True,named=False
     igel=0
     if len(gels)%2 == 0 : gfig,gax=plots.multi(2,len(gels)//2,wspace=0.5,hspace=0.001,figsize=(8,16))
     else : gfig,gax=plots.multi(2,len(gels)//2+1,hspace=0.001,wspace=0.001,figsize=(8,16))
-    
+   
+    yr=[-0.3,0.7] 
     for iel,el in enumerate(els) :
         if named:
             if el == 'Fe' : tag = 'FE_H'
             else : tag=(el+'_FE').upper()
             abun=a[tag]
             ytit='['+el+'/Fe]'
+            type='named'
         elif calib :
             abun=a['X_M'][:,iel]
             ytit='['+el+'/M] (cal)'
+            type='X_M'
         else :
             try:
                 if etoh[iel] == 1 : abun=a['FELEM'][:,0,iel]-a['FPARAM'][:,3]
@@ -179,6 +192,7 @@ def plotelems(hdulist=None,title=None,out=None,calib=False,main=True,named=False
                 if etoh[iel] == 1 : abun=a['FELEM'][:,iel]-a['FPARAM'][:,3]
                 else : abun = a['FELEM'][:,iel]
             ytit='['+el+'/M] (uncal)'
+            type='FPARAM'
         row=[]
         xt=[]
         yt.append(el)
@@ -189,13 +203,13 @@ def plotelems(hdulist=None,title=None,out=None,calib=False,main=True,named=False
             print(el,te,logg,len(gd))
 
             fig,ax=plots.multi(1,3,hspace=0.001,figsize=(8,8))
-            plots.plotc(ax[0],a[param][gd,3],abun[gd],a[param][gd,0],xr=[-2.5,1.0],yr=[-0.5,1],zr=te,
-                        xt='[M/H]',colorbar=True,zt='Teff',yt=ytit)
-            ax[0].text(0.1,0.9,'uncalibrated params'+comment,transform=ax[0].transAxes)
-            plots.plotc(ax[1],a[param][gd,3],abun[gd],a['SNR'][gd],xr=[-2.5,1.0],yr=[-0.5,1],zr=[50,200],
-                        xt='[M/H]',colorbar=True,zt='S/N',yt=ytit)
-            plots.plotc(ax[2],a[param][gd,3],abun[gd],vhelio[gd],xr=[-2.5,1.0],yr=[-0.5,1],zr=[-200,200],
-                        xt='[M/H]',colorbar=True,zt='vhelio',yt=ytit)
+            plots.plotc(ax[0],a[param][gd,3],abun[gd],a[param][gd,0],xr=[-2.5,1.0],yr=yr,zr=te,
+                        xt='[M/H]',colorbar=True,zt='Teff',yt=ytit,size=1)
+            ax[0].text(0.1,0.9,type+comment,transform=ax[0].transAxes)
+            plots.plotc(ax[1],a[param][gd,3],abun[gd],a['SNR'][gd],xr=[-2.5,1.0],yr=yr,zr=[50,200],
+                        xt='[M/H]',colorbar=True,zt='S/N',yt=ytit,size=1)
+            plots.plotc(ax[2],a[param][gd,3],abun[gd],vhelio[gd],xr=[-2.5,1.0],yr=yr,zr=[-200,200],
+                        xt='[M/H]',colorbar=True,zt='vhelio',yt=ytit,size=1)
             if out is not None :
                 outfile=out+el+'_{:1d}.png'.format(icol)
                 fig.savefig(outfile)
@@ -207,17 +221,32 @@ def plotelems(hdulist=None,title=None,out=None,calib=False,main=True,named=False
         #plot as f(Teff) for giants
         gd = np.where((a[param][:,1] >= -1) & (a[param][:,1] <= 3.8) )[0]
         fig,ax=plots.multi(1,3,hspace=0.001,figsize=(8,8))
-        plots.plotc(ax[0],a[param][gd,0],abun[gd],a[param][gd,3],xr=[3000,5000],yr=[-0.5,1],zr=[-2,0.5],
-                    xt='Teff',colorbar=True,zt='[M/H]',yt=ytit)
-        plots.plotc(ax[1],a[param][gd,0],abun[gd],a['SNR'][gd],xr=[3000,5000],yr=[-0.5,1],zr=[50,200],
-                    xt='Teff',colorbar=True,zt='S/N',yt=ytit)
-        plots.plotc(ax[2],a[param][gd,0],abun[gd],vhelio[gd],xr=[3000,5000],yr=[-0.5,1],zr=[-200,200],
-                    xt='Teff',colorbar=True,zt='vhelio',yt=ytit)
+        plots.plotc(ax[0],a[param][gd,0],abun[gd],a[param][gd,3],xr=[3000,5000],yr=yr,zr=[-2,0.5],
+                    xt='Teff',colorbar=True,zt='[M/H]',yt=ytit,size=1)
+        plots.plotc(ax[1],a[param][gd,0],abun[gd],a['SNR'][gd],xr=[3000,5000],yr=yr,zr=[50,200],
+                    xt='Teff',colorbar=True,zt='S/N',yt=ytit,size=1)
+        plots.plotc(ax[2],a[param][gd,0],abun[gd],vhelio[gd],xr=[3000,5000],yr=yr,zr=[-200,200],
+                    xt='Teff',colorbar=True,zt='vhelio',yt=ytit,size=1)
         xt.append('{:6.1f}&lt;logg&lt;{:6.1f}'.format(-0.5,3.8))
         outfile=out+el+'_teff.png'
         fig.savefig(outfile)
         plt.close(fig)
         row.append(os.path.basename(outfile))
+        #plot as f(Teff) for dwarfs
+        gd = np.where((a[param][:,1] >= 3.8) )[0]
+        fig,ax=plots.multi(1,3,hspace=0.001,figsize=(8,8))
+        plots.plotc(ax[0],a[param][gd,0],abun[gd],a[param][gd,3],xr=[3000,5000],yr=yr,zr=[-2,0.5],
+                    xt='Teff',colorbar=True,zt='[M/H]',yt=ytit,size=1)
+        plots.plotc(ax[1],a[param][gd,0],abun[gd],a['SNR'][gd],xr=[3000,5000],yr=yr,zr=[50,200],
+                    xt='Teff',colorbar=True,zt='S/N',yt=ytit,size=1)
+        plots.plotc(ax[2],a[param][gd,0],abun[gd],vhelio[gd],xr=[3000,5000],yr=yr,zr=[-200,200],
+                    xt='Teff',colorbar=True,zt='vhelio',yt=ytit,size=1)
+        xt.append('{:6.1f}&lt;logg&lt;{:6.1f}'.format(3.8,6))
+        outfile=out+el+'_dwarfteff.png'
+        fig.savefig(outfile)
+        plt.close(fig)
+        row.append(os.path.basename(outfile))
+
         grid.append(row)
 
         #if el in gels :
@@ -269,48 +298,73 @@ def plotparam_errs(hdulist=None,title=None,out=None) :
             yt.append(el) 
     if out is not None : html.htmltab(grid,file=out+'elem_errs.html',ytitle=yt,xtitle=['giants','dwarfs'])
 
-def plotelem_errs(hdulist=None,title=None,out=None,calib=False) :
+def plotelem_errs(tab=None,tab3=None,title=None,out=None,calib=False) :
     """ Plot uncertainties
     """
-    a=hdulist[1].data
-    els=hdulist[3].data['ELEM_SYMBOL'][0]
-    etoh=hdulist[3].data['ELEMTOH'][0]
+    els=tab3['ELEM_SYMBOL'][0].astype(str)
+    etoh=tab3['ELEMTOH'][0]
     grid=[]
     yt=[]
-    dwarfs=np.where(a['FPARAM'][:,1] > 3.8)[0]
-    giants=np.where(a['FPARAM'][:,1] < 3.8)[0]
-
+    dwarfs=np.where(tab['FPARAM'][:,1] > 3.8)[0]
+    giants=np.where(tab['FPARAM'][:,1] < 3.8)[0]
     if calib: param='PARAM'
     else :param='FPARAM'
+
+    # Teff and logg HR diagram uncertainties
+    hrfig,hrax=plots.multi(1,1,hspace=0.001)
+    plots.plotc(hrax,tab[param][:,0],tab[param][:,1],tab['TEFF_ERR'],
+                xr=[8000,3000],zr=[0.,100],yr=[6,-1],xt='Teff',yt='log g',colorbar=True,zt='Teff repeat error',size=1)
+    if out is not None :
+        outfile=out+'teff_hr_err.png'
+        hrfig.savefig(outfile)
+        grid.append([os.path.basename(outfile),'',''])
+        yt.append('Teff')
+        plt.close(hrfig)
+    hrfig,hrax=plots.multi(1,1,hspace=0.001)
+    plots.plotc(hrax,tab[param][:,0],tab[param][:,1],tab['LOGG_ERR'],
+                xr=[8000,3000],zr=[0.,0.25],yr=[6,-1],xt='Teff',yt='log g',colorbar=True,zt='logg repeat error',size=1)
+    if out is not None :
+        outfile=out+'logg_hr_err.png'
+        hrfig.savefig(outfile)
+        grid.append([os.path.basename(outfile),'',''])
+        yt.append('logg')
+        plt.close(hrfig)
+
     for iel,el in enumerate(els) :
+        hrfig,hrax=plots.multi(1,1,hspace=0.001)
+        plots.plotc(hrax,tab[param][:,0],tab[param][:,1],tab['X_H_ERR'][:,iel],
+                    xr=[8000,3000],zr=[0.,0.2],yr=[6,-1],xt='Teff',yt='log g',colorbar=True,zt=el+' repeat error',size=1)
         gfig,gax=plots.multi(1,2,hspace=0.001)
-        plots.plotc(gax[0],a[param][giants,0],a['X_H_ERR'][giants,iel],a[param][giants,3],
-                    xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+        plots.plotc(gax[0],tab[param][giants,0],tab['X_H_ERR'][giants,iel],tab[param][giants,3],
+                    xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el+' repeat error',size=1)
         try :
-            plots.plotc(gax[1],a[param][giants,0],a['FELEM_ERR'][giants,0,iel],a[param][giants,3],
-                        xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+            plots.plotc(gax[1],tab[param][giants,0],tab['FELEM_ERR'][giants,0,iel],tab[param][giants,3],
+                        xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el+' Ferre error',size=1)
         except :
-            plots.plotc(gax[1],a[param][giants,0],a['FELEM_ERR'][giants,iel],a[param][giants,3],
-                        xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+            plots.plotc(gax[1],tab[param][giants,0],tab['FELEM_ERR'][giants,iel],tab[param][giants,3],
+                        xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el+' Ferre error',size=1)
         dfig,dax=plots.multi(1,2,hspace=0.001)
-        plots.plotc(dax[0],a[param][dwarfs,0],a['X_H_ERR'][dwarfs,iel],a[param][dwarfs,3],
-                    xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+        plots.plotc(dax[0],tab[param][dwarfs,0],tab['X_H_ERR'][dwarfs,iel],tab[param][dwarfs,3],
+                    xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el+' repeat error',size=1)
         try :
-            plots.plotc(dax[1],a[param][dwarfs,0],a['FELEM_ERR'][dwarfs,0,iel],a[param][dwarfs,3],
-                        xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+            plots.plotc(dax[1],tab[param][dwarfs,0],tab['FELEM_ERR'][dwarfs,0,iel],tab[param][dwarfs,3],
+                        xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el+' Ferre error',size=1)
         except :
-            plots.plotc(dax[1],a[param][dwarfs,0],a['FELEM_ERR'][dwarfs,iel],a[param][dwarfs,3],
-                        xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el,size=1)
+            plots.plotc(dax[1],tab[param][dwarfs,0],tab['FELEM_ERR'][dwarfs,iel],tab[param][dwarfs,3],
+                        xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=el+' Ferre error',size=1)
         if out is not None :
+            outfile=out+el+'_hr_err.png'
+            hrfig.savefig(outfile)
+            plt.close(hrfig)
             goutfile=out+'giant_'+el+'_err.png'
             gfig.savefig(goutfile)
             plt.close(gfig)
             doutfile=out+'dwarf_'+el+'_err.png'
             dfig.savefig(doutfile)
             plt.close(dfig)
-            grid.append([os.path.basename(goutfile),os.path.basename(doutfile)])
+            grid.append([os.path.basename(outfile),os.path.basename(goutfile),os.path.basename(doutfile)])
             yt.append(el) 
-    if out is not None : html.htmltab(grid,file=out+'elem_errs.html',ytitle=yt,xtitle=['giants','dwarfs'])
+    if out is not None : html.htmltab(grid,file=out+'elem_errs.html',ytitle=yt,xtitle=['HR','giants','dwarfs'])
 
 def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
     """ Plot parameter differences between two different runs
@@ -372,8 +426,8 @@ def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
     if elem :
         grid=[]
         yt=[]
-        elemnames = data[3].data['ELEM_SYMBOL'][0]
-        belemnames = bdata[3].data['ELEM_SYMBOL'][0]
+        elemnames = data[3].data['ELEM_SYMBOL'][0].astype(str)
+        belemnames = bdata[3].data['ELEM_SYMBOL'][0].astype(str)
         if cal : elem = 'ELEM'
         else : elem = 'FELEM'
         for i,el in enumerate(elemnames) :
@@ -464,14 +518,14 @@ def drcomp(hdulist=None,dr='dr14',out=None,elem=True,domiss=False) :
         print('not 1m',len(bad),len(set(bad)))
         print('1m',len(bad1m),len(set(bad1m)))
 
-def chi2(allstar=None,out='./') :
+def chi2(tab=None,out='./') :
     """ Chi2 plots
     """
 
     fig,ax=plots.multi(1,2,hspace=0.001)
-    plots.plotc(ax[0],allstar['FPARAM'][:,0],np.log10(allstar['ASPCAP_CHI2']),allstar['FPARAM'][:,3],
+    plots.plotc(ax[0],tab['FPARAM'][:,0],np.log10(tab['ASPCAP_CHI2']),tab['FPARAM'][:,3],
                 xr=[8000,3000],xt='Teff',yr=[-1,5],yt='log(CHI2)',size=1)
-    plots.plotc(ax[1],allstar['FPARAM'][:,0],np.log10(allstar['ASPCAP_CHI2']/(allstar['SNR']/100)**2),allstar['FPARAM'][:,3],
+    plots.plotc(ax[1],tab['FPARAM'][:,0],np.log10(tab['ASPCAP_CHI2']/(tab['SNR']/100)**2),tab['FPARAM'][:,3],
                 xr=[8000,3000],xt='Teff',yr=[-1,5],yt='log(CHI2/(SNR/100)**2)',size=1)
     ax[1].plot([8000,3000],[np.log10(50),np.log10(50)],'r')
     ax[1].plot([8000,3000],[np.log10(30),np.log10(30)],'r')
@@ -479,31 +533,31 @@ def chi2(allstar=None,out='./') :
     fig.savefig(outfile)
   
 
-def m67(allstar,out='./') :
+def m67(tab=None,tab3=None,out='./') :
     """ M67 abundances
     """
-    gd=apselect.select(allstar[1].data,badval='STAR_BAD')
-    m67=np.array(apselect.clustmember(allstar[1].data[gd],'M67',param=None,pm=True,dist=True))
+    gd=apselect.select(tab,badval='STAR_BAD')
+    m67=np.array(apselect.clustmember(tab[gd],'M67',param=None,pm=True,dist=True))
     m67=gd[m67]
-    els=allstar[3].data['ELEM_SYMBOL'][0]
+    els=tab3['ELEM_SYMBOL'][0].astype(str)
     grid=[]
     for iel,el in enumerate(els) :
         fig,ax=plots.multi(1,2,figsize=(6,4),hspace=0.001)
-        plots.plotc(ax[0],allstar[1].data['LOGG'][m67],allstar[1].data['X_M'][m67,iel],allstar[1].data['TEFF'][m67],
-                    yerr=allstar[1].data['X_M_ERR'][m67,iel],
+        plots.plotc(ax[0],tab['LOGG'][m67],tab['X_M'][m67,iel],tab['TEFF'][m67],
+                    yerr=tab['X_M_ERR'][m67,iel],
                     xr=[6,0],yr=[-0.75,0.75],xt='log g',yt='['+el+'/M]')
-        plots.plotc(ax[1],allstar[1].data['LOGG'][m67],allstar[1].data['X_H'][m67,iel],allstar[1].data['TEFF'][m67],
-                    yerr=allstar[1].data['X_H_ERR'][m67,iel],
+        plots.plotc(ax[1],tab['LOGG'][m67],tab['X_H'][m67,iel],tab['TEFF'][m67],
+                    yerr=tab['X_H_ERR'][m67,iel],
                     xr=[6,0],yr=[-0.75,0.75],xt='log g',yt='['+el+'/H]')
-        ax[0].text(0.1,0.9,'rms: {:8.3f}'.format(allstar[1].data['X_M'][m67,iel].std()),transform=ax[0].transAxes)
-        ax[1].text(0.1,0.9,'rms: {:8.3f}'.format(allstar[1].data['X_H'][m67,iel].std()),transform=ax[1].transAxes)
+        ax[0].text(0.1,0.9,'rms: {:8.3f}'.format(tab['X_M'][m67,iel].std()),transform=ax[0].transAxes)
+        ax[1].text(0.1,0.9,'rms: {:8.3f}'.format(tab['X_H'][m67,iel].std()),transform=ax[1].transAxes)
         outfile=out+'m67_{:s}.png'.format(el.strip())
         fig.savefig(outfile)
         plt.close(fig)
         grid.append([os.path.basename(outfile)])
     html.htmltab(grid,file=out+'m67.html',ytitle=els)
 
-def calib(allstar=None,out='./') :
+def calib(tab=None,tab3=None,out='./') :
     """ Plot calibration relations
     """
 
@@ -511,7 +565,13 @@ def calib(allstar=None,out='./') :
     yt=[]
     # Teff f([M/H], Teff)
     fig,ax=plots.multi(1,1)
-    plots.plotc(ax,allstar[1].data['FPARAM'][:,3],allstar[1].data['PARAM'][:,0]-allstar[1].data['FPARAM'][:,0],allstar[1].data['FPARAM'][:,0],
+    plots.plotc(ax,tab['FPARAM'][:,0],tab['FPARAM'][:,1],tab['PARAM'][:,0]-tab['FPARAM'][:,0],
+                xr=[8000,3000],xt='Teff',yt='log g',zt=r'$\Delta$ Teff',yr=[6,-1],zr=[-250,250],colorbar=True)
+    outfile=out+'calib_Teff_hr.png'
+    fig.savefig(outfile)
+    plt.close(fig)
+    fig,ax=plots.multi(1,1)
+    plots.plotc(ax,tab['FPARAM'][:,3],tab['PARAM'][:,0]-tab['FPARAM'][:,0],tab['FPARAM'][:,0],
                 xt='[M/H]',yt=r'$\Delta$ Teff',zr=[3000,8000],colorbar=True,zt='Teff')
     outfile1=out+'calib_Teff_all.png'
     fig.savefig(outfile1)
@@ -520,12 +580,18 @@ def calib(allstar=None,out='./') :
     outfile2=out+'calib_Teff.png'
     fig.savefig(outfile2)
     plt.close(fig)
-    grid.append([os.path.basename(outfile2),os.path.basename(outfile1)])
+    grid.append([os.path.basename(outfile),os.path.basename(outfile2),os.path.basename(outfile1)])
     yt.append('Teff')
 
     # logg f(logg,[M/H])
     fig,ax=plots.multi(1,1)
-    plots.plotc(ax,allstar[1].data['FPARAM'][:,1],allstar[1].data['PARAM'][:,1]-allstar[1].data['FPARAM'][:,1],allstar[1].data['FPARAM'][:,3],
+    plots.plotc(ax,tab['FPARAM'][:,0],tab['FPARAM'][:,1],tab['PARAM'][:,1]-tab['FPARAM'][:,1],
+                xr=[8000,3000],xt='Teff',yt='log g',zt=r'$\Delta$ log g',yr=[6,-1],zr=[-0.5,0.5],colorbar=True)
+    outfile=out+'calib_logg_hr.png'
+    fig.savefig(outfile)
+    plt.close(fig)
+    fig,ax=plots.multi(1,1)
+    plots.plotc(ax,tab['FPARAM'][:,1],tab['PARAM'][:,1]-tab['FPARAM'][:,1],tab['FPARAM'][:,3],
                 xt='log g',yt=r'$\Delta$logg',zr=[-2,0.5],colorbar=True,zt='[M/H]')
     outfile1=out+'calib_logg_all.png'
     fig.savefig(outfile1)
@@ -534,16 +600,22 @@ def calib(allstar=None,out='./') :
     outfile2=out+'calib_logg.png'
     fig.savefig(outfile2)
     plt.close(fig)
-    grid.append([os.path.basename(outfile2),os.path.basename(outfile1)])
+    grid.append([os.path.basename(outfile),os.path.basename(outfile2),os.path.basename(outfile1)])
     yt.append('log g')
 
-    els=allstar[3].data['ELEM_SYMBOL'][0]
+    els=tab3['ELEM_SYMBOL'][0].astype(str)
     for iel,el in enumerate(els) :
         print(el)
+        if tab3['ELEMTOH'][0][iel] == 0 : abun = tab['FELEM'][:,iel] 
+        else : abun=tab['FELEM'][:,iel]-tab['FPARAM'][:,3]
         fig,ax=plots.multi(1,1)
-        if allstar[3].data['ELEMTOH'][0][iel] == 0 : abun = allstar[1].data['FELEM'][:,iel] 
-        else : abun=allstar[1].data['FELEM'][:,iel]-allstar[1].data['FPARAM'][:,3]
-        plots.plotc(ax,allstar[1].data['FPARAM'][:,0],allstar[1].data['X_M'][:,iel]-abun,allstar[1].data['FPARAM'][:,1],
+        plots.plotc(ax,tab['FPARAM'][:,0],tab['FPARAM'][:,1],tab['X_M'][:,iel]-abun,
+                    xr=[8000,3000],xt='Teff',yt='log g',zt=r'$\Delta$['+el+'/M]',yr=[6,-1],zr=[-0.2,0.2],colorbar=True)
+        outfile=out+'calib_{:s}_hr.png'.format(el.strip())
+        fig.savefig(outfile)
+        plt.close(fig)
+        fig,ax=plots.multi(1,1)
+        plots.plotc(ax,tab['FPARAM'][:,0],tab['X_M'][:,iel]-abun,tab['FPARAM'][:,1],
                     xt='Teff',yt=r'$\Delta$['+el+'/M]',zr=[0,5.],colorbar=True,zt='log g')
         outfile1=out+'calib_{:s}_all.png'.format(el.strip())
         fig.savefig(outfile1)
@@ -552,12 +624,12 @@ def calib(allstar=None,out='./') :
         outfile2=out+'calib_{:s}.png'.format(el.strip())
         fig.savefig(outfile2)
         plt.close(fig)
-        grid.append([os.path.basename(outfile2),os.path.basename(outfile1)])
+        grid.append([os.path.basename(outfile),os.path.basename(outfile2),os.path.basename(outfile1)])
         yt.append(el.strip())
 
     html.htmltab(grid,file=out+'calib.html',ytitle=yt)
 
-def flags(hdulist=None,out='./',alpha=0.005) :
+def flags(tab=None,tab3=None,out='./',alpha=0.005) :
     """ Tabulate number of objects with different flag bits set, and make HR diagrams showing these
     """
     f=html.head(out+'flags.html')
@@ -569,7 +641,7 @@ def flags(hdulist=None,out='./',alpha=0.005) :
     row=[]
     yt=['STARFLAG']
     for i in range(31) :
-        j=np.where(hdulist[1].data['STARFLAG'] & 2**i)[0]
+        j=np.where(tab['STARFLAG'] & 2**i)[0]
         if mask.name[i] == '' and len(j) > 0 :
             print('Unnamed bits are set!',i,len(j))
             pdb.set_trace()
@@ -577,8 +649,8 @@ def flags(hdulist=None,out='./',alpha=0.005) :
             print(mask.name[i])
             if len(j) > 0 :
                 fig,ax=plots.multi(1,1)
-                plots.plotc(ax,hdulist[1].data['FPARAM'][:,0],hdulist[1].data['FPARAM'][:,1],hdulist[1].data['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
-                plots.plotc(ax,hdulist[1].data['FPARAM'][j,0],hdulist[1].data['FPARAM'][j,1],hdulist[1].data['FPARAM'][j,3],
+                plots.plotc(ax,tab['FPARAM'][:,0],tab['FPARAM'][:,1],tab['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
+                plots.plotc(ax,tab['FPARAM'][j,0],tab['FPARAM'][j,1],tab['FPARAM'][j,3],size=3,
                            xr=[10000,3000],yr=[6,-1],zr=[-2,0.5],xt='Teff (raw)',yt='logg (raw)')
                 outfile=out+'flag_starflag_{:d}.png'.format(i)
                 fig.savefig(outfile)
@@ -597,7 +669,7 @@ def flags(hdulist=None,out='./',alpha=0.005) :
     row=[]
     yt=['ASPCAPFLAG']
     for i in range(63) :
-        j=np.where(hdulist[1].data['ASPCAPFLAG'] & 2**i)[0]
+        j=np.where(tab['ASPCAPFLAG'] & 2**i)[0]
         if mask.name[i] == '' and len(j) > 0 :
             print('Unnamed bits are set!',i,len(j))
             pdb.set_trace()
@@ -605,18 +677,18 @@ def flags(hdulist=None,out='./',alpha=0.005) :
             print(mask.name[i])
             if len(j) > 0 :
                 if np.core.defchararray.find(mask.name[i],'COLORTE') >= 0:
-                    jk0=hdulist[1].data['J']-hdulist[1].data['K']-1.5*hdulist[1].data['AK_TARG']
+                    jk0=tab['J']-tab['K']-1.5*tab['AK_TARG']
                     fig,ax=plots.multi(1,2,hspace=0.001)
-                    plots.plotc(ax[0],hdulist[1].data['FPARAM'][:,0],hdulist[1].data['FPARAM'][:,1],hdulist[1].data['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
-                    plots.plotc(ax[1],hdulist[1].data['FPARAM'][:,0],jk0,hdulist[1].data['FPARAM'][:,3],zr=[-2,0.5],alpha=alpha)
-                    plots.plotc(ax[0],hdulist[1].data['FPARAM'][j,0],hdulist[1].data['FPARAM'][j,1],hdulist[1].data['FPARAM'][j,3],
+                    plots.plotc(ax[0],tab['FPARAM'][:,0],tab['FPARAM'][:,1],tab['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
+                    plots.plotc(ax[1],tab['FPARAM'][:,0],jk0,tab['FPARAM'][:,3],zr=[-2,0.5],alpha=alpha)
+                    plots.plotc(ax[0],tab['FPARAM'][j,0],tab['FPARAM'][j,1],tab['FPARAM'][j,3],size=3,
                                 xr=[10000,3000],yr=[6,-1],zr=[-2,0.5],xt='Teff (raw)',yt='logg (raw)')
-                    plots.plotc(ax[1],hdulist[1].data['FPARAM'][j,0],jk0[j],hdulist[1].data['FPARAM'][j,3],
+                    plots.plotc(ax[1],tab['FPARAM'][j,0],jk0[j],tab['FPARAM'][j,3],size=3,
                                 xr=[10000,3000],yr=[-2,4],zr=[-2,0.5],xt='Teff (raw)',yt='J-K')
                 else :
                     fig,ax=plots.multi(1,1)
-                    plots.plotc(ax,hdulist[1].data['FPARAM'][:,0],hdulist[1].data['FPARAM'][:,1],hdulist[1].data['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
-                    plots.plotc(ax,hdulist[1].data['FPARAM'][j,0],hdulist[1].data['FPARAM'][j,1],hdulist[1].data['FPARAM'][j,3],
+                    plots.plotc(ax,tab['FPARAM'][:,0],tab['FPARAM'][:,1],tab['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
+                    plots.plotc(ax,tab['FPARAM'][j,0],tab['FPARAM'][j,1],tab['FPARAM'][j,3],size=3,
                                xr=[10000,3000],yr=[6,-1],zr=[-2,0.5],xt='Teff (raw)',yt='logg (raw)')
                 outfile=out+'flag_aspcapflag_{:d}.png'.format(i)
                 fig.savefig(outfile)
@@ -633,20 +705,20 @@ def flags(hdulist=None,out='./',alpha=0.005) :
         if mask.name[i] != '' : xt.append(mask.name[i])
     data=[]
     yt=[]
-    for iparam,param in enumerate(hdulist[3].data['PARAM_SYMBOL'][0]) :
+    for iparam,param in enumerate(tab3['PARAM_SYMBOL'][0].astype(str)) :
         yt.append(param)
         row=[]
         for i in range(32) :
             print(param,mask.name[i])
-            j=np.where(hdulist[1].data['PARAMFLAG'][:,iparam] & 2**i)[0]
+            j=np.where(tab['PARAMFLAG'][:,iparam] & 2**i)[0]
             if mask.name[i] == '' and len(j) > 0 :
                 print('Unnamed bits are set!',i,len(j))
                 pdb.set_trace()
             elif mask.name[i] != '' :
                 if len(j) > 0 :
                     fig,ax=plots.multi(1,1)
-                    plots.plotc(ax,hdulist[1].data['FPARAM'][:,0],hdulist[1].data['FPARAM'][:,1],hdulist[1].data['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
-                    plots.plotc(ax,hdulist[1].data['FPARAM'][j,0],hdulist[1].data['FPARAM'][j,1],hdulist[1].data['FPARAM'][j,3],
+                    plots.plotc(ax,tab['FPARAM'][:,0],tab['FPARAM'][:,1],tab['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
+                    plots.plotc(ax,tab['FPARAM'][j,0],tab['FPARAM'][j,1],tab['FPARAM'][j,3],
                                 xr=[10000,3000],yr=[6,-1],zr=[-2,0.5],xt='Teff (raw)',yt='logg (raw)')
                     outfile=out+'flag_param_{:d}_{:d}.png'.format(iparam,i)
                     fig.savefig(outfile)
@@ -662,13 +734,13 @@ def flags(hdulist=None,out='./',alpha=0.005) :
         if mask.name[i] != '' : xt.append(mask.name[i])
     data=[]
     yt=[]
-    for ielem,el in enumerate(hdulist[3].data['ELEM_SYMBOL'][0]) :
-        if hdulist[3].data['ELEMTOH'][0][ielem] == 1 : fzr=[-2,0.5]
+    for ielem,el in enumerate(tab3['ELEM_SYMBOL'][0].astype(str)) :
+        if tab3['ELEMTOH'][0][ielem] == 1 : fzr=[-2,0.5]
         else : fzr = [-1,1]
         yt.append(el)
         row=[]
         for i in range(32) :
-            j=np.where(hdulist[1].data['ELEMFLAG'][:,ielem] & 2**i)[0]
+            j=np.where(tab['ELEMFLAG'][:,ielem] & 2**i)[0]
             if mask.name[i] == '' and len(j) > 0 :
                 print('Unnamed bits are set!',i,len(j))
                 pdb.set_trace()
@@ -676,11 +748,11 @@ def flags(hdulist=None,out='./',alpha=0.005) :
                 print(el,mask.name[i])
                 if len(j) > 0 :
                     fig,ax=plots.multi(1,2,hspace=0.001)
-                    plots.plotc(ax[0],hdulist[1].data['FPARAM'][:,0],hdulist[1].data['FPARAM'][:,1],hdulist[1].data['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
-                    plots.plotc(ax[1],hdulist[1].data['FPARAM'][:,0],hdulist[1].data['FPARAM'][:,1],hdulist[1].data['FELEM'][:,ielem],alpha=alpha,zr=fzr)
-                    plots.plotc(ax[0],hdulist[1].data['FPARAM'][j,0],hdulist[1].data['FPARAM'][j,1],hdulist[1].data['FPARAM'][j,3],
+                    plots.plotc(ax[0],tab['FPARAM'][:,0],tab['FPARAM'][:,1],tab['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
+                    plots.plotc(ax[1],tab['FPARAM'][:,0],tab['FPARAM'][:,1],tab['FELEM'][:,ielem],alpha=alpha,zr=fzr)
+                    plots.plotc(ax[0],tab['FPARAM'][j,0],tab['FPARAM'][j,1],tab['FPARAM'][j,3],
                                 xr=[10000,3000],yr=[6,-1],zr=[-2,0.5],xt='Teff (raw)',yt='logg (raw)',colorbar=True,zt='[M/H]')
-                    plots.plotc(ax[1],hdulist[1].data['FPARAM'][j,0],hdulist[1].data['FPARAM'][j,1],hdulist[1].data['FELEM'][j,ielem],
+                    plots.plotc(ax[1],tab['FPARAM'][j,0],tab['FPARAM'][j,1],tab['FELEM'][j,ielem],
                                 xr=[10000,3000],yr=[6,-1],zr=fzr,xt='Teff (raw)',yt='logg (raw)',colorbar=True,zt='FELEM')
                     outfile=out+'flag_{:s}_{:d}.png'.format(el,i)
                     fig.savefig(outfile)
@@ -693,19 +765,19 @@ def flags(hdulist=None,out='./',alpha=0.005) :
 
     html.tail(f)
 
-def apolco(hdulist=None,out='./',snmin=150) :
+def apolco(tab=None,tab3=None,out='./',snmin=150) :
     """ histograms of LCO-APO  parameters and abundances
     """
 
-    gd=apselect.select(hdulist[1].data,badval='STAR_BAD',sn=[snmin,10000])
-    a=hdulist[1].data[gd]
+    gd=apselect.select(tab,badval='STAR_BAD',sn=[snmin,10000])
+    a=tab[gd]
 
     apo=np.where(a['TELESCOPE'] == 'apo25m')[0]
     lco=np.where(a['TELESCOPE'] == 'lco25m')[0]
     i1,i2=match.match(a['APOGEE_ID'][apo],a['APOGEE_ID'][lco])
     grid=[]
     yt=[]
-    for iparam,param in enumerate(hdulist[3].data['PARAM_SYMBOL'][0]) :
+    for iparam,param in enumerate(tab3['PARAM_SYMBOL'][0].astype(str)) :
         fig,ax=plots.multi(1,1,figsize=(6,4.5))
         diff=a['FPARAM'][lco[i2],iparam]-a['FPARAM'][apo[i1],iparam]
         if iparam == 0 : ax.hist(diff,bins=np.arange(-100.,100.,1.))
@@ -719,7 +791,7 @@ def apolco(hdulist=None,out='./',snmin=150) :
         plt.close()
         grid.append([os.path.basename(outfile)])
         yt.append(param)
-    for ielem,el in enumerate(hdulist[3].data['ELEM_SYMBOL'][0]) :
+    for ielem,el in enumerate(tab3['ELEM_SYMBOL'][0].astype(str)) :
         fig,ax=plots.multi(1,1,figsize=(6,4.5))
         diff=a['FELEM'][lco[i2],ielem]-a['FELEM'][apo[i1],ielem]
         ax.hist(diff,bins=np.arange(-0.5,0.5,0.01))
@@ -923,7 +995,7 @@ def hr(a=None,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=None, alpha=0
         fig.savefig(hard)
         plt.close()
 
-    if (target is not None) and ('EXTRATARG' in a.columns.names) :
+    if (target is not None) and ('EXTRATARG' in a.columns) :
         tfig,tax=plots.multi(1,1)
         main =np.where(a['EXTRATARG'][gd] == 0)[0]
         plots.plotc(tax,teff[gd[main]],logg[gd[main]],z[gd[main]],xr=xr,yr=yr,zr=zr,
@@ -1148,7 +1220,7 @@ def multiwind(data,apred='r10',aspcap='t33w',out='plots/') :
     """
     #load=apload.ApLoad(apred=apred,aspcap=aspcap)
     #data=load.allCal()
-    els=data[3].data['ELEM_SYMBOL'][0]
+    els=data[3].data['ELEM_SYMBOL'][0].astype(str)
     elemtoh=data[3].data['ELEMTOH'][0]
     grid=[]
     ytit=[]
@@ -1227,7 +1299,7 @@ def repeat(data,out=None) :
     """
 
     a=data[1].data
-    els=data[3].data['ELEM_SYMBOL'][0]
+    els=data[3].data['ELEM_SYMBOL'][0].astype(str)
     stars = set(a['APOGEE_ID'])
     fig,ax=plots.multi(2,7,figsize=(8,18),wspace=0.4)
     efig,eax=plots.multi(2,len(els),hspace=0.001,figsize=(8,36),wspace=0.4)

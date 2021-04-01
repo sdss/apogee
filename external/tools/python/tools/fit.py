@@ -4,7 +4,7 @@ from . import plots
 import numpy as np
 import pdb
 
-def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=None,yr=None,zr=None,xt=None,yt=None,zt=None,pfit=None,log=False,colorbar=False) :
+def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=None,yr=None,zr=None,xt=None,yt=None,zt=None,pfit=None,log=False,colorbar=False,size=5) :
     """ 
     Do a 1D polynomial fit to data set and plot if requested
 
@@ -60,7 +60,7 @@ def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=Non
                zfit=pfit(x)
             # straight 1D plot
             plots.plotp(plot,xdata,zplot,xr=xr,yr=yr,zr=zr,
-                   xt=xt,yt=yt,size=15)
+                   xt=xt,yt=yt,size=size)
             plots.plotl(plot,x,zfit)
         elif plot2d :
             # 2D image plot with auxiliary variable
@@ -70,7 +70,7 @@ def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=Non
             else :
                zfit=pfit(x)
             plots.plotc(plot,xdata,ydata,zplot,xr=xr,yr=yr,zr=zr,
-                   xt=xt,yt=xt,zt=yt,colorbar=True,size=15,cmap='rainbow')
+                   xt=xt,yt=xt,zt=yt,colorbar=True,size=size,cmap='rainbow')
             plot.imshow(zfit,extent=[xr[1],xr[0],yr[1],yr[0]],
                 aspect='auto',vmin=zr[0],vmax=zr[1], origin='lower',cmap='rainbow')
         else :
@@ -81,7 +81,7 @@ def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=Non
             else :
                zfit=pfit(x)
             plots.plotc(plot,xdata,zplot,ydata,xr=xr,yr=zr,zr=yr,
-                   xt=xt,yt=yt,zt=zt,size=15,colorbar=colorbar)
+                   xt=xt,yt=yt,zt=zt,size=size,colorbar=colorbar)
             plots.plotl(plot,x,zfit,color='k')
     return pfit
 
@@ -142,7 +142,7 @@ def fit2d(xdata,ydata,zdata,degree=1,reject=0,plot=None,xr=None,yr=None,zr=None,
         if zr is None : zr = [zfit.min(),zfit.max()]
         # plot data
         plots.plotc(plot,xfit,yfit,zfit,xr=xr,yr=yr,zr=zr,
-                xt=xt,yt=yt,zt=zt,colorbar=True,size=15,linewidth=1)
+                xt=xt,yt=yt,zt=zt,colorbar=True,size=size,linewidth=1)
         # create independent variable grid for model and display
         y, x = np.mgrid[yr[1]:yr[0]:200j, xr[1]:xr[0]:200j]
         if log :

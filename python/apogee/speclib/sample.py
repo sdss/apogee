@@ -74,7 +74,7 @@ def elemsens(teffs=[3500,4500,5500],loggs=[1.0,3.0,5.0],mhs=[0.0],delta=0.1,suff
                     f.write(out+'\n')
     return files
 
-def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,logglim=[-0.5,5.5],mhlim=[-2.5,0.75],nmlim=[-0.5,2.],cmlim=[-1.5,1.],emlim=[-0.5,1.],vmicrolim=[0.3,4.8],amlim=[-0.5,1.],vrotlim=[1.5,96.],rot=True,nsamp=1,niso=None,elems='all',fact=1.0,offgrid=False,extracool=1.) :
+def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,logglim=[-0.5,5.5],mhlim=[-2.5,0.75],nmlim=[-0.5,2.],cmlim=[-1.5,1.],emlim=[-0.5,1.],vmicrolim=[0.3,4.8],amlim=[-0.5,1.],vrotlim=[1.5,96.],rot=True,nsamp=1,niso=None,elems='all',fact=1.0,offgrid=False,extracool=1) :
     """ Generate a test sample of parameters and abundances from isochrones
     """
 
@@ -215,10 +215,10 @@ def sample(name='test',gridclass=None,eps=0.01,tefflim=[3000,8000],dtlo=100.,log
             vmicro=0.226-0.0228*logg+0.0297*logg**2-0.0113*logg**3
             vmicro=10.**(int(round(vmicro/0.30103))*0.30103 - 0.522878)
 
-        vrot=0.
+        vrot=0.001
         if (logg < 3.5) & (teff<6000) :
             # for giants, use vmacro relation + small rotation
-            if rot : vrot = np.max([0.,np.random.normal(1.5,0.5*fact)])
+            if rot : vrot = np.max([0.001,np.random.normal(1.5,0.5*fact)])
             # carbon and nitrogen with significant range
             cm=np.random.normal(-0.20,.5*fact)
             if not offgrid: cm = (int(round(cm/0.25)))*0.25

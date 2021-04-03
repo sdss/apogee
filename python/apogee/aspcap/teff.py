@@ -46,17 +46,19 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,trange=[3750,5500],loggrange=[-1,6],mhra
     badtarg=['YOUNG','EMBEDDED','EXTENDED','M31','M33','EMISSION','RRLYR','DSPH','MAGCLOUD']
 
     # plots using Berger isochrone Teff for infomational purposes
+    if calib : param='PARAM'
+    else : param = 'FPARAM'
     berger=fits.open(os.environ['APOGEE_DIR']+'/data/calib/teff_berger.fits')[1].data
     gd=apselect.select(allstar,badval=['STAR_BAD'],badstar=['MULTIPLE_SUSPECT'],badtarg=badtarg,raw=True)
     i1,i2=match.match(allstar['APOGEE_ID'][gd],berger['APOGEE_ID'])
     fig,ax=plots.multi(1,1,figsize=(12,6))
-    plots.plotc(ax,allstar['FPARAM'][gd[i1],3],allstar['FPARAM'][gd[i1],0]-berger['TEFF'][i2],allstar['FPARAM'][gd[i1],0],
+    plots.plotc(ax,allstar[param][gd[i1],3],allstar[param][gd[i1],0]-berger['TEFF'][i2],allstar[param][gd[i1],0],
                 xt='[M/H]',yt='ASPCAP-Berger',zt='Teff',xr=[-3,1],yr=[-500,500],zr=[4500,7000],colorbar=True)
     ax.grid()
     fig.savefig(out+'_berger_mh.png')
     plt.close()
     fig,ax=plots.multi(1,1,figsize=(12,6))
-    plots.plotc(ax,allstar['FPARAM'][gd[i1],0],allstar['FPARAM'][gd[i1],1],allstar['FPARAM'][gd[i1],0]-berger['TEFF'][i2],
+    plots.plotc(ax,allstar[param][gd[i1],0],allstar[param][gd[i1],1],allstar[param][gd[i1],0]-berger['TEFF'][i2],
                 xt='Teff',yt='log ',zt='ASPCAP-Berger',xr=[8000,3000],yr=[6,-1],zr=[-250,250],colorbar=True)
     ax.grid()
     fig.savefig(out+'_berger_hr.png')
@@ -217,7 +219,7 @@ def ghb(allstar,glatmin=30.,ebvmax=0.03,trange=[3750,5500],loggrange=[-1,6],mhra
     #pfit = fit.fit1d(allstar[param][:,3],allstar[param][:,0]-ghb,ydata=allstar[param][:,0],plot=ax[1,0],zr=[-500,200],xt='[M/H]',yt='$\Delta Teff$',xr=[-2.7,0.9],yr=[3500,5000])
     #pfit = fit.fit1d(allstar[param][:,0],allstar[param][:,0]-ghb,ydata=allstar[param][:,3],plot=ax[1,1],zr=[-500,200],xt='Teff',xr=[3900,5100],yr=[-2.5,0.5])
     plt.draw()
-    return {'caltemin': 3000., 'caltemax': 7000., 'temin' : trange[0], 'temax': trange[1], 
+    return {'caltemin': 3000., 'caltemax': 100000., 'temin' : trange[0], 'temax': trange[1], 
             'mhmin': mhrange[0], 'mhmax' : mhrange[1],
             'par': tefit.parameters, 'rms' :rms, 'par2d': tefit2.parameters, 'errpar' : errpar}
 
@@ -350,9 +352,8 @@ def cal(a,caldir='cal/'):
     parammask=bitmask.ParamBitMask()
     starmask=bitmask.StarBitMask()
 
-    #populate PARAM[0] for ALL stars, filter on STAR_BAD for TEFF
-    #do this by using >=0 here
-    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) >= 0) )[0]
+    #populate PARAM[0] for stars w/o STAR_BAD
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
 
     #initial values
     a['PARAM'][:,0] = np.nan

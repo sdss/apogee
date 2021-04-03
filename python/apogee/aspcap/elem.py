@@ -2135,11 +2135,11 @@ def dr17cal(el,dwarfs=False) :
         elif el.strip() == 'S' : 
             gdtemin=4500
         elif el.strip() == 'K' : 
-            gdtemin=3800
+            gdtemin=3300
         elif el.strip() == 'Ca' : 
             gdtemin=3700
         elif el.strip() == 'Ti' : 
-            gdtemin=4000
+            gdtemin=3700
         elif el.strip() == 'TiII' : 
             gdtemin=100000
         elif el.strip() == 'V' : 
@@ -2155,7 +2155,7 @@ def dr17cal(el,dwarfs=False) :
         elif el.strip() == 'Ni' : 
             gdtemin=0
         elif el.strip() == 'Ce' : 
-            gdtemin=4500
+            gdtemin=100000
             gdtemax=6800
         elif el.strip() == 'Nd' : 
             gdtemin=4500
@@ -2166,7 +2166,7 @@ def dr17cal(el,dwarfs=False) :
             extfit = 0
         elif el.strip() == 'CI' : 
             extfit = 0
-            gdtemin=3750
+            gdtemin=0
         elif el.strip() == 'N' : 
             extfit = 0
         elif el.strip() == 'Na' : 

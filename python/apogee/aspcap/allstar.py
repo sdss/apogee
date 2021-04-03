@@ -3,8 +3,8 @@ import numpy as np
 from esutil import htm
 import astropy
 from astropy.table import Table, Column, vstack
-from astropy.io import fits
-from apogee.utils import bitmask, apselect,gaia
+from astropy.io import fits, ascii
+from apogee.utils import bitmask, apselect,gaia, apload
 from apogee.apred import apstar
 from apogee.aspcap import aspcap, teff, logg, cal, err, elem, qa
 from tools import match, struct, html, plots
@@ -94,7 +94,10 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
     tab.sort(['RA','DEC','FIELD'])
     tab3=Table.read(file,hdu=3)
 
-    if dofix : fix(tab)
+    # fixes
+    #fix(tab)
+    washphotfix(tab)
+    targflagfix(tab)
 
     # empirical uncertainties
     if doerr : repeat_err(tab,tab3,outdir=outdir)
@@ -131,7 +134,34 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
 
     return tab, tab3
 
+def rewrite(tab,search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out='allStar.fits',
+            skip=['Field-redo','Field-cal_','Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.','apo1m.'] ): 
+          
+    # search for input files
+    if type(search) == str:
+        search=[search]
+    allfiles=[]
+    for path in search :
+        allfiles.extend(glob.glob(path))
+
+    load=apload.ApLoad(apred='dr17',aspcap='synspec.rewrite')
+    for file in allfiles :
+        if skip is not None and doskip(file,skip) : continue
+        print(file)
+        dat=Table.read(file,hdu=1)
+        spec=Table.read(file,hdu=2)
+        key=Table.read(file,hdu=3)
+        field = dat['FIELD'][0]
+        telescope = dat['TELESCOPE'][0]
+        load.settelescope(telescope)
+        j=np.where(( tab['FIELD'] == field) & (tab['TELESCOPE'] == telescope) )[0]
+        i1,i2=match.match(tab['APOGEE_ID'][j],dat['APOGEE_ID'])
+        pdb.set_trace()
+        aspcap.writefiles(load,field,tab[j[i1]],spec[i2],key)
+
 def write(tab, tab2, tab3, out) :
+    """ Write out allStar file from input HDU tables
+    """
     # construct HDUList
     hdulist=fits.HDUList()
     hdulist.append(fits.BinTableHDU(tab))
@@ -332,7 +362,7 @@ def allcal(tab,tab3,outdir='./',doteff=True,dologg=True,doelem=True, doerr=True,
         ebvmax=0.03
         teffcal = teff.ghb(tab,ebvmax=ebvmax,glatmin=10,out=caldir+'/tecal',yr=[-750,750],trange=[4500,7000],loggrange=[-1,6],calib=calib,doerr=False)
         Table(struct.dict2struct(teffcal)).write(caldir+'/tecal.fits',overwrite=True)
-        teff.cal(tab,caldir=caldir)
+        if not calib : teff.cal(tab,caldir=caldir)
         # add calibration correction with same color scheme
         fig,ax=plots.multi(1,1)
         plots.plotc(ax,tab['FPARAM'][:,0],tab['FPARAM'][:,1],tab['FPARAM'][:,0]-tab['PARAM'][:,0],
@@ -347,8 +377,8 @@ def allcal(tab,tab3,outdir='./',doteff=True,dologg=True,doelem=True, doerr=True,
 
     # log g
     if dologg: 
-        logg.nn_train(tab,out=caldir)
-        logg.nn_cal(tab,caldir=caldir,out=caldir)
+        logg.nn_train(tab,out=caldir,calib=calib)
+        if not calib : logg.nn_cal(tab,caldir=caldir,out=caldir)
         grid=[]
         grid.append(['nn_logg_cal.png','nn_logg_cal_hr.png'])
         grid.append(['nn_logg_hr.png','nn_logg_scatter.png'])
@@ -424,9 +454,11 @@ def aspcapflag(aspcapfield) :
         print(flagname+'_WARN',len(j))
     
     # chi**2 
+    aspcapfield['ASPCAPFLAG'] &= ~aspcapbitmask.getval('CHI2_BAD')
     j=np.where(aspcapfield['ASPCAP_CHI2'][gd] > 50*(aspcapfield['SNR'][gd]/100.)**2 + 2) [0]
     aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('CHI2_BAD')
     print('CHI2_BAD',len(j))
+    aspcapfield['ASPCAPFLAG'] &= ~aspcapbitmask.getval('CHI2_WARN')
     j=np.where((aspcapfield['ASPCAP_CHI2'][gd] > 30*(aspcapfield['SNR'][gd]/100.)**2 + 2) &
                (aspcapfield['ASPCAPFLAG'][gd]&aspcapbitmask.getval('CHI2_BAD')==0) )[0]
     aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('CHI2_WARN')
@@ -443,24 +475,29 @@ def aspcapflag(aspcapfield) :
                   (np.core.defchararray.find(aspcapfield['ASPCAP_GRID'][gd].astype(str),'Mg') >=0) ) &
                 (aspcapfield['RV_CCFWHM'][gd]/aspcapfield['RV_AUTOFWHM'][gd] > 2.0 ) &
                 (aspcapfield['ASPCAPFLAG'][gd]&aspcapbitmask.getval('ROTATION_BAD')==0) ) [0]
+    aspcapfield['ASPCAPFLAG'] &= ~aspcapbitmask.getval('ROTATION_WARN')
     aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('ROTATION_WARN')
     print('ROTATION_WARN',len(j))
 
     # S/N
+    aspcapfield['ASPCAPFLAG'] &= ~aspcapbitmask.getval('SN_BAD')
     j=np.where(aspcapfield['SNR'][gd] < 30)[0]  
     aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('SN_BAD')
     print('SNR_BAD',len(j))
+    aspcapfield['ASPCAPFLAG'] &= ~aspcapbitmask.getval('SN_WARN')
     j=np.where((aspcapfield['SNR'][gd] < 70) & ( aspcapfield['ASPCAPFLAG'][gd]&aspcapbitmask.getval('SN_BAD')) )[0]  
     aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('SN_WARN')
     print('SNR_WARN',len(j))
 
     #color-Teff, but only make this a warning, and only for stars with AK_TARG<1
+    aspcapfield['ASPCAPFLAG'] &= ~aspcapbitmask.getval('COLORTE_BAD')
     jk0=(aspcapfield['J']-aspcapfield['K'])-1.5*np.clip(aspcapfield['AK_TARG'],0.,None)
     j = np.where( (aspcapfield['H'][gd] < 90) & (aspcapfield['AK_TARG'][gd] != 0.) &
                   (aspcapfield['AK_TARG'][gd] > -1) & (aspcapfield['AK_TARG'][gd] < 1) &
                   (np.abs(aspcapfield['FPARAM'][gd,0]-teff.cte_ghb(jk0[gd],aspcapfield['FPARAM'][gd,3])[0]) > 1000) )[0]
     #aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('COLORTE_BAD')
     #print('COLORTE_BAD',len(j))
+    aspcapfield['ASPCAPFLAG'] &= ~aspcapbitmask.getval('COLORTE_WARN')
     j = np.where( (aspcapfield['H'][gd] < 90) & (aspcapfield['AK_TARG'][gd] != 0.) &
                   (aspcapfield['AK_TARG'][gd] > -1) & (aspcapfield['AK_TARG'][gd] < 1) &
                   (np.abs(aspcapfield['FPARAM'][gd,0]-teff.cte_ghb(jk0[gd],aspcapfield['FPARAM'][gd,3])[0]) > 500) &
@@ -469,22 +506,27 @@ def aspcapflag(aspcapfield) :
     print('COLORTE_WARN',len(j))
 
     # MULTIPLE_SUSPECT transfer to ASPCAPFLAG (where it will trigger STAR_BAD)
+    aspcapfield['ASPCAPFLAG'] &= ~aspcapbitmask.getval('MULTIPLE_SUSPECT')
     j = np.where( (aspcapfield['STARFLAG'][gd] & starbitmask.getval('MULTIPLE_SUSPECT')) >0 )[0]
     aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('MULTIPLE_SUSPECT')
 
     # problematic targets
+    aspcapfield['ASPCAPFLAG'] &= ~aspcapbitmask.getval('PROBLEM_TARGET')
     j = np.where( (np.core.defchararray.find(aspcapfield['TARGFLAGS'][gd].astype(str),'EXTENDED') >=0) |
-                  (np.core.defchararray.find(aspcapfield['TARGFLAGS'][gd].astype(str),'EMBEDDED') >=1) |
-                  (np.core.defchararray.find(aspcapfield['TARGFLAGS'][gd].astype(str),'APOGEE2_M31') >=1) |
-                  (np.core.defchararray.find(aspcapfield['TARGFLAGS'][gd].astype(str),'APOGEE2_M33') >=1) |
-                  (np.core.defchararray.find(aspcapfield['TARGFLAGS'][gd].astype(str),'APOGEE2_QSO') >=1) ) [0]
+                  (np.core.defchararray.find(aspcapfield['TARGFLAGS'][gd].astype(str),'EMBEDDED') >=0) |
+                  (np.core.defchararray.find(aspcapfield['TARGFLAGS'][gd].astype(str),'EMISSION') >=0) |
+                  (np.core.defchararray.find(aspcapfield['TARGFLAGS'][gd].astype(str),'APOGEE2_M31') >=0) |
+                  (np.core.defchararray.find(aspcapfield['TARGFLAGS'][gd].astype(str),'APOGEE2_M33') >=0) |
+                  (np.core.defchararray.find(aspcapfield['TARGFLAGS'][gd].astype(str),'APOGEE2_QSO') >=0) ) [0]
     aspcapfield['ASPCAPFLAG'][gd[j]] |= aspcapbitmask.getval('PROBLEM_TARGET')
     print('PROBLEM_TARGET',len(j))
 
     # star level flag
+    aspcapfield['ASPCAPFLAG'] &= ~aspcapbitmask.getval('STAR_BAD')
     j = np.where( aspcapfield['ASPCAPFLAG']&aspcapbitmask.badval() > 0)[0]
     aspcapfield['ASPCAPFLAG'][j] |= aspcapbitmask.getval('STAR_BAD')
     print('STAR_BAD',len(j))
+    aspcapfield['ASPCAPFLAG'] &= ~aspcapbitmask.getval('STAR_WARN')
     j = np.where( (aspcapfield['ASPCAPFLAG']&aspcapbitmask.warnval() > 0) &
                   (aspcapfield['ASPCAPFLAG']&aspcapbitmask.getval('STAR_BAD') == 0) )[0]
     aspcapfield['ASPCAPFLAG'][j] |= aspcapbitmask.getval('STAR_WARN')
@@ -562,6 +604,32 @@ def add_visitpk(allstar, allvisit ) :
     print('nmax: ', nmax)
     return nvisits
 
+def washphotfix(tab):
+    """ Add washington photometry that was missing
+    """
+    wash=ascii.read(os.environ['APOGEE_DIR']+'/data/allwash_dsph_photonly.csv')
+    nmiss=0
+    for obj in set(wash['APOGEE_ID']) :
+        j=np.where((wash['APOGEE_ID'] == obj) & (wash['DDO51'] > 0.) )[0]
+        if len(j) > 0 :
+            i=np.where(tab['APOGEE_ID'] == obj)[0]
+            print(obj,len(i))
+            for col,wcol in zip(['WASH_M','WASH_M_ERR','WASH_T2','WASH_T2_ERR','DDO51','DDO51_ERR'],
+                                ['M','MERR','T2','T2ERR','DDO51','DDO51ERR'] ) :
+                tab[col][i] = wash[wcol][j[0]]
+        else : 
+            print('no washphot in file for ',obj)
+            nmiss+=1
+    print('missing: ', nmiss)
+
+
+def targflagfix(tab):
+    """ fix erroneous bit in K2_C12 fiels
+    """
+    j = np.where(np.char.find(tab['FIELD'].astype(str),'K2_C12') >=0)[0]
+    targmask=bitmask.Apogee2Target3()
+    tab['APOGEE2_TARGET3'][j] &= ~targmask.getval('APOGEE2_K2_MDWARF')
+
 def fiber300fix() :
     """ Replace records in aspcapField files that were missing for MEANFIB==300 with
        supplemental runs from redo
@@ -573,10 +641,13 @@ def fiber300fix() :
         for i,obj in enumerate(objs) :
             name=telescope+'/'+obj[1]+'/aspcapField-'+obj[1]+'.fits'
             old=fits.open(name)
-            j=np.where(old[1].data['APOGEE_ID'] == obj[0])[0]
+            try: j=np.where(old[1].data['APOGEE_ID'] == obj[0])[0][0]
+            except : j=np.where(np.char.find(old[1].data['APOGEE_ID'],obj[0]) >=0)[0][0]
             print(old[1].data['APOGEE_ID'][j],old[1].data['FPARAM'][j])
             print(a[1].data['APOGEE_ID'][i],a[1].data['FPARAM'][i])
             if old[1].data['APOGEE_ID'][j] != a[1].data['APOGEE_ID'][i].split('.')[0] : pdb.set_trace()
+            a[1].data['APOGEE_ID'][i] = obj[0]
+            a[1].data['FIELD'][i] = obj[1]
             old[1].data[j] = a[1].data[i]
             old[2].data[j] = a[2].data[i]
             try:os.makedirs('orig/'+os.path.dirname(name))
@@ -773,7 +844,7 @@ def aspcap_id(data,aspcap_vers='l33') :
     id = np.core.defchararray.add(id,data['APOGEE_ID'].astype(str))
     return id
 
-def qa_plots(tab,tab3,prefix='allStar/',hr=True, doqa=True, doelem=True) :
+def qa_plots(tab,tab3,prefix='allStar/',hr=True, doqa=True, doelem=True, drcomp='dr16') :
     """ Make a series of QA plots
     """
     procs=[]
@@ -784,14 +855,14 @@ def qa_plots(tab,tab3,prefix='allStar/',hr=True, doqa=True, doelem=True) :
 
         print('making HR diagrams....')
         kw={'a' : tab,'hard' : prefix+'hr/hr.png','xr' : [8000,3000],'grid' : True,
-            'iso' : [9.0,10.0],'alpha' : 1.0,'snrbd' : 5,'target' : prefix+'hr/hr','size' : 1}
+            'iso' : [8.0,9.0,10.0],'alpha' : 0.7,'snrbd' : 5,'target' : prefix+'hr/hr','size' : 1}
         procs.append(Process(target=qa.hr,kwargs=kw))
-        kw={'a' :tab, 'hard' : prefix+'hr/hrhot.png','xr' : [20000,3000],'iso' : [8.0,10.0],'snrbd' : 30,'size' : 1}
+        kw={'a' :tab, 'hard' : prefix+'hr/hrhot.png','xr' : [20000,3000],'iso' : [8.0,9.0,10.0],'snrbd' : 5,'size' : 1,'alpha' : 0.7}
         procs.append(Process(target=qa.hr,kwargs=kw))
         kw={'a' : tab,'hard' : prefix+'hr/multihr.png','size' : 1}
         procs.append(Process(target=qa.multihr,kwargs=kw))
         kw = {'a' : tab,'hard' : prefix+'hr/hr_cal.png','xr' : [8000,3000],'grid' : True,
-              'iso' : [9.0,10.0],'alpha' : 1.0,'snrbd' : 5,'param' : 'PARAM','target' : prefix+'hr/hr_cal','size' : 1}
+              'iso' : [8.0,9.0,10.0],'alpha' : 0.7,'snrbd' : 5,'param' : 'PARAM','target' : prefix+'hr/hr_cal','size' : 1}
         procs.append(Process(target=qa.hr,kwargs=kw))
 
     if doqa :
@@ -804,6 +875,9 @@ def qa_plots(tab,tab3,prefix='allStar/',hr=True, doqa=True, doelem=True) :
         procs.append(Process(target=qa.apolco,kwargs=kw))
         kw = {'tab' : tab,'tab3' : tab3, 'out' : prefix+'qa/'}
         procs.append(Process(target=qa.flags,kwargs=kw))
+        if drcomp is not None:
+            kw={'tab' : tab,'tab3' : tab3,'dr' : drcomp,'out' : prefix+'qa/'}
+            procs.append(Process(target=qa.drcomp,kwargs=kw))
 
     if doelem :
         try: os.makedirs(prefix+'/clust/')
@@ -900,16 +974,21 @@ def qa_html(tab,tab3,prefix='allStar/',drcomp='dr16') :
     f.write('<li> <a href='+'calib/teff.html> Teff </a>\n')
     f.write('<li> <a href='+'qa/elem.html> Abundances </a>\n')
     f.write('</ul>')
-    f.write('<li> <a href='+'calibrated/'+prefix+'.html'+'> Calibration check (calibration plots from calibrated values) </a>\n')
+    f.write('<li> Calibration check (calibration plots from calibrated values)\n')
+    f.write('<ul>')
+    f.write('<li> <a href='+'calibrated/logg.html> log g </a>\n')
+    f.write('<li> <a href='+'calibrated/teff.html> Teff </a>\n')
+    f.write('</ul>')
     f.write('<li> <a href='+'qa/calib.html> Calibrated-uncalibrated plots</a>\n')
     f.write('</ul>\n')
     f.write('<p> Comparisons<ul>\n')
     f.write('<li> <a href='+'optical/optical.html> Comparison with optical abundances</a>\n')
     f.write('<li> <a href='+'qa/apolco.html> APO-LCO comparison</a>\n')
-    f.write('<li> <a href='+'clust/clust.html> Cluster abundances</a>\n')
-    f.write('<li> <a href='+'qa/elem.html> Solar neighborhood abundances at solar metallicity</a>\n')
+    f.write('<li> <a href='+'qa/clust.html> Cluster abundances</a>\n')
+    if drcomp is not None : f.write('<li> <a href='+'qa/'+drcomp+'_diffs.html> '+drcomp.upper()+' comparison plots</a>')
     f.write('</ul>\n')
     f.write('<p> Chemistry plots<ul>\n')
+    f.write('<li> <a href='+'qa/elem.html> Abundances: solar neighborhood at solar metallicity and main sample</a>\n')
     f.write('<li> <a href='+'qa/elem_chem.html> Chemistry plots with uncalibrated abundances</a>\n')
     f.write('<li> <a href='+'qa_calibrated/elem_chem.html> Chemistry plots with calibrated abundances, main sample</a>\n')
     f.write('<li> <a href='+'qa_calibrated/all_elem_chem.html> Chemistry plots with calibrated abundances, all</a>\n')
@@ -920,7 +999,6 @@ def qa_html(tab,tab3,prefix='allStar/',drcomp='dr16') :
     f.write('<li> <a href='+'qa/cn.html> C,N parameters vs abundances</a>\n')
     f.write('<li> <a href='+'qa/flags.html> Bitmasks</a>\n')
     f.write('<li> <a href='+'qa/elem_errs.html> Abundance uncertainties</a>\n')
-    if drcomp is not None : f.write('<li> <a href='+'qa/'+drcomp+'_diffs.html> '+drcomp+'comparison plots</a>')
     f.write('</ul>\n')
     f.write('<br> Duplicates/repeats, for empirical uncertainties: <ul>\n')
     f.write('<li> <a href='+'repeat/giant_repeat_elem.html> Elemental abundances, giants</a>\n')
@@ -932,10 +1010,10 @@ def qa_html(tab,tab3,prefix='allStar/',drcomp='dr16') :
 
     # optical comparison index
     grid=[]
-    grid.append(['paramcomp_ts20_uncal.png',''])
-    yt=['TS20 Parameters','']
+    grid.append(['paramcomp_synspec.png',''])
+    yt=['Parameters']
     for el in tab3['ELEM_SYMBOL'][0].astype(str) :
-        grid.append(['{:s}_abundcomp_ts20_uncal.png'.format(el),''])
+        grid.append(['{:s}_abundcomp_synspec.png'.format(el),''])
         yt.append(el)
     try: os.makedirs(prefix+'/optical/')
     except: pass
@@ -951,10 +1029,29 @@ def qa_html(tab,tab3,prefix='allStar/',drcomp='dr16') :
             row.append(fig)
         if param == 'hr' : row.extend(['../qa/calib_Teff_hr.png','','','','','','','',''])
         elif param == 'rms': row.extend(['../qa/calib_logg_hr.png','','','','','','','',''])
-        else : row.extend(['','','','','','','','',''])
+        elif param == 'M': 
+            row.extend(['','M_H_ERR'])
+            for i in range(5) : row.append('../qa/M_H_{:d}.png'.format(i))
+            row.extend(['../qa/M_H_teff.png','../qa/M_H_dwarfteff.png'])
+        elif param == 'Cpar': 
+            row.extend(['','C_M_ERR'])
+            for i in range(5) : row.append('../qa/C_M_{:d}.png'.format(i))
+            row.extend(['../qa/C_M_teff.png','../qa/C_M_dwarfteff.png'])
+        elif param == 'Npar': 
+            row.extend(['','N_M_ERR'])
+            for i in range(5) : row.append('../qa/N_M_{:d}.png'.format(i))
+            row.extend(['../qa/N_M_teff.png','../qa/N_M_dwarfteff.png'])
+        elif param == 'alpha': 
+            row.extend(['','ALPHA_M_ERR'])
+            for i in range(5) : row.append('../qa/ALPHA_M_{:d}.png'.format(i))
+            row.extend(['../qa/ALPHA_M_teff.png','../qa/ALPHA_M_dwarfteff.png'])
+        else :  row.extend(['','','','','','','','',''])
         yt.append(param)
         grid.append(row)
     for elem in aspcap.elems()[0] :
+        #header line for this element
+        grid.append(['{:s}'.format(elem)])
+        yt.append('')
         row=[]
         elemrow=[]
         xt=[]
@@ -969,8 +1066,20 @@ def qa_html(tab,tab3,prefix='allStar/',drcomp='dr16') :
         row.append('../qa/{:s}_teff.png'.format(elem))
         row.append('../qa/{:s}_dwarfteff.png'.format(elem))
         xt.extend(['calibration','uncertainty','giants 3000-4000','giants 4000-4500','giants 4500-8000','dwarfs 3000-4000','dwarfs 4000-8000','giants f(Teff)','dwarfs f(Teff)'])
-        yt.append('<a href={:s}.html>{:s}</a>'.format(elem, elem))
+        yt.append('<a href={:s}.html>{:s} FPARAM</a>'.format(elem, elem))
         grid.append(row)
+        row=['','','','','']
+        for i in range(5) : row.append('../qa_calibrated/{:s}_{:d}.png'.format(elem,i))
+        row.append('../qa_calibrated/{:s}_teff.png'.format(elem))
+        row.append('../qa_calibrated/{:s}_dwarfteff.png'.format(elem))
+        grid.append(row)
+        yt.append('<a href={:s}.html>{:s} X_M</a>'.format(elem, elem))
+        row=['','','','','']
+        for i in range(5) : row.append('../qa_calibrated/named_{:s}_{:d}.png'.format(elem,i))
+        row.append('../qa_calibrated/named_{:s}_teff.png'.format(elem))
+        row.append('../qa_calibrated/named_{:s}_dwarfteff.png'.format(elem))
+        grid.append(row)
+        yt.append('<a href={:s}.html>{:s} {:s}_FE</a>'.format(elem, elem,elem.upper()))
 
         # individual element pages
         elemrow.extend(['','','',''])

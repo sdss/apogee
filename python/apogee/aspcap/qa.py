@@ -173,6 +173,76 @@ def plotelems(a=None,tab3=None,title=None,out=None,calib=False,main=True,named=F
     else : gfig,gax=plots.multi(2,len(gels)//2+1,hspace=0.001,wspace=0.001,figsize=(8,16))
    
     yr=[-0.3,0.7] 
+    for iparam,tag in zip([4,5,6],['C_M','N_M','ALPHA_M']) :
+        if named:
+            if tag == 'ALPHA_M' : abun=a[tag]
+            else: abun=a['PARAM'][:,iparam]
+            ytit=tag
+            type='named'
+        elif calib :
+            abun=a['PARAM'][:,iparam]
+            ytit='PARAM'
+            type='PARAM'
+        else :
+            abun=a['FPARAM'][:,iparam]
+            ytit='FPARAM'
+            type='FPARAM'
+        row=[]
+        xt=[]
+        yt.append(tag)
+        icol=0
+        for te,logg in zip(te_ranges,logg_ranges) :
+            gd = np.where((a[param][:,0] >= te[0]) & (a[param][:,0] <= te[1]) &
+                          (a[param][:,1] >= logg[0]) & (a[param][:,1] <= logg[1]) )[0]
+            print(tag,te,logg,len(gd))
+
+            fig,ax=plots.multi(1,3,hspace=0.001,figsize=(8,8))
+            plots.plotc(ax[0],a[param][gd,3],abun[gd],a[param][gd,0],xr=[-2.5,1.0],yr=yr,zr=te,
+                        xt='[M/H]',colorbar=True,zt='Teff',yt=ytit,size=1)
+            ax[0].text(0.1,0.9,type+comment,transform=ax[0].transAxes)
+            plots.plotc(ax[1],a[param][gd,3],abun[gd],a['SNR'][gd],xr=[-2.5,1.0],yr=yr,zr=[50,200],
+                        xt='[M/H]',colorbar=True,zt='S/N',yt=ytit,size=1)
+            plots.plotc(ax[2],a[param][gd,3],abun[gd],vhelio[gd],xr=[-2.5,1.0],yr=yr,zr=[-200,200],
+                        xt='[M/H]',colorbar=True,zt='vhelio',yt=ytit,size=1)
+            if out is not None :
+                outfile=out+tag+'_{:1d}.png'.format(icol)
+                fig.savefig(outfile)
+                row.append(os.path.basename(outfile))
+            else: pdb.set_trace()
+            plt.close(fig)
+            icol+=1
+            xt.append('{:6.0f}&lt;Teff&lt;{:6.0f} {:6.1f}&lt;logg&lt;{:6.1f}'.format(te[0],te[1],logg[0],logg[1]))
+        #plot as f(Teff) for giants
+        gd = np.where((a[param][:,1] >= -1) & (a[param][:,1] <= 3.8) )[0]
+        fig,ax=plots.multi(1,3,hspace=0.001,figsize=(8,8))
+        plots.plotc(ax[0],a[param][gd,0],abun[gd],a[param][gd,3],xr=[3000,5000],yr=yr,zr=[-2,0.5],
+                    xt='Teff',colorbar=True,zt='[M/H]',yt=ytit,size=1)
+        plots.plotc(ax[1],a[param][gd,0],abun[gd],a['SNR'][gd],xr=[3000,5000],yr=yr,zr=[50,200],
+                    xt='Teff',colorbar=True,zt='S/N',yt=ytit,size=1)
+        plots.plotc(ax[2],a[param][gd,0],abun[gd],vhelio[gd],xr=[3000,5000],yr=yr,zr=[-200,200],
+                    xt='Teff',colorbar=True,zt='vhelio',yt=ytit,size=1)
+        xt.append('{:6.1f}&lt;logg&lt;{:6.1f}'.format(-0.5,3.8))
+        outfile=out+tag+'_teff.png'
+        fig.savefig(outfile)
+        plt.close(fig)
+        row.append(os.path.basename(outfile))
+        #plot as f(Teff) for dwarfs
+        gd = np.where((a[param][:,1] >= 3.8) )[0]
+        fig,ax=plots.multi(1,3,hspace=0.001,figsize=(8,8))
+        plots.plotc(ax[0],a[param][gd,0],abun[gd],a[param][gd,3],xr=[3000,5000],yr=yr,zr=[-2,0.5],
+                    xt='Teff',colorbar=True,zt='[M/H]',yt=ytit,size=1)
+        plots.plotc(ax[1],a[param][gd,0],abun[gd],a['SNR'][gd],xr=[3000,5000],yr=yr,zr=[50,200],
+                    xt='Teff',colorbar=True,zt='S/N',yt=ytit,size=1)
+        plots.plotc(ax[2],a[param][gd,0],abun[gd],vhelio[gd],xr=[3000,5000],yr=yr,zr=[-200,200],
+                    xt='Teff',colorbar=True,zt='vhelio',yt=ytit,size=1)
+        xt.append('{:6.1f}&lt;logg&lt;{:6.1f}'.format(3.8,6))
+        outfile=out+tag+'_dwarfteff.png'
+        fig.savefig(outfile)
+        plt.close(fig)
+        row.append(os.path.basename(outfile))
+
+        grid.append(row)
+
     for iel,el in enumerate(els) :
         if named:
             if el == 'Fe' : tag = 'FE_H'
@@ -249,13 +319,6 @@ def plotelems(a=None,tab3=None,title=None,out=None,calib=False,main=True,named=F
 
         grid.append(row)
 
-        #if el in gels :
-        #    print(el,igel)
-        #    plots.plotc(gax[igel//2,igel%2],a[param][solar,1],abun[solar],a[param][solar,3],xr=[5.9,-0.9],yr=[-0.39,0.39],zr=[-0.1,0.1],
-        #                size=1,xt='log g',yt=ytit,zt='[M/H]')
-        #    igel+=1
-
-    #gfig.savefig(out+'elem_solar_logg.png')
     if out is not None : html.htmltab(grid,file=out+'elem_chem.html',ytitle=yt,xtitle=xt)
 
 def plotparam_errs(hdulist=None,title=None,out=None) :
@@ -311,15 +374,36 @@ def plotelem_errs(tab=None,tab3=None,title=None,out=None,calib=False) :
     else :param='FPARAM'
 
     # Teff and logg HR diagram uncertainties
-    hrfig,hrax=plots.multi(1,1,hspace=0.001)
-    plots.plotc(hrax,tab[param][:,0],tab[param][:,1],tab['TEFF_ERR'],
-                xr=[8000,3000],zr=[0.,100],yr=[6,-1],xt='Teff',yt='log g',colorbar=True,zt='Teff repeat error',size=1)
-    if out is not None :
-        outfile=out+'teff_hr_err.png'
-        hrfig.savefig(outfile)
-        grid.append([os.path.basename(outfile),'',''])
-        yt.append('Teff')
-        plt.close(hrfig)
+    for iparam in [0,1,3,6] :
+        if iparam==0 : err='TEFF_ERR'
+        elif iparam==1 : err='LOGG_ERR'
+        elif iparam==2 : err='M_H_ERR'
+        elif iparam==3 : err='ALPHA_M_ERR'
+        
+        hrfig,hrax=plots.multi(1,1,hspace=0.001)
+        plots.plotc(hrax,tab[param][:,0],tab[param][:,1],tab[err],
+                    xr=[8000,3000],zr=[0.,100],yr=[6,-1],xt='Teff',yt='log g',colorbar=True,zt='Teff repeat error',size=1)
+        gfig,gax=plots.multi(1,2,hspace=0.001)
+        plots.plotc(gax[0],tab[param][giants,0],tab[err][giants],tab[param][giants,3],
+                    xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=err+' repeat error',size=1)
+        plots.plotc(gax[1],tab[param][giants,0],np.sqrt(tab['FPARAM_COV'][giants,iparam,iparam]),tab[param][giants,3],
+                    xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=err+' Ferre error',size=1)
+        dfig,dax=plots.multi(1,2,hspace=0.001)
+        plots.plotc(dax[0],tab[param][dwarfs,0],tab[err][dwarfs],tab[param][dwarfs,3],
+                    xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=err+' repeat error',size=1)
+        plots.plotc(dax[1],tab[param][dwarfs,0],np.sqrt(tab['FPARAM_COV'][dwarfs,iparam,iparam]),tab[param][dwarfs,3],
+                    xr=[3000,7000],zr=[-2.5,1.0],yr=[0.0,0.5],xt='Teff',colorbar=True,zt='[M/H]',yt=err+' Ferre error',size=1)
+        if out is not None :
+            outfile=out+err+'_hr_err.png'
+            hrfig.savefig(outfile)
+            goutfile=out+err+'_giant_err.png'
+            hrfig.savefig(goutfile)
+            doutfile=out+err+'_dwarf_err.png'
+            hrfig.savefig(doutfile)
+            grid.append([outfile,goutfile,doutfile])
+            yt.append(err)
+            plt.close(hrfig)
+
     hrfig,hrax=plots.multi(1,1,hspace=0.001)
     plots.plotc(hrax,tab[param][:,0],tab[param][:,1],tab['LOGG_ERR'],
                 xr=[8000,3000],zr=[0.,0.25],yr=[6,-1],xt='Teff',yt='log g',colorbar=True,zt='logg repeat error',size=1)
@@ -366,11 +450,10 @@ def plotelem_errs(tab=None,tab3=None,title=None,out=None,calib=False) :
             yt.append(el) 
     if out is not None : html.htmltab(grid,file=out+'elem_errs.html',ytitle=yt,xtitle=['HR','giants','dwarfs'])
 
-def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
+def plotparamdiffs(a,a3,bdata,title=None,cal=False,out=None,elem=True) :
     """ Plot parameter differences between two different runs
     """
 
-    a=data[1].data
     b=bdata[1].data
     paramnames,tagnames,flagnames = aspcap.params()
     i1,i2=match.match(a['APOGEE_ID'],b['APOGEE_ID'])
@@ -426,7 +509,7 @@ def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
     if elem :
         grid=[]
         yt=[]
-        elemnames = data[3].data['ELEM_SYMBOL'][0].astype(str)
+        elemnames = a3['ELEM_SYMBOL'][0].astype(str)
         belemnames = bdata[3].data['ELEM_SYMBOL'][0].astype(str)
         if cal : elem = 'ELEM'
         else : elem = 'FELEM'
@@ -490,12 +573,12 @@ def plotparamdiffs(data,bdata,title=None,cal=False,out=None,elem=True) :
     html.tail(fp)
     return 
     
-def drcomp(hdulist=None,dr='dr14',out=None,elem=True,domiss=False) :
+def drcomp(tab=None,tab3=None,dr='dr14',out=None,elem=True,domiss=False) :
     """ Comparisons to DR14
     """
     apl=apload.ApLoad(dr=dr)
     prev=apl.allStar()
-    plotparamdiffs(hdulist,prev,out=out+dr+'_',elem=elem)
+    plotparamdiffs(tab,tab3,prev,out=out+dr+'_',elem=elem)
 
     if domiss :
         miss=set(prev[1].data['APOGEE_ID'])-set(hdulist[1].data['APOGEE_ID'])
@@ -564,44 +647,33 @@ def calib(tab=None,tab3=None,out='./') :
     grid=[]
     yt=[]
     # Teff f([M/H], Teff)
-    fig,ax=plots.multi(1,1)
-    plots.plotc(ax,tab['FPARAM'][:,0],tab['FPARAM'][:,1],tab['PARAM'][:,0]-tab['FPARAM'][:,0],
-                xr=[8000,3000],xt='Teff',yt='log g',zt=r'$\Delta$ Teff',yr=[6,-1],zr=[-250,250],colorbar=True)
-    outfile=out+'calib_Teff_hr.png'
-    fig.savefig(outfile)
-    plt.close(fig)
-    fig,ax=plots.multi(1,1)
-    plots.plotc(ax,tab['FPARAM'][:,3],tab['PARAM'][:,0]-tab['FPARAM'][:,0],tab['FPARAM'][:,0],
-                xt='[M/H]',yt=r'$\Delta$ Teff',zr=[3000,8000],colorbar=True,zt='Teff')
-    outfile1=out+'calib_Teff_all.png'
-    fig.savefig(outfile1)
-    ax.set_xlim(-3,1)
-    ax.set_ylim(-500,500)
-    outfile2=out+'calib_Teff.png'
-    fig.savefig(outfile2)
-    plt.close(fig)
-    grid.append([os.path.basename(outfile),os.path.basename(outfile2),os.path.basename(outfile1)])
-    yt.append('Teff')
-
-    # logg f(logg,[M/H])
-    fig,ax=plots.multi(1,1)
-    plots.plotc(ax,tab['FPARAM'][:,0],tab['FPARAM'][:,1],tab['PARAM'][:,1]-tab['FPARAM'][:,1],
-                xr=[8000,3000],xt='Teff',yt='log g',zt=r'$\Delta$ log g',yr=[6,-1],zr=[-0.5,0.5],colorbar=True)
-    outfile=out+'calib_logg_hr.png'
-    fig.savefig(outfile)
-    plt.close(fig)
-    fig,ax=plots.multi(1,1)
-    plots.plotc(ax,tab['FPARAM'][:,1],tab['PARAM'][:,1]-tab['FPARAM'][:,1],tab['FPARAM'][:,3],
-                xt='log g',yt=r'$\Delta$logg',zr=[-2,0.5],colorbar=True,zt='[M/H]')
-    outfile1=out+'calib_logg_all.png'
-    fig.savefig(outfile1)
-    ax.set_xlim(-1,6)
-    ax.set_ylim(-1,1)
-    outfile2=out+'calib_logg.png'
-    fig.savefig(outfile2)
-    plt.close(fig)
-    grid.append([os.path.basename(outfile),os.path.basename(outfile2),os.path.basename(outfile1)])
-    yt.append('log g')
+    for iparam,param in zip([0,1,6],['Teff','logg','alpha_M']) :
+        if param == 'Teff' :
+            zr=[-250,250]
+        elif param == 'logg' :
+            zr=[-1,1]
+        else :
+            zr=[-0.5,0.5]
+        fig,ax=plots.multi(1,1)
+        plots.plotc(ax,tab['FPARAM'][:,0],tab['FPARAM'][:,1],tab['PARAM'][:,iparam]-tab['FPARAM'][:,iparam],
+                    xr=[8000,3000],xt='Teff',yt='log g',zt=r'$\Delta$ '+param,yr=[6,-1],zr=zr,colorbar=True)
+        outfile=out+'calib_'+param+'_hr.png'
+        fig.savefig(outfile)
+        plt.close(fig)
+        fig,ax=plots.multi(1,1)
+        plots.plotc(ax,tab['FPARAM'][:,3],tab['PARAM'][:,iparam]-tab['FPARAM'][:,iparam],tab['FPARAM'][:,0],
+                    xt='[M/H]',yt=r'$\Delta$ '+param,zr=[3000,8000],colorbar=True,zt='Teff')
+        outfile1=out+'calib_'+param+'_all.png'
+        fig.savefig(outfile1)
+        ax.set_xlim(-3,1)
+        if param == 'Teff' : ax.set_ylim(-500,500)
+        elif param == 'logg' : ax.set_ylim(-1,1)
+        else :  ax.set_ylim(-0.5,0.5)
+        outfile2=out+'calib_'+param+'.png'
+        fig.savefig(outfile2)
+        plt.close(fig)
+        grid.append([os.path.basename(outfile),os.path.basename(outfile2),os.path.basename(outfile1)])
+        yt.append(param)
 
     els=tab3['ELEM_SYMBOL'][0].astype(str)
     for iel,el in enumerate(els) :
@@ -1010,6 +1082,7 @@ def hr(a=None,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=None, alpha=0
                 else : name = 'zp{:02d}'.format(int(abs(mh)*10.))
                 rgba=cmap((mh-zr[0])/(zr[1]-zr[0]))
                 for age in iso :
+                    print('age: ',age)
                     isodata=isochrones.read(os.environ['ISOCHRONE_DIR']+'/'+name+'.dat',agerange=[age-0.01,age+0.01])
                     isochrones.plot(tax,isodata,'teff','logg',color=rgba,alpha=alpha)
         tfig.savefig(target+'_main.png')
@@ -1022,33 +1095,33 @@ def hr(a=None,param='FPARAM',colorbar=False,zt='[M/H]',zr=None,iso=None, alpha=0
         t2_1=bitmask.ApogeeTarget2()
         tfig,tax=plots.multi(1,1)
         plots.plotp(tax,teff[gd[main]],logg[gd[main]],color='b',xr=xr,yr=yr,
-                    xt='Teff',yt='log g',label='MAIN')
+                    xt='Teff',yt='log g',label='MAIN',size=size)
 
         mc =np.where(((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_MAGCLOUD_MEMBER'])) > 0) |
                      ((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_MAGCLOUD_CANDIDATE'])) > 0) )[0]
         plots.plotp(tax,teff[gd[mc]],logg[gd[mc]],color='g',xr=xr,yr=yr,
-                    xt='Teff',yt='log g',label='MC')
+                    xt='Teff',yt='log g',label='MC',size=size)
         dsph =np.where(((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_DSPH_MEMBER'])) > 0) |
                      ((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_DSPH_CANDIDATE'])) > 0) |
                      ((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_SGR_DSPH'])) > 0)  )[0]
         plots.plotp(tax,teff[gd[dsph]],logg[gd[dsph]],color='c',xr=xr,yr=yr,
-                    xt='Teff',yt='log g',label='DSPH')
+                    xt='Teff',yt='log g',label='DSPH',size=size)
         rr =np.where((a['APOGEE2_TARGET1'][gd] & t1.getval(['APOGEE2_RRLYR'])) > 0 )[0]
         plots.plotp(tax,teff[gd[rr]],logg[gd[rr]],color='r',xr=xr,yr=yr,
-                    xt='Teff',yt='log g',label='RRLYR')
+                    xt='Teff',yt='log g',label='RRLYR',size=size)
         young =np.where(((a['APOGEE2_TARGET3'][gd] & t3.getval(['APOGEE2_YOUNG_CLUSTER'])) > 0) |
                         ((a['APOGEE_TARGET2'][gd] & t2_1.getval(['APOGEE_EMBEDDEDCLUSTER_STAR'])) > 0) )[0]
         plots.plotp(tax,teff[gd[young]],logg[gd[young]],color='m',xr=xr,yr=yr,
-                    xt='Teff',yt='log g',label='YOUNG')
+                    xt='Teff',yt='log g',label='YOUNG',size=size)
         emission =np.where( ((a['APOGEE_TARGET2'][gd] & t2_1.getval(['APOGEE_EMISSION_STAR'])) > 0) )[0]
         plots.plotp(tax,teff[gd[emission]],logg[gd[emission]],color='y',xr=xr,yr=yr,
-                    xt='Teff',yt='log g',label='EMISSION')
+                    xt='Teff',yt='log g',label='EMISSION',size=size)
         extended =np.where( ((a['APOGEE_TARGET1'][gd] & t1_1.getval(['APOGEE_EXTENDED'])) > 0) |
                      ((a['APOGEE_TARGET1'][gd] & t1_1.getval(['APOGEE_M31_CLUSTER'])) > 0) |
                      ((a['APOGEE2_TARGET3'][gd] & t3.getval(['APOGEE2_M31'])) > 0) |
                      ((a['APOGEE2_TARGET3'][gd] & t3.getval(['APOGEE2_M33'])) > 0) )[0]
         plots.plotp(tax,teff[gd[extended]],logg[gd[extended]],color='orange',xr=xr,yr=yr,
-                    xt='Teff',yt='log g',label='EXTENDED')
+                    xt='Teff',yt='log g',label='EXTENDED',size=size)
         tax.grid()
         tax.legend(loc='upper left')
         tfig.savefig(target+'_targ.png')

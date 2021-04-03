@@ -63,9 +63,13 @@ def htmltab(plots, file=None, xtitle=None, ytitle=None, size=100, header=None) :
          [header=] : header to write above the table
          [size=]   : width of each plot
     """
-    p=np.array(plots)
-    nx=p.shape[1]
-    ny=p.shape[0]
+    #p=np.array(plots)
+    #nx=p.shape[1]
+    #ny=p.shape[0]
+    ny=len(plots)
+    nx=0
+    for row in plots : nx=np.max([len(row),nx])
+    p=plots
 
     f=head(file=file)
     if header is not None :
@@ -79,13 +83,18 @@ def htmltab(plots, file=None, xtitle=None, ytitle=None, size=100, header=None) :
             f.write('<TD>'+xtitle[ix]+'\n')
     for iy in range(ny) :
         f.write('<TR>\n')
-        if ytitle is not None :
-            f.write('<TD>'+ytitle[iy]+'\n')
-        for ix in range(nx) :
-            f.write('<TD>\n')
-            f.write('<A HREF='+p[iy][ix]+'>'+
-                    '<IMG SRC='+p[iy][ix]+' WIDTH='+str(size)+'%></A>\n')
+        if len(p[iy]) == 1 and nx>1 :
+            f.write('<TD COLSPAN={:d} bgcolor=lightblue>\n'.format(nx+1))
+            f.write(p[iy][0])
             f.write('</TD>\n')
+        else :
+            if ytitle is not None :
+                f.write('<TD>'+ytitle[iy]+'\n')
+            for ix in range(nx) :
+                f.write('<TD>\n')
+                f.write('<A HREF='+p[iy][ix]+'>'+
+                        '<IMG SRC='+p[iy][ix]+' WIDTH='+str(size)+'%></A>\n')
+                f.write('</TD>\n')
     f.write('</TABLE>\n')
     tail(f)
 

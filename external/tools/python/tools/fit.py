@@ -85,7 +85,7 @@ def fit1d(xdata,zdata,degree=1,reject=0,ydata=None,plot=None,plot2d=False,xr=Non
             plots.plotl(plot,x,zfit,color='k')
     return pfit
 
-def fit2d(xdata,ydata,zdata,degree=1,reject=0,plot=None,xr=None,yr=None,zr=None,xt=None,yt=None,zt=None,gdrange=None,pfit=None,log=False) :
+def fit2d(xdata,ydata,zdata,degree=1,reject=0,plot=None,xr=None,yr=None,zr=None,xt=None,yt=None,zt=None,gdrange=None,pfit=None,log=False,size=5) :
     """ 
     Do a 2D polynomial fit to data set and plot if requested
 

@@ -876,9 +876,8 @@ def nn_cal(a,caldir='./',modelfile='logg_nn_model.h5',out=None,gbclip=False) :
     parammask=bitmask.ParamBitMask()
     starmask=bitmask.StarBitMask()
 
-    #populate PARAM[1] for ALL stars, filter on STAR_BAD for LOGG
-    #do this by using >=0 here
-    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) >= 0) )[0]
+    #populate PARAM[1] stars w/o STAR_BAD
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
 
     # load NN model
     with h5py.File(caldir+'/'+modelfile,'r') as model:
@@ -886,8 +885,8 @@ def nn_cal(a,caldir='./',modelfile='logg_nn_model.h5',out=None,gbclip=False) :
         std=np.array(model['std'])
     model = tf.keras.models.load_model(caldir+'/'+modelfile,compile=False)
 
-    # clip [M/H] at -1.5, 0.5
-    mh=np.clip(a['FPARAM'][:,3],-2.0,0.5)
+    # clip [M/H] at -2.2, 0.5
+    mh=np.clip(a['FPARAM'][:,3],-2.2,0.5)
     # for dwarfs,clip at [M/H]=-1
     dw=np.where((a['FPARAM'][:,1]>4)&(mh<-1))[0]
     mh[dw]=-1.
@@ -895,8 +894,14 @@ def nn_cal(a,caldir='./',modelfile='logg_nn_model.h5',out=None,gbclip=False) :
     nm=a['FPARAM'][:,5]
     # clip Teff >6500
     teff=np.clip(a['FPARAM'][:,0],0,6500)
+    # for log logg, clip >5000
+    j=np.where(a['FPARAM'][:,1]<2.8)[0]
+    teff[j]=np.clip(a['FPARAM'][j,0],0,5000)
     # clip logg 0.5-5
     logg=np.clip(a['FPARAM'][:,1],0.5,5.)
+    # clip Teff>5500, logg>2.8 to logg=3.2-5
+    j=np.where((a['FPARAM'][:,1]>2.8) & (a['FPARAM'][:,0]>5500))[0]
+    logg[j] = np.clip(a['FPARAM'][j,1],3.2,5.)
     # clip gravities below giant branch to 4
     if gbclip :
         bd=np.where((teff<4800)&(a['FPARAM'][:,1]<4)&(a['FPARAM'][:,1]>(teff-3000)*(4-0.5)/(4800-3000)+0.5))[0]
@@ -965,14 +970,17 @@ def nn_train(allstar,apokasc_cat='APOKASC_cat_v6.6.5.fits.gz',loggrange=[-1.,3.8
 
     inpars = np.vstack((teff,logg,mh,cm-nm)).T
     loggcal = logg_cal['LOGG'][i2]
-    fig,ax=plots.multi(1,4,hspace=0.001)
+    fig,ax=plots.multi(2,4,hspace=0.001,wspace=0.001)
     labs=['APOKASC','Berger','LOGG_DW','Physical']
     for i in range(4) :
         gd=np.where(logg_cal['SOURCE'][i2] == i)[0]
-        plots.plotc(ax[i],logg[gd],logg[gd]-loggcal[gd],mh[gd],
-                    zr=[-2,0.5],xr=[-1,5],yr=[-1,1],colorbar=True)
-        ax[i].grid()
-        ax[i].text(0.1,0.1,labs[i],transform=ax[i].transAxes)
+        plots.plotc(ax[i,0],logg[gd],logg[gd]-loggcal[gd],mh[gd],
+                    zr=[-2,0.5],xr=[-1,5],yr=[-1,1],colorbar=True,xt='log g',yt='ASPCAP-source')
+        ax[i,0].grid()
+        ax[i,0].text(0.1,0.1,labs[i],transform=ax[i,0].transAxes)
+        plots.plotc(ax[i,1],mh[gd],logg[gd]-loggcal[gd],logg[gd],
+                    zr=[-1,5],xr=[-2.5,0.5],yr=[-1,1],colorbar=True,xt='[M/H]',yt='ASPCAP-source')
+        ax[i,1].grid()
     if out is not None :
         fig.savefig(out+'nn_logg_cal.png')
         plt.close()

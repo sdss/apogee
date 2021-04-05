@@ -160,10 +160,72 @@ def rcrgb(allstar,apokasc='APOKASC_cat_v6.6.5.fits.gz',logg='APOKASC3P_LOGG',evs
     ax[1].plot([-2,1.5],[-2,1.5])
     fig.tight_layout()
     if out is not None :
-        plt.savefig(out+'_hr.pdf')
+        plt.savefig(out+'_hr.png')
         plt.close(fig)
 
     return {'rclim' : rclim, 'rgbsep' : rgbfit, 'cnsep' : cnfit}
+
+def rcrgb_class(a,rcrgb,calloggmin=-1,calloggmax=3.8,calteffmin=3000,calteffmax=5500,out=None) :
+    """ Classify RC/RGB given parameters
+    """
+
+    rgbsep = rcrgb['rgbsep']
+    rclim = rcrgb['rclim']
+    cnsep = rcrgb['cnsep']
+    print(rclim)
+
+    aspcapmask=bitmask.AspcapBitMask()
+    parammask=bitmask.ParamBitMask()
+    a['PARAMFLAG'][:,1] &= ~parammask.getval('SPEC_RC')
+    a['PARAMFLAG'][:,1] &= ~parammask.getval('SPEC_RGB')
+
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0)  &
+                 (a['FPARAM'][:,1] < 2./1300.*(a['FPARAM'][:,0]-3600)+2.) &
+                 (a['FPARAM'][:,1] < 4.0) & ((a['FPARAM'][:,0] < 5500) | (a['FPARAM'][:,1]<2.8)) )[0]
+
+    cn=a['FPARAM'][:,4]-a['FPARAM'][:,5]
+    dt=a['FPARAM'][:,0] - (rgbsep[0] + rgbsep[1]*(a['FPARAM'][:,1]-2.5) +rgbsep[2]*a['FPARAM'][:,3])
+
+    # select RC
+    rc=np.where((a['FPARAM'][gd,1]<rclim[1])&(a['FPARAM'][gd,1]>rclim[0])&
+                (cn[gd]>cnsep[0]+cnsep[1]*a['FPARAM'][gd,3] + cnsep[2]*dt[gd])&
+                (a['FPARAM'][gd,1]<calloggmax)&(a['FPARAM'][gd,1]>calloggmin) &
+                (a['FPARAM'][gd,0]<calteffmax)&(a['FPARAM'][gd,0]>calteffmin))[0]
+    a['PARAMFLAG'][gd[rc],1] |= parammask.getval('SPEC_RC')
+
+    # select RGB
+    rgb=np.where(((a['FPARAM'][gd,1]>rclim[1])|(a['FPARAM'][gd,1]<rclim[0])|
+                (cn[gd]<cnsep[0]+cnsep[1]*a['FPARAM'][gd,3] + cnsep[2]*dt[gd])) &
+                (a['FPARAM'][gd,1]<calloggmax)&(a['FPARAM'][gd,1]>calloggmin) &
+                (a['FPARAM'][gd,0]<calteffmax)&(a['FPARAM'][gd,0]>calteffmin))[0]
+    a['PARAMFLAG'][gd[rgb],1] |= parammask.getval('SPEC_RGB')
+
+    fig,ax=plots.multi(5,2,figsize=(12,8),wspace=0.001,hspace=0.001)
+    for iy in range(2) :
+        if iy == 0 : param='FPARAM'
+        else : param='PARAM'
+        plots.plotp(ax[iy,0],a[param][gd[rgb],0],a[param][gd[rgb],1],color='r',xr=[6000,3000],yr=[5,-1],size=2,
+                    xt='Teff',yt='log g')
+        plots.plotp(ax[iy,0],a[param][gd[rc],0],a[param][gd[rc],1],color='b',xr=[6000,3000],yr=[5,-1],size=2)
+        plots.plotc(ax[iy,1],a[param][gd[rgb],0],a[param][gd[rgb],1],cn[gd[rgb]],xr=[6000,3000],yr=[5,-1],size=2,
+                    xt='Teff')
+        plots.plotc(ax[iy,2],a[param][gd[rc],0],a[param][gd[rc],1],cn[gd[rc]],xr=[6000,3000],yr=[5,-1],size=2,
+                    xt='Teff')
+        plots.plotc(ax[iy,3],a[param][gd[rgb],0],a[param][gd[rgb],1],a[param][gd[rgb],3],xr=[6000,3000],yr=[5,-1],size=2,
+                    xt='Teff')
+        plots.plotc(ax[iy,4],a[param][gd[rc],0],a[param][gd[rc],1],a[param][gd[rc],3],xr=[6000,3000],yr=[5,-1],size=2,
+                    xt='Teff')
+        for ix in range(5) : ax[iy,ix].grid()
+        if iy == 0:
+            ax[iy,1].set_title('RGB, color-coded by C/N')
+            ax[iy,2].set_title('RC, color-coded by C/N')
+            ax[iy,3].set_title('RGB, color-coded by [M/H]')
+            ax[iy,4].set_title('RC, color-coded by [M/H]')
+        if out is not None :
+            fig.savefig(out+'rcrgb_class.png')
+            plt.close()
+
+    return 
     
 def rcrgb_plot(a,out=None) :
     """ Plot logg classification from bitmask
@@ -772,9 +834,8 @@ def cal(a,caldir='cal/') :
     parammask=bitmask.ParamBitMask()
     starmask=bitmask.StarBitMask()
 
-    #populate PARAM[1] for ALL stars, filter on STAR_BAD for LOGG
-    #do this by using >=0 here
-    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) >= 0) )[0]
+    #populate PARAM[1] for stars without STAR_BAD
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
 
     # start with CALRANGE_BAD
     a['PARAM'][:,1] = np.nan

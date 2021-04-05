@@ -958,7 +958,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
 
     return aspcapfield,aspcapspec,aspcapkey
 
-def writefiles(load,field,aspcapfield,aspcapspec,aspcapkey,suffix='',aspcapstar=True) :
+def writefiles(load,field,aspcapfield,aspcapspec,aspcapkey,suffix='',aspcapstar=True,version=None) :
 
     """ Write aspcapField and aspcapStar files
     """
@@ -973,7 +973,11 @@ def writefiles(load,field,aspcapfield,aspcapspec,aspcapkey,suffix='',aspcapstar=
     try: os.makedirs(os.path.dirname(outfield))
     except: pass
     outfile=os.path.dirname(outfield)+'/'+os.path.splitext(os.path.basename(outfield))[0]+suffix+'.fits'
-    hdulist[0].header['VERSION'] = (os.environ['APOGEE_VER'],'APOGEE software version APOGEE_VER')
+    if version is None :
+        hdulist[0].header['VERSION'] = (os.environ['APOGEE_VER'],'APOGEE software version APOGEE_VER')
+    else :
+        hdulist[0].header['VERSION'] = (version,'APOGEE software version APOGEE_VER')
+        hdulist[0].header['HISTORY'] = 'File updated with '+ os.environ['APOGEE_VER']
     hdulist.writeto(outfile,overwrite=True)
 
     #output aspcapStar
@@ -995,7 +999,11 @@ def writefiles(load,field,aspcapfield,aspcapspec,aspcapkey,suffix='',aspcapstar=
             add_header(hdu)
             hdulist.append(hdu)
             hdulist.append(fits.table_to_hdu(Table(star)))
-            hdulist[0].header['VERSION'] = (os.environ['APOGEE_VER'],'APOGEE software version APOGEE_VER')
+            if version is None :
+                hdulist[0].header['VERSION'] = (os.environ['APOGEE_VER'],'APOGEE software version APOGEE_VER')
+            else :
+                hdulist[0].header['VERSION'] = (version,'APOGEE software version APOGEE_VER')
+                hdulist[0].header['HISTORY'] = 'File updated with '+ os.environ['APOGEE_VER']
             hdulist.writeto(outfile,overwrite=True)
 
     return

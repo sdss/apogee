@@ -1943,7 +1943,7 @@ def cal(a,tab3,caldir='cal/') :
     gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
 
     giant = np.where( (a['FPARAM'][gd,1] < 2./1300.*(a['FPARAM'][gd,0]-3600)+2.) &
-                      (a['FPARAM'][gd,1] < 4.0) & (a['FPARAM'][gd,0] < 5500) | (a['FPARAM'][gd,1]<2.8) )[0]
+                      (a['FPARAM'][gd,1] < 4.0) & ((a['FPARAM'][gd,0] < 5500) | (a['FPARAM'][gd,1]<2.8)) )[0]
     tmp = np.zeros(len(gd),dtype=bool)
     tmp[giant] = True
     dwarf = np.where(~tmp)[0]

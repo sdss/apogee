@@ -224,7 +224,9 @@ def add_named_tags(tab) :
 
     aspcapmask=bitmask.AspcapBitMask()
     parammask=bitmask.ParamBitMask()
-    gd=np.where((tab['ASPCAPFLAG'] & aspcapmask.badval()) == 0)[0]
+    gd=np.where(((tab['ASPCAPFLAG'] & aspcapmask.badval()) == 0) &
+                ((tab['ASPCAPFLAG'] & aspcapmask.getval('CHI2_BAD')) == 0) )[0]
+
     tab['TEFF'][gd] = tab['PARAM'][gd,0].astype(np.float32)
     tab['TEFF_ERR'][gd] = np.sqrt(tab['PARAM_COV'][gd,0,0]).astype(np.float32)
     tab['TEFF_SPEC'][gd] = tab['FPARAM'][gd,0].astype(np.float32)
@@ -568,7 +570,7 @@ def add_members(tab) :
         j=apselect.clustmember(tab,name,usememberflag=False)
         for jj in j :
             tab['MEMBERFLAG'][jj] |= membermask.getval(name)
-        j=apselect.clustmember(tab,name,dsph=True)
+        j=apselect.clustmember(tab,name,dsph=True,usememberflag=False)
         for jj in j :
             tab['MEMBERFLAG'][jj] |= membermask.getval(name)
 
@@ -584,7 +586,7 @@ def add_visitpk(allstar, allvisit ) :
     # add VISIT_PK column, initialize with out of range indices
     if not isinstance(allstar,astropy.table.table.Table) : allstar=Table(allstar)
     maxvisit=100
-    col = Column(np.full([len(allstar),maxvisit],len(allvisit)),name='VISIT_PK',dtype=np.int32)
+    col = Column(np.full([2**31,maxvisit],len(allvisit)),name='VISIT_PK',dtype=np.int32)
     try : allstar.remove_column('VISIT_PK')
     except: pass
     allstar.add_column(col)

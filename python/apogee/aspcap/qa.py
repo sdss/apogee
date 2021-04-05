@@ -711,26 +711,28 @@ def flags(tab=None,tab3=None,out='./',alpha=0.005) :
         if mask.name[i] != '' : xt.append(mask.name[i])
     data=[]
     row=[]
-    yt=['STARFLAG']
-    for i in range(31) :
-        j=np.where(tab['STARFLAG'] & 2**i)[0]
-        if mask.name[i] == '' and len(j) > 0 :
-            print('Unnamed bits are set!',i,len(j))
-            pdb.set_trace()
-        elif mask.name[i] != '' :
-            print(mask.name[i])
-            if len(j) > 0 :
-                fig,ax=plots.multi(1,1)
-                plots.plotc(ax,tab['FPARAM'][:,0],tab['FPARAM'][:,1],tab['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
-                plots.plotc(ax,tab['FPARAM'][j,0],tab['FPARAM'][j,1],tab['FPARAM'][j,3],size=3,
-                           xr=[10000,3000],yr=[6,-1],zr=[-2,0.5],xt='Teff (raw)',yt='logg (raw)')
-                outfile=out+'flag_starflag_{:d}.png'.format(i)
-                fig.savefig(outfile)
-                plt.close()
-                row.append('<a href={:s}> {:d} </a>'.format(os.path.basename(outfile),len(j)))
-            else : 
-                row.append('{:d}'.format(len(j)))
-    data.append(row)
+    yt=[]
+    for flag in ['STARFLAG','ANDFLAG'] :
+        yt.append(flag)
+        for i in range(31) :
+            j=np.where(tab[flag] & 2**i)[0]
+            if mask.name[i] == '' and len(j) > 0 :
+                print('Unnamed bits are set!',i,len(j))
+                pdb.set_trace()
+            elif mask.name[i] != '' :
+                print(mask.name[i])
+                if len(j) > 0 :
+                    fig,ax=plots.multi(1,1)
+                    plots.plotc(ax,tab['FPARAM'][:,0],tab['FPARAM'][:,1],tab['FPARAM'][:,3],alpha=alpha,zr=[-2,0.5])
+                    plots.plotc(ax,tab['FPARAM'][j,0],tab['FPARAM'][j,1],tab['FPARAM'][j,3],size=3,
+                               xr=[10000,3000],yr=[6,-1],zr=[-2,0.5],xt='Teff (raw)',yt='logg (raw)')
+                    outfile=out+'flag_starflag_{:d}.png'.format(i)
+                    fig.savefig(outfile)
+                    plt.close()
+                    row.append('<a href={:s}> {:d} </a>'.format(os.path.basename(outfile),len(j)))
+                else : 
+                    row.append('{:d}'.format(len(j)))
+        data.append(row)
     f.write(html.table(data,xtitle=xt,ytitle=yt,plots=False,formstr=':s'))
 
     mask=bitmask.AspcapBitMask()

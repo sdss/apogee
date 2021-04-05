@@ -167,6 +167,7 @@ def write(tab, tab2, tab3, out) :
     """
     # construct HDUList
     hdulist=fits.HDUList()
+    hdulist.append(fits.BinTableHDU(tab))
     hdulist.append(fits.BinTableHDU(tab2))
     hdulist.append(fits.BinTableHDU(tab3))
     # write out the file

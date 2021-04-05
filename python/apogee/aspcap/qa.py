@@ -710,10 +710,10 @@ def flags(tab=None,tab3=None,out='./',alpha=0.005) :
     for i in range(31) : 
         if mask.name[i] != '' : xt.append(mask.name[i])
     data=[]
-    row=[]
     yt=[]
     for flag in ['STARFLAG','ANDFLAG'] :
         yt.append(flag)
+        row=[]
         for i in range(31) :
             j=np.where(tab[flag] & 2**i)[0]
             if mask.name[i] == '' and len(j) > 0 :

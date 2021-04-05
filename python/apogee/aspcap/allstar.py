@@ -12,6 +12,7 @@ import os
 import pdb
 import glob
 import yaml
+import shutil
 import time
 from multiprocessing import Process
 
@@ -134,37 +135,38 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
 
     return tab, tab3
 
-def rewrite(tab,search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out='allStar.fits',
-            skip=['Field-redo','Field-cal_','Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.','apo1m.'] ): 
-          
-    # search for input files
-    if type(search) == str:
-        search=[search]
-    allfiles=[]
-    for path in search :
-        allfiles.extend(glob.glob(path))
+def rewrite(planfile) :
+    """ rewrite aspcapField and aspcapStar files with allStar record
+    """      
+    plan=yaml.safe_load(open(planfile,'r'))
+    apred_vers=plan['apred_vers']
+    apstar_vers=plan['apstar_vers']
+    aspcap_vers=plan['aspcap_vers']
+    telescope=plan['telescope']
+    aspcap_dir=os.environ['APOGEE_ASPCAP']+'/'+apred_vers+'/'+aspcap_vers+'/'
+ 
+    tab=Table.read(aspcap_dir+'/allStar-'+apred_vers+'-'+aspcap_vers+'.fits')
 
-    load=apload.ApLoad(apred='dr17',aspcap='synspec.rewrite')
-    for file in allfiles :
-        if skip is not None and doskip(file,skip) : continue
-        print(file)
-        dat=Table.read(file,hdu=1)
-        spec=Table.read(file,hdu=2)
-        key=Table.read(file,hdu=3)
-        field = dat['FIELD'][0]
-        telescope = dat['TELESCOPE'][0]
-        load.settelescope(telescope)
-        j=np.where(( tab['FIELD'] == field) & (tab['TELESCOPE'] == telescope) )[0]
+    load=apload.ApLoad(apred=apred_vers,aspcap=aspcap_vers,telescope=telescope)
+    for field in plan['field'] : 
+        print(field)
+        aspcapfield=load.aspcapField(field)
+        dat=Table(aspcapfield[1].data)
+        spec=Table(aspcapfield[2].data)
+        key=Table(aspcapfield[3].data)
+        j=np.where(( tab['FIELD'].astype(str) == field) & (tab['TELESCOPE'].astype(str) == telescope) )[0]
         i1,i2=match.match(tab['APOGEE_ID'][j],dat['APOGEE_ID'])
-        pdb.set_trace()
-        aspcap.writefiles(load,field,tab[j[i1]],spec[i2],key)
+        if len(i1) != len(j) or  len(i1) != len(dat) : pdb.set_trace()
+        name=os.path.dirname(load.filename('aspcapField',field=field))
+        shutil.move(name,name+'.orig')
+        aspcap.writefiles(load,field,tab[j[i1]],spec[i2],key,version=aspcapfield[0].header['VERSION'])
+
 
 def write(tab, tab2, tab3, out) :
     """ Write out allStar file from input HDU tables
     """
     # construct HDUList
     hdulist=fits.HDUList()
-    hdulist.append(fits.BinTableHDU(tab))
     hdulist.append(fits.BinTableHDU(tab2))
     hdulist.append(fits.BinTableHDU(tab3))
     # write out the file
@@ -384,6 +386,10 @@ def allcal(tab,tab3,outdir='./',doteff=True,dologg=True,doelem=True, doerr=True,
         grid.append(['nn_logg_hr.png','nn_logg_scatter.png'])
         grid.append(['logg_correction.png','logg_correction_hr.png'])
         html.htmltab(grid,caldir+'logg.html')
+        # add RC/RGB split for information purposes only in PARAMFLAG[1]
+        rcrgb = logg.rcrgb(tab,rclim=np.array([2.2,3.5]),out=caldir+'/rcrgb')
+        Table(struct.dict2struct(rcrgb)).write(caldir+'/rcrgb.fits',overwrite=True)
+        logg.rcrgb_class(tab,rcrgb,out=caldir)
 
     # abundances
     if doelem: 

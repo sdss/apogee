@@ -244,10 +244,10 @@ class ParamBitMask(BitMask):
      ' ',
      ' ',
      ' ',
-     'Use RC gravity calibration ',
-     'Use RGB gravity calibration ',
-     'Use MS gravity calibration ',
-     'Use RBG/MS transition gravity calibration ',
+     'Spectrscopically identified RC star ',
+     'Spectrscopically identified RGB star ',
+     'DR16 use MS gravity calibration ',
+     'DR16 use RBG/MS transition gravity calibration ',
      ' ',
      ' ',
      ' ',
@@ -346,7 +346,7 @@ class Apogee2Target3(BitMask) :
               'APOGEE2_LABEL_STAR','APOGEE2_FAINT_KEPLER_GIANTS','APOGEE2_W345','APOGEE2_MASSIVE_EVOLVED',
               'APOGEE2_REDDENING_TARGETS','APOGEE2_KEPLER_MDWARF_KOI','APOGEE2_AGB','APOGEE2_M33',
               'APOGEE2_ULTRACOOL','APOGEE2_DISTANT_SEGUE_GIANTS','APOGEE2_CEPHEID_MAPPING','APOGEE2_SA57',
-              'APOGEE2_K2_MDWARF','APOGEE2_RVVAR','APOGEE2_M31','APOGEE2_'])
+              'APOGEE2_K2_MDWARF','APOGEE2_RVVAR','APOGEE2_M31',''])
 
 class Apogee2Target4(BitMask) :
     '''
@@ -472,8 +472,8 @@ def targflags(targ1,targ2,targ3,targ4,survey='apogee2') :
         mask2=Apogee2Target2()
         mask3=Apogee2Target3()
         mask4=Apogee2Target4()
-        return ','.join([mask1.getname(targ1),mask2.getname(targ2),mask3.getname(targ3),mask4.getname(targ4)]).strip(',')
+        return ','.join([mask1.getname(targ1),mask2.getname(targ2),mask3.getname(targ3),mask4.getname(targ4)]).strip(',').replace(',,',',')
     else :
         mask1=ApogeeTarget1()
         mask2=ApogeeTarget2()
-        return ','.join([mask1.getname(targ1),mask2.getname(targ2)]).strip(',')
+        return ','.join([mask1.getname(targ1),mask2.getname(targ2)]).strip(',').replace(',,',',')

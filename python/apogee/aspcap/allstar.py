@@ -99,6 +99,8 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
     #fix(tab)
     washphotfix(tab)
     targflagfix(tab)
+    elemflagfix(tab)
+    nanfix(tab)
 
     # empirical uncertainties
     if doerr : repeat_err(tab,tab3,outdir=outdir)
@@ -633,11 +635,48 @@ def washphotfix(tab):
 
 
 def targflagfix(tab):
-    """ fix erroneous bit in K2_C12 fiels
+    """ fix erroneous bit in K2_C12 fields and fix up formatting issues in TARGFLAGS
     """
     j = np.where(np.char.find(tab['FIELD'].astype(str),'K2_C12') >=0)[0]
     targmask=bitmask.Apogee2Target3()
     tab['APOGEE2_TARGET3'][j] &= ~targmask.getval('APOGEE2_K2_MDWARF')
+
+    # repopulate TARGFLAGS
+    for i,star in enumerate(tab) :
+        newflags = (bitmask.targflags(star['APOGEE_TARGET1'],star['APOGEE_TARGET2'],0,0,survey='apogee')+
+                    bitmask.targflags(star['APOGEE2_TARGET1'],star['APOGEE2_TARGET2'],star['APOGEE2_TARGET3'],star['APOGEE2_TARGET4'],survey='apogee2'))
+        tab['TARGFLAGS'][i] = newflags
+
+def elemflagfix(tab) :
+    """ fix 'NaN' in ELEMFLAG
+    """
+    n,nel=tab['ELEMFLAG'].shape
+    for i in range(nel) :
+        j = np.where(tab['ELEMFLAG'][:,i] == -2**63)[0]
+        tab['ELEMFLAG'][j,i] = 0
+
+def nanfix(tab) :
+    """ change -9999 to NaNs
+    """
+    for col in ['RA','DEC','AK_TARG','AK_WISE','SFD_EBV','J','J_ERR','H','H_ERR','K','K_ERR',
+                'WASH_M','WASH_M_ERR','WASH_T2','WASH_T2_ERR','DDO51','DDO51_ERR',
+                'IRAC_3_6','IRAC_3_6_ERR','IRAC_4_5','IRAC_4_5_ERR','IRAC_5_8','IRAC_5_8_ERR',
+                'WISE_4_5','WISE_4_5_ERR','TARG_4_5','TARG_4_5_ERR'] :
+        j=np.where((tab[col]<-9998))[0]
+        print(col,len(j))
+        tab[col][j] = np.nan
+
+    # for PMRA, PMDEC, change to 0
+    for col in ['TARG_PMRA','TARG_PMDEC'] :
+        j=np.where((tab[col]<-9998))[0]
+        print(col,len(j))
+        tab[col][j] = 0
+
+    # change VESTA RA,DEC
+    j=np.where(tab['APOGEE_ID'] == 'VESTA')[0]
+    tab['RA'][j] = np.nan
+    tab['DEC'][j] = np.nan
+
 
 def fiber300fix() :
     """ Replace records in aspcapField files that were missing for MEANFIB==300 with

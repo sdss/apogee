@@ -43,11 +43,15 @@ def apply(data,caldir=None) :
     giant_errfit=fits.open(caldir+'/giant_errfit.fits')
     dwarf_errfit=fits.open(caldir+'/dwarf_errfit.fits')
 
+    # clip teff and [M/H] for dwarfs based on data available and used for repeats
+    teff=np.clip(data['FPARAM'][:,0],3000.,8000.)
+    mh=data['FPARAM'][:,3]
+
     # add uncertainties for parameters
     fig,ax=plots.multi(1,1)
     for iparam,param in enumerate(aspcap.params()[1]) :
-        data['PARAM_COV'][giant,iparam,iparam] = elemerr(giant_errfit[1].data['errfit'][iparam],data['FPARAM'][giant,0]-4500.,snr[giant]-100.,data['FPARAM'][giant,3])**2
-        data['PARAM_COV'][dwarf,iparam,iparam] = elemerr(dwarf_errfit[1].data['errfit'][iparam],data['FPARAM'][dwarf,0]-4500.,snr[dwarf]-100.,data['FPARAM'][dwarf,3])**2
+        data['PARAM_COV'][giant,iparam,iparam] = elemerr(giant_errfit[1].data['errfit'][iparam],teff[giant]-4500.,snr[giant]-100.,mh[giant])**2
+        data['PARAM_COV'][dwarf,iparam,iparam] = elemerr(dwarf_errfit[1].data['errfit'][iparam],teff[dwarf]-4500.,snr[dwarf]-100.,np.clip(mh[dwarf],-1,1.))**2
         j=np.where(data['FPARAM_COV'][:,iparam,iparam] > data['PARAM_COV'][:,iparam,iparam])[0]
         data['PARAM_COV'][j,iparam,iparam] = data['FPARAM_COV'][j,iparam,iparam]
         data['PARAMFLAG'][j,iparam] |= parammask.getval('FERRE_ERR_USED')
@@ -55,8 +59,8 @@ def apply(data,caldir=None) :
 
     # add uncertainties for abundances
     for ielem,elem in enumerate(aspcap.elems()[0]) :
-        data['X_H_ERR'][giant,ielem] = elemerr(giant_errfit[2].data['errfit'][ielem],data['FPARAM'][giant,0]-4500.,snr[giant]-100.,data['FPARAM'][giant,3])
-        data['X_H_ERR'][dwarf,ielem] = elemerr(dwarf_errfit[2].data['errfit'][ielem],data['FPARAM'][dwarf,0]-4500.,snr[dwarf]-100.,data['FPARAM'][dwarf,3])
+        data['X_H_ERR'][giant,ielem] = elemerr(giant_errfit[2].data['errfit'][ielem],teff[giant]-4500.,snr[giant]-100.,mh[giant])
+        data['X_H_ERR'][dwarf,ielem] = elemerr(dwarf_errfit[2].data['errfit'][ielem],teff[dwarf]-4500.,snr[dwarf]-100.,np.clip(mh[dwarf],-1,1.))
         # use FERRE uncertainty if larger
         j=np.where(data['FELEM_ERR'][:,ielem] > data['X_H_ERR'][:,ielem])[0]
         data['X_H_ERR'][j,ielem] = data['FELEM_ERR'][j,ielem]

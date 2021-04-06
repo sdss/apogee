@@ -586,7 +586,7 @@ def add_visitpk(allstar, allvisit ) :
     # add VISIT_PK column, initialize with out of range indices
     if not isinstance(allstar,astropy.table.table.Table) : allstar=Table(allstar)
     maxvisit=100
-    col = Column(np.full([2**31,maxvisit],len(allvisit)),name='VISIT_PK',dtype=np.int32)
+    col = Column(np.full([len(allstar),maxvisit],2**31),name='VISIT_PK',dtype=np.int32)
     try : allstar.remove_column('VISIT_PK')
     except: pass
     allstar.add_column(col)

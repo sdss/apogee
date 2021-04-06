@@ -338,10 +338,15 @@ def add_extratarg(tab) :
     print('duplicates: ')
     jall=[]
     for i,star in enumerate(tab) :
-        ira=int(star['RA'])
-        i1 = ind[ira]
-        if ira < 359 : i2 = ind[ira+1 ]
-        else : i2 = len(tab)
+        # trap for NaN (Vesta)
+        try: 
+            ira=int(star['RA'])
+            i1 = ind[ira]
+            if ira < 359 : i2 = ind[ira+1 ]
+            else : i2 = len(tab)
+        except ValueError: 
+            i1=0
+            i2=len(tab)
         j = i1 + np.where(tab['APOGEE_ID'][i1:i2] == star['APOGEE_ID'])[0]
         print(i,len(j))
         if len(j) > 1 :
@@ -603,10 +608,14 @@ def add_visitpk(allstar, allvisit ) :
     nvisits=[]
     nmax=0
     for i,star in enumerate(allstar) :
-        ira=int(star['RA'])
-        i1 = ind[ira]
-        if ira < 359 : i2 = ind[ira+1 ]
-        else : i2 = len(allvisit)
+        try: 
+            ira=int(star['RA'])
+            i1 = ind[ira]
+            if ira < 359 : i2 = ind[ira+1 ]
+            else : i2 = len(allvisit)
+        except ValueError : 
+            i1=0
+            i2=len(allvisit)
         j = np.where(allvisit['APOGEE_ID'][i1:i2] == star['APOGEE_ID'])[0]
         allstar['VISIT_PK'][i,0:min([maxvisit,len(j)])] = (i1+j)[0:min([maxvisit,len(j)])]
         print(i,len(j))

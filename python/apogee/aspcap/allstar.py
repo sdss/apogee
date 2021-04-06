@@ -289,7 +289,7 @@ def add_named_tags(tab) :
             tab[tag][gd[gdel]] = tab['X_H'][gd[gdel],i].astype(np.float32) - tab['X_H'][gd[gdel],ife].astype(np.float32)
             tab[tag+'_SPEC'][gd[gdel]] = tab['X_H_SPEC'][gd[gdel],i].astype(np.float32) - tab['X_H_SPEC'][gd[gdel],ife].astype(np.float32)
         tab[tag+'_ERR'][gd[gdel]] = tab['X_H_ERR'][gd[gdel],i].astype(np.float32)
-        tab[tag+'_FLAG'][gd[gdel]] = tab['ELEMFLAG'][gd[gdel],i].astype(np.int32)
+        tab[tag+'_FLAG'] = tab['ELEMFLAG'][:,i].astype(np.int32)
 
 def add_extratarg(tab) :
     """ add EXTRATARG, MIN_H, MAX_H, MIN_JK, MAX_JK

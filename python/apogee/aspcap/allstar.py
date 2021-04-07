@@ -52,7 +52,8 @@ def all(planfile,dofix=False,suffix=None,allplate=True, calsample=False) :
        fix(tab,allvisit)
 
    # write allStar out
-   write(tab, dat, dat, aspcap_dir+'allStar-'+apred_vers+'-'+aspcap_vers+suffix+'.fits') 
+   write(tab, dat, dat, aspcap_dir+'allStar-'+apred_vers+'-'+aspcap_vers+suffix+'.fits', 
+         trim=aspcap_dir+'allStarLite-'+apred_vers+'-'+aspcap_vers+suffix+'.fits' ) 
  
    # allPlate file
    if allplate :
@@ -83,6 +84,8 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
         print(file)
         dat=Table.read(file,hdu=1)
         try : dat.remove_column('FPARAM_COV_CLASS')
+        except : pass
+        try : dat.remove_column('NINST')
         except : pass
         if addgaia: 
             try: dat=gaia.add_gaia(dat)
@@ -164,7 +167,7 @@ def rewrite(planfile) :
         aspcap.writefiles(load,field,tab[j[i1]],spec[i2],key,version=aspcapfield[0].header['VERSION'])
 
 
-def write(tab, tab2, tab3, out) :
+def write(tab, tab2, tab3, out, trim=None) :
     """ Write out allStar file from input HDU tables
     """
     # construct HDUList
@@ -177,6 +180,14 @@ def write(tab, tab2, tab3, out) :
         print('writing',out)
         hdulist[0].header['VERSION'] = (os.environ['APOGEE_VER'],'APOGEE software version APOGEE_VER')
         hdulist.writeto(out,overwrite=True)
+
+    if trim is not None:
+        print('writing file ',trim)
+        out=fits.HDUList()
+        out.append(fits.BinTableHDU(trimfile(tab)))
+        out[0].header['VERSION'] = (os.environ['APOGEE_VER'],'APOGEE software version APOGEE_VER')
+        out.writeto(trim,overwrite=True)
+
 
     return hdulist
 
@@ -284,6 +295,7 @@ def add_named_tags(tab) :
     ife =np.where(elems == 'Fe')[0][0]
     for i,(el,tag) in enumerate(zip(elems,tagnames)) :
         gdel = np.where((tab['ELEMFLAG'][gd,i]&parammask.badval()) == 0)[0]
+        if tag == 'GE_FE' or tag == 'RB_FE' or tag == 'ND_FE' or tag == 'C13_FE' : continue
         if el == 'Fe' :
             tab[tag][gd[gdel]] = tab['X_H'][gd[gdel],i].astype(np.float32)
             tab[tag+'_SPEC'][gd[gdel]] = tab['X_H_SPEC'][gd[gdel],i].astype(np.float32)
@@ -1247,10 +1259,22 @@ def trimfile(data) :
     """
     tab=Table(data)
     remove=['ALL_VISITS','VISITS','ALL_VISIT_PK','VISIT_PK','FPARAM_CLASS','CHI2_CLASS',
-            'FPARAM','FELEM','FPARAM_COV','PARAM','PARAM_COV','ELEMFLAG','FELEM_ERR',
-            'APSTAR_ID','TARGET_ID','ASPCAP_ID','FILE','LOCATION_ID']
-    out=fits.HDUList()
-    tab.remove_columns(remove)
+            'FPARAM_GRID','CHI2_GRID','FPARAM','FELEM','FPARAM_COV','PARAM','PARAM_COV','ELEMFLAG','FELEM_ERR',
+            'APSTAR_ID','TARGET_ID','ASPCAP_ID','FILE','LOCATION_ID',
+            'SRC_H','TARG_PMRA','TARG_PMDEC','TARG_PM_SRC','NINST',
+            'WASH_DDO51_GIANT_FLAG','WASH_DDO51_STAR_FLAG',
+            'RB_FE','GE_FE','YB_FE','C13_FE',
+            'RB_FE_ERR','GE_FE_ERR','YB_FE_ERR','C13_FE_ERR',
+            'RB_FE_FLAG','GE_FE_FLAG','YB_FE_FLAG','C13_FE_FLAG']
+    for col in remove :
+        try: tab.remove_column(col)
+        except KeyError: pass
+    remove=['WASH_M','WASH_T2','DDO51','IRAC_3_6','IRAC_4_5','IRAC_5_8','IRAC_8_0','WISE_4_5','TARG_4_5']
+    for col in remove :
+        try: tab.remove_column(col)
+        except KeyError: pass
+        try: tab.remove_column(col+'_ERR')
+        except KeyError: pass
 
     return tab
 

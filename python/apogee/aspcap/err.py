@@ -220,7 +220,8 @@ def repeat(data=None,params=None,elems=None,inds=None,stars=None, out='./',elem=
     quad= True
     fmt='{:<20s}'+6*' {:9.2f}'+3*' {:10.3f}'+'\n'
     for istar,star in enumerate(a) :
-        ira=int(star['RA'])
+        try: ira=int(star['RA'])
+        except: continue
         i1 = ind[ira]
         if ira < 359 : i2 = ind[ira+1 ]
         else : i2 = len(a)

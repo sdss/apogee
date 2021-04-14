@@ -319,7 +319,7 @@ def apField2aspcapField(planfile,minerr=0.005,apstar_vers='stars',addgaia=False)
     aspcapfield.add_column(Column(name='X_M_ERR',dtype=np.float32,data=np.full([n,nelem],np.nan)))
     aspcapfield.add_column(Column(name='ELEM_CHI2',dtype=np.float32,data=np.full([n,nelem],np.nan)))
     aspcapfield.add_column(Column(name='ELEMFRAC',dtype=np.float32,data=np.full([n,nelem],np.nan)))
-    aspcapfield.add_column(Column(name='ELEMFLAG',dtype=np.int,data=np.full([n,nelem],np.nan)))
+    aspcapfield.add_column(Column(name='ELEMFLAG',dtype=np.int,data=np.full([n,nelem],0)))
 
     # load spectra
     # create table for output spectral data
@@ -781,6 +781,8 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
     field=plan['field']
     if 'outfield' not in plan.keys() : outfield = field
     else : outfield = plan['outfield']
+    configdir = plan['configdir'] if plan.get('configdir') else None
+    maxlines = plan['maxlines'] if plan.get('maxlines') else 0
 
     # get aspcapField if not provided
     load = apload.ApLoad(apred=apred,aspcap=aspcap_vers,telescope=telescope)
@@ -798,10 +800,22 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
         aspcapspec = copy.deepcopy(aspcapdata[1])
         aspcapkey = copy.deepcopy(aspcapdata[2])
 
+    if maxlines > 0 :
+        aspcapfield.remove_columns(['FELEM','FELEM_ERR','ELEM_CHI2','ELEMFLAG'])
+        n=len(aspcapfield)
+        nelem = len(elems()[0])
+        aspcapfield.add_column(Column(name='FELEM',dtype=np.float32,data=np.full([n,maxlines,nelem],np.nan)))
+        aspcapfield.add_column(Column(name='FELEM_ERR',dtype=float,data=np.full([n,maxlines,nelem],np.nan)))
+        aspcapfield.add_column(Column(name='ELEM_CHI2',dtype=np.float32,data=np.full([n,maxlines,nelem],np.nan)))
+        aspcapfield.add_column(Column(name='ELEMFLAG',dtype=np.int,data=np.full([n,maxlines,nelem],0)))
+
     # output directory
 
     # read ASPCAP configuration
-    config = yaml.safe_load(open(os.environ['APOGEE_DIR']+'/config/aspcap/'+aspcap_config+'/'+instrument+'.yml','r'))
+    if configdir is None :
+        config = yaml.safe_load(open(os.environ['APOGEE_DIR']+'/config/aspcap/'+aspcap_config+'/'+instrument+'.yml','r'))
+    else :
+        config = yaml.safe_load(open(configdir+'/'+instrument+'.yml','r'))
 
     if calib : useparam='PARAM'
     else : useparam ='FPARAM'
@@ -858,22 +872,39 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
         fp=open(outdir+'/ferre/'+grid['name']+'.nmlfiles','w')
         fit = False
         for ielem,elem in enumerate(config['elems']) :
+
+          for iline in range(0,maxlines+1) :
+
             print('Element: ', elem) 
             # set up output FERRE directory for this grid
             dirname='elem_'+elem['name']
             if calib: dirname=dirname+'_PARAM'
-            out=outdir+'/ferre/'+dirname+'/'+elem['name']+'-'+grid['name']+'-'+outfield
-            try: os.makedirs(os.path.dirname(out))
+            try: os.makedirs(outdir+'/ferre/'+dirname)
             except: pass
+
+            if iline == 0 :
+                out=outdir+'/ferre/'+dirname+'/'+elem['name']+'-'+grid['name']+'-'+outfield
+                filterfile = elem['name']+'.mask'
+                shutil.copyfile(os.environ['APOGEE_DIR']+'/data/windows/'+grid['windows']+'/'+filterfile,
+                                     os.path.dirname(out)+'/'+elem['name']+'.mask')
+            else :
+                out=outdir+'/ferre/'+dirname+'/'+elem['name']+'_'+str(iline)+'-'+grid['name']+'-'+outfield
+                filterfile = '{:s}_{:d}.mask'.format(elem['name'],iline-1)
+                try :shutil.copyfile(os.environ['APOGEE_DIR']+'/data/windows/'+grid['windows']+'/'+elem['name']+'/'+filterfile,
+                                     os.path.dirname(out)+'/'+filterfile)
+                except : 
+                    print('filtefile not found: ', filterfile)
+                    continue
+                nlines = iline
+
+            #try: os.makedirs(os.path.dirname(out))
+            #except: pass
 
             # write FERRE files
             if clobber or not os.path.exists(out+'.spm') or \
                (os.path.exists(out+'.spm') and len(open(out+'.spm').readlines()) < len(open(out+'.ipf').readlines()) ) :
                #(os.path.exists(out+'.spm') and len(open(out+'.spm').readlines()) < len(stars) ) :
                 link(os.environ['APOGEE_SPECLIB']+'/synth/',os.path.dirname(out)+'/lib')
-                filterfile = elem['name']+'.mask'
-                shutil.copyfile(os.environ['APOGEE_DIR']+'/data/windows/'+grid['windows']+'/'+filterfile,
-                                     os.path.dirname(out)+'/'+elem['name']+'.mask')
 
                 # links for obs, and err files
                 for ext in ['.obs','.err'] :
@@ -915,11 +946,16 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
             ferr.close()
 
         for ielem,elem in enumerate(config['elems']) :
+          for iline in range(0,maxlines+1) :
             dirname='elem_'+elem['name']
             if calib: dirname=dirname+'_PARAM'
-            out=outdir+'/ferre/'+dirname+'/'+elem['name']+'-'+grid['name']+'-'+outfield
+            if iline == 0 :
+                out=outdir+'/ferre/'+dirname+'/'+elem['name']+'-'+grid['name']+'-'+outfield
+            else :
+                out=outdir+'/ferre/'+dirname+'/'+elem['name']+'_'+str(iline)+'-'+grid['name']+'-'+outfield
             # read FERRE output
-            param,spec,wave=ferre.read(out,outdir+'/ferre/'+libfile)
+            try: param,spec,wave=ferre.read(out,outdir+'/ferre/'+libfile)
+            except : continue
             # fill in locked parameters
             fill_plock(param,grid['PLOCK'])
             # location for this element in FELEM array
@@ -931,11 +967,18 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
                 if len(i) == 0 : continue
                 index = np.where(params()[0] == elem['griddim'])[0]
                 try:
+                  if nlines == 0 :
                     aspcapfield['FELEM'][gd[istar],jelem] = param['FPARAM'][i,index]
                     if param['FPARAM_COV'][i,index,index] > 0 :
                         aspcapfield['FELEM_ERR'][gd[istar],jelem] = np.sqrt(param['FPARAM_COV'][i,index,index])
                     aspcapfield['ELEM_CHI2'][gd[istar],jelem] = param['ASPCAP_CHI2'][i]
                     aspcapfield['ELEMFLAG'][gd[istar],jelem] = param['PARAMFLAG'][i,index]
+                  else :
+                    aspcapfield['FELEM'][gd[istar],iline,jelem] = param['FPARAM'][i,index]
+                    if param['FPARAM_COV'][i,index,index] > 0 :
+                        aspcapfield['FELEM_ERR'][gd[istar],iline,jelem] = np.sqrt(param['FPARAM_COV'][i,index,index])
+                    aspcapfield['ELEM_CHI2'][gd[istar],iline,jelem] = param['ASPCAP_CHI2'][i]
+                    aspcapfield['ELEMFLAG'][gd[istar],iline,jelem] = param['PARAMFLAG'][i,index]
                 except: pdb.set_trace()
 
     # Results into an HDUList 
@@ -1055,14 +1098,19 @@ def mkhtml(load,field,suffix='') :
     fp.write('<TD><A HREF={:s}/{:s}_alpha.png><IMG SRC={:s}/{:s}_alpha.png></A>\n'.format(reldir,field,reldir,field))
 
     # individual element abundance plots
+
     fig,ax=plots.multi(1,4,hspace=0.001)
     yr=[-0.3,1.5]
     for iel,el in enumerate(['C','CI','N']) :
         jel = np.where(elems()[0] == el)[0][0]
+        try : felem=aspcapfield['FELEM'][:,0,jel]
+        except :felem=aspcapfield['FELEM'][:,jel]
         yt='['+el+'/M]'
-        plots.plotc(ax[iel],aspcapfield['FPARAM'][:,3],aspcapfield['FELEM'][:,jel],aspcapfield['FPARAM'][:,0],
+        plots.plotc(ax[iel],aspcapfield['FPARAM'][:,3],felem,aspcapfield['FPARAM'][:,0],
                 zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt=yt,zt='Teff',label=[0.9,0.9,el])
-    plots.plotc(ax[3],aspcapfield['FPARAM'][:,3],aspcapfield['FELEM'][:,0]-aspcapfield['FELEM'][:,2],aspcapfield['FPARAM'][:,0],
+    try :plots.plotc(ax[3],aspcapfield['FPARAM'][:,3],aspcapfield['FELEM'][:,0,0]-aspcapfield['FELEM'][:,0,2],aspcapfield['FPARAM'][:,0],
+            zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt='[C/N]',zt='Teff',label=[0.9,0.9,'[C/N]'])
+    except: plots.plotc(ax[3],aspcapfield['FPARAM'][:,3],aspcapfield['FELEM'][:,0]-aspcapfield['FELEM'][:,2],aspcapfield['FPARAM'][:,0],
             zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt='[C/N]',zt='Teff',label=[0.9,0.9,'[C/N]'])
     fig.savefig(plotdir+field+'_cnelem.png')
     plt.close()
@@ -1072,8 +1120,10 @@ def mkhtml(load,field,suffix='') :
     yr=[-0.3,0.75]
     for iel,el in enumerate(['O','Mg','Si','S','Ca','Ti']) :
         jel = np.where(elems()[0] == el)[0][0]
+        try : felem=aspcapfield['FELEM'][:,0,jel]
+        except :felem=aspcapfield['FELEM'][:,jel]
         yt='['+el+'/M]'
-        plots.plotc(ax[iel],aspcapfield['FPARAM'][:,3],aspcapfield['FELEM'][:,jel],aspcapfield['FPARAM'][:,0],
+        plots.plotc(ax[iel],aspcapfield['FPARAM'][:,3],felem,aspcapfield['FPARAM'][:,0],
                 zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt=yt,zt='Teff',label=[0.9,0.9,el])
     fig.savefig(plotdir+field+'_alphaelem.png')
     plt.close()
@@ -1082,9 +1132,11 @@ def mkhtml(load,field,suffix='') :
     fig,ax=plots.multi(1,4,hspace=0.001)
     for iel,el in enumerate(['Na','Al','P','K']) :
         jel = np.where(elems()[0] == el)[0][0]
+        try : felem=aspcapfield['FELEM'][:,0,jel]
+        except :felem=aspcapfield['FELEM'][:,jel]
         yt='['+el+'/M]'
         try :
-          plots.plotc(ax[iel],aspcapfield['FPARAM'][:,3],aspcapfield['FELEM'][:,jel]-aspcapfield['FPARAM'][:,3],aspcapfield['FPARAM'][:,0],
+          plots.plotc(ax[iel],aspcapfield['FPARAM'][:,3],felem-aspcapfield['FPARAM'][:,3],aspcapfield['FPARAM'][:,0],
                 zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt=yt,zt='Teff',label=[0.9,0.9,el])
         except: pdb.set_trace()
     fig.savefig(plotdir+field+'_oddzelem.png')
@@ -1094,8 +1146,10 @@ def mkhtml(load,field,suffix='') :
     fig,ax=plots.multi(1,7,hspace=0.001)
     for iel,el in enumerate(['V','Cr','Mn','Fe','Co','Ni','Cu'] ) :
         jel = np.where(elems()[0] == el)[0][0]
+        try : felem=aspcapfield['FELEM'][:,0,jel]
+        except :felem=aspcapfield['FELEM'][:,jel]
         yt='['+el+'/M]'
-        plots.plotc(ax[iel],aspcapfield['FPARAM'][:,3],aspcapfield['FELEM'][:,jel]-aspcapfield['FPARAM'][:,3],aspcapfield['FPARAM'][:,0],
+        plots.plotc(ax[iel],aspcapfield['FPARAM'][:,3],felem-aspcapfield['FPARAM'][:,3],aspcapfield['FPARAM'][:,0],
                 zr=[3000,8000],yr=yr,xr=[-2.5,0.5],size=10,colorbar=True,xt='[M/H]',yt=yt,zt='Teff',label=[0.9,0.9,el])
     fig.savefig(plotdir+field+'_feelem.png')
     plt.close()

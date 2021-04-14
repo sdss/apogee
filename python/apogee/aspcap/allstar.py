@@ -83,10 +83,9 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
         if skip is not None and doskip(file,skip) : continue
         print(file)
         dat=Table.read(file,hdu=1)
-        try : dat.remove_column('FPARAM_COV_CLASS')
-        except : pass
-        try : dat.remove_column('NINST')
-        except : pass
+        for col in ['FPARAM_COV_CLASS','NISNT','COMMISS','COMBTYPE'] :
+            try : dat.remove_column(col)
+            except : pass
         if addgaia: 
             try: dat=gaia.add_gaia(dat)
             except: print('failed to add_gaia: ',file)
@@ -276,6 +275,7 @@ def add_named_tags(tab) :
     elems, elemtoh, tagnames, elemfitnames = aspcap.elems()
     newtags=[]
     for name in tagnames :
+        if tag == 'GE_FE' or tag == 'RB_FE' or tag == 'ND_FE' or tag == 'C13_FE' : continue
         col = Column(np.full([len(tab)],np.nan),name=name,dtype=np.float32)
         try : tab.remove_column(name)
         except: pass
@@ -682,7 +682,7 @@ def nanfix(tab) :
     for col in ['RA','DEC','AK_TARG','AK_WISE','SFD_EBV','J','J_ERR','H','H_ERR','K','K_ERR',
                 'WASH_M','WASH_M_ERR','WASH_T2','WASH_T2_ERR','DDO51','DDO51_ERR',
                 'IRAC_3_6','IRAC_3_6_ERR','IRAC_4_5','IRAC_4_5_ERR','IRAC_5_8','IRAC_5_8_ERR',
-                'WISE_4_5','WISE_4_5_ERR','TARG_4_5','TARG_4_5_ERR'] :
+                'IRAC_8_0','IRAC_8_0_ERR','WISE_4_5','WISE_4_5_ERR','TARG_4_5','TARG_4_5_ERR'] :
         j=np.where((tab[col]<-9998))[0]
         print(col,len(j))
         tab[col][j] = np.nan
@@ -1253,6 +1253,17 @@ def add_gaia(data,gaia_1='gaia_2mass_xmatch.fits.gz', gaia_2='gaia_posn_xmatch.f
 
     return tab
 
+def trimelem(data) :
+    tab=Table(data)
+    remove=['NINST','COMMISS','COMBTYPE',
+            'RB_FE','GE_FE','YB_FE','C13_FE',
+            'RB_FE_ERR','GE_FE_ERR','YB_FE_ERR','C13_FE_ERR',
+            'RB_FE_SPEC','GE_FE_SPEC','YB_FE_SPEC','C13_FE_SPEC',
+            'RB_FE_FLAG','GE_FE_FLAG','YB_FE_FLAG','C13_FE_FLAG']
+    for col in remove :
+        try: tab.remove_column(col)
+        except KeyError: pass
+    return tab
         
 def trimfile(data) :
     """ Write a 'lite' allStar file, removing some of the big space users
@@ -1261,10 +1272,11 @@ def trimfile(data) :
     remove=['ALL_VISITS','VISITS','ALL_VISIT_PK','VISIT_PK','FPARAM_CLASS','CHI2_CLASS',
             'FPARAM_GRID','CHI2_GRID','FPARAM','FELEM','FPARAM_COV','PARAM','PARAM_COV','ELEMFLAG','FELEM_ERR',
             'APSTAR_ID','TARGET_ID','ASPCAP_ID','FILE','LOCATION_ID',
-            'SRC_H','TARG_PMRA','TARG_PMDEC','TARG_PM_SRC','NINST',
+            'SRC_H','TARG_PMRA','TARG_PMDEC','TARG_PM_SRC','NINST','COMISS','COMBTYPE',
             'WASH_DDO51_GIANT_FLAG','WASH_DDO51_STAR_FLAG',
             'RB_FE','GE_FE','YB_FE','C13_FE',
             'RB_FE_ERR','GE_FE_ERR','YB_FE_ERR','C13_FE_ERR',
+            'RB_FE_SPEC','GE_FE_SPEC','YB_FE_SPEC','C13_FE_SPEC',
             'RB_FE_FLAG','GE_FE_FLAG','YB_FE_FLAG','C13_FE_FLAG']
     for col in remove :
         try: tab.remove_column(col)

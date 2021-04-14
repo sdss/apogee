@@ -188,7 +188,7 @@ def allPlate(all,out=None) :
     return allplate 
 
 def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_vers=None,obj=None,
-               nobj=0,threads=8,maxvisit=500,snmin=3,nres=[5,4.25,3.5],rv_reject=10,vmedian=False,
+               nobj=0,threads=8,maxvisit=500,snmin=3,nres=[5,4.25,3.5],rv_reject=10,vmedian=None,
                save=False,clobber=False,rvclobber=False,vcclobber=False,verbose=False,tweak=False,plot=False,windows=None) :
     """ Run DOPPLER RVs for a field
     """ 
@@ -205,7 +205,8 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
     field=plan['field']
     rv_reject = plan['rv_reject'] if plan.get('rv_reject') else rv_reject
     snmin = plan['snmin'] if plan.get('snmin') else snmin
-    vmedian = plan['vmedian'] if plan.get('vmedian') else vmedian
+    try : vmedian = plan['vmedian'] 
+    except KeyError : pass
 
     if clobber :
         rvclobber= True 
@@ -396,8 +397,9 @@ def doppler_rv(planfile,survey='apogee',telescope='apo25m',apred='r13',apstar_ve
             ncomponents=0
             mask = out[2]
             # for special targets, set all velocities to average
-            if vmedian :
-                vmed=np.median(out[0][1]['vhelio'])
+            if vmedian is not None :
+                if type(vmedian) == float : vmed = vmedian
+                else : vmed=np.median(out[0][1]['vhelio'])
                 out[0][1]['vhelio'] = vmed
                 out[0][1]['vrel'] = vmed-out[0][1]['bc']
 

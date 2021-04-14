@@ -5,6 +5,7 @@ from astropy.io import ascii
 from apogee.aspcap import aspcap
 import numpy as np
 import pdb
+import os
 
 def mkwind(el,halfwidth=1.2,invert=False) :
     """ Create default window file with unmasked regions from master filt file
@@ -42,7 +43,7 @@ def mkwind(el,halfwidth=1.2,invert=False) :
 
     fp.close()
 
-def mkmask(el,globalmask=None) :
+def mkmask(el,globalmask=None,split=False) :
     """ Given input master filt file, and window file with desired windows, output mask file
     """
     chipswave=aspcap.gridWave()
@@ -71,6 +72,18 @@ def mkmask(el,globalmask=None) :
         filt[bd] = 0.
     np.savetxt(fp,filt,fmt='%12.8f')
     fp.close()
+
+    if split :
+        gd=np.where(wind['col3'] > 0)[0]
+        try:os.mkdir(el)
+        except FileExistsError : pass
+        for i,w in enumerate(gd) :
+            j=np.where( (wave>wind['col1'][w]) & (wave<wind['col2'][w]) )[0]
+            new=filt*0.
+            new[j] = filt[j]
+            fp=open('{:s}/{:s}_{:d}.mask'.format(el,el,i),'w')
+            np.savetxt(fp,new,fmt='%12.8f')
+            fp.close()
 
 #    elems=['C','CI','N','O','Na','Mg','Al','Si','P','S','K','Ca','Ti','TiII','V','Cr','Mn','Fe','Co','Ni','Cu','Ge','Rb','Ce','Nd','Yb']
 

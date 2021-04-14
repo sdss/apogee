@@ -217,7 +217,7 @@ def get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=False,sav
     return workdir
 
 def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
-    nlte=False,els=None,atmod=None,atmos_type='marcs',atmosroot=None,atmosdir=None,nskip=0,fill=True,cmnear=False,
+    nlte=False,els=None,atmod=None,atmos_type='marcs',atmosroot=None,atmosdir=None,nskip=0,fill=True,cmnear=False,dospherical=True,
     linelist='20180901',h2o=0,linelistdir=None,atoms=True,molec=True, msuffix='', save=False,run=True) :
     """ Do synthesis
 
@@ -410,7 +410,7 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
             abundances[elemnum-1] = elem0+abun
      
         if code == 'turbospec' :
-            if atmos_type == 'marcs' and logg <= 3.001 :  spherical= True
+            if dospherical and atmos_type == 'marcs' and logg <= 3.001 :  spherical= True
             else : spherical = False
             if ielem == 0 : 
                 wave,flux,fluxnorm = do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,
@@ -450,7 +450,8 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
         return spec, specnorm
 
 
-def do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,save=False,run=True,solarisotopes=False,babsma=None,bsyn=True,atmos_type='marcs',spherical=True,vmicro=1.0,tfactor=1.) :
+def do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,save=False,run=True,solarisotopes=False,babsma=None,bsyn=True,
+                 atmos_type='marcs',spherical=True,vmicro=1.0,tfactor=1.) :
     """ Runs Turbospectrum for specified input parameters
 
     Args:
@@ -953,6 +954,7 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec
     vmicro = np.array(p['vmicro']) if p.get('vmicro') else 0.
     vmacrofit = int(p['vmacrofit']) if p.get('vmacrofit') else 0
     vmacro = p['vmacro'] if p.get('vmacro') else 0
+    spherical = p['spherical'] if p.get('spherical') else True
     specdir = os.environ['APOGEE_SPECLIB']+'/synth/'+p['specdir'] if p.get('specdir') else './'
     linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/' 
     linelist = p['linelist'] if p.get('linelist') else None
@@ -1040,7 +1042,7 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec
                       spec,specnorm=mk_synthesis(code,int(teff),logg,mh,am,cm,nm,els=oa,cmnear=cmnear,
                         wrange=wrange,dw=dw,atmosdir=marcsdir,
                         elemgrid=elem,linelistdir=linelistdir+'/'+elem+'/',linelist=linelist,vmicro=vout,
-                        solarisotopes=solarisotopes,nlte=nlte,
+                        solarisotopes=solarisotopes,nlte=nlte,dospherical=spherical,
                         nskip=nskip,atmos_type=p['atmos'],run=run,save=save,atoms=atoms,molec=molec,h2o=h2o) 
                   nskip = nskip+dskip if isinstance(spec,float) else -1
                 if nskip > 0 : 

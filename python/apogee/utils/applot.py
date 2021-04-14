@@ -82,14 +82,14 @@ def elem(data,inds,els=['all'],out=None,apred_vers='dr17',aspcap_vers='l33',conf
                 print("Can't load file: ",data['FIELD'][ind],data['APOGEE_ID'][ind])
                 pdb.set_trace()
                 continue
-            try: grid=data['ASPCAP_GRID'][ind]
-            except: grid=data['ASPCAP_CLASS'][ind]
-            mdl=getmdl(grid,config,data['TELESCOPE'][ind],data['FPARAM'][ind],el=el)
+            try: aspcap_grid=data['ASPCAP_GRID'][ind]
+            except: aspcap_grid=data['ASPCAP_CLASS'][ind]
+            #mdl=getmdl(aspcap_grid,config,data['TELESCOPE'][ind],data['FPARAM'][ind],el=el)
             for i,w in enumerate(wplot) :
                 plots.plotl(ax[iy,i],wave,spec[1].data,xr=w,yr=[-0.1,1.2],linewidth=2)
                 ax[iy,i].plot(wave,spec[2].data,linewidth=1)
                 ax[iy,i].plot(wave,spec[3].data,linewidth=1)
-                for imdl in range(len(mdl)) : ax[iy,i].plot(wgrid,mdl[imdl,:],linewidth=1,color='r')
+                #for imdl in range(len(mdl)) : ax[iy,i].plot(wgrid,mdl[imdl,:],linewidth=1,color='r')
                 ax[iy,i].plot(wgrid,filt*0.5,linewidth=1)
                 ax[iy,i].ticklabel_format(style='plain',useOffset=False)
                 if index >= 0:

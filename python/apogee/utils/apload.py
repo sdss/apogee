@@ -141,6 +141,7 @@ class ApLoad :
         elif dr == 'dr13' : self.dr13()
         elif dr == 'dr14' : self.dr14()
         elif dr == 'dr16' : self.dr16()
+        elif dr == 'dr17' : self.dr17()
         # set up 
         self.sdss_path=path.Path()
         self.http_access=HttpAccess(verbose=verbose)
@@ -178,6 +179,10 @@ class ApLoad :
     def dr16(self) :
         self.apred='r12'
         self.aspcap='l33'
+
+    def dr17(self) :
+        self.apred='dr17'
+        self.aspcap='synspec'
 
     def printerror(self) :
         print('cannot find file: do you have correct version? permission? wget authentication?')

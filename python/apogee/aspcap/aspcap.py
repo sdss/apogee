@@ -229,6 +229,7 @@ def apField2aspcapField(planfile,minerr=0.005,apstar_vers='stars',addgaia=False)
     apred=plan['apred_vers']
     aspcap_vers=plan['aspcap_vers']
     aspcap_config=plan['aspcap_config']
+    configdir = plan['configdir'] if plan.get('configdir') else None
     instrument=plan['instrument']
     telescope=plan['telescope']
     field=plan['field']
@@ -283,7 +284,10 @@ def apField2aspcapField(planfile,minerr=0.005,apstar_vers='stars',addgaia=False)
         aspcapfield = newfield
 
     # read ASPCAP configuration
-    config = yaml.safe_load(open(os.environ['APOGEE_DIR']+'/config/aspcap/'+aspcap_config+'/'+instrument+'.yml','r'))
+    if configdir is None :
+        config = yaml.safe_load(open(os.environ['APOGEE_DIR']+'/config/aspcap/'+aspcap_config+'/'+instrument+'.yml','r'))
+    else :
+        config = yaml.safe_load(open(configdir+'/'+instrument+'.yml','r'))
  
     # add new columns
     for col in ['ASPCAP_GRID','FPARAM_GRID','CHI2_GRID','FPARAM','FPARAM_COV','ASPCAP_CHI2',
@@ -450,9 +454,11 @@ def fit_params(planfile,aspcapdata=None,clobber=False,write=True,minerr=0.005,ap
     if apstar_vers is None : apstar_vers=plan['apstar_vers'] if plan.get('apstar_vers') else 'stars'
     aspcap_vers=plan['aspcap_vers']
     aspcap_config=plan['aspcap_config']
+    configdir = plan['configdir'] if plan.get('configdir') else None
     instrument=plan['instrument']
     telescope=plan['telescope']
     field=plan['field']
+    if fix is None : fix = plan['fix'] if plan.get('fix') else None
     if 'outfield' not in plan.keys() : outfield = field
     else : outfield = plan['outfield']
 
@@ -474,7 +480,10 @@ def fit_params(planfile,aspcapdata=None,clobber=False,write=True,minerr=0.005,ap
         aspcapspec = copy.deepcopy(aspcapdata[1])
 
     # read ASPCAP configuration
-    config = yaml.safe_load(open(os.environ['APOGEE_DIR']+'/config/aspcap/'+aspcap_config+'/'+instrument+'.yml','r'))
+    if configdir is None :
+        config = yaml.safe_load(open(os.environ['APOGEE_DIR']+'/config/aspcap/'+aspcap_config+'/'+instrument+'.yml','r'))
+    else :
+        config = yaml.safe_load(open(configdir+'/'+instrument+'.yml','r'))
 
     # pixel masking
     pixelmask=bitmask.PixelBitMask()
@@ -776,12 +785,12 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
     apred=plan['apred_vers']
     aspcap_vers=plan['aspcap_vers']
     aspcap_config=plan['aspcap_config']
+    configdir = plan['configdir'] if plan.get('configdir') else None
     instrument=plan['instrument']
     telescope=plan['telescope']
     field=plan['field']
     if 'outfield' not in plan.keys() : outfield = field
     else : outfield = plan['outfield']
-    configdir = plan['configdir'] if plan.get('configdir') else None
     maxlines = plan['maxlines'] if plan.get('maxlines') else 0
 
     # get aspcapField if not provided

@@ -749,7 +749,7 @@ def dsph(data,dir='dsph/',ratag='RA',dectag='DEC',rvtag='VHELIO',idtag='APOGEE_I
     fstars.close()
 
 def solar(indata,data=None,raw=True,gaia='GAIAEDR3', teff=[3000,8000], logg=[-1,6], R=[8,9], Z=[0.,0.5], 
-          gaia_max_error=0.1, snmin=100, mh=[-0.05,0.05], Z_MAX=0.3, ECC=0.15) :
+          gaia_max_error=0.1, snmin=100, mh=[-0.05,0.05], Z_MAX=[0,0.3], ECC=[0,0.15]) :
     """ selects sample of solar neighborhood low log g stars, possibly from previous data set
 
         indata : return indices in this structure for solar neighborhood stars
@@ -775,7 +775,8 @@ def solar(indata,data=None,raw=True,gaia='GAIAEDR3', teff=[3000,8000], logg=[-1,
     # calculate orbital parameters for this subset
     if Z_MAX is not None or ECC is not None :
         tab=orbital.parameters(Table(data[j]))
-        gd=np.where((tab['Z_MAX'] <0.3) & (tab['ECC'] < 0.15) )[0]
+        gd=np.where((tab['Z_MAX'] > Z_MAX[0]) & (tab['Z_MAX'] < Z_MAX[1]) &
+                    (tab['ECC'] > ECC[0]) & (tab['ECC'] < ECC[1]) )[0]
         j=j[gd] 
     return i1[j]
 

@@ -283,6 +283,7 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
         cmtmp = cm
         amtmp = am
     if atmod is None : atmod = get_atmod_file(teff,logg,mh,amtmp,cmtmp,nm,atmos_type=atmos_type,nskip=nskip, atmosroot=atmosroot,atmosdir=atmosdir,workdir=workdir)
+    elif atmod == 'interp' : atmod= interpol_marcs(teff,logg,mh,amtmp,cmtmp,nm,workdir=workdir)
     else : shutil.copy(atmod,workdir+'/'+os.path.basename(atmod))
 
     if type(atmod) is int :
@@ -954,7 +955,8 @@ def mkgrid(planfile,code=None,clobber=False,save=False,run=True,atoms=True,molec
     vmicro = np.array(p['vmicro']) if p.get('vmicro') else 0.
     vmacrofit = int(p['vmacrofit']) if p.get('vmacrofit') else 0
     vmacro = p['vmacro'] if p.get('vmacro') else 0
-    spherical = p['spherical'] if p.get('spherical') else True
+    try: spherical = p['spherical'] 
+    except KeyError : spherical = True
     specdir = os.environ['APOGEE_SPECLIB']+'/synth/'+p['specdir'] if p.get('specdir') else './'
     linelistdir=os.environ['APOGEE_SPECLIB']+'/linelists/' 
     linelist = p['linelist'] if p.get('linelist') else None
@@ -1345,7 +1347,7 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,teles
     specdir = os.environ['APOGEE_SPECLIB']+'/synth/'+p['specdir'] if p.get('specdir') else './'
     if fiber is None : fiber=p['lsffiber']
     if isinstance(fiber,int): fiber= [fiber]
-    if apred is None :apred = p['apred'] if p.get('apred') else 'r10'
+    if apred is None :apred = p['apred'] if p.get('apred') else 'r12'
     if telescope is None : telescope = p['telescope'] if p.get('telescope') else 'apo25m'
     lsfid=int(p.get('lsfid'))
     waveid=int(p.get('waveid'))
@@ -1517,7 +1519,7 @@ def mkspec(input) :
     return pars,specnorm
     
 
-def mksynth(file,havefits=False,threads=8,highres=9,waveid=2420038,lsfid=5440020,apred='r10',telescope='apo25m',
+def mksynth(file,havefits=False,threads=8,highres=9,lsfid=14600018,waveid=13140000,apred='r12',telescope='apo25m',
             fiber='combo',linelist='20180901',linelistdir=None,kurucz=False,h2o=0,atoms=True,plot=False,lines=None,ls=None) :
     """ Make a series of spectra from parameters in an input file, with parallel processing for turbospec
         Outputs to FITS file {file}.fits
@@ -1526,9 +1528,9 @@ def mksynth(file,havefits=False,threads=8,highres=9,waveid=2420038,lsfid=5440020
         file (str) : name of input file with parameters of spectra to calculate
         threads (int) : number of parallel processes
         highres (int) : number of subpixels for LSF convolution (default=9)
-        waveid (int) : ID for wavelength calibration file (default=2420038)
-        lsfid (int) : ID for LSF calibration file (default=5440020)
-        apred (str) : reduction version for waveid,lsfid (default='r10')
+        waveid (int) : ID for wavelength calibration file (default=14600018)
+        lsfid (int) : ID for LSF calibration file (default=13140000)
+        apred (str) : reduction version for waveid,lsfid (default='r12')
         fiber (int or str) : fiber for LSF (default='combo')
         plot (bool) : plot each spectrum (default=False)
         lines (list) : specify limited range of input lines to calculate (default=None, i.e. all lines)
@@ -1625,7 +1627,7 @@ def mksynth(file,havefits=False,threads=8,highres=9,waveid=2420038,lsfid=5440020
     hdu.writeto(file+suffix+'.fits',overwrite=True)
     return file+suffix+'.fits' 
 
-def getlsf(lsfid,waveid,apred='r10',telescope='apo25m',highres=9,prefix='lsf_',fiber='combo',clobber=False,fill=False) :
+def getlsf(lsfid,waveid,apred='r12',telescope='apo25m',highres=9,prefix='lsf_',fiber='combo',clobber=False,fill=False) :
     """ Create LSF FITS file or read if already created
     """
     lsfile = prefix+'{:08d}_{:08d}.fits'.format(lsfid,waveid)
@@ -1901,7 +1903,7 @@ def filter_lines(infile,outfile,wind,nskip=0) :
     fout.close()
     return nout
  
-def mini_linelist(elem,linelist,maskdir=None,only=False,clobber=False) :
+def mini_linelist(elem,linelist,maskdir=None,only=False,clobber=False,outdir=None,delta_loggf=0., delta_vdw=0.) :
     """ Produce abbreviated Turbospec linelists, e.g. for minigrid construction, given mask file and linelist file IN AIR
         With only, produce linelist with only lines from input element 
         Return arrays of wavelength ranges wind,wair
@@ -1920,10 +1922,9 @@ def mini_linelist(elem,linelist,maskdir=None,only=False,clobber=False) :
         wind = wair
 
     # setup output directory
-    if only :
-        outdir = os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'_only/'
-    else :
-        outdir = os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'/'
+    if outdir == None :
+        if only : outdir = os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'_only/'
+        else : outdir = os.environ['APOGEE_SPECLIB']+'/linelists/'+elem+'/'
     try: os.mkdir(outdir)
     except: pass
 
@@ -1968,15 +1969,30 @@ def mini_linelist(elem,linelist,maskdir=None,only=False,clobber=False) :
                                 fout.write(out)
                             n=0
                     head = line
+                    if 'molec' in linelist :
+                        tmp = int(float(head.split("'")[1]))
+                        elemcode = [tmp//100,tmp%100]
+                    else :
+                        elemcode = [int(float(head.split("'")[1]))]
                     # start the line data output with the comment line
                     out = fp.readline()
                     nelem += 1
                 else :
                     # accumulate the linelist for this element if it's within the desired range
-                    w = line.split()[0]
+                    if 'atoms' in linelist :
+                        pars=parse_turbo(line)
+                        w = pars[0]
+                    else :
+                        w = line.split()[0]
                     for i in range(nwind) :
                       if (float(w) >= wair[i,0]) and (float(w) <=wair[i,1]) : 
-                          out=out+line
+                          if 'atoms' in linelist :
+                              if atomic.periodic(elem) in elemcode :
+                                  pars[2] += delta_loggf
+                                  pars[3] += delta_vdw
+                              out=out+write_turbo(pars)
+                          else :
+                              out=out+line  
                           n+=1
                 line = fp.readline()          
             if n > 0 :
@@ -2124,3 +2140,89 @@ def plotco(syn,syn2,ferre) :
     for i in range(3) : ax[i,0].set_ylim(0.4,1.25)
     for i in range(3) : ax[i,1].set_ylim(-0.2,0.2)
 
+def interpol_marcs(teff,logg,mh,am,cm,nm,workdir='./') :
+
+    if teff < 4000. :
+       tlo = int(teff/100.)*100.
+       thi = tlog + 100.
+    else :
+       tlo = int(teff/250.)*250.
+       thi = tlo + 250.
+    glo = int(logg/0.5)*0.5
+    ghi = glo + 0.5
+    zlo = int(mh/0.25)*0.25
+    zhi = zlo + 0.25
+
+    cwd = os.getcwd()
+    os.chdir(workdir)
+
+    model1 = get_atmod_file(tlo,glo,zlo,am,cm,nm,fill=False)
+    model2 = get_atmod_file(tlo,glo,zhi,am,cm,nm,fill=False)
+    model3 = get_atmod_file(tlo,ghi,zlo,am,cm,nm,fill=False)
+    model4 = get_atmod_file(tlo,ghi,zhi,am,cm,nm,fill=False)
+    model5 = get_atmod_file(thi,glo,zlo,am,cm,nm,fill=False)
+    model6 = get_atmod_file(thi,glo,zhi,am,cm,nm,fill=False)
+    model7 = get_atmod_file(thi,ghi,zlo,am,cm,nm,fill=False)
+    model8 = get_atmod_file(thi,ghi,zhi,am,cm,nm,fill=False)
+
+    test = '.false.'
+    model_out='interp.mod'
+    model_alt='interp.alt'
+    cmd=['interpol_modeles']
+
+
+    fp=open('interpol.inp','w')
+    fp.write(os.path.basename(model1)+'\n')
+    fp.write(os.path.basename(model2)+'\n')
+    fp.write(os.path.basename(model3)+'\n')
+    fp.write(os.path.basename(model4)+'\n')
+    fp.write(os.path.basename(model5)+'\n')
+    fp.write(os.path.basename(model6)+'\n')
+    fp.write(os.path.basename(model7)+'\n')
+    fp.write(os.path.basename(model8)+'\n')
+    fp.write(os.path.basename(model_out)+'\n')
+    fp.write(os.path.basename(model_alt)+'\n')
+    fp.write('{:8.1f}\n'.format(teff))
+    fp.write('{:7.2f}\n'.format(logg))
+    fp.write('{:2.2f}\n'.format(mh))
+    fp.write('.false.\n')
+    fp.write('.false.\n')
+    fp.write('dummy\n')
+    fp.close()
+
+    print(cmd)
+    print(' '.join(cmd))
+    fp=open('interpol.inp')
+    p=subprocess.call(cmd,stdin=fp)
+    fp.close()
+
+    os.chdir(cwd)
+
+    return('interp.mod')
+
+def parse_turbo(line) :
+
+    out=[]
+    out.append(float(line[0:10]))
+    out.append(float(line[10:17]))
+    out.append(float(line[17:25]))
+    out.append(float(line[25:35]))
+    out.append(float(line[35:42]))
+    out.append(float(line[42:52]))
+    out.append(float(line[52:59]))
+    out.append(line[62])
+    out.append(line[66])
+    out.append(float(line[68:72]))
+    out.append(float(line[72:76]))
+    out.append(line[78:-2])
+
+    return out
+
+def write_turbo(pars) :
+
+    return "{:10.3f}{:7.3f}{:8.3f}{:10.2f}{:7.1f}{:10.2e}{:7.2f}  '{:s}' '{:s}'{:4.1f}{:4.1f} '{:s}'\n".format(*pars)
+           #pars[0],pars[1],pars[2],pars[3],pars[4],pars[5],pars[6],pars[7],pars[8],pars[9
+#         1         2         3         4         5         6         7         8         9        10
+#12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
+# 16549.594  4.521  -3.312     -6.21    2.0  5.01e+06  -2.39  'x' 'x' 0.0 1.0 'LI  I   1s2.4p 2P   1s2.11s 2S'
+# 16814.155  4.541  -2.790     -5.54    2.0  3.02e+07   0.00  'x' 'x' 0.0 1.0 'LI  I   4d  2D      11p  2P   '

@@ -164,19 +164,19 @@ grids :
     <<: *BA
     <<: *lsfcombo5
   - name : GKg_a 
-    lib : synspec/marcs/giantisotopes/sgGK_200921te_lsfas/p_apssgGK_200921te_lsfas_012_075
+    lib : synspec/marcs/giantisotopes/sgGK_200921lte_lsfas/p_apssgGK_200921lte_lsfas_012_075
     <<: *GKg
     <<: *lsfa
   - name : GKg_b 
-    lib : synspec/marcs/giantisotopes/sgGK_200921te_lsfbs/p_apssgGK_200921te_lsfbs_012_075
+    lib : synspec/marcs/giantisotopes/sgGK_200921lte_lsfbs/p_apssgGK_200921lte_lsfbs_012_075
     <<: *GKg
     <<: *lsfb
   - name : GKg_c  
-    lib : synspec/marcs/giantisotopes/sgGK_200921te_lsfcs/p_apssgGK_200921te_lsfcs_012_075
+    lib : synspec/marcs/giantisotopes/sgGK_200921lte_lsfcs/p_apssgGK_200921lte_lsfcs_012_075
     <<: *GKg
     <<: *lsfc
   - name : GKg_d  
-    lib : synspec/marcs/giantisotopes/sgGK_200921lte_lsfds/p_apssgGK_200921te_lsfds_012_075
+    lib : synspec/marcs/giantisotopes/sgGK_200921lte_lsfds/p_apssgGK_200921lte_lsfds_012_075
     <<: *GKg
     <<: *lsfd
   - name : GKd_a  

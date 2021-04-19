@@ -31,7 +31,8 @@ k2=hi-p1lo
 l2=hi-p2.lo
 if lo gt hi then return,fltarr(2048)
 img2=*p2.img
-if lo eq hi then return,TOTAL(img[*,k1:k2]*img2[*,l1:l2],1,/nan) $
+;if lo eq hi then return,TOTAL(img[*,k1:k2]*img2[*,l1:l2],1,/nan) $
+if lo eq hi then return,img[*,k1:k2]*img2[*,l1:l2] $
 else return,TOTAL(img[*,k1:k2]*img2[*,l1:l2],2,/nan)
 end
 

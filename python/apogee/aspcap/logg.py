@@ -3,6 +3,7 @@
 from apogee.utils import apload
 from apogee.utils import apselect
 from astropy.io import fits
+from astropy.table import Table
 #from holtz.gal import isochrones
 #from holtz.gal import stars
 from tools import match, plots, fit, html
@@ -165,13 +166,14 @@ def rcrgb(allstar,apokasc='APOKASC_cat_v6.6.5.fits.gz',logg='APOKASC3P_LOGG',evs
 
     return {'rclim' : rclim, 'rgbsep' : rgbfit, 'cnsep' : cnfit}
 
-def rcrgb_class(a,rcrgb,calloggmin=-1,calloggmax=3.8,calteffmin=3000,calteffmax=5500,out=None) :
+def rcrgb_class(a,caldir='./',calloggmin=-1,calloggmax=3.8,calteffmin=3000,calteffmax=5500,out=None) :
     """ Classify RC/RGB given parameters
     """
 
-    rgbsep = rcrgb['rgbsep']
-    rclim = rcrgb['rclim']
-    cnsep = rcrgb['cnsep']
+    rcrgb = Table.read(caldir+'/rcrgb.fits')
+    rgbsep = rcrgb['rgbsep'][0]
+    rclim = rcrgb['rclim'][0]
+    cnsep = rcrgb['cnsep'][0]
     print(rclim)
 
     aspcapmask=bitmask.AspcapBitMask()
@@ -937,8 +939,8 @@ def nn_cal(a,caldir='./',modelfile='logg_nn_model.h5',out=None,gbclip=False) :
     parammask=bitmask.ParamBitMask()
     starmask=bitmask.StarBitMask()
 
-    #populate PARAM[1] stars w/o STAR_BAD
-    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) == 0) )[0]
+    #populate PARAM[1] stars w/o STAR_BAD (change to ALL with >0)
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) >= 0) )[0]
 
     # load NN model
     with h5py.File(caldir+'/'+modelfile,'r') as model:

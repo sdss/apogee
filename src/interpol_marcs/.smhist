@@ -1,0 +1,82 @@
+connect tau2 T2
+lweight 2
+ltype 0
+connect tau3 T3
+ltype 1
+connect tau4 T4
+ctype red
+lweight 1
+ltype 0
+connect tau5 T5
+ltype 1
+connect tau6 T6
+ltype 0
+lweight 2
+connect tau7 T7
+ltype 1
+connect tau8 T8
+ltype 0
+ctype green
+connect tau T
+ctype black
+if (1) {
+connect tau9 T9
+}
+lweight 1
+location 19000 32000 17000 32000
+xlabel log (\tau_{5000})
+ylabel log(Pg)
+limits tau Pg
+box
+ctype blue
+connect tau1 Pg1
+ltype 1
+connect tau2 Pg2
+ltype 0
+lweight 2
+connect tau3 Pg3
+ltype 1
+connect tau4 Pg4
+ctype red
+ltype 0
+lweight 1
+connect tau5 Pg5
+ltype 1
+connect tau6 Pg6
+ltype 0
+lweight 2
+connect tau7 Pg7
+ltype 1
+connect tau8 Pg8
+ltype 0
+ctype green
+connect tau Pg
+ctype black
+if (1) {
+connect tau9 Pg9
+}
+lweight 1
+if (1) {
+location 19300 32000 3000 11000
+ylabel actual error (%)
+location 20000 32000 3000 6000
+spline tau  T tau9 Tbis
+limits tau9 (abs(Tbis-T9)/T9*100)
+connect  tau9 (abs(Tbis-T9)/T9*100)
+box
+ylabel T
+xlabel log (\tau_{5000})
+location 20000 32000 6000 9000
+spline tau Pe tau9 Pebis
+limits tau9 (abs(10**Pebis-10**Pe9)/10**Pe9*100)
+box 0 2 0 0
+connect  tau9  (abs(10**Pebis-10**Pe9)/10**Pe9*100)
+ylabel Pe
+location 20000 32000 9000 12000
+spline tau Pg tau9 Pgbis
+limits tau9 (abs(10**Pgbis-10**Pg9)/10**Pg9*100)
+connect  tau9 (abs(10**Pgbis-10**Pg9)/10**Pg9*100)
+box 0 2 0 0
+ylabel Pg
+}
+QUIT

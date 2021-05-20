@@ -218,7 +218,7 @@ def get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=False,sav
 
 def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro=2.0,solarisotopes=False,elemgrid='',welem=None,
     nlte=False,els=None,atmod=None,atmos_type='marcs',atmosroot=None,atmosdir=None,nskip=0,fill=True,cmnear=False,dospherical=True,
-    linelist='20180901',h2o=0,linelistdir=None,atoms=True,molec=True, msuffix='', save=False,run=True) :
+    linelist='20180901',h2o=0,linelistdir=None,atoms=True,molec=True, msuffix='', save=False,run=True, verbose=False) :
     """ Do synthesis
 
     Args:
@@ -256,7 +256,6 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
     workdir = get_workdir(teff,logg,mh,am,cm,nm,atmos_type='marcs',solarisotopes=solarisotopes,save=save,elemgrid=elemgrid,vmicro=vmicro)
     root=(atmos_type+'_t{:04d}g{:s}m{:s}a{:s}c{:s}n{:s}v{:s}'+elemgrid).format(int(teff), atmos.cval(logg), 
                       atmos.cval(mh), atmos.cval(am), atmos.cval(cm), atmos.cval(nm),atmos.cval(vmicro))
-    print(root)
 
     # atmosphere: make local copy in Turbospectrum input format, allowing for trimmed layers
     # note that [N/M] is solar for atmospheres (since it doesn't have a big effect)
@@ -269,21 +268,15 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
         #if np.isclose(amtmp,0.) : amtmp=0. 
 
         #new
-        amtmp = np.round(am/0.25)*0.25
-        cmtmp=np.round(cm/0.25)*0.25
-        # if synthesis has C/O<-0.025 ([C/M]<0.245), make sure adoped model is
-        if (cm-am < 0.245) and (cmtmp-amtmp > 0.245) : cmtmp -= 0.25
-        # if synthesis has C/O>-0.025 ([C/M]>0.245), make sure adoped model is
-        if (cm-am > 0.245) and (cmtmp-amtmp < 0.245) : cmtmp += 0.25
-        if np.isclose(cmtmp,0.) : cmtmp=0.
-        if np.isclose(amtmp,0.) : amtmp=0.
-        print('cmnear: ',cm,cmtmp,am,amtmp) 
+        cmtmp, amtmp = get_cmnear(cm, am)
 
     else : 
         cmtmp = cm
         amtmp = am
     if atmod is None : atmod = get_atmod_file(teff,logg,mh,amtmp,cmtmp,nm,atmos_type=atmos_type,nskip=nskip, atmosroot=atmosroot,atmosdir=atmosdir,workdir=workdir)
-    elif atmod == 'interp' : atmod= interpol_marcs(teff,logg,mh,amtmp,cmtmp,nm,workdir=workdir)
+    elif atmod == 'interp' and atmos_type == 'marcs' : 
+        atmod= interpol_marcs(teff,logg,mh,amtmp,cmtmp,nm,workdir=workdir)
+        atmos_type = 'marcs-interp'
     else : shutil.copy(atmod,workdir+'/'+os.path.basename(atmod))
 
     if type(atmod) is int :
@@ -367,8 +360,7 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
     else :
         print('unknown code!')
         pdb.set_trace()
-    print('linelists: ',linelists)
-
+    if verbose : print('linelists: ',linelists)
 
     # default abundances
     abundances = atomic.solar()
@@ -411,7 +403,7 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
             abundances[elemnum-1] = elem0+abun
      
         if code == 'turbospec' :
-            if dospherical and atmos_type == 'marcs' and logg <= 3.001 :  spherical= True
+            if dospherical and ('marcs' in atmos_type) and logg <= 3.001 :  spherical= True
             else : spherical = False
             if ielem == 0 : 
                 wave,flux,fluxnorm = do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,
@@ -450,9 +442,26 @@ def mk_synthesis(code,teff,logg,mh,am,cm,nm,wrange=[15100.,17000],dw=0.05,vmicro
         if not save : shutil.rmtree(workdir)
         return spec, specnorm
 
+def get_cmnear(cm,am) :
+    """ given input [C/M] and [alpha/M], return nearest model
+        grid point, but try to ensure that it is on the same
+        side of the C/O boundary
+
+    """
+    amtmp = np.round(am/0.25)*0.25
+    cmtmp=np.round(cm/0.25)*0.25
+    # if synthesis has C/O<-0.025 ([C/O]<0.245), make sure adoped model does 
+    if (cm-am < 0.245) and (cmtmp-amtmp > 0.245) : cmtmp -= 0.25
+    # if synthesis has C/O>-0.025 ([C/O]>0.245), make sure adoped model does
+    if (cm-am > 0.245) and (cmtmp-amtmp < 0.245) : cmtmp += 0.25
+    if np.isclose(cmtmp,0.) : cmtmp=0.
+    if np.isclose(amtmp,0.) : amtmp=0.
+    #print('cmnear: ',cm,cmtmp,am,amtmp)
+    return cmtmp, amtmp
+
 
 def do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,save=False,run=True,solarisotopes=False,babsma=None,bsyn=True,
-                 atmos_type='marcs',spherical=True,vmicro=1.0,tfactor=1.) :
+                 atmos_type='marcs',spherical=True,vmicro=1.0,tfactor=1.,verbose=False ) :
     """ Runs Turbospectrum for specified input parameters
 
     Args:
@@ -464,7 +473,7 @@ def do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,save=False,run=
     try: os.symlink(os.environ['APOGEE_DIR']+'/src/turbospec/DATA','./DATA')
     except: pass
 
-    if save : stdout = None
+    if verbose : stdout = None
     else : stdout = open(os.devnull, 'w')
 
     # individual element grid?
@@ -501,7 +510,7 @@ def do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,save=False,run=
         fout.close()
         if run :
             os.chmod(file+'_babsma.csh', 0o777)
-            subprocess.call(['time','./'+os.path.basename(file)+'_babsma.csh'],stdout=stdout)
+            subprocess.call(['time','./'+os.path.basename(file)+'_babsma.csh'],stdout=stdout,stderr=stdout)
         babsma = os.path.basename(file)+'opac'
 
     if not bsyn : return
@@ -566,7 +575,7 @@ def do_turbospec(file,atmod,linelists,mh,am,abundances,wrange,dw,save=False,run=
     fout.close()
     if run :
         os.chmod(file+'_bsyn.csh', 0o777)
-        subprocess.call(['time','./'+os.path.basename(file)+'_bsyn.csh'],stdout=stdout)
+        subprocess.call(['time','./'+os.path.basename(file)+'_bsyn.csh'],stdout=stdout,stderr=stdout)
         try:
             out=np.loadtxt(file)
             wave=out[:,1]
@@ -1490,7 +1499,7 @@ def mkspec(input) :
         Used by mksynth for multi-processor calculations
 
     Args :
-        pars (list ) : list of spectrum parameters: [Teff, logg, [M/H], [alpha/M], [C/M], [N/M], vmicro, vrot, 20 abundances]
+        pars (list ) : list of spectrum parameters: [Teff, logg, [M/H], [alpha/M], [C/M], [N/M], vmicro, vrot, 21 abundances]
 
     Returns :
         pars : input parameters
@@ -1502,8 +1511,12 @@ def mkspec(input) :
     teff=pars[0].astype('int')
     logg=pars[1]
     mh=pars[2]
-    am=round(pars[3]/0.25)*0.25
-    cm=round(pars[4]/0.25)*0.25
+    if indata['interp'] == 'interp' :
+        am=pars[3]
+        cm=pars[4]
+    else :
+        am=round(pars[3]/0.25)*0.25
+        cm=round(pars[4]/0.25)*0.25
     #nm=round(pars[5]/0.5)*0.5
     nm=pars[5]
     vmicro=pars[6]
@@ -1512,20 +1525,20 @@ def mkspec(input) :
     els = ['O','Na','Mg','Al','Si','P','S','K','Ca','Ti','V','Cr','Mn','Co','Fe','Ni','Cu','Ge','Rb','Ce','Nd']
     for j,el in enumerate(els) :
         elems.append([el,pars[8+j]])
-    print(teff,logg,mh,vmicro,am,cm,nm)
-    spec,specnorm=mkturbospec(teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,kurucz=indata['kurucz'],fill=False,
-                              linelist=indata['linelist'],linelistdir=indata['linelistdir'],
-                              wrange=indata['wrange'],dw=indata['dw'],h2o=indata['h2o'],atoms=indata['atoms'],save=False)
+    print(('{:d}'+6*'{:8.3f}').format(teff,logg,mh,vmicro,am,cm,nm))
+    spec,specnorm=mk_synthesis('turbospec',teff,logg,mh,am,cm,nm,vmicro=vmicro,els=elems,atmos_type=indata['atmos_type'],fill=False,
+                              linelist=indata['linelist'],linelistdir=indata['linelistdir'],atmod=indata['interp'],
+                              wrange=indata['wrange'],dw=indata['dw'],h2o=indata['h2o'],atoms=indata['atoms'],save=True,verbose=False)
     return pars,specnorm
     
 
-def mksynth(file,havefits=False,threads=8,highres=9,lsfid=14600018,waveid=13140000,apred='r12',telescope='apo25m',
-            fiber='combo',linelist='20180901',linelistdir=None,kurucz=False,h2o=0,atoms=True,plot=False,lines=None,ls=None) :
+def mksynth(inpars,havefits=False,threads=8,highres=9,lsfid=14600018,waveid=13140000,apred='r12',telescope='apo25m',
+            fiber='combo',linelist='20180901',linelistdir=None,atmos_type='marcs',interp=None,h2o=0,atoms=True,plot=False,lines=None,ls=None) :
     """ Make a series of spectra from parameters in an input file, with parallel processing for turbospec
         Outputs to FITS file {file}.fits
 
     Args:
-        file (str) : name of input file with parameters of spectra to calculate
+        inpars (str) : name of input file with parameters of spectra to calculate
         threads (int) : number of parallel processes
         highres (int) : number of subpixels for LSF convolution (default=9)
         waveid (int) : ID for wavelength calibration file (default=14600018)
@@ -1537,17 +1550,21 @@ def mksynth(file,havefits=False,threads=8,highres=9,lsfid=14600018,waveid=131400
     """
     if havefits :
         # have model parameters in a FITS table
-        tab = Table.read(file)
+        tab = Table.read(inpars)
         names = pars.colnames
         pars=[]
         for name in names :
             pars.append(tab[name])
         pars = np.array(pars).T
-        
+       
+    elif type(inpars) == np.ndarray :
+        if len(inpars.shape) == 1 : pars = np.array([inpars])
+        else : pars = inpars
+ 
     else :
         # have model parameters in an ASCII table
-        names=ascii.read(file).colnames
-        pars=np.loadtxt(file)
+        names=ascii.read(inpars).colnames
+        pars=np.loadtxt(inpars)
         if lines is not None :
             pars = pars[lines[0]:min([len(pars),lines[1]])]
             suffix = '_{:d}'.format(lines[0])
@@ -1557,7 +1574,8 @@ def mksynth(file,havefits=False,threads=8,highres=9,lsfid=14600018,waveid=131400
     indata={}
     indata['linelist']=linelist
     indata['linelistdir']=linelistdir
-    indata['kurucz']=kurucz
+    indata['atmos_type']=atmos_type
+    indata['interp']=interp
     indata['h2o']=h2o
     indata['atoms']=atoms
     indata['wrange']=[15100.,17000.]
@@ -1611,6 +1629,8 @@ def mksynth(file,havefits=False,threads=8,highres=9,lsfid=14600018,waveid=131400
             outpar.append(spec[0])
             if plot : plt.plot(wa,np.squeeze(z))
 
+    if type(inpars) == np.ndarray : return(conv)
+
     # write the spectra out
     hdu=fits.HDUList()
     h=fits.ImageHDU(outpar)
@@ -1631,7 +1651,6 @@ def getlsf(lsfid,waveid,apred='r12',telescope='apo25m',highres=9,prefix='lsf_',f
     """ Create LSF FITS file or read if already created
     """
     lsfile = prefix+'{:08d}_{:08d}.fits'.format(lsfid,waveid)
-    print(lsfile)
     while os.path.isfile(lsfile+'.lock') :
         # if another process is creating LSF wait until done
         print('waiting for lock: ',lsfile+'.lock')
@@ -2141,64 +2160,66 @@ def plotco(syn,syn2,ferre) :
     for i in range(3) : ax[i,1].set_ylim(-0.2,0.2)
 
 def interpol_marcs(teff,logg,mh,am,cm,nm,workdir='./') :
+    """ Interpolate in atmosphere grid for desired atmosphere, using Thomas Masseron's interpol_modeles
+    """
 
+    # find surrounding grid points in APOGEE grid
     if teff < 4000. :
        tlo = int(teff/100.)*100.
-       thi = tlog + 100.
+       thi = tlo + 100.
     else :
        tlo = int(teff/250.)*250.
        thi = tlo + 250.
-    glo = int(logg/0.5)*0.5
+    # add 10 to make sure we are positive for int
+    glo = int((logg+10)/0.5)*0.5 - 10
     ghi = glo + 0.5
-    zlo = int(mh/0.25)*0.25
+    zlo = int((mh+10)/0.25)*0.25 - 10
     zhi = zlo + 0.25
+
+    cmtmp,amtmp = get_cmnear(cm, am)
 
     cwd = os.getcwd()
     os.chdir(workdir)
+    if np.isclose(teff,tlo) : teff=tlo+0.01
+    if np.isclose(teff,thi) : teff=thi-0.01
+    if np.isclose(logg,glo) : logg=glo+0.001
+    if np.isclose(logg,ghi) : logg=ghi-0.001
+    if np.isclose(mh,zlo) : mh=zlo+0.001
+    if np.isclose(mh,zhi) : mh=zhi=-0.001
 
-    model1 = get_atmod_file(tlo,glo,zlo,am,cm,nm,fill=False)
-    model2 = get_atmod_file(tlo,glo,zhi,am,cm,nm,fill=False)
-    model3 = get_atmod_file(tlo,ghi,zlo,am,cm,nm,fill=False)
-    model4 = get_atmod_file(tlo,ghi,zhi,am,cm,nm,fill=False)
-    model5 = get_atmod_file(thi,glo,zlo,am,cm,nm,fill=False)
-    model6 = get_atmod_file(thi,glo,zhi,am,cm,nm,fill=False)
-    model7 = get_atmod_file(thi,ghi,zlo,am,cm,nm,fill=False)
-    model8 = get_atmod_file(thi,ghi,zhi,am,cm,nm,fill=False)
-
+    # set up input file
     test = '.false.'
-    model_out='interp.mod'
-    model_alt='interp.alt'
     cmd=['interpol_modeles']
+    models=[]
+    for t in [tlo,thi] :
+        for g in [glo,ghi] :
+            for z in [zlo,zhi] :
+                models.append(get_atmod_file(t,g,z,amtmp,cmtmp,nm,fill=True))
+    model_out=os.path.basename(atmos.filename(teff,logg,mh,cmtmp,amtmp,model='marcs'))
+    model_alt='interp.alt'
 
-
-    fp=open('interpol.inp','w')
-    fp.write(os.path.basename(model1)+'\n')
-    fp.write(os.path.basename(model2)+'\n')
-    fp.write(os.path.basename(model3)+'\n')
-    fp.write(os.path.basename(model4)+'\n')
-    fp.write(os.path.basename(model5)+'\n')
-    fp.write(os.path.basename(model6)+'\n')
-    fp.write(os.path.basename(model7)+'\n')
-    fp.write(os.path.basename(model8)+'\n')
+    fp=open(model_out.replace('.mod','.inp'),'w')
+    for model in models :
+        fp.write(os.path.basename(model)+'\n')
     fp.write(os.path.basename(model_out)+'\n')
     fp.write(os.path.basename(model_alt)+'\n')
-    fp.write('{:8.1f}\n'.format(teff))
-    fp.write('{:7.2f}\n'.format(logg))
-    fp.write('{:2.2f}\n'.format(mh))
+    fp.write('{:20.12f}\n'.format(teff))
+    fp.write('{:18.12f}\n'.format(logg))
+    fp.write('{:18.12f}\n'.format(mh))
     fp.write('.false.\n')
-    fp.write('.false.\n')
+    fp.write('.false. {:12.6f} {:12.6f} {:12.6f}\n'.format((teff-tlo)/(thi-tlo),(logg-glo)/(ghi-glo),(mh-zlo)/(zhi-zlo)))   #fracinput
+    fp.write('.true.\n')    #optimize
+    fp.write('.false.\n')   #binary
     fp.write('dummy\n')
     fp.close()
 
-    print(cmd)
-    print(' '.join(cmd))
-    fp=open('interpol.inp')
-    p=subprocess.call(cmd,stdin=fp)
+    fp=open(model_out.replace('.mod','.inp'))
+    p=subprocess.call(cmd,stdin=fp,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     fp.close()
 
     os.chdir(cwd)
 
-    return('interp.mod')
+    return model_out
 
 def parse_turbo(line) :
 

@@ -538,7 +538,7 @@ def fit_params(planfile,aspcapdata=None,clobber=False,write=True,minerr=0.005,ap
                           (aspcapfield['RV_LOGG'] >= grid['logg_range'][0]) &
                           (aspcapfield['RV_LOGG'] <= grid['logg_range'][1]) &
                           (aspcapfield['MEANFIB'] >= grid['fibermin']) &
-                          (aspcapfield['MEANFIB'] <= grid['fibermax']) ) [0]
+                          (aspcapfield['MEANFIB'] < grid['fibermax']) ) [0]
         else :
             gd = np.where(aspcapfield['ASPCAP_GRID'] == grid['name'])[0]
 
@@ -904,7 +904,7 @@ def fit_elems(planfile,aspcapdata=None,clobber=False,nobj=None,write=True,calib=
                 except : 
                     print('filtefile not found: ', filterfile)
                     continue
-                nlines = iline
+            nlines = iline
 
             #try: os.makedirs(os.path.dirname(out))
             #except: pass

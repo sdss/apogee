@@ -92,6 +92,22 @@ def allFieldVisit(search=['apo*/*/a?FieldVisits-*.fits','apo*/*/a?FieldC-*.fits'
     starmask=bitmask.StarBitMask()
     for i,visit in enumerate(allvisit) : allvisit['STARFLAGS'][i] = starmask.getname(visit['STARFLAG'])
 
+    # put APOGEE2 target flags in APOGEE2_
+    for ind,col in enumerate(allvisit.columns) :
+        if col == 'APOGEE_TARGET4' : break
+    for name in ['APOGEE2_TARGET4','APOGEE2_TARGET3','APOGEE2_TARGET2','APOGEE2_TARGET1'] :
+        col = Column(np.full([len(allvisit)],0),name=name,dtype=np.int32)
+        allvisit.add_column(col,index=ind+1)
+    for i,visit in enumerate(allvisit) :
+        if visit['SURVEY'].find('apogee2') >=0 :
+            for name in ['TARGET1','TARGET2','TARGET3','TARGET4'] :
+                allvisit['APOGEE2_'+name][i] = visit['APOGEE_'+name]
+                allvisit['APOGEE_'+name][i] = 0
+        elif visit['SURVEY'] == 'apo1m' :
+            allvisit['APOGEE2_TARGET2'][i] = allvisit['APOGEE_TARGET2'][i]
+    allvisit.remove_column('APOGEE_TARGET3')
+    allvisit.remove_column('APOGEE_TARGET4')
+
     # write out the file
     if out is not None:
         print('writing',out)

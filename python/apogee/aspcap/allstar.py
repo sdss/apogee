@@ -33,10 +33,10 @@ def all(planfile,dofix=False,suffix=None,allplate=True, calsample=False) :
    aspcap_dir=os.environ['APOGEE_ASPCAP']+'/'+apred_vers+'/'+aspcap_vers+'/'
    print('Create allStar file')
    if calsample : 
-       tab,dat=allStar(search=[aspcap_dir+'apo*/*/aspcapField-*.fits',aspcap_dir+'lco*/*/aspcapField-*.fits'],
-               skip=['Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.'],out=None,dofix=dofix,outdir=outdir)
+       tab,tab3,tab4=allStar(search=[aspcap_dir+'apo*/*/aspcapField-*.fits',aspcap_dir+'lco*/*/aspcapField-*.fits'],
+               skip=['Field-redo','Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.'],out=None,dofix=dofix,outdir=outdir)
    else : 
-       tab,dat=allStar(search=[aspcap_dir+'apo*/*/aspcapField-*.fits',aspcap_dir+'lco*/*/aspcapField-*.fits'],out=None,dofix=dofix,outdir=outdir)
+       tab,tab3,tab4=allStar(search=[aspcap_dir+'apo*/*/aspcapField-*.fits',aspcap_dir+'lco*/*/aspcapField-*.fits'],out=None,dofix=dofix,outdir=outdir)
 
    # allVisit file
    print('Create allVisit file')
@@ -52,7 +52,7 @@ def all(planfile,dofix=False,suffix=None,allplate=True, calsample=False) :
        fix(tab,allvisit)
 
    # write allStar out
-   write(tab, dat, dat, aspcap_dir+'allStar-'+apred_vers+'-'+aspcap_vers+suffix+'.fits', 
+   write(tab, tab3, tab4, aspcap_dir+'allStar-'+apred_vers+'-'+aspcap_vers+suffix+'.fits', 
          trim=aspcap_dir+'allStarLite-'+apred_vers+'-'+aspcap_vers+suffix+'.fits' ) 
  
    # allPlate file
@@ -61,6 +61,10 @@ def all(planfile,dofix=False,suffix=None,allplate=True, calsample=False) :
        allplate = apstar.allPlate(allvisit,
                   out=aspcap_dir+'allPlate-'+apred_vers+'-'+aspcap_vers+suffix+'.fits')
 
+   # QA plots and web page
+   qa_plots(tab,tab3,prefix=outdir+'/')
+   qa_html(tab,tab3,prefix=outdir+'/')
+    
    return nvisits
 
 def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out='allStar.fits',
@@ -79,11 +83,17 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
 
     # read and append all of the individual field tables
     a=[]
-    for file in allfiles :
+    tab4=Table()
+    tab4.add_column(Column(np.full([len(allfiles)],''),name='TELESCOPE',dtype='S12'))
+    tab4.add_column(Column(np.full([len(allfiles)],''),name='FIELD',dtype='S32'))
+    tab4.add_column(Column(np.full([len(allfiles)],''),name='APOGEE_VERS',dtype='S12'))
+    for ifile,file in enumerate(allfiles) :
         if skip is not None and doskip(file,skip) : continue
         print(file)
+        head=fits.open(file)[0].header
         dat=Table.read(file,hdu=1)
-        for col in ['FPARAM_COV_CLASS','NISNT','COMMISS','COMBTYPE'] :
+        # remove some unwanted/unused columns
+        for col in ['FPARAM_COV_CLASS','NINST','COMMISS','COMBTYPE'] :
             try : dat.remove_column(col)
             except : pass
         if addgaia: 
@@ -91,6 +101,10 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
             except: print('failed to add_gaia: ',file)
 
         a.append(dat)
+        tab4['FIELD'][ifile] = dat['FIELD'][0]
+        tab4['TELESCOPE'][ifile] = dat['TELESCOPE'][0]
+        try: tab4['APOGEE_VERS'][ifile] = head['VERSION']
+        except: pass
     # stack them
     tab =vstack(a)
     del(a)
@@ -103,6 +117,7 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
     targflagfix(tab)
     elemflagfix(tab)
     nanfix(tab)
+    badfracfix(tab)
 
     # empirical uncertainties
     if doerr : repeat_err(tab,tab3,outdir=outdir)
@@ -117,7 +132,8 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
     aspcapflag(tab)
 
     # calibration depends on having STAR_BAD set
-    if docal : allcal(tab,tab3,outdir=outdir)
+    if docal : allcal(tab,tab3,outdir=outdir,doteff=True,dologg=True,doelem=True)
+    else :allcal(tab,tab3,outdir=outdir,doteff=False,dologg=False,doelem=False)
 
     # add named tags
     add_named_tags(tab)
@@ -131,13 +147,9 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
     tab.add_column(col,index=2)
 
     # write out the file
-    if out is not None: hdulist = write(tab,tab3,tab3,out)
+    if out is not None: hdulist = write(tab,tab3,tab4,out)
    
-    outdir=outdir+'/' 
-    qa_plots(tab,tab3,prefix=outdir)
-    qa_html(tab,tab3,prefix=outdir)
-
-    return tab, tab3
+    return tab, tab3, tab4
 
 def rewrite(planfile) :
     """ rewrite aspcapField and aspcapStar files with allStar record
@@ -166,14 +178,19 @@ def rewrite(planfile) :
         aspcap.writefiles(load,field,tab[j[i1]],spec[i2],key,version=aspcapfield[0].header['VERSION'])
 
 
-def write(tab, tab2, tab3, out, trim=None) :
+def write(tab, tab3, tab4, out, trim=None) :
     """ Write out allStar file from input HDU tables
     """
     # construct HDUList
     hdulist=fits.HDUList()
     hdulist.append(fits.BinTableHDU(tab))
-    hdulist.append(fits.BinTableHDU(tab2))
+    # create index array for HDU2
+    ind = np.zeros(360,dtype=int)
+    for i in range(1,360) :
+        ind[i] = np.where(tab['RA']>i)[0][0]
+    hdulist.append(fits.ImageHDU(ind))
     hdulist.append(fits.BinTableHDU(tab3))
+    hdulist.append(fits.BinTableHDU(tab4))
     # write out the file
     if out is not None:
         print('writing',out)
@@ -252,7 +269,8 @@ def add_named_tags(tab) :
     tab['M_H'][gd[gdel]] = tab['PARAM'][gd[gdel],3].astype(np.float32)
     tab['M_H_ERR'][gd[gdel]] = np.sqrt(tab['PARAM_COV'][gd[gdel],3,3]).astype(np.float32)
 
-    gdel = np.where((tab['PARAMFLAG'][gd,6]&parammask.badval()) == 0)[0]
+    gdel = np.where(((tab['PARAMFLAG'][gd,3]&parammask.badval()) == 0) &
+                    ((tab['PARAMFLAG'][gd,6]&parammask.badval()) == 0) )[0]
     tab['ALPHA_M'][gd[gdel]] = tab['PARAM'][gd[gdel],6].astype(np.float32)
     tab['ALPHA_M_ERR'][gd[gdel]] = np.sqrt(tab['PARAM_COV'][gd[gdel],6,6]).astype(np.float32)
 
@@ -275,7 +293,7 @@ def add_named_tags(tab) :
     elems, elemtoh, tagnames, elemfitnames = aspcap.elems()
     newtags=[]
     for name in tagnames :
-        if tag == 'GE_FE' or tag == 'RB_FE' or tag == 'ND_FE' or tag == 'C13_FE' : continue
+        if name == 'GE_FE' or name == 'RB_FE' or name == 'ND_FE' or name == 'C13_FE' : continue
         col = Column(np.full([len(tab)],np.nan),name=name,dtype=np.float32)
         try : tab.remove_column(name)
         except: pass
@@ -294,7 +312,8 @@ def add_named_tags(tab) :
         tab.add_column(col)
     ife =np.where(elems == 'Fe')[0][0]
     for i,(el,tag) in enumerate(zip(elems,tagnames)) :
-        gdel = np.where((tab['ELEMFLAG'][gd,i]&parammask.badval()) == 0)[0]
+        gdel = np.where(((tab['ELEMFLAG'][gd,ife]&parammask.badval()) == 0) &
+                        ((tab['ELEMFLAG'][gd,i]&parammask.badval()) == 0) )[0]
         if tag == 'GE_FE' or tag == 'RB_FE' or tag == 'ND_FE' or tag == 'C13_FE' : continue
         if el == 'Fe' :
             tab[tag][gd[gdel]] = tab['X_H'][gd[gdel],i].astype(np.float32)
@@ -370,7 +389,7 @@ def add_extratarg(tab) :
     return jall
 
 def allcal(tab,tab3,outdir='./',doteff=True,dologg=True,doelem=True, doerr=True, calvers='dr17', calib=False, caldir='calib/') :
-    """ Apply the calibrations
+    """ Apply the calibrations and optionally, derive them
     """
 
     caldir=outdir+'/'+caldir
@@ -378,7 +397,7 @@ def allcal(tab,tab3,outdir='./',doteff=True,dologg=True,doelem=True, doerr=True,
     except FileExistsError : pass
 
     #uncertainties
-    if doerr :
+    if not calib :
         err.apply(tab,caldir=outdir+'/repeat/')
 
     # Teff
@@ -386,7 +405,6 @@ def allcal(tab,tab3,outdir='./',doteff=True,dologg=True,doelem=True, doerr=True,
         ebvmax=0.03
         teffcal = teff.ghb(tab,ebvmax=ebvmax,glatmin=10,out=caldir+'/tecal',yr=[-750,750],trange=[4500,7000],loggrange=[-1,6],calib=calib,doerr=False)
         Table(struct.dict2struct(teffcal)).write(caldir+'/tecal.fits',overwrite=True)
-        if not calib : teff.cal(tab,caldir=caldir)
         # add calibration correction with same color scheme
         fig,ax=plots.multi(1,1)
         plots.plotc(ax,tab['FPARAM'][:,0],tab['FPARAM'][:,1],tab['FPARAM'][:,0]-tab['PARAM'][:,0],
@@ -398,11 +416,11 @@ def allcal(tab,tab3,outdir='./',doteff=True,dologg=True,doelem=True, doerr=True,
         figs=[['tecal.png','tecal_berger_mh.png'],['tecal_ghb_hr.png','tecal_berger_hr.png'],['tecal_b.png','calib_Teff_hr.png']]
         ytitle=['Teff all stars','GHB&Berger HR','GHB']
         html.htmltab(figs,ytitle=ytitle,file=caldir+'/teff.html')
+    if not calib : teff.cal(tab,caldir=caldir)
 
     # log g
     if dologg: 
         logg.nn_train(tab,out=caldir,calib=calib)
-        if not calib : logg.nn_cal(tab,caldir=caldir,out=caldir)
         grid=[]
         grid.append(['nn_logg_cal.png','nn_logg_cal_hr.png'])
         grid.append(['nn_logg_hr.png','nn_logg_scatter.png'])
@@ -412,6 +430,9 @@ def allcal(tab,tab3,outdir='./',doteff=True,dologg=True,doelem=True, doerr=True,
         rcrgb = logg.rcrgb(tab,rclim=np.array([2.2,3.5]),out=caldir+'/rcrgb')
         Table(struct.dict2struct(rcrgb)).write(caldir+'/rcrgb.fits',overwrite=True)
         logg.rcrgb_class(tab,rcrgb,out=caldir)
+    if not calib : 
+        logg.nn_cal(tab,caldir=caldir,out=caldir)
+        logg.rcrgb_class(tab,caldir=caldir,out=caldir)
 
     # abundances
     if doelem: 
@@ -454,6 +475,7 @@ def allcal(tab,tab3,outdir='./',doteff=True,dologg=True,doelem=True, doerr=True,
         tab3.add_column(Column([elemcal['extpar'][:,0]],name='SOLAR_ZERO'))
         tab3.add_column(Column([elemcal['exterr']],name='SOLAR_ZERO_ERR'))
 
+    if not calib :
         # populate calibrated quantities 
         elem.cal(tab,tab3,caldir=caldir)
 
@@ -697,6 +719,21 @@ def nanfix(tab) :
     j=np.where(tab['APOGEE_ID'] == 'VESTA')[0]
     tab['RA'][j] = np.nan
     tab['DEC'][j] = np.nan
+
+def badfracfix(tab) :
+    """ fix mixup of BAD_FRAC_LOWSNR and BAD_FRAC_BADPIX
+    """
+    aspcapmask=bitmask.AspcapBitMask()
+
+    # stars with BAD_FRAC_LOWSNR should have BAD_FRAC_BADPIX
+    j=np.where((tab['ASPCAPFLAG']&aspcapmask.getval('BAD_FRAC_LOWSNR')) > 0)[0]
+    tab['ASPCAPFLAG'][j] |= aspcapmask.getval('BAD_FRAC_BADPIX')
+    tab['ASPCAPFLAG'][j] &= ~aspcapmask.getval('BAD_FRAC_LOWSNR')
+
+    # stars with FRAC_LOWSNR>0.5 should have BAD_FRAC_LOWSNR, not BAD_FRAC_BADPIX
+    j=np.where(tab['FRAC_LOWSNR'] > 0.5)[0]
+    tab['ASPCAPFLAG'][j] |= aspcapmask.getval('BAD_FRAC_LOWSNR')
+    tab['ASPCAPFLAG'][j] &= ~aspcapmask.getval('BAD_FRAC_BADPIX')
 
 
 def fiber300fix() :
@@ -1454,4 +1491,17 @@ def dr16check(file='newStar-r12-l33.fits',dr16file='allStar-r12-l33.fits') :
 
     print('nbad:',nbad)
     fp.close()
- 
+
+def check(tab,a) :
+    """ Check for differences between two version of file tables
+    """
+    for name in a.columns.names :
+        try:
+            if type(a[name]) == np.chararray :
+                j=np.where( (a[name] != tab[name]))[0]
+            else :
+                j=np.where((np.isfinite(a[name])|np.isfinite(tab[name])) & (a[name] != tab[name]))[0]
+                if len(j) > 0 : print(name, len(j))
+        except:
+            print('problem with: ', name)
+

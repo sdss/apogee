@@ -16,7 +16,7 @@ import shutil
 import time
 from multiprocessing import Process
 
-def all(planfile,dofix=False,suffix=None,allplate=True, calsample=False) :
+def all(planfile,dofix=False,suffix=None,allplate=True, calsample=False, docal=True, doerr=True) :
    """ Summary files after everything is run
    """
    plan=yaml.safe_load(open(planfile,'r'))
@@ -34,9 +34,9 @@ def all(planfile,dofix=False,suffix=None,allplate=True, calsample=False) :
    print('Create allStar file')
    if calsample : 
        tab,tab3,tab4=allStar(search=[aspcap_dir+'apo*/*/aspcapField-*.fits',aspcap_dir+'lco*/*/aspcapField-*.fits'],
-               skip=['Field-redo','Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.'],out=None,dofix=dofix,outdir=outdir)
+               skip=['Field-redo','Field-apo25m_','Field-lco25m_','Field-apo1m_','apo25m.','lco25m.'],out=None,dofix=dofix,outdir=outdir,docal=docal,doerr=doerr)
    else : 
-       tab,tab3,tab4=allStar(search=[aspcap_dir+'apo*/*/aspcapField-*.fits',aspcap_dir+'lco*/*/aspcapField-*.fits'],out=None,dofix=dofix,outdir=outdir)
+       tab,tab3,tab4=allStar(search=[aspcap_dir+'apo*/*/aspcapField-*.fits',aspcap_dir+'lco*/*/aspcapField-*.fits'],out=None,dofix=dofix,outdir=outdir,docal=docal,doerr=doerr)
 
    # allVisit file
    print('Create allVisit file')

@@ -130,10 +130,7 @@ class StarBitMask(BitMask):
     flagname='APOGEE_STARFLAG'
     shorttitle='StarBitMask'
     title='APOGEE_STARFLAG, APOGEE_ANDFLAG : APOGEE star level bitmask '
-    blurb='The StarBitMask is set per star and gives information about the spectrum of the object. It is\
-           set for each visit spectrum. It is also \
-           used for combined spectra in both STARFLAG and ANDFLAG, where the former is a bitwise OR of\
-           the visit STARFLAG for all of the visits, and the latter is a bitwise AND of the visit STARFLAG for all of the visits.'
+    blurb='This bitmask is used to provide information and identify issues associated with <a href=”/dr17/irspec/apred/”>spectral processing</a>, radial velocity measurement, and <a href=”/dr17/irspec/spectral_combination/”>spectral combination</a>. At the visit level, it conveys information relevant to a specific spectrum. It is also used for combined spectra in both STARFLAG and ANDFLAG, where the former is a bitwise OR of the visit STARFLAG for all of the visits, and the latter is a bitwise AND of the visit STARFLAG for all of the visits. The bitmask <code>RV_FLAG</code> provides more details relevant to the RV determination.'
     name=(['BAD_PIXELS','COMMISSIONING','BRIGHT_NEIGHBOR','VERY_BRIGHT_NEIGHBOR','LOW_SNR','','','',
           '','PERSIST_HIGH','PERSIST_MED','PERSIST_LOW','PERSIST_JUMP_POS','PERSIST_JUMP_NEG','','',
           'SUSPECT_RV_COMBINATION','SUSPECT_BROAD_LINES','BAD_RV_COMBINATION','RV_REJECT','RV_SUSPECT','MULTIPLE_SUSPECT','RV_FAIL','SUSPECT_ROTATION',
@@ -192,7 +189,8 @@ class AspcapBitMask(BitMask):
     flagname='APOGEE_ASPCAPFLAG'
     shorttitle='AspcapBitMask'
     title='APOGEE_ASPCAPFLAG : ASPCAP star level bitmask '
-    blurb=''
+    blurb='This bitmask is used to provide information and indicate possible issues associated with the <a href=”/dr17/irspec/aspcap/”>ASPCAP fits</a>. The flags refer to issues in the spectra impacting the fit (inherited from <code>STARFLAG</code>),  issues incurred during the fitting process, and issues incurred when evaluating the parameters. For flags associated with a stellar parameter or chemical abundance measurement, more detailed information is available in the <code>PARAMFLAG</code> or <code>ELEMFLAG</code> bitmask for that measurement. '
+
     name=(['TEFF_WARN','LOGG_WARN','VMICRO_WARN','M_H_WARN','ALPHA_M_WARN','C_M_WARN','N_M_WARN','STAR_WARN',
           'CHI2_WARN','COLORTE_WARN','ROTATION_WARN','SN_WARN','SPEC_HOLE_WARN','ATMOS_HOLE_WARN','VSINI_WARN','',
           'TEFF_BAD','LOGG_BAD','VMICRO_BAD','M_H_BAD','ALPHA_M_BAD','C_M_BAD','N_M_BAD','STAR_BAD',
@@ -258,7 +256,7 @@ class ParamBitMask(BitMask):
     flagname='APOGEE_PARAMFLAG'
     shorttitle='ParamBitMask'
     title='APOGEE_PARAMFLAG, APOGEE_ELEMFLAG : ASPCAP bitmask for individual parameters/abundances'
-    blurb=''
+    blurb='These bitmasks are used to provide information indicate possible issues associated with individual measurements from <a href=”/dr17/irspec/aspcap/”>ASPCAP fits</a>. This bit provides more context for some of the bits in <code>ASPCAPFLAG</code>. A <code>PARAMFLAG</code> or <code>ELEMFLAG</code> is produced for each of the stellar parameters and chemical abundances measured in DR17, and each of the bitmasks has the same format. '
     name =['GRIDEDGE_BAD','CALRANGE_BAD','OTHER_BAD','FERRE_FAIL','PARAM_MISMATCH_BAD','FERRE_ERR_USED','TEFF_CUT','',
            'GRIDEDGE_WARN','CALRANGE_WARN','OTHER_WARN','FERRE_WARN','PARAM_MISMATCH_WARN','OPTICAL_WARN','ERR_WARN','FAINT_WARN',
            'PARAM_FIXED','RV_WARN','','','','','','',
@@ -311,7 +309,7 @@ class PixelBitMask(BitMask) :
     flagname='APOGEE_PIXMASK'
     shorttitle='PixelBitMask'
     title='APOGEE_PIXMASK : APOGEE bitmask for individual pixels in a spectrum'
-    blurb=''
+    blurb='This bitmask is used to provide information associated with individual pixels in a one-dimensional spectrum. At the visit level, <code>PIXMASK</code> refers to the individual spectrum. At the combined level, PIXMASK attempts to appropriately combine the PIXMASKs of the visit spectrum level. '
     name=(['BADPIX','CRPIX','SATPIX','UNFIXABLE','BADDARK','BADFLAT','BADERR','NOSKY',
           'LITTROW_GHOST','PERSIST_HIGH','PERSIST_MED','PERSIST_LOW','SIG_SKYLINE','SIG_TELLURIC','NOT_ENOUGH_PSF','',
           'FERRE_MASK','','','','','','','',
@@ -362,6 +360,23 @@ class PixelBitMask(BitMask) :
      ''
     ])
 
+class ExtratargBitMask(BitMask) :
+    '''
+    BitMask class for EXTRATARG
+    '''
+    flagname='APOGEE2_EXTRATARG'
+    shorttitle='ExtratargBitMask'
+    title='EXTRATARG : basic targeting information'
+    blurb='This bitmask is used to indicate some basic useful targeting information. Some bits are used to tie together similar samples that are indicated through distinct APOGEE-1 and APOGEE-2 targeting bitmasks. Another bit is used to indicate targets that have “duplicate” observations (the same <code>APOGEE_ID</code> observed in distinct <code>FIELD</code>).  '
+    name=(['NOT_MAIN','COMMISSIONING','TELLURIC','APO1M','DUPLICATE','','',''])
+    descrip=([
+     'Not a main sample target',
+     'Commissioning observation',
+     'Targeted as telluric',
+     'APO/NMSU 1M observation',
+     'Non-primary (not highest S/N) duplicate',
+     '','',''])
+
 class Apogee2Target1(BitMask) :
     '''
     BitMask class for APOGEE2_TARGET1
@@ -370,7 +385,7 @@ class Apogee2Target1(BitMask) :
     flagname='APOGEE2_TARGET1'
     shorttitle='Apogee2Target1'
     title='APOGEE2_TARGET1 : APOGEE2 targeting bitmask (1 of 3)'
-    blurb=''
+    blurb='APOGEE-2 targeting information is conveyed in three bitmasks: <code>APOGEE2_TARGET1</code>, <code>APOGEE2_TARGET2</code>, and <code>APOGEE2_TARGET3</code> (<code>APOGEE2_TARGET4</code> was added to the data model, but is not used). The bitmasks provide context for the reason that a target was selected for observations on a plate. Descriptions can be found on <a href="/dr17/irspec/targets/">Targeting Information</a>.  '
     name = ([ 'APOGEE2_ONEBIN_GT_0_5','APOGEE2_TWOBIN_0_5_TO_0_8','APOGEE2_TWOBIN_GT_0_8','APOGEE2_IRAC_DERED',
               'APOGEE2_WISE_DERED','APOGEE2_SFD_DERED','APOGEE2_NO_DERED','APOGEE2_WASH_GIANT',
               'APOGEE2_WASH_DWARF','APOGEE2_SCI_CLUSTER','APOGEE2_CLUSTER_CANDIDATE','APOGEE2_SHORT',
@@ -537,7 +552,7 @@ class ApogeeTarget1(BitMask) :
     flagname='APOGEE_TARGET1'
     shorttitle='ApogeeTarget1'
     title='APOGEE_TARGET1 : APOGEE1 targeting bitmask (1 of 2)'
-    blurb=''
+    blurb='APOGEE-1 targeting information is conveyed in two bitmasks, <code>APOGEE_TARGET1</code> and <code>APOGEE_TARGET2</code>. The bitmasks provide context for the reason that a target was selected for observations on a plate. Detailed descriptions can be found on <a href="/dr17/irspec/targets/">Targeting Information</a>.  '
     name = ([ 'APOGEE_FAINT','APOGEE_MEDIUM','APOGEE_BRIGHT','APOGEE_IRAC_DERED',
               'APOGEE_WISE_DERED','APOGEE_SFD_DERED','APOGEE_NO_DERED','APOGEE_WASH_GIANT',
               'APOGEE_WASH_DWARF','APOGEE_SCI_CLUSTER','APOGEE_EXTENDED','APOGEE_SHORT',
@@ -658,7 +673,7 @@ class RVBitMask(BitMask) :
     flagname='APOGEE_RV_FLAG'
     shorttitle='RVBitMask'
     title='APOGEE_RV_FLAG : Bitmask for radial velocity information'
-    blurb=''
+    blurb='This bitmask is used to provide information ms associated with radial velocity measurements.  The bitmask provides more context to RV-related bits in <code>STARFLAG</code>. This bitmask appears at the visit- and combined- level; some bits are set at the visit level (e.g., bits 10, 11) and others at the combined level. '
     name = ([ 'RV_BCFIT','RV_BCFIT_FAIL','RV_FAINT_FIT','RV_WINDOW_MASK','RV_VALUE_ERROR','RV_RUNTIME_ERROR','RV_ERROR','',
               'NO_GOOD_VISITS','ALL_VISITS_REJECTED','RV_REJECT','RV_SUSPECT','','','','',
               '','','','','','','','',
@@ -703,7 +718,8 @@ class MembersBitMask(BitMask) :
     flagname='APOGEE_MEMBERFLAG'
     shorttitle='MembersBitMask'
     title='APOGEE_MEMBERFLAG : Bitmask to identify likely members of clusters/dwarf Spheroidals'
-    blurb=''
+    blurb='This bitmask is produced to indicate the likely membership of a given target in intentionally targeted star clusters and dwarf galaxies. Each bit refers to a specific star cluster or dwarf galaxy. A bit is set if a given target meets a set of membership criteria, including its sky position, mean radial velocity, and proper motions. <code>MEMBER</code> is convenient but may not be applicable for all scientific applications. '
+
     name=['M92','M15','M53','N5466','N4147',
         'M2','M13','M3','M5','M12','M107',
         'M71','N2243','Be29', 'N2158','M35','N2420',
@@ -737,6 +753,6 @@ def print_bitmasks(fmt='html',out=None) :
     if out is not None : fp = open(out,'w') 
     else : fp  = sys.stdout
 
-    for mask in [ AspcapBitMask(), StarBitMask(), ParamBitMask(), PixelBitMask(), MembersBitMask(), RVBitMask(),
-                  Apogee2Target1(), Apogee2Target2(), Apogee2Target3(), ApogeeTarget1(), ApogeeTarget2() ] :
+    for mask in [ AspcapBitMask(), ParamBitMask(), StarBitMask(), RVBitMask(), PixelBitMask(), ExtratargBitMask(),  
+                  Apogee2Target1(), Apogee2Target2(), Apogee2Target3(), ApogeeTarget1(), ApogeeTarget2(), MembersBitMask()] :
         mask.print(fmt=fmt,fp=fp)

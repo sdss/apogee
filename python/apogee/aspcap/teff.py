@@ -354,6 +354,7 @@ def cal(a,caldir='cal/'):
 
     #populate PARAM[0] for stars w/o STAR_BAD (change to ALL with >=0)
     gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) >= 0) )[0]
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.getval('NO_ASPCAP_RESULT')) == 0) )[0]
 
     #initial values
     a['PARAM'][:,0] = np.nan

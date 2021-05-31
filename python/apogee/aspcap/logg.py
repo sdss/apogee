@@ -941,6 +941,7 @@ def nn_cal(a,caldir='./',modelfile='logg_nn_model.h5',out=None,gbclip=False) :
 
     #populate PARAM[1] stars w/o STAR_BAD (change to ALL with >0)
     gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) >= 0) )[0]
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.getval('NO_ASPCAP_RESULT')) == 0) )[0]
 
     # load NN model
     with h5py.File(caldir+'/'+modelfile,'r') as model:

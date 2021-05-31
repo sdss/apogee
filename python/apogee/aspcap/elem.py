@@ -1943,6 +1943,7 @@ def cal(a,tab3,caldir='cal/') :
 
     # calibrate ALL stars with >=0 
     gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.badval()) >= 0) )[0]
+    gd=np.where( ((a['ASPCAPFLAG']&aspcapmask.getval('NO_ASPCAP_RESULT')) == 0) )[0]
 
     giant = np.where( (a['FPARAM'][gd,1] < 2./1300.*(a['FPARAM'][gd,0]-3600)+2.) &
                       (a['FPARAM'][gd,1] < 4.0) & ((a['FPARAM'][gd,0] < 5500) | (a['FPARAM'][gd,1]<2.8)) )[0]
@@ -2163,6 +2164,7 @@ def dr17cal(el,dwarfs=False) :
             gdtemin=4500
         elif el.strip() == 'M' : 
             extfit = 0
+        gdtemin=np.max([3500,gdtemin])
     else :
         if el.strip() == 'C' : 
             extfit = 0

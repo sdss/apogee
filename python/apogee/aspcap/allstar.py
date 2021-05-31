@@ -133,7 +133,7 @@ def allStar(search=['apo*/*/aspcapField-*.fits','lco*/*/aspcapField-*.fits'],out
 
     # calibration depends on having STAR_BAD set
     if docal : allcal(tab,tab3,outdir=outdir,doteff=True,dologg=True,doelem=True)
-    else :allcal(tab,tab3,outdir=outdir,doteff=False,dologg=False,doelem=False)
+    else :allcal(tab,tab3,outdir=outdir,doteff=False,dologg=False,doelem=True)
 
     # add named tags
     add_named_tags(tab)
@@ -1495,13 +1495,17 @@ def dr16check(file='newStar-r12-l33.fits',dr16file='allStar-r12-l33.fits') :
 def check(tab,a) :
     """ Check for differences between two version of file tables
     """
-    for name in a.columns.names :
+    jall=[]
+    for i,name in enumerate(a.columns.names) :
         try:
             if type(a[name]) == np.chararray :
                 j=np.where( (a[name] != tab[name]))[0]
             else :
                 j=np.where((np.isfinite(a[name])|np.isfinite(tab[name])) & (a[name] != tab[name]))[0]
-                if len(j) > 0 : print(name, len(j))
+                if len(j) > 0 : print(i, name, len(j),len(set(j)))
         except:
-            print('problem with: ', name)
+            print('problem with: ', i, name)
+            j=[]
+        jall.append(j)
 
+    return jall

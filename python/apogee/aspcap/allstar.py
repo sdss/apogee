@@ -450,7 +450,7 @@ def allcal(tab,tab3,outdir='./',doteff=True,dologg=True,doelem=True, doerr=True,
         doels = np.append(np.array(['M','alpha']),elems)
 
         # solar neighborhood giants
-        solar=apselect.solar(tab,logg=[-1,3.8])
+        solar=apselect.solar(tab,logg=[-1,3.5],teff=[3000,5500])
         elemcal=elem.zerocal(tab,solar,elems,elemtoh,doels,calvers=calvers,calib=calib,extfit=4,dwarfs=False)
         tab3.add_column(Column([elemcal['extpar'][:,0]],name='GIANT_SOLARNEIGH_ZERO'))
         tab3.add_column(Column([elemcal['exterr']],name='GIANT_SOLARNEIGH_ZERO_ERR'))

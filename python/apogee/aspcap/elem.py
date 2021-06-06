@@ -478,10 +478,12 @@ def getabun(data,elems,elemtoh,el,xh=False,terange=[-1,10000],calib=False,line=0
     parammask = bitmask.ParamBitMask()
     if el.strip() == 'M' :
         ok=np.where(((data['PARAMFLAG'][:,3] & parammask.badval()) == 0) & (data['FPARAM_COV'][:,3,3] < 0.2) &
+                    ((data['ASPCAPFLAG']&aspcapmask.badval())== 0) &
                     (data['FPARAM'][:,0] >= terange[0]) & (data['FPARAM'][:,0] <= terange[1]) & (data[param][:,3] > -9990.) )[0]
         abun = data[param][:,3]
     elif el.strip() == 'alpha' :
         ok=np.where(((data['PARAMFLAG'][:,6] & parammask.badval()) == 0) & (data['FPARAM_COV'][:,6,6] < 0.2) &
+                    ((data['ASPCAPFLAG']&aspcapmask.badval())== 0) &
                     (data['FPARAM'][:,0] >= terange[0]) & (data['FPARAM'][:,0] <= terange[1]) & (data[param][:,6] > -9990.) )[0]
         abun = data[param][:,6]
         if xh : abun+=data['FPARAM'][:,3]
@@ -522,6 +524,7 @@ def getabun(data,elems,elemtoh,el,xh=False,terange=[-1,10000],calib=False,line=0
         #try: ok=np.where(( (data['ELEMFLAG'][:,iel] & badflag) == 0) &
         try: ok=np.where(( (elemflag & badflag) == 0) &
                       (abunerr < 0.2) &
+                      ((data['ASPCAPFLAG']&aspcapmask.badval())== 0) &
                       (data['FPARAM'][:,0] >= terange[0]) & 
                       (data['FPARAM'][:,0] <= terange[1]) & 
                       (abun > -9990.) )[0]

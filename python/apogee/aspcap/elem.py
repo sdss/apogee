@@ -476,6 +476,7 @@ def getabun(data,elems,elemtoh,el,xh=False,terange=[-1,10000],calib=False,line=0
     else :
         param = 'FPARAM'
     parammask = bitmask.ParamBitMask()
+    aspcapmask = bitmask.AspcapBitMask()
     if el.strip() == 'M' :
         ok=np.where(((data['PARAMFLAG'][:,3] & parammask.badval()) == 0) & (data['FPARAM_COV'][:,3,3] < 0.2) &
                     ((data['ASPCAPFLAG']&aspcapmask.badval())== 0) &

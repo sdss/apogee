@@ -2032,6 +2032,7 @@ def cal(a,tab3,caldir='cal/') :
                 jel = np.where(aspcap.elems()[0] == el)[0]
                 gdel=np.where( (a['FPARAM'][ok,0] >= calteffmin)  &
                                (a['FPARAM'][ok,0] <= calteffmax)  &
+                               ((a['ELEMFLAG'][ok,jel]&parammask.getval('FERRE_FAIL')) == 0) &
                                ((a['ELEMFLAG'][ok,jel]&parammask.badval()) >= 0) ) [0]
 
             # flag stars outside of "gd" range, but still populate here

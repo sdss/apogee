@@ -429,7 +429,7 @@ def allcal(tab,tab3,outdir='./',doteff=True,dologg=True,doelem=True, doerr=True,
         # add RC/RGB split for information purposes only in PARAMFLAG[1]
         rcrgb = logg.rcrgb(tab,rclim=np.array([2.2,3.5]),out=caldir+'/rcrgb')
         Table(struct.dict2struct(rcrgb)).write(caldir+'/rcrgb.fits',overwrite=True)
-        logg.rcrgb_class(tab,rcrgb,out=caldir)
+        logg.rcrgb_class(tab,caldir=caldir,out=caldir)
     if not calib : 
         logg.nn_cal(tab,caldir=caldir,out=caldir)
         logg.rcrgb_class(tab,caldir=caldir,out=caldir)

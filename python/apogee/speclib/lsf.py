@@ -113,6 +113,65 @@ def get(lsfid,waveid,fiber,nlsf2=7.,highres=9,apred=None,telescope=None) :
     l=eval(x,fiber=fiber,waveid=waveid,lsfid=lsfid)
     return x,l
 
+
+def gaussian_lsf(x, R=22500., sparse=False):
+    """
+    Evaluate a constant R gaussian LSF on apStar grid
+
+    Args :
+        x - Values to compute LSF at, relative to pixel centers
+            (e.g. 1/integer equally-spaced pixel offsets)
+        R - resolving power to convolve to
+        sparse= (Flase) if True then return spare representation for easy convolution
+    Returns :
+        LSF identical for every pixel center
+    """
+    # same as eval()
+    # Are the x unit pixels or a fraction 1/hires thereof?
+    hires= int(round(1./(x[1]-x[0])))
+    # Setup output
+    wav= aspcap.apStarWave()
+    l10wav= numpy.log10(wav)
+    dowav= l10wav[1]-l10wav[0]
+    # Hi-res wavelength for output
+    if hires == 1 : 
+        hireswav= 10.**l10wav
+    else :
+        hireswav= 10.**numpy.arange(l10wav[0],l10wav[-1]+dowav/hires,dowav/hires)
+    ncen = len(hireswav)
+
+    # sigma of the Gaussian in pixel units
+    sig = 1.0 / (
+        R
+        * numpy.log(10.0)
+        * dowav
+        * 2.0
+        * numpy.sqrt(2.0 * numpy.log(2.0))
+    )
+
+    # get profile, which is same at every pixel center
+    prof = gauss(x, 0., sig)
+    prof /= prof.sum()
+    out = numpy.tile(prof, (ncen, 1))
+
+    if sparse: out = sparsify(out)
+    return out
+
+
+def get_gaussian(R-22500., nlsf2=7., highres=9):
+    """
+    Wrapper that mirrors lsf.get() for gaussian LSF
+
+    Args :
+        R - resolving power to convolve to
+        nlsf2 - LSF computed for offsets -nlsf2 to +nlsf2 pixels
+        highres (int) : number of subpixels for LSF calculation (default=9)
+    """
+    x=numpy.arange(-nlsf2,nlsf2+0.01,1./highres)
+    l = gaussian_lsf(x, R=R)
+    return x,l
+
+
 def convolve(wav,spec,
              lsf=None,xlsf=None,dxlsf=None,fiber='combo',
              vmacro=6.,vrot=None, highout=False):

@@ -158,7 +158,7 @@ def gaussian_lsf(x, R=22500., sparse=False):
     return out
 
 
-def get_gaussian(R-22500., nlsf2=7., highres=9):
+def get_gaussian(R=22500., nlsf2=7., highres=9):
     """
     Wrapper that mirrors lsf.get() for gaussian LSF
 

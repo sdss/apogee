@@ -1334,7 +1334,8 @@ def getindex(header,axes,vals) :
         out.append(int(round(i)))
     return out
 
-def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,telescope=None) :
+def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,telescope=None,
+              lsftype=None, R=22500.) :
     """ Create a grid of LSF-convolved spectra given specifications in input parameter file and existing raw syntheses
 
     Args :
@@ -1344,6 +1345,9 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,teles
         ls () : lsf convolution kernel (?), if precomputed (default=None)
         apred (str) : name of reduction version to get LSF and WAVE from (default='r8')
         prefix (str) : string to prepend for input syntheses file, e.g. 'rbf_' to use rbf-filled grids (default='')
+        lsftype (str) : 'empirical' (default) to use measured, per-fiber/chip apLSF;
+                        'gaussian' to instead use constant resolving power LSF.
+                        If None, read from the planfile's lsftype entry if present (else 'empirical')
     """
 
     # Read planfile
@@ -1358,17 +1362,30 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,teles
     if isinstance(fiber,int): fiber= [fiber]
     if apred is None :apred = p['apred'] if p.get('apred') else 'r12'
     if telescope is None : telescope = p['telescope'] if p.get('telescope') else 'apo25m'
-    lsfid=int(p.get('lsfid'))
-    waveid=int(p.get('waveid'))
     vmacrofit = int(p['vmacrofit']) if p.get('vmacrofit') else 0
     vmacro_arr=p['vmacro']
     kernel=p['kernel'] if p.get('kernel') else 'rot'
 
-    if ls is None :
-        x, ls = getlsf(lsfid,waveid,apred=apred,telescope=telescope,fiber=fiber,highres=highres)
-    else :
-        x = ls[0]
-        ls = ls[1]
+    if lsftype is None : lsftype = p['lsftype'] if p.get('lsftype') else 'empirical'
+    if p.get('R') : R = float(p['R'])
+
+    if lsftype == 'gaussian':
+        # this is constant R Gaussian LSF
+        lsfid = None
+        waveid = None
+        if ls is None:
+            x, ls = lsf.get_gaussian(R=R, highres=highres)
+        else:
+            x = x[0]
+            ls = ls[1]
+    else:
+        lsfid=int(p.get('lsfid'))
+        waveid=int(p.get('waveid'))
+        if ls is None :
+            x, ls = getlsf(lsfid,waveid,apred=apred,telescope=telescope,fiber=fiber,highres=highres)
+        else :
+            x = ls[0]
+            ls = ls[1]
 
     # read in raw spectra, from RBF interpolated if we have it
     if prefix is None :  

@@ -1395,9 +1395,11 @@ def mkgridlsf(planfile,highres=9,fiber=None,ls=None,apred=None,prefix=None,teles
     # get the synthesis
     # for regular grids, we just want to process the first extension,
     # for minigrids, we want to process all except the last (which is the normalized synthesis)
+    # (grids that never went through RBF filling/minigrid combination have only
+    # the single spectral extension, with no trailing extension to drop)
     print(specdir+'/'+prefix+p['name']+'.fits')
     speclist = fits.open(specdir+'/'+prefix+p['name']+'.fits')
-    nexten = len(speclist) - 1
+    nexten = len(speclist) - 1 if len(speclist) > 1 else 1
 
     hdulist=fits.HDUList()
     for exten in range(nexten) :
